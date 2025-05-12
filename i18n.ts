@@ -25,9 +25,6 @@ const initI18n = async () => {
       },
     });
 
-  console.log("i18n inicializado exitosamente");
-  console.log("Idioma actual:", i18next.language);
-  console.log("Ejemplo de traducción:", i18next.t('tapAnywhere'));
   
   return i18next;
 };

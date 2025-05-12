@@ -13,6 +13,7 @@ const StyledView = styled(View)
 const StyledText = styled(Text)
 const StyledTouchableOpacity = styled(TouchableOpacity)
 const StyledScrollView = styled(ScrollView)
+const StyledBlurView = styled(BlurView) // Añadimos un componente estilizado para BlurView
 
 interface UserProfile {
   id: string
@@ -88,7 +89,6 @@ export default function Profile() {
 
   return (
     <StyledScrollView className="flex-1">
-      
       <StyledView className="p-4">
         {/* Profile Header */}
         <StyledView className="items-center mb-6">
@@ -106,22 +106,24 @@ export default function Profile() {
         </StyledView>
 
         {/* Stats */}
-        <BlurView intensity={20} tint="dark" className="rounded-xl mb-6">
-          <StyledView className="flex-row justify-around p-4">
-            <StyledView className="items-center">
-              <StyledText className="text-white text-lg font-bold">{stats?.tricks_created || 0}</StyledText>
-              <StyledText className="text-gray-400">{t("tricksCreated")}</StyledText>
+        <StyledView className="rounded-xl mb-6 overflow-hidden">
+          <StyledBlurView intensity={20} tint="dark" className="rounded-xl">
+            <StyledView className="flex-row justify-around p-4">
+              <StyledView className="items-center">
+                <StyledText className="text-white text-lg font-bold">{stats?.tricks_created || 0}</StyledText>
+                <StyledText className="text-gray-400">{t("tricksCreated")}</StyledText>
+              </StyledView>
+              <StyledView className="items-center">
+                <StyledText className="text-white text-lg font-bold">{stats?.tricks_viewed || 0}</StyledText>
+                <StyledText className="text-gray-400">{t("tricksViewed")}</StyledText>
+              </StyledView>
+              <StyledView className="items-center">
+                <StyledText className="text-white text-lg font-bold">{stats?.tricks_favorited || 0}</StyledText>
+                <StyledText className="text-gray-400">{t("tricksFavorited")}</StyledText>
+              </StyledView>
             </StyledView>
-            <StyledView className="items-center">
-              <StyledText className="text-white text-lg font-bold">{stats?.tricks_viewed || 0}</StyledText>
-              <StyledText className="text-gray-400">{t("tricksViewed")}</StyledText>
-            </StyledView>
-            <StyledView className="items-center">
-              <StyledText className="text-white text-lg font-bold">{stats?.tricks_favorited || 0}</StyledText>
-              <StyledText className="text-gray-400">{t("tricksFavorited")}</StyledText>
-            </StyledView>
-          </StyledView>
-        </BlurView>
+          </StyledBlurView>
+        </StyledView>
 
         {/* Actions */}
         <StyledView className="space-y-4">

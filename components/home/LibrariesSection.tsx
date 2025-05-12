@@ -5,30 +5,17 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   Modal,
   FlatList,
-  Animated,
   Dimensions,
   ScrollView,
   Platform,
   ActivityIndicator,
+  TextInput,
 } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import {
-  Plus,
-  Search,
-  SlidersHorizontal,
-  Book,
-  Eye,
-  Wand2,
-  Wrench,
-  FileText,
-  ChevronUp,
-  Trash2,
-  Edit,
-} from "lucide-react-native"
+import { Plus, Book, Eye, Wand2, Wrench, FileText, Trash2, Edit } from "lucide-react-native"
 import { BlurView } from "expo-blur"
 import { supabase } from "../../lib/supabase"
 import {
@@ -42,13 +29,13 @@ import {
 } from "../../utils/categoryService"
 import TrickViewScreen from "../TrickViewScreen"
 import { SafeAreaProvider } from "react-native-safe-area-context"
+import type { SearchFilters } from "./CompactSearchBar"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
 const StyledTouchableOpacity = styled(TouchableOpacity)
-const StyledTextInput = styled(TextInput)
-const StyledAnimatedView = styled(Animated.View)
 const StyledScrollView = styled(ScrollView)
+const StyledTextInput = styled(TextInput)
 
 const { width, height } = Dimensions.get("window")
 
@@ -64,6 +51,8 @@ interface LibraryItem {
   status?: string
   created_at?: string
   duration?: number
+  category_id?: string
+  tags?: string[]
 }
 
 interface CategorySection {
@@ -72,13 +61,12 @@ interface CategorySection {
 }
 
 interface LibrariesSectionProps {
-  scrollY: Animated.Value
-  onSwipeUp?: () => void
+  searchQuery?: string
+  searchFilters?: SearchFilters
 }
 
-export default function LibrariesSection({ scrollY, onSwipeUp }: LibrariesSectionProps) {
+export default function LibrariesSection({ searchQuery = "", searchFilters }: LibrariesSectionProps) {
   const { t } = useTranslation()
-  const [searchQuery, setSearchQuery] = useState("")
   const [isAddCategoryModalVisible, setAddCategoryModalVisible] = useState(false)
   const [isEditCategoryModalVisible, setEditCategoryModalVisible] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState("")
@@ -87,15 +75,8 @@ export default function LibrariesSection({ scrollY, onSwipeUp }: LibrariesSectio
   const [categories, setCategories] = useState<Category[]>([])
   const [categorySections, setCategorySections] = useState<CategorySection[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [selectedTrickData, setSelectedTrickData] = useState<any>(null)
-
-  // Animation values
-  const opacity = scrollY.interpolate({
-    inputRange: [0, 50, 100],
-    outputRange: [0, 0.5, 1],
-    extrapolate: "clamp",
-  })
+  const [allTricks, setAllTricks] = useState<LibraryItem[]>([])
 
   // Fetch user categories and tricks
   useEffect(() => {
@@ -120,8 +101,9 @@ export default function LibrariesSection({ scrollY, onSwipeUp }: LibrariesSectio
         const userCategories = await getUserCategories(user.id)
         setCategories(userCategories)
 
-        // Get tricks for each category
+        // Get tricks for each category and store all tricks in a flat array
         const sections: CategorySection[] = []
+        let allTricksArray: LibraryItem[] = []
 
         for (const category of userCategories) {
           const tricks = await getTricksByCategory(category.id)
@@ -135,15 +117,21 @@ export default function LibrariesSection({ scrollY, onSwipeUp }: LibrariesSectio
             status: trick.status,
             created_at: trick.created_at,
             duration: trick.duration,
+            category_id: category.id,
+            // We'll fetch tags separately if needed
           }))
 
           sections.push({
             category,
             items,
           })
+
+          // Add to all tricks array
+          allTricksArray = [...allTricksArray, ...items]
         }
 
         setCategorySections(sections)
+        setAllTricks(allTricksArray)
       } catch (error) {
         console.error("Error fetching categories:", error)
       } finally {
@@ -267,26 +255,82 @@ export default function LibrariesSection({ scrollY, onSwipeUp }: LibrariesSectio
     setEditCategoryModalVisible(true)
   }
 
-  // Filter categories and tricks based on search query
-  const filteredSections = categorySections.filter((section) => {
-    // If no search query, show all
-    if (!searchQuery.trim()) return true
+  // Determinar qué categorías mostrar basado en los filtros
+  const getVisibleCategories = () => {
+    // Si hay categorías seleccionadas en los filtros, solo mostrar esas
+    if (searchFilters?.categories.length) {
+      return categorySections.filter((section) => searchFilters.categories.includes(section.category.id))
+    }
 
-    const query = searchQuery.toLowerCase().trim()
+    // Si hay búsqueda de texto o filtros de dificultad/tags, filtrar las categorías
+    if (
+      searchQuery.trim() ||
+      (searchFilters && (searchFilters.difficulties.length > 0 || searchFilters.tags.length > 0))
+    ) {
+      return categorySections.filter((section) => {
+        const query = searchQuery.toLowerCase().trim()
 
-    // Check if category name matches
-    if (section.category.name.toLowerCase().includes(query)) return true
+        // Si el nombre de la categoría coincide con la búsqueda, mostrarla
+        if (query && section.category.name.toLowerCase().includes(query)) {
+          return true
+        }
 
-    // Check if any trick title matches
-    return section.items.some((item) => item.title.toLowerCase().includes(query))
-  })
+        // Si algún truco coincide con los criterios, mostrar la categoría
+        const hasMatchingTricks = section.items.some((item) => {
+          // Búsqueda de texto
+          const matchesText = query ? item.title.toLowerCase().includes(query) : true
+
+          // Filtro de dificultad
+          const matchesDifficulty = searchFilters?.difficulties.length
+            ? item.difficulty && searchFilters.difficulties.includes(item.difficulty)
+            : true
+
+          // Filtro de etiquetas (simplificado)
+          const matchesTags = searchFilters?.tags.length
+            ? true // Aquí se implementaría la lógica real de filtrado por etiquetas
+            : true
+
+          return matchesText && matchesDifficulty && matchesTags
+        })
+
+        return hasMatchingTricks
+      })
+    }
+
+    // Si no hay filtros, mostrar todas las categorías
+    return categorySections
+  }
 
   // Filter items within sections
   const getFilteredItems = (items: LibraryItem[]) => {
-    if (!searchQuery.trim()) return items
+    // Si no hay búsqueda ni filtros, mostrar todos los trucos
+    if (
+      !searchQuery.trim() &&
+      (!searchFilters ||
+        (searchFilters.categories.length === 0 &&
+          searchFilters.difficulties.length === 0 &&
+          searchFilters.tags.length === 0))
+    ) {
+      return items
+    }
 
-    const query = searchQuery.toLowerCase().trim()
-    return items.filter((item) => item.title.toLowerCase().includes(query))
+    return items.filter((item) => {
+      // Búsqueda de texto
+      const query = searchQuery.toLowerCase().trim()
+      const matchesText = query ? item.title.toLowerCase().includes(query) : true
+
+      // Filtro de dificultad
+      const matchesDifficulty = searchFilters?.difficulties.length
+        ? item.difficulty && searchFilters.difficulties.includes(item.difficulty)
+        : true
+
+      // Filtro de categoría - ya manejado a nivel de sección, pero incluido para completitud
+      const matchesCategory = searchFilters?.categories.length
+        ? item.category_id && searchFilters.categories.includes(item.category_id)
+        : true
+
+      return matchesText && matchesDifficulty && matchesCategory
+    })
   }
 
   // Get icon based on item type
@@ -375,20 +419,12 @@ export default function LibrariesSection({ scrollY, onSwipeUp }: LibrariesSectio
   const renderCategoryItem = ({ item }: { item: CategorySection }) => {
     const filteredItems = getFilteredItems(item.items)
 
-    if (
-      searchQuery.trim() &&
-      filteredItems.length === 0 &&
-      !item.category.name.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return null
-    }
-
     return (
       <StyledView className="mb-4">
         <StyledView className="flex-row justify-between items-center bg-white/10 p-3 rounded-lg mb-2">
           <StyledText className="text-white font-bold">{item.category.name}</StyledText>
           <StyledView className="flex-row items-center">
-            <StyledText className="text-white mr-2">{item.items.length}</StyledText>
+            <StyledText className="text-white mr-2">{filteredItems.length}</StyledText>
             <StyledView className="flex-row">
               <StyledTouchableOpacity onPress={() => openEditCategoryModal(item.category)} className="p-2">
                 <Edit size={16} color="white" />
@@ -428,35 +464,12 @@ export default function LibrariesSection({ scrollY, onSwipeUp }: LibrariesSectio
     )
   }
 
-  // Filter categories for the horizontal scroll
-  const handleCategoryFilter = (categoryId: string) => {
-    if (selectedCategoryId === categoryId) {
-      // If already selected, deselect it
-      setSelectedCategoryId(null)
-    } else {
-      // Otherwise, select it
-      setSelectedCategoryId(categoryId)
-    }
-  }
+  // Obtener las categorías visibles según los filtros
+  const visibleCategories = getVisibleCategories()
 
-  // Apply category filter
-  const filteredByCategorySections = selectedCategoryId
-    ? categorySections.filter((section) => section.category.id === selectedCategoryId)
-    : filteredSections
-
+  // Render libraries section
   return (
-    <StyledAnimatedView className="flex-1" style={{ opacity }}>
-      {/* Swipe Up Indicator */}
-      <StyledView className="items-center mb-4">
-        <StyledTouchableOpacity
-          className="bg-white/10 px-4 py-2 rounded-full flex-row items-center"
-          onPress={onSwipeUp}
-        >
-          <ChevronUp size={20} color="white" />
-          <StyledText className="text-white ml-2">{t("swipeUp", "Swipe up to hide")}</StyledText>
-        </StyledTouchableOpacity>
-      </StyledView>
-
+    <StyledView className="flex-1">
       {/* Libraries Header */}
       <StyledView className="flex-row justify-between items-center mb-4">
         <StyledView className="flex-row items-center">
@@ -474,46 +487,6 @@ export default function LibrariesSection({ scrollY, onSwipeUp }: LibrariesSectio
         </StyledTouchableOpacity>
       </StyledView>
 
-      {/* Search Bar */}
-      <StyledView className="flex-row mb-4">
-        <StyledView className="flex-1 overflow-hidden rounded-lg mr-2">
-          <BlurView intensity={20} tint="dark">
-            <StyledView className="flex-row items-center p-3">
-              <Search size={20} color="white" />
-              <StyledTextInput
-                className="text-white ml-2 flex-1"
-                placeholder={t("searchPlaceholder")}
-                placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-            </StyledView>
-          </BlurView>
-        </StyledView>
-
-        <StyledTouchableOpacity className="bg-white/20 p-3 rounded-lg">
-          <SlidersHorizontal size={24} color="white" />
-        </StyledTouchableOpacity>
-      </StyledView>
-
-      {/* Categories Filter */}
-      <StyledView className="mb-4">
-        <StyledText className="text-white mb-2">{t("categories")}</StyledText>
-        <StyledScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {categories.map((category) => (
-            <StyledTouchableOpacity
-              key={category.id}
-              className={`bg-white/10 px-4 py-2 rounded-full mr-2 ${
-                selectedCategoryId === category.id ? "bg-emerald-600" : "bg-white/10"
-              }`}
-              onPress={() => handleCategoryFilter(category.id)}
-            >
-              <StyledText className="text-white">{category.name}</StyledText>
-            </StyledTouchableOpacity>
-          ))}
-        </StyledScrollView>
-      </StyledView>
-
       {/* Loading indicator */}
       {loading ? (
         <StyledView className="flex-1 justify-center items-center">
@@ -522,7 +495,7 @@ export default function LibrariesSection({ scrollY, onSwipeUp }: LibrariesSectio
       ) : (
         /* Category Sections with bottom padding for navigation bar */
         <FlatList
-          data={filteredByCategorySections}
+          data={visibleCategories}
           renderItem={renderCategoryItem}
           keyExtractor={(item) => item.category.id}
           scrollEnabled={true}
@@ -532,18 +505,26 @@ export default function LibrariesSection({ scrollY, onSwipeUp }: LibrariesSectio
           ListEmptyComponent={
             <StyledView className="bg-white/5 p-6 rounded-lg items-center">
               <StyledText className="text-white/50 text-center text-lg mb-2">
-                {searchQuery.trim()
+                {searchQuery.trim() ||
+                (searchFilters &&
+                  (searchFilters.categories.length > 0 ||
+                    searchFilters.difficulties.length > 0 ||
+                    searchFilters.tags.length > 0))
                   ? t("noSearchResults", "No results found")
                   : t("noCategories", "No categories found")}
               </StyledText>
-              {!searchQuery.trim() && (
-                <StyledTouchableOpacity
-                  className="bg-emerald-700 px-4 py-2 rounded-lg mt-2"
-                  onPress={() => setAddCategoryModalVisible(true)}
-                >
-                  <StyledText className="text-white">{t("addCategory")}</StyledText>
-                </StyledTouchableOpacity>
-              )}
+              {!searchQuery.trim() &&
+                (!searchFilters ||
+                  (searchFilters.categories.length === 0 &&
+                    searchFilters.difficulties.length === 0 &&
+                    searchFilters.tags.length === 0)) && (
+                  <StyledTouchableOpacity
+                    className="bg-emerald-700 px-4 py-2 rounded-lg mt-2"
+                    onPress={() => setAddCategoryModalVisible(true)}
+                  >
+                    <StyledText className="text-white">{t("addCategory")}</StyledText>
+                  </StyledTouchableOpacity>
+                )}
             </StyledView>
           }
         />
@@ -561,25 +542,29 @@ export default function LibrariesSection({ scrollY, onSwipeUp }: LibrariesSectio
             <StyledText className="text-white text-xl font-bold mb-4">{t("addCategory")}</StyledText>
 
             <StyledView className="bg-gray-700 rounded-lg mb-4">
-              <StyledTextInput
-                className="text-white p-3"
-                placeholder={t("categoryName")}
-                placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                value={newCategoryName}
-                onChangeText={setNewCategoryName}
-              />
+              <BlurView intensity={20} tint="dark">
+                <StyledTextInput
+                  className="text-white p-3"
+                  placeholder={t("categoryName")}
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  value={newCategoryName}
+                  onChangeText={setNewCategoryName}
+                />
+              </BlurView>
             </StyledView>
 
             <StyledView className="bg-gray-700 rounded-lg mb-4">
-              <StyledTextInput
-                className="text-white p-3"
-                placeholder={t("description", "Description (optional)")}
-                placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                value={newCategoryDescription}
-                onChangeText={setNewCategoryDescription}
-                multiline
-                numberOfLines={3}
-              />
+              <BlurView intensity={20} tint="dark">
+                <StyledTextInput
+                  className="text-white p-3"
+                  placeholder={t("description", "Description (optional)")}
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  value={newCategoryDescription}
+                  onChangeText={setNewCategoryDescription}
+                  multiline
+                  numberOfLines={3}
+                />
+              </BlurView>
             </StyledView>
 
             <StyledView className="flex-row justify-end">
@@ -618,25 +603,29 @@ export default function LibrariesSection({ scrollY, onSwipeUp }: LibrariesSectio
             <StyledText className="text-white text-xl font-bold mb-4">{t("editCategory", "Edit Category")}</StyledText>
 
             <StyledView className="bg-gray-700 rounded-lg mb-4">
-              <StyledTextInput
-                className="text-white p-3"
-                placeholder={t("categoryName")}
-                placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                value={newCategoryName}
-                onChangeText={setNewCategoryName}
-              />
+              <BlurView intensity={20} tint="dark">
+                <StyledTextInput
+                  className="text-white p-3"
+                  placeholder={t("categoryName")}
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  value={newCategoryName}
+                  onChangeText={setNewCategoryName}
+                />
+              </BlurView>
             </StyledView>
 
             <StyledView className="bg-gray-700 rounded-lg mb-4">
-              <StyledTextInput
-                className="text-white p-3"
-                placeholder={t("description", "Description (optional)")}
-                placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                value={newCategoryDescription}
-                onChangeText={setNewCategoryDescription}
-                multiline
-                numberOfLines={3}
-              />
+              <BlurView intensity={20} tint="dark">
+                <StyledTextInput
+                  className="text-white p-3"
+                  placeholder={t("description", "Description (optional)")}
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  value={newCategoryDescription}
+                  onChangeText={setNewCategoryDescription}
+                  multiline
+                  numberOfLines={3}
+                />
+              </BlurView>
             </StyledView>
 
             <StyledView className="flex-row justify-end">
@@ -678,7 +667,7 @@ export default function LibrariesSection({ scrollY, onSwipeUp }: LibrariesSectio
           </SafeAreaProvider>
         </Modal>
       )}
-    </StyledAnimatedView>
+    </StyledView>
   )
 }
 

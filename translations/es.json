@@ -31,12 +31,13 @@
   "search": "Buscar",
   "searchPlaceholder": "Buscar trucos, técnicas...",
   "filters": "Filtros",
+  "hideFilters": "Ocultar filtros",
   "addCategory": "Añadir Categoría",
   "categoryName": "Nombre de Categoría",
   "cancel": "Cancelar",
   "add": "Añadir",
-  "swipeDown": "Desliza hacia abajo para ver bibliotecas",
-  "swipeUp": "Desliza hacia arriba para ocultar",
+  "swipeDown": "Desliza hacia abajo para buscar",
+  "hideSearch": "Ocultar buscador",
   "noLibraries": "No se encontraron bibliotecas",
   "librariesCount": "{{count}} Bibliotecas",
   "myTricks": "Mis Trucos",
@@ -131,17 +132,7 @@
   "no": "No",
   "noVideoAvailable": "No hay video disponible",
   "noPhotosAvailable": "No hay fotos disponibles",
-  "permissionRequired": "Permiso Requerido",
-  "mediaLibraryPermission": "Necesitamos acceso a tu biblioteca multimedia para subir archivos.",
-  "ok": "Aceptar",
-  "fileTooLarge": "Archivo Demasiado Grande",
-  "fileSizeWarning": "El archivo seleccionado es demasiado grande. Por favor, selecciona un archivo más pequeño o usa la opción de subida externa.",
-  "uploadError": "Error de Subida",
-  "fileReadError": "Error de Lectura",
-  "couldNotReadFile": "No se pudo leer el archivo. Por favor, intenta con un archivo diferente.",
-  "generalUploadError": "Hubo un error al subir el archivo. Por favor, inténtalo de nuevo.",
-
-  "videoLargeWarning": "El video es bastante grande. Para un mejor rendimiento, considera usar la opción de subida manual.",
-  "manualUpload": "Subir Manualmente",
-  "continueAnyway": "Continuar de todos modos"
+  "activeFilters": "Filtros Activos",
+  "clearAll": "Limpiar Todo"
 }
+

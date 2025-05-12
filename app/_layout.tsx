@@ -25,6 +25,14 @@ export default function AuthLayout() {
           <Stack
             screenOptions={{
               headerShown: false,
+              // Aplicar la fuente Outfit a todos los textos de la navegación
+              headerTitleStyle: {
+                fontFamily: "Outfit_400Regular",
+              },
+              // Usar headerLargeTitleStyle para el estilo del título grande
+              headerLargeTitleStyle: {
+                fontFamily: "Outfit_700Bold",
+              },
             }}
           >
             <Stack.Screen name="login" />

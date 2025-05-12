@@ -1,20 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { View, Text, TextInput, TouchableOpacity, Image, Alert, Platform, ActivityIndicator, Linking } from "react-native"
+import { useState } from "react"
+import { View, Text, TextInput, TouchableOpacity, Image, Alert, Platform } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { Camera, FileText, ExternalLink } from "lucide-react-native"
+import { Camera, FileText } from "lucide-react-native"
 import { BlurView } from "expo-blur"
 import type { MagicTrick } from "../AddMagicWizard"
 import * as ImagePicker from "expo-image-picker"
 import { supabase } from "../../../lib/supabase"
-import { 
-  requestMediaLibraryPermissions, 
-  getFileInfo, 
-  createPresignedUrl, 
-  uploadFileToStorage
-} from "../../../utils/mediaUtils"
+import * as FileSystem from "expo-file-system"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -29,237 +24,149 @@ interface StepProps {
 export default function ExtrasStep({ trickData, updateTrickData }: StepProps) {
   const { t } = useTranslation()
   const [uploading, setUploading] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
-  
-  // Obtener el ID del usuario al cargar
-  useEffect(() => {
-    const getUserId = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        setUserId(data.user.id);
-      }
-    };
-    
-    getUserId();
-  }, []);
 
-  // Elegir entre opciones
-  const showPhotoOptions = async () => {
-    if (!userId) {
-      Alert.alert("Error", "No se pudo identificar el usuario. Por favor, inicia sesión nuevamente.");
-      return;
+  // Solicitar permisos
+  const requestMediaLibraryPermissions = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (status !== "granted") {
+        Alert.alert(
+          t("permissionRequired", "Permission Required"),
+          t("mediaLibraryPermission", "We need access to your media library to upload photos."),
+          [{ text: t("ok", "OK") }],
+        )
+        return false
+      }
+      return true
+    } catch (error) {
+      console.error("Error requesting permissions:", error)
+      return false
     }
-    
-    Alert.alert(
-      "Agregar Foto",
-      "Elige una opción:",
-      [
-        {
-          text: "Seleccionar Foto",
-          onPress: () => pickImage()
-        },
-        {
-          text: "Subir Manualmente (mejor calidad)",
-          onPress: () => handleManualUpload()
-        },
-        {
-          text: "Cancelar",
-          style: "cancel"
-        }
-      ]
-    );
   }
 
-  // Manejar la subida manual
-  const handleManualUpload = async () => {
-    if (!userId) {
-      Alert.alert("Error", "No se pudo identificar el usuario.");
-      return;
-    }
-
-    setUploading(true);
-    
-    try {
-      const result = await createPresignedUrl(userId, "trick_photos", "jpg");
-      
-      if (!result) {
-        Alert.alert("Error", "No se pudo crear una URL para subida. Intenta más tarde.");
-        setUploading(false);
-        return;
-      }
-      
-      // Almacenar URL para referencia posterior
-      updateTrickData({ photo_temp_path: result.fileUrl });
-      
-      // Mostrar instrucciones
-      Alert.alert(
-        "Subida Manual",
-        "Vamos a abrir un navegador donde podrás subir la imagen con mejor calidad.\n\n" +
-        "1. Selecciona el archivo en tu dispositivo\n" +
-        "2. Espera a que se complete la subida\n" +
-        "3. Regresa a la app y confirma",
-        [
-          {
-            text: "Cancelar",
-            style: "cancel",
-            onPress: () => {
-              updateTrickData({ photo_temp_path: null });
-              setUploading(false);
-            }
-          },
-          {
-            text: "Abrir Navegador",
-            onPress: async () => {
-              // Abrir URL en navegador
-              await Linking.openURL(result.signedUrl);
-              
-              // Cuando el usuario regrese, preguntar si la subida fue exitosa
-              setTimeout(() => {
-                setUploading(false);
-                
-                Alert.alert(
-                  "¿Completaste la subida?",
-                  "¿Has subido la imagen correctamente?",
-                  [
-                    {
-                      text: "No, cancelar",
-                      style: "cancel",
-                      onPress: () => updateTrickData({ photo_temp_path: null })
-                    },
-                    {
-                      text: "Sí, completado",
-                      onPress: () => {
-                        // Actualizar con la URL real
-                        if (trickData.photo_temp_path) {
-                          updateTrickData({ 
-                            photo_url: trickData.photo_temp_path,
-                            photo_temp_path: null 
-                          });
-                        }
-                      }
-                    }
-                  ]
-                );
-              }, 1000);
-            }
-          }
-        ]
-      );
-    } catch (error) {
-      console.error("Error en handleManualUpload:", error);
-      Alert.alert("Error", "No se pudo iniciar el proceso de subida.");
-      setUploading(false);
-    }
-  };
-
-  // Seleccionar imagen
+  // Seleccionar foto
   const pickImage = async () => {
     try {
-      const hasPermission = await requestMediaLibraryPermissions("image", t);
-      if (!hasPermission) return;
+      // Solicitar permisos primero
+      const hasPermission = await requestMediaLibraryPermissions()
+      if (!hasPermission) return
 
       const options: ImagePicker.ImagePickerOptions = {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 0.7,
-        aspect: [4, 3] as [number, number]
-      };
+        aspect: [4, 3] as [number, number], // Especificar como tupla de 2 elementos
+      }
 
-      const result = await ImagePicker.launchImageLibraryAsync(options);
+      const result = await ImagePicker.launchImageLibraryAsync(options)
+
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        processImageForUpload(result.assets[0].uri);
-      }
-    } catch (error) {
-      console.error("Error seleccionando imagen:", error);
-      Alert.alert("Error", "No se pudo seleccionar la imagen.");
-    }
-  };
+        const uri = result.assets[0].uri
 
-  // Procesar imagen para subida
-  const processImageForUpload = async (uri: string) => {
-    if (!userId) {
-      Alert.alert("Error", "No se pudo identificar el usuario.");
-      return;
-    }
+        // Verificar tamaño del archivo
+        try {
+          const fileInfo = await FileSystem.getInfoAsync(uri)
+          console.log("File info:", fileInfo)
 
-    try {
-      setUploading(true);
-      
-      // Verificar tamaño
-      const fileInfo = await getFileInfo(uri);
-      
-      // Verificar tamaño máximo y advertir
-      if (fileInfo.size > 3) {
-        Alert.alert(
-          "Imagen demasiado grande",
-          `La imagen tiene ${fileInfo.size.toFixed(1)}MB. ¿Deseas continuar o prefieres usar la opción "Subir Manualmente"?`,
-          [
-            {
-              text: "Subir Manualmente",
-              onPress: () => {
-                setUploading(false);
-                handleManualUpload();
-              }
-            },
-            {
-              text: "Continuar",
-              onPress: () => uploadImageDirectly(uri)
-            },
-            {
-              text: "Cancelar",
-              style: "cancel",
-              onPress: () => setUploading(false)
+          // Verificar si el archivo existe y tiene tamaño
+          if (fileInfo.exists && "size" in fileInfo) {
+            console.log("File size:", fileInfo.size)
+
+            // Si el archivo es mayor a 10MB, mostrar advertencia
+            if (fileInfo.size > 10 * 1024 * 1024) {
+              Alert.alert(
+                t("fileTooLarge", "File Too Large"),
+                t("imageSizeWarning", "The selected image is too large. Please select a smaller image."),
+                [{ text: t("ok", "OK") }],
+              )
+              return
             }
-          ]
-        );
-        return;
+          }
+        } catch (error) {
+          console.error("Error checking file size:", error)
+        }
+
+        await uploadImage(uri)
       }
-      
-      // Si el archivo es pequeño, continuar con la subida
-      await uploadImageDirectly(uri);
     } catch (error) {
-      console.error("Error procesando imagen:", error);
-      Alert.alert("Error", "No se pudo procesar la imagen.");
-      setUploading(false);
+      console.error("Error picking image:", error)
+      Alert.alert(
+        t("error", "Error"),
+        t("imagePickError", "There was an error selecting the image. Please try again."),
+        [{ text: t("ok", "OK") }],
+      )
     }
-  };
+  }
 
-  // Método de subida directa
-  const uploadImageDirectly = async (uri: string) => {
-    if (!userId) {
-      setUploading(false);
-      return;
-    }
-
+  // Subir imagen a Supabase Storage
+  const uploadImage = async (uri: string) => {
     try {
-      // Obtener extensión del archivo
-      const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
-      
-      const publicUrl = await uploadFileToStorage(
-        uri,
-        userId,
-        "trick_photos",
-        mimeType,
-        `photo.${extension}`
-      );
+      setUploading(true)
 
-      if (!publicUrl) {
-        Alert.alert("Error de subida", "No se pudo subir la imagen. Intenta usar la opción 'Subir Manualmente'.");
-        return;
+      // Obtener el nombre del archivo
+      const fileName = uri.split("/").pop() || ""
+      const fileExt = fileName.split(".").pop()?.toLowerCase() || "jpg"
+      const filePathString = `trick_photos/${Date.now()}.${fileExt}`
+
+      // En iOS, usamos FileSystem para leer el archivo en lugar de fetch/blob
+      if (Platform.OS === "ios") {
+        try {
+          const fileContent = await FileSystem.readAsStringAsync(uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          })
+
+          const { data, error } = await supabase.storage.from("magic_trick_media").upload(filePathString, fileContent, {
+            contentType: `image/${fileExt}`,
+            upsert: true,
+          })
+
+          if (error) {
+            console.error("Error uploading image:", error)
+            Alert.alert(t("uploadError", "Upload Error"), error.message)
+            return
+          }
+
+          // Obtener URL pública
+          const { data: publicURL } = supabase.storage.from("magic_trick_media").getPublicUrl(filePathString)
+
+          // Actualizar datos del truco
+          updateTrickData({ photo_url: publicURL.publicUrl })
+        } catch (error) {
+          console.error("Error reading file:", error)
+          Alert.alert(
+            t("fileReadError", "File Read Error"),
+            t("couldNotReadFile", "Could not read the image file. Please try again with a different image."),
+          )
+        }
+      } else {
+        // Para Android, seguimos usando el método anterior
+        const response = await fetch(uri)
+        const blob = await response.blob()
+
+        const { data, error } = await supabase.storage.from("magic_trick_media").upload(filePathString, blob)
+
+        if (error) {
+          console.error("Error uploading image:", error)
+          Alert.alert(t("uploadError", "Upload Error"), error.message)
+          return
+        }
+
+        // Obtener URL pública
+        const { data: publicURL } = supabase.storage.from("magic_trick_media").getPublicUrl(filePathString)
+
+        // Actualizar datos del truco
+        updateTrickData({ photo_url: publicURL.publicUrl })
       }
-      
-      // Actualizar datos
-      updateTrickData({ photo_url: publicUrl });
-      
-      Alert.alert("Éxito", "Imagen subida correctamente");
     } catch (error) {
-      console.error("Error en uploadImageDirectly:", error);
-      Alert.alert("Error", "No se pudo completar la subida. Intenta con la opción 'Subir Manualmente'.");
+      console.error("Error in upload process:", error)
+      Alert.alert(
+        t("uploadError", "Upload Error"),
+        t("generalUploadError", "There was an error uploading the image. Please try again."),
+      )
     } finally {
-      setUploading(false);
+      setUploading(false)
     }
-  };
+  }
 
   return (
     <StyledView className="flex-1">
@@ -326,68 +233,16 @@ export default function ExtrasStep({ trickData, updateTrickData }: StepProps) {
             </StyledTouchableOpacity>
           </StyledView>
         ) : (
-          <StyledView>
-            {trickData.photo_temp_path ? (
-              <StyledView className="bg-white/10 rounded-lg p-4">
-                <StyledText className="text-white mb-2">Subida manual en proceso</StyledText>
-                <StyledView className="flex-row mt-2">
-                  <StyledTouchableOpacity
-                    onPress={() => updateTrickData({ photo_temp_path: null })}
-                    className="bg-red-600 py-2 px-4 rounded-lg mr-4"
-                  >
-                    <StyledText className="text-white">Cancelar</StyledText>
-                  </StyledTouchableOpacity>
-                  
-                  <StyledTouchableOpacity
-                    onPress={() => {
-                      if (trickData.photo_temp_path) {
-                        updateTrickData({ 
-                          photo_url: trickData.photo_temp_path,
-                          photo_temp_path: null 
-                        });
-                      }
-                    }}
-                    className="bg-emerald-600 py-2 px-4 rounded-lg"
-                  >
-                    <StyledText className="text-white">Confirmar Subida</StyledText>
-                  </StyledTouchableOpacity>
-                </StyledView>
-              </StyledView>
-            ) : (
-              <>
-                <StyledView className="flex-row space-x-2 mb-2">
-                  <StyledTouchableOpacity
-                    onPress={pickImage}
-                    disabled={uploading}
-                    className="bg-emerald-700 p-4 rounded-lg flex-1 flex-row items-center justify-center"
-                  >
-                    {uploading ? (
-                      <ActivityIndicator color="white" size="small" style={{marginRight: 8}} />
-                    ) : (
-                      <Camera size={24} color="white" />
-                    )}
-                    <StyledText className="text-white ml-2">
-                      {uploading ? "Subiendo..." : t("uploadPhoto", "Upload Photo")}
-                    </StyledText>
-                  </StyledTouchableOpacity>
-                  
-                  <StyledTouchableOpacity
-                    onPress={handleManualUpload}
-                    disabled={uploading}
-                    className="bg-blue-700 p-4 rounded-lg flex-row items-center justify-center"
-                  >
-                    <ExternalLink size={22} color="white" />
-                    <StyledText className="text-white ml-2">
-                      Subida Externa
-                    </StyledText>
-                  </StyledTouchableOpacity>
-                </StyledView>
-                <StyledText className="text-white/70 text-center text-xs">
-                  ℹ️ Para fotos de alta calidad, usa la opción "Subida Externa"
-                </StyledText>
-              </>
-            )}
-          </StyledView>
+          <StyledTouchableOpacity
+            onPress={pickImage}
+            disabled={uploading}
+            className="bg-emerald-700 p-4 rounded-lg flex-row items-center justify-center"
+          >
+            <Camera size={24} color="white" />
+            <StyledText className="text-white ml-2">
+              {uploading ? t("uploading", "Uploading...") : t("uploadPhoto", "Upload Photo")}
+            </StyledText>
+          </StyledTouchableOpacity>
         )}
       </StyledView>
 
@@ -400,3 +255,4 @@ export default function ExtrasStep({ trickData, updateTrickData }: StepProps) {
     </StyledView>
   )
 }
+

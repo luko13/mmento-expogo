@@ -22,12 +22,11 @@ export interface MagicTrick {
   title: string
   categories: string[]
   tags: string[]
-  selectedCategoryId: string | null
+  selectedCategoryId: string | null // Add this line
 
   // Paso 2: Efecto
   effect: string
   effect_video_url: string | null
-  effect_video_temp_path: string | null 
   angles: string[]
   duration: number | null
   reset: number | null
@@ -36,14 +35,12 @@ export interface MagicTrick {
   // Paso 3: Secreto
   secret: string
   secret_video_url: string | null
-  secret_video_temp_path: string | null 
   special_materials: string[]
 
   // Paso 4: Extras
   notes: string
   script: string
   photo_url: string | null
-  photo_temp_path: string | null
 }
 
 // Props para el componente
@@ -60,24 +57,21 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
   // Estado inicial del truco
   const [trickData, setTrickData] = useState<MagicTrick>({
     title: "",
-  categories: [],
-  tags: [],
-  selectedCategoryId: null,
-  effect: "",
-  effect_video_url: null,
-  effect_video_temp_path: null, 
-  angles: [],
-  duration: null,
-  reset: null,
-  difficulty: null,
-  secret: "",
-  secret_video_url: null,
-  secret_video_temp_path: null,
-  special_materials: [],
-  notes: "",
-  script: "",
-  photo_url: null,
-  photo_temp_path: null,
+    categories: [],
+    tags: [],
+    selectedCategoryId: null,
+    effect: "",
+    effect_video_url: null,
+    angles: [],
+    duration: null,
+    reset: null,
+    difficulty: null,
+    secret: "",
+    secret_video_url: null,
+    special_materials: [],
+    notes: "",
+    script: "",
+    photo_url: null,
   })
 
   // Actualizar datos del truco

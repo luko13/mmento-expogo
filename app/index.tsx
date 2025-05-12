@@ -15,7 +15,6 @@ const { width, height } = Dimensions.get("window")
 export default function Home() {
   const { t, i18n } = useTranslation()
 
-  console.log("Home - Idioma:", i18n.language)
 
   const handlePress = async () => {
     const hasSession = await checkSession()

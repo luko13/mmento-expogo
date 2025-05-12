@@ -1,5 +1,6 @@
 {
     "i18n-ally.localesPaths": [
         "E:/ProyectosProgramacion/mmento/translations"
-    ]
+    ],
+    "i18n-ally.keystyle": "nested"
 }

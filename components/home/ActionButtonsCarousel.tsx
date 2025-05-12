@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-import { useRef, useEffect } from "react"
-import { View, Text, TouchableOpacity, ScrollView, Dimensions } from "react-native"
+import { useState, useRef, useEffect } from "react"
+import { View, Text, TouchableOpacity, FlatList, Dimensions } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
 import { Plus, Star, FileText, Wrench, Zap } from "lucide-react-native"
@@ -12,12 +12,12 @@ import { useRouter } from "expo-router"
 const StyledView = styled(View)
 const StyledText = styled(Text)
 const StyledTouchableOpacity = styled(TouchableOpacity)
-const StyledScrollView = styled(ScrollView)
 
 const { width } = Dimensions.get("window")
-const BUTTON_SIZE = width * 0.28 // Square buttons, approximately 28% of screen width
+const BUTTON_SIZE = width * 0.28
 const BUTTON_MARGIN = 10
-const VISIBLE_BUTTONS = 3 // Number of buttons visible at once
+const ITEM_WIDTH = BUTTON_SIZE + (BUTTON_MARGIN * 2)
+const VISIBLE_BUTTONS = 3
 
 interface ActionButtonProps {
   icon: React.ElementType
@@ -28,6 +28,7 @@ interface ActionButtonProps {
 const ActionButton = ({ icon: Icon, title, onPress }: ActionButtonProps) => (
   <StyledTouchableOpacity
     onPress={onPress}
+    activeOpacity={0.7}
     style={{
       width: BUTTON_SIZE,
       height: BUTTON_SIZE,
@@ -50,87 +51,144 @@ const ActionButton = ({ icon: Icon, title, onPress }: ActionButtonProps) => (
 export default function ActionButtonsCarousel() {
   const { t } = useTranslation()
   const router = useRouter()
-  const scrollViewRef = useRef<ScrollView>(null)
+  const flatListRef = useRef<FlatList>(null)
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isAutoScrolling, setIsAutoScrolling] = useState(true)
+  const [isTouching, setIsTouching] = useState(false)
+  const autoScrollTimer = useRef<NodeJS.Timeout | null>(null)
 
   const buttons = [
-    { icon: Plus, title: t("addMagic"), onPress: () => router.push("/(app)/add-magic") },
-    { icon: Star, title: t("quickMagic"), onPress: () => console.log("Quick Magic pressed") },
-    { icon: Zap, title: t("addTechnique"), onPress: () => console.log("Add Technique pressed") },
-    { icon: Wrench, title: t("addGimmick"), onPress: () => console.log("Add Gimmick pressed") },
-    { icon: FileText, title: t("addScript"), onPress: () => console.log("Add Script pressed") },
+    { id: '1', icon: Plus, title: t("addMagic"), onPress: () => router.push("/(app)/add-magic") },
+    { id: '2', icon: Star, title: t("quickMagic"), onPress: () => console.log("Quick Magic pressed") },
+    { id: '3', icon: Zap, title: t("addTechnique"), onPress: () => console.log("Add Technique pressed") },
+    { id: '4', icon: Wrench, title: t("addGimmick"), onPress: () => console.log("Add Gimmick pressed") },
+    { id: '5', icon: FileText, title: t("addScript"), onPress: () => console.log("Add Script pressed") },
   ]
 
-  // Clone the first few buttons to the end for infinite scrolling effect
-  const extendedButtons = [...buttons, ...buttons.slice(0, VISIBLE_BUTTONS)]
+  // Creamos una lista extendida para el efecto de scrolling infinito
+  const extendedButtons = [
+    ...buttons.map(item => ({ ...item, id: `pre-${item.id}` })),
+    ...buttons,
+    ...buttons.map(item => ({ ...item, id: `post-${item.id}` })),
+  ]
 
-  // Auto scroll for infinite effect
+  // Inicializar en el punto medio para permitir scroll en ambas direcciones
   useEffect(() => {
-    let scrollInterval: NodeJS.Timeout
+    // Pequeño retraso para asegurar que FlatList se ha renderizado correctamente
+    const timer = setTimeout(() => {
+      flatListRef.current?.scrollToIndex({
+        index: buttons.length,
+        animated: false
+      });
+    }, 100);
 
-    const startAutoScroll = () => {
-      let position = 0
+    return () => clearTimeout(timer);
+  }, []);
 
-      scrollInterval = setInterval(() => {
-        position += BUTTON_SIZE + BUTTON_MARGIN * 2
-
-        // Reset position when we reach the end of original buttons
-        if (position >= (BUTTON_SIZE + BUTTON_MARGIN * 2) * buttons.length) {
-          position = 0
-          // Scroll to start without animation
-          scrollViewRef.current?.scrollTo({ x: 0, animated: false })
-        } else {
-          // Smooth scroll to next position
-          scrollViewRef.current?.scrollTo({ x: position, animated: true })
-        }
-      }, 5000) // Scroll every 5 seconds
+  const startAutoScroll = () => {
+    if (!isAutoScrolling || isTouching) return;
+    
+    if (autoScrollTimer.current) {
+      clearTimeout(autoScrollTimer.current);
     }
+    
+    autoScrollTimer.current = setTimeout(() => {
+      const nextIndex = (currentIndex + 1) % buttons.length + buttons.length;
+      
+      flatListRef.current?.scrollToIndex({
+        index: nextIndex,
+        animated: true,
+        viewPosition: 0.5
+      });
+      
+      startAutoScroll();
+    }, 5000);
+  };
 
-    // Start auto-scrolling after a delay
-    const timer = setTimeout(startAutoScroll, 2000)
+  useEffect(() => {
+    // Iniciar el auto scroll después de un breve retraso inicial
+    const initialTimer = setTimeout(() => {
+      startAutoScroll();
+    }, 2000);
 
     return () => {
-      clearTimeout(timer)
-      clearInterval(scrollInterval)
-    }
-  }, [buttons.length])
+      clearTimeout(initialTimer);
+      if (autoScrollTimer.current) {
+        clearTimeout(autoScrollTimer.current);
+      }
+    };
+  }, [currentIndex, isAutoScrolling, isTouching]);
 
-  // Handle scroll end to create infinite loop effect
+  const handleScroll = (event: any) => {
+    // Calcular el índice actual basado en la posición del scroll
+    const contentOffsetX = event.nativeEvent.contentOffset.x;
+    const newIndex = Math.round(contentOffsetX / ITEM_WIDTH);
+    
+    // Ajustar el índice para el conjunto central de botones
+    const adjustedIndex = newIndex % buttons.length;
+    
+    if (adjustedIndex !== currentIndex % buttons.length) {
+      setCurrentIndex(newIndex);
+    }
+  };
+
   const handleScrollEnd = (event: any) => {
-    const offsetX = event.nativeEvent.contentOffset.x
-    const contentWidth = (BUTTON_SIZE + BUTTON_MARGIN * 2) * buttons.length
-
-    // If we've scrolled past the original buttons, jump back to the beginning
-    if (offsetX >= contentWidth) {
-      scrollViewRef.current?.scrollTo({ x: offsetX % contentWidth, animated: false })
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const totalWidth = ITEM_WIDTH * (buttons.length * 3);
+    
+    // Si llegamos al principio o al final, saltamos al conjunto del medio
+    if (offsetX < ITEM_WIDTH * buttons.length) {
+      // Si estamos en el primer conjunto, saltamos al segundo
+      flatListRef.current?.scrollToIndex({
+        index: offsetX / ITEM_WIDTH + buttons.length,
+        animated: false
+      });
+    } else if (offsetX >= ITEM_WIDTH * (buttons.length * 2)) {
+      // Si estamos en el tercer conjunto, saltamos al segundo
+      flatListRef.current?.scrollToIndex({
+        index: (offsetX / ITEM_WIDTH) - buttons.length,
+        animated: false
+      });
     }
-    // If we've scrolled to the beginning, jump to the end
-    else if (offsetX <= 0) {
-      scrollViewRef.current?.scrollTo({ x: contentWidth, animated: false })
-    }
-  }
+    
+    // Reanudar auto scroll después de que el usuario termine de interactuar
+    setIsTouching(false);
+  };
 
   return (
     <StyledView className="mb-6">
-      <StyledScrollView
-        ref={scrollViewRef}
+      <FlatList
+        ref={flatListRef}
+        data={extendedButtons}
         horizontal
         showsHorizontalScrollIndicator={false}
         decelerationRate="fast"
-        snapToInterval={BUTTON_SIZE + BUTTON_MARGIN * 2}
+        snapToInterval={ITEM_WIDTH}
         snapToAlignment="center"
+        onScroll={handleScroll}
+        onScrollBeginDrag={() => {
+          setIsTouching(true);
+          setIsAutoScrolling(false);
+        }}
         onMomentumScrollEnd={handleScrollEnd}
+        onScrollEndDrag={() => {
+          setIsAutoScrolling(true);
+        }}
         contentContainerStyle={{ paddingHorizontal: BUTTON_MARGIN }}
-      >
-        {extendedButtons.map((button, index) => (
+        keyExtractor={(item) => item.id}
+        getItemLayout={(data, index) => ({
+          length: ITEM_WIDTH,
+          offset: ITEM_WIDTH * index,
+          index,
+        })}
+        renderItem={({ item }) => (
           <ActionButton
-            key={`${button.title}-${index}`}
-            icon={button.icon}
-            title={button.title}
-            onPress={button.onPress}
+            icon={item.icon}
+            title={item.title}
+            onPress={item.onPress}
           />
-        ))}
-      </StyledScrollView>
+        )}
+      />
     </StyledView>
   )
 }
-
