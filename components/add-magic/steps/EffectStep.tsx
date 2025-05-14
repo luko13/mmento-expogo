@@ -4,7 +4,7 @@ import { useState } from "react"
 import { View, Text, TextInput, TouchableOpacity, Alert, Platform } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { Video, Clock, RefreshCw, BarChart3 } from "lucide-react-native"
+import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons"
 import { BlurView } from "expo-blur"
 import type { MagicTrick } from "../AddMagicWizard"
 import * as ImagePicker from "expo-image-picker"
@@ -245,7 +245,7 @@ export default function EffectStep({ trickData, updateTrickData }: StepProps) {
             disabled={uploading}
             className="bg-emerald-700 p-4 rounded-lg flex-row items-center justify-center"
           >
-            <Video size={24} color="white" />
+            <Feather name="video" size={24} color="white" />
             <StyledText className="text-white ml-2">
               {uploading ? t("uploading", "Uploading...") : t("uploadEffectVideo", "Upload Effect Video")}
             </StyledText>
@@ -277,7 +277,7 @@ export default function EffectStep({ trickData, updateTrickData }: StepProps) {
         <StyledView className="flex-row items-center overflow-hidden rounded-lg">
           <BlurView intensity={20} tint="dark" style={{ flex: 1 }}>
             <StyledView className="flex-row items-center p-3">
-              <Clock size={20} color="white" />
+              <Ionicons name="time" size={20} color="white" />
               <StyledTextInput
                 className="text-white ml-2 flex-1"
                 placeholder="60"
@@ -302,7 +302,7 @@ export default function EffectStep({ trickData, updateTrickData }: StepProps) {
         <StyledView className="flex-row items-center overflow-hidden rounded-lg">
           <BlurView intensity={20} tint="dark" style={{ flex: 1 }}>
             <StyledView className="flex-row items-center p-3">
-              <RefreshCw size={20} color="white" />
+              <Ionicons name="refresh" size={20} color="white" />
               <StyledTextInput
                 className="text-white ml-2 flex-1"
                 placeholder="30"
@@ -333,7 +333,7 @@ export default function EffectStep({ trickData, updateTrickData }: StepProps) {
                 trickData.difficulty === difficulty.value ? "bg-emerald-600" : "bg-white/20"
               }`}
             >
-              <BarChart3 size={16} color="white" />
+              <MaterialIcons name="bar-chart" size={16} color="white" />
               <StyledText className="text-white ml-1">{difficulty.label}</StyledText>
             </StyledTouchableOpacity>
           ))}
@@ -342,4 +342,3 @@ export default function EffectStep({ trickData, updateTrickData }: StepProps) {
     </StyledView>
   )
 }
-

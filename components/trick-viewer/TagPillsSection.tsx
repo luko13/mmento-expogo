@@ -1,14 +1,15 @@
+"use client"
+
 import type React from "react"
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native"
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native"
 import { styled } from "nativewind"
-import { X } from "lucide-react-native"
 import { BlurView } from "expo-blur"
-import { LinearGradient } from "expo-linear-gradient"
+import { Feather } from "@expo/vector-icons"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
-const StyledScrollView = styled(ScrollView)
 const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledScrollView = styled(ScrollView)
 
 export interface Tag {
   id: string
@@ -18,30 +19,32 @@ export interface Tag {
 interface TagPillsSectionProps {
   tags: Tag[]
   onRemoveTag?: (tagId: string) => void
+  editable?: boolean
 }
 
-const TagPillsSection: React.FC<TagPillsSectionProps> = ({ tags, onRemoveTag }) => {
-  if (tags.length === 0) {
-    return null
-  }
+const TagPillsSection: React.FC<TagPillsSectionProps> = ({ tags, onRemoveTag, editable = false }) => {
+  if (!tags || tags.length === 0) return null
 
   return (
     <StyledView style={styles.container}>
       <StyledScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {tags.map((tag) => (
-          <StyledTouchableOpacity key={tag.id} style={styles.pill}>
-            <StyledView style={styles.horizontalLine} />
-            <StyledText style={styles.tagText}>{tag.name}</StyledText>
-            {onRemoveTag && (
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => onRemoveTag(tag.id)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <X size={16} color="white" />
-              </TouchableOpacity>
-            )}
-          </StyledTouchableOpacity>
+          <StyledView key={tag.id} style={styles.tagContainer}>
+            <BlurView intensity={25} tint="default" style={styles.blurContainer}>
+              <StyledView style={styles.tagContent}>
+                <StyledText style={styles.tagText}>{tag.name}</StyledText>
+                {editable && onRemoveTag && (
+                  <StyledTouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => onRemoveTag(tag.id)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Feather name="x" size={14} color="white" />
+                  </StyledTouchableOpacity>
+                )}
+              </StyledView>
+            </BlurView>
+          </StyledView>
         ))}
       </StyledScrollView>
     </StyledView>
@@ -54,50 +57,32 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   scrollContent: {
-    paddingVertical: 8,
-    gap: 8,
+    paddingVertical: 4,
   },
-  blurContainer: {
-    borderRadius: 9999, // Bordes completamente redondeados
-    overflow: "hidden",
+  tagContainer: {
+    marginRight: 8,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.5)",
+    overflow: "hidden",
   },
-  gradient: {
+  blurContainer: {
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  tagContent: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    height: 48,
-    width: "100%",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    opacity: 0.85,
-  },
-  pill: {
-    height: 32,
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.7)",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    paddingVertical: 6,
     paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  horizontalLine: {
-    width: 12,
-    height: 1,
-    backgroundColor: "white",
-    marginRight: 8,
   },
   tagText: {
     color: "white",
     fontSize: 14,
+    fontWeight: "500",
   },
   removeButton: {
-    marginLeft: 8,
-    justifyContent: "center",
-    alignItems: "center",
+    marginLeft: 6,
   },
 })
 

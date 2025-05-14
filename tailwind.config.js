@@ -1,54 +1,65 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: ["class"],
-  content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}", "*.{js,ts,jsx,tsx,mdx}"],
+  // Cambia 'class' por 'media' - React Native no soporta dark mode basado en clases
+  darkMode: ["media"],
+  
+  content: [
+    "./app/**/*.{js,jsx,ts,tsx}", 
+    "./components/**/*.{js,jsx,ts,tsx}",
+    // Simplifica este patrón - no necesitas mdx en RN
+    "./*.{js,ts,jsx,tsx}"
+  ],
+  
   theme: {
     extend: {
+      // Las variables CSS no funcionan en React Native
+      // Usa valores directos en su lugar
       colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
+        border: "#e5e7eb",
+        input: "#f3f4f6",
+        ring: "#3b82f6",
+        background: "#ffffff",
+        foreground: "#111827",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
+          DEFAULT: "#3b82f6",
+          foreground: "#ffffff",
         },
         secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
+          DEFAULT: "#f3f4f6",
+          foreground: "#111827",
         },
         destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
+          DEFAULT: "#ef4444",
+          foreground: "#ffffff",
         },
         muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
+          DEFAULT: "#f3f4f6",
+          foreground: "#6b7280",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
+          DEFAULT: "#f3f4f6",
+          foreground: "#111827",
         },
         popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
+          DEFAULT: "#ffffff",
+          foreground: "#111827",
         },
         card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
+          DEFAULT: "#ffffff",
+          foreground: "#111827",
         },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        // React Native no soporta calc() ni var()
+        lg: 12,
+        md: 8,
+        sm: 4,
       },
       fontFamily: {
-        // Usar nombres simplificados para las fuentes
-        sans: ["Outfit-Regular"],
-        outfit: ["Outfit-Regular"],
-        "outfit-bold": ["Outfit-Bold"],
+        // Cambia los nombres de las fuentes para que coincidan con cómo las registras en Expo
+        sans: ["Outfit_400Regular"],
+        outfit: ["Outfit_400Regular"],
+        "outfit-bold": ["Outfit_700Bold"],
       },
     },
   },

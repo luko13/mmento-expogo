@@ -5,7 +5,7 @@ import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
 import { supabase } from "../../../lib/supabase"
 import { BlurView } from "expo-blur"
-import { Filter } from "lucide-react-native"
+import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 
 const StyledView = styled(View)
@@ -155,7 +155,7 @@ export default function Tricks() {
             onPress={() => setFilterVisible(!filterVisible)}
             className="bg-emerald-700 p-3 rounded-lg"
           >
-            <Filter size={24} color="white" />
+            <Ionicons name="filter" size={24} color="white" />
           </StyledTouchableOpacity>
         </StyledView>
 
@@ -175,4 +175,3 @@ export default function Tricks() {
     </StyledView>
   )
 }
-

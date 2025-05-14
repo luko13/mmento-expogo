@@ -1,19 +1,21 @@
 const { getDefaultConfig } = require('expo/metro-config');
 
-module.exports = (() => {
-  const config = getDefaultConfig(__dirname);
+const config = getDefaultConfig(__dirname);
 
-  const { transformer, resolver } = config;
+// Resolver alias para módulos de Node.js
+config.resolver.alias = {
+  crypto: 'react-native-crypto',
+  stream: 'stream-browserify',
+  util: 'util',
+  // Si necesitas events en el futuro
+  events: require.resolve('events/'),
+}
 
-  config.transformer = {
-    ...transformer,
-    babelTransformerPath: require.resolve('react-native-css-transformer'),
-  };
-  config.resolver = {
-    ...resolver,
-    assetExts: resolver.assetExts.filter((ext) => ext !== 'css'),
-    sourceExts: [...resolver.sourceExts, 'css'],
-  };
+// SOLUCIÓN PRINCIPAL: Desactivar el uso de "exports" de package.json
+// Esto evita que Metro intente usar módulos de Node.js
+config.resolver.unstable_enablePackageExports = false
 
-  return config;
-})();
+// Mantener la exclusión del módulo ws para mayor seguridad
+config.resolver.blockList = /node_modules\/ws\//
+
+module.exports = config

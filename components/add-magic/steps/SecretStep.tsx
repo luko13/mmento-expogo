@@ -4,7 +4,7 @@ import { useState } from "react"
 import { View, Text, TextInput, TouchableOpacity, Alert, Platform } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { Video, Plus, X } from "lucide-react-native"
+import { Feather, AntDesign } from "@expo/vector-icons"
 import { BlurView } from "expo-blur"
 import type { MagicTrick } from "../AddMagicWizard"
 import * as ImagePicker from "expo-image-picker"
@@ -230,7 +230,7 @@ export default function SecretStep({ trickData, updateTrickData }: StepProps) {
             disabled={uploading}
             className="bg-emerald-700 p-4 rounded-lg flex-row items-center justify-center"
           >
-            <Video size={24} color="white" />
+            <Feather name="video" size={24} color="white" />
             <StyledText className="text-white ml-2">
               {uploading ? t("uploading", "Uploading...") : t("uploadSecretVideo", "Upload Secret Video")}
             </StyledText>
@@ -257,7 +257,7 @@ export default function SecretStep({ trickData, updateTrickData }: StepProps) {
             </BlurView>
           </StyledView>
           <StyledTouchableOpacity onPress={addMaterial} className="bg-emerald-700 p-3 rounded-lg">
-            <Plus size={24} color="white" />
+            <AntDesign name="plus" size={24} color="white" />
           </StyledTouchableOpacity>
         </StyledView>
 
@@ -270,7 +270,7 @@ export default function SecretStep({ trickData, updateTrickData }: StepProps) {
               <StyledView key={index} className="flex-row items-center justify-between bg-white/10 mb-2 p-3 rounded-lg">
                 <StyledText className="text-white flex-1">{material}</StyledText>
                 <StyledTouchableOpacity onPress={() => removeMaterial(index)}>
-                  <X size={20} color="white" />
+                  <Feather name="x" size={20} color="white" />
                 </StyledTouchableOpacity>
               </StyledView>
             ))}
@@ -280,4 +280,3 @@ export default function SecretStep({ trickData, updateTrickData }: StepProps) {
     </StyledView>
   )
 }
-

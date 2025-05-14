@@ -3,7 +3,7 @@
 import { View, Image, Dimensions, TouchableOpacity } from "react-native"
 import { styled } from "nativewind"
 import { Slot, useRouter, usePathname } from "expo-router"
-import { Home, Wand2, User } from "lucide-react-native"
+import { Ionicons, FontAwesome5, FontAwesome } from "@expo/vector-icons"
 
 const StyledView = styled(View)
 const StyledTouchableOpacity = styled(TouchableOpacity)
@@ -41,15 +41,15 @@ export default function AppLayout() {
         >
           <StyledView className="flex-1 flex-row justify-evenly items-center">
             <StyledTouchableOpacity onPress={() => router.push("/(app)/home")} className="p-3">
-              <Home size={24} color="#FFFFFF" strokeWidth={2} />
+              <Ionicons name="home" size={24} color="#FFFFFF" />
             </StyledTouchableOpacity>
 
             <StyledTouchableOpacity onPress={() => router.push("/(app)/tricks")} className="p-3">
-              <Wand2 size={24} color="#FFFFFF" strokeWidth={2} />
+              <FontAwesome5 name="magic" size={24} color="#FFFFFF" />
             </StyledTouchableOpacity>
 
             <StyledTouchableOpacity onPress={() => router.push("/(app)/profile")} className="p-3">
-              <User size={24} color="#FFFFFF" strokeWidth={2} />
+              <FontAwesome name="user" size={24} color="#FFFFFF" />
             </StyledTouchableOpacity>
           </StyledView>
         </StyledView>
@@ -60,4 +60,3 @@ export default function AppLayout() {
     </StyledView>
   )
 }
-

@@ -5,7 +5,7 @@ import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
 import { supabase } from "../../../lib/supabase"
 import { BlurView } from "expo-blur"
-import { User, Edit, LogOut, Award, Clock } from "lucide-react-native"
+import { FontAwesome, MaterialIcons, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import { signOut } from "../../../utils/auth"
 
@@ -93,7 +93,7 @@ export default function Profile() {
         {/* Profile Header */}
         <StyledView className="items-center mb-6">
           <StyledView className="w-24 h-24 rounded-full overflow-hidden mb-4 bg-emerald-600 justify-center items-center">
-            <User size={40} color="white" />
+            <FontAwesome name="user" size={40} color="white" />
           </StyledView>
           <StyledText className="text-white text-2xl font-bold">{profile?.username}</StyledText>
           <StyledText className="text-gray-400">{profile?.email}</StyledText>
@@ -128,22 +128,22 @@ export default function Profile() {
         {/* Actions */}
         <StyledView className="space-y-4">
           <StyledTouchableOpacity className="flex-row items-center bg-emerald-700 p-4 rounded-xl">
-            <Edit size={24} color="white" />
+            <MaterialIcons name="edit" size={24} color="white" />
             <StyledText className="text-white ml-4">{t("editProfile")}</StyledText>
           </StyledTouchableOpacity>
 
           <StyledTouchableOpacity className="flex-row items-center bg-emerald-700 p-4 rounded-xl">
-            <Award size={24} color="white" />
+            <MaterialCommunityIcons name="trophy-award" size={24} color="white" />
             <StyledText className="text-white ml-4">{t("achievements")}</StyledText>
           </StyledTouchableOpacity>
 
           <StyledTouchableOpacity className="flex-row items-center bg-emerald-700 p-4 rounded-xl">
-            <Clock size={24} color="white" />
+            <Ionicons name="time" size={24} color="white" />
             <StyledText className="text-white ml-4">{t("activityHistory")}</StyledText>
           </StyledTouchableOpacity>
 
           <StyledTouchableOpacity onPress={handleLogout} className="flex-row items-center bg-red-700 p-4 rounded-xl">
-            <LogOut size={24} color="white" />
+            <MaterialIcons name="logout" size={24} color="white" />
             <StyledText className="text-white ml-4">{t("logout")}</StyledText>
           </StyledTouchableOpacity>
         </StyledView>
@@ -151,4 +151,3 @@ export default function Profile() {
     </StyledScrollView>
   )
 }
-

@@ -3,7 +3,7 @@
 import { View, Text as RNText, StyleSheet, ScrollView, TouchableOpacity } from "react-native"
 import { styled } from "nativewind"
 import { useRouter } from "expo-router"
-import { ChevronLeft } from "lucide-react-native"
+import { Ionicons } from "@expo/vector-icons"
 import Text from "../../components/ui/Text"
 import * as Font from "expo-font"
 import { useState, useEffect } from "react"
@@ -34,7 +34,7 @@ export default function FontTestScreen() {
     <StyledView className="flex-1 bg-black">
       <StyledView className="absolute top-12 left-4 z-10">
         <StyledTouchableOpacity onPress={() => router.back()} className="p-2 bg-emerald-700 rounded-full">
-          <ChevronLeft size={24} color="white" />
+          <Ionicons name="chevron-back" size={24} color="white" />
         </StyledTouchableOpacity>
       </StyledView>
 

@@ -1,9 +1,9 @@
-import React from "react"
+import type React from "react"
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 import { styled } from "nativewind"
 import { BlurView } from "expo-blur"
 import { LinearGradient } from "expo-linear-gradient"
-import { ChevronLeft, Heart, Edit } from "lucide-react-native"
+import { Ionicons, Feather, AntDesign } from "@expo/vector-icons"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -27,15 +27,15 @@ const TopNavigationBar: React.FC<TopNavigationBarProps> = ({
   return (
     <StyledView style={styles.container}>
       <BlurView intensity={25} tint="default" style={styles.blurContainer}>
-          <LinearGradient
-            colors={["#d4d4d426", "#6e6e6e14"]} // Negro a beige
+        <LinearGradient
+          colors={["#d4d4d426", "#6e6e6e14"]} // Negro a beige
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradient}
         >
           {/* Icono de flecha hacia atrás */}
           <StyledTouchableOpacity onPress={onBackPress} style={styles.iconButton}>
-            <ChevronLeft color="white" size={20} />
+            <Ionicons name="chevron-back" color="white" size={20} />
           </StyledTouchableOpacity>
 
           {/* Título centrado */}
@@ -45,12 +45,12 @@ const TopNavigationBar: React.FC<TopNavigationBarProps> = ({
           <StyledView style={styles.rightIconsContainer}>
             {/* Icono de corazón */}
             <StyledTouchableOpacity onPress={onLikePress} style={styles.iconButton}>
-              <Heart color={isLiked ? "#ff4d6d" : "white"} fill={isLiked ? "#ff4d6d" : "transparent"} size={20} />
+              <AntDesign name="heart" color={isLiked ? "#ff4d6d" : "white"} size={20} />
             </StyledTouchableOpacity>
 
             {/* Icono de editar */}
             <StyledTouchableOpacity onPress={onEditPress} style={styles.iconButton}>
-              <Edit color="white" size={20} />
+              <Feather name="edit" color="white" size={20} />
             </StyledTouchableOpacity>
           </StyledView>
         </LinearGradient>
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     fontWeight: "600", // Medium
     textAlign: "center",
     textShadowColor: "#00000026",
-    textShadowOffset: {width: 0.5, height: 0.5}, 
+    textShadowOffset: { width: 0.5, height: 0.5 },
     textShadowRadius: 1,
     flex: 1,
   },

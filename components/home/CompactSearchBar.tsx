@@ -1,17 +1,23 @@
 "use client"
 
 import { useRef, useEffect, useState } from "react"
-import { View, TextInput, TouchableOpacity, Animated, Text, ScrollView, BackHandler, StyleSheet } from "react-native"
+import { View, TextInput, TouchableOpacity, Animated, ScrollView, BackHandler, StyleSheet } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { Search, X } from "lucide-react-native"
+// Cambiar la importación de Search, X de lucide-react-native
+// Reemplazar:
+// import { Search, X } from "lucide-react-native"
+// Por:
+import { Ionicons, Feather } from "@expo/vector-icons"
 import { BlurView } from "expo-blur"
 import { supabase } from "../../lib/supabase"
 import { getUserCategories, getPredefinedCategories, type Category } from "../../utils/categoryService"
 
+// Importar nuestro componente Text personalizado
+import Text from "../ui/Text"
+
 const StyledView = styled(View)
 const StyledAnimatedView = styled(Animated.View)
-const StyledText = styled(Text)
 const StyledScrollView = styled(ScrollView)
 const StyledTouchableOpacity = styled(TouchableOpacity)
 const StyledTextInput = styled(TextInput)
@@ -161,7 +167,7 @@ export default function CompactSearchBar({
     if (hideTimeoutRef.current) {
       clearTimeout(hideTimeoutRef.current)
     }
-    
+
     // Solo configurar el timeout si no está enfocado y no hay texto
     if (!isFocused && value.length === 0) {
       hideTimeoutRef.current = setTimeout(() => {
@@ -189,7 +195,7 @@ export default function CompactSearchBar({
   // Focus the input when the component mounts
   useEffect(() => {
     animateIn()
-    
+
     setTimeout(() => {
       inputRef.current?.focus()
     }, 100)
@@ -207,39 +213,31 @@ export default function CompactSearchBar({
   }, [isFocused, value])
 
   const toggleCategory = (categoryId: string) => {
-    setSelectedCategories(prev => 
-      prev.includes(categoryId) 
-        ? prev.filter(id => id !== categoryId) 
-        : [...prev, categoryId]
+    setSelectedCategories((prev) =>
+      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId],
     )
     animateIn()
   }
 
   const toggleTag = (tagId: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tagId) 
-        ? prev.filter(id => id !== tagId) 
-        : [...prev, tagId]
-    )
+    setSelectedTags((prev) => (prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]))
     animateIn()
   }
 
   const toggleDifficulty = (difficulty: string) => {
-    setSelectedDifficulties(prev => 
-      prev.includes(difficulty) 
-        ? prev.filter(d => d !== difficulty) 
-        : [...prev, difficulty]
+    setSelectedDifficulties((prev) =>
+      prev.includes(difficulty) ? prev.filter((d) => d !== difficulty) : [...prev, difficulty],
     )
     animateIn()
   }
 
   // Dificultades disponibles
   const difficulties = [
-    { id: 'beginner', label: t("difficulty.beginner") },
-    { id: 'easy', label: t("difficulty.easy") },
-    { id: 'intermediate', label: t("difficulty.intermediate") }, 
-    { id: 'advanced', label: t("difficulty.advanced") },
-    { id: 'expert', label: t("difficulty.expert") }
+    { id: "beginner", label: t("difficulty.beginner") },
+    { id: "easy", label: t("difficulty.easy") },
+    { id: "intermediate", label: t("difficulty.intermediate") },
+    { id: "advanced", label: t("difficulty.advanced") },
+    { id: "expert", label: t("difficulty.expert") },
   ]
 
   return (
@@ -249,14 +247,18 @@ export default function CompactSearchBar({
           width: "100%",
           transform: [{ translateY }, { scale }],
           opacity,
-        }
+        },
       ]}
     >
       {/* Barra de búsqueda */}
       <StyledView style={styles.searchBarContainer}>
         <BlurView intensity={10} tint="dark" style={styles.blurEffect}>
           <StyledView style={styles.searchInputContainer}>
-            <Search size={16} color="white" />
+            {/* Reemplazar los usos de los iconos */}
+            {/* Cambiar: */}
+            {/* <Search size={16} color="white" /> */}
+            {/* Por: */}
+            <Ionicons name="search" size={16} color="white" />
             <StyledTextInput
               ref={inputRef}
               className="flex-1 text-white mx-2 h-10"
@@ -278,11 +280,12 @@ export default function CompactSearchBar({
               }}
             />
             {value.length > 0 && (
-              <StyledTouchableOpacity 
-                onPress={() => onChangeText("")}
-                style={styles.clearButton}
-              >
-                <X size={16} color="white" />
+              <StyledTouchableOpacity onPress={() => onChangeText("")} style={styles.clearButton}>
+                {/* Reemplazar los usos de los iconos */}
+                {/* Cambiar: */}
+                {/* <X size={16} color="white" /> */}
+                {/* Por: */}
+                <Feather name="x" size={16} color="white" />
               </StyledTouchableOpacity>
             )}
           </StyledView>
@@ -291,27 +294,22 @@ export default function CompactSearchBar({
 
       {/* Categorías */}
       <StyledView style={styles.sectionContainer}>
-        <StyledText style={styles.sectionTitle}>{t("categories")}</StyledText>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersContainer}
-        >
-          {categories.map(category => (
+        <Text variant="regular" className="text-white mb-2">
+          {t("categories")}
+        </Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContainer}>
+          {categories.map((category) => (
             <StyledTouchableOpacity
               key={category.id}
-              style={[
-                styles.filterChip,
-                selectedCategories.includes(category.id) ? styles.selectedChip : null
-              ]}
+              style={[styles.filterChip, selectedCategories.includes(category.id) ? styles.selectedChip : null]}
               onPress={() => toggleCategory(category.id)}
             >
-              <StyledText style={styles.filterChipText}>{category.name}</StyledText>
+              <Text style={styles.filterChipText}>{category.name}</Text>
             </StyledTouchableOpacity>
           ))}
           {categories.length === 0 && (
             <StyledView style={[styles.filterChip, styles.emptyChip]}>
-              <StyledText style={styles.emptyChipText}>—</StyledText>
+              <Text style={styles.emptyChipText}>—</Text>
             </StyledView>
           )}
         </ScrollView>
@@ -319,27 +317,22 @@ export default function CompactSearchBar({
 
       {/* Etiquetas */}
       <StyledView style={styles.sectionContainer}>
-        <StyledText style={styles.sectionTitle}>{t("tags")}</StyledText>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersContainer}
-        >
-          {tags.map(tag => (
+        <Text variant="regular" className="text-white mb-2">
+          {t("tags")}
+        </Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContainer}>
+          {tags.map((tag) => (
             <StyledTouchableOpacity
               key={tag.id}
-              style={[
-                styles.filterChip,
-                selectedTags.includes(tag.id) ? styles.selectedChip : null
-              ]}
+              style={[styles.filterChip, selectedTags.includes(tag.id) ? styles.selectedChip : null]}
               onPress={() => toggleTag(tag.id)}
             >
-              <StyledText style={styles.filterChipText}>{tag.name}</StyledText>
+              <Text style={styles.filterChipText}>{tag.name}</Text>
             </StyledTouchableOpacity>
           ))}
           {tags.length === 0 && (
             <StyledView style={[styles.filterChip, styles.emptyChip]}>
-              <StyledText style={styles.emptyChipText}>—</StyledText>
+              <Text style={styles.emptyChipText}>—</Text>
             </StyledView>
           )}
         </ScrollView>
@@ -347,22 +340,17 @@ export default function CompactSearchBar({
 
       {/* Dificultad */}
       <StyledView style={styles.sectionContainer}>
-        <StyledText style={styles.sectionTitle}>{t("difficulty", "Difficulty")}</StyledText>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersContainer}
-        >
-          {difficulties.map(difficulty => (
+        <Text variant="regular" className="text-white mb-2">
+          {t("difficulty", "Difficulty")}
+        </Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContainer}>
+          {difficulties.map((difficulty) => (
             <StyledTouchableOpacity
               key={difficulty.id}
-              style={[
-                styles.filterChip,
-                selectedDifficulties.includes(difficulty.id) ? styles.selectedChip : null
-              ]}
+              style={[styles.filterChip, selectedDifficulties.includes(difficulty.id) ? styles.selectedChip : null]}
               onPress={() => toggleDifficulty(difficulty.id)}
             >
-              <StyledText style={styles.filterChipText}>{difficulty.label}</StyledText>
+              <Text style={styles.filterChipText}>{difficulty.label}</Text>
             </StyledTouchableOpacity>
           ))}
         </ScrollView>
@@ -374,17 +362,17 @@ export default function CompactSearchBar({
 const styles = StyleSheet.create({
   searchBarContainer: {
     borderRadius: 24,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
   blurEffect: {
-    width: '100%',
+    width: "100%",
   },
   searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
@@ -395,37 +383,37 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    color: 'white',
+    color: "white",
     fontSize: 14,
     marginBottom: 8,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   filtersContainer: {
     paddingRight: 24,
   },
   filterChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
   selectedChip: {
-    backgroundColor: 'rgba(16, 185, 129, 0.6)',
-    borderColor: 'rgba(16, 185, 129, 0.8)',
+    backgroundColor: "rgba(16, 185, 129, 0.6)",
+    borderColor: "rgba(16, 185, 129, 0.8)",
   },
   filterChipText: {
-    color: 'white',
+    color: "white",
     fontSize: 13,
   },
   emptyChip: {
     minWidth: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyChipText: {
-    color: 'rgba(255, 255, 255, 0.4)',
-  }
-});
+    color: "rgba(255, 255, 255, 0.4)",
+  },
+})

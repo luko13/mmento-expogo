@@ -1,9 +1,11 @@
+"use client"
+
 import type React from "react"
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native"
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 import { styled } from "nativewind"
 import { BlurView } from "expo-blur"
-import { RotateCcw, Timer, Clock } from "lucide-react-native"
 import { LinearGradient } from "expo-linear-gradient"
+import { MaterialIcons, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -18,191 +20,153 @@ interface StatsPanelProps {
   difficulty?: number
 }
 
-const StatsPanel: React.FC<StatsPanelProps> = ({
-  visible,
-  onToggle,
-  angle = 180,
-  resetTime = 10,
-  duration = 110,
-  difficulty = 7,
-}) => {
-  // Formatear tiempo en segundos o minutos
-  const formatTime = (seconds: number, unit: "Sec" | "Min") => {
-    if (unit === "Min") {
-      const mins = Math.floor(seconds / 60)
-      const secs = seconds % 60
-      return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")} ${unit}`
-    }
-    return `00:${seconds.toString().padStart(2, "0")} ${unit}`
+const StatsPanel: React.FC<StatsPanelProps> = ({ visible, onToggle, angle, resetTime, duration, difficulty }) => {
+  // Función para convertir dificultad numérica a texto
+  const getDifficultyText = (level = 0) => {
+    if (level <= 2) return "Beginner"
+    if (level <= 4) return "Easy"
+    if (level <= 6) return "Intermediate"
+    if (level <= 8) return "Advanced"
+    return "Expert"
+  }
+
+  // Función para convertir dificultad numérica a color
+  const getDifficultyColor = (level = 0) => {
+    if (level <= 2) return "#4ade80" // green-400
+    if (level <= 4) return "#22d3ee" // cyan-400
+    if (level <= 6) return "#facc15" // yellow-400
+    if (level <= 8) return "#fb923c" // orange-400
+    return "#ef4444" // red-400
   }
 
   return (
     <StyledView style={styles.container}>
+      <StyledTouchableOpacity onPress={onToggle} style={styles.toggleButton}>
+        <BlurView intensity={25} tint="default" style={styles.blurToggle}>
+          <LinearGradient
+            colors={["#d4d4d426", "#6e6e6e14"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.gradientToggle}
+          >
+            <MaterialIcons name="bar-chart" size={20} color="white" />
+            <StyledText style={styles.toggleText}>Stats</StyledText>
+            <Ionicons name={visible ? "chevron-down" : "chevron-up"} size={20} color="white" />
+          </LinearGradient>
+        </BlurView>
+      </StyledTouchableOpacity>
+
       {visible && (
-        <StyledView style={styles.statsPanel}>
-          <BlurView intensity={25} tint="default" style={styles.blurPanel}>
+        <StyledView style={styles.statsContainer}>
+          <BlurView intensity={25} tint="default" style={styles.blurContainer}>
             <LinearGradient
               colors={["#d4d4d426", "#6e6e6e14"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.gradientPanel}
+              style={styles.gradient}
             >
-              {/* Ángulo */}
-              <StyledView style={styles.statBlock}>
-                <StyledText style={styles.statLabel}>Angle</StyledText>
-                <StyledView style={styles.statIconContainer}>
-                  <RotateCcw size={20} color="white" />
+              <StyledView style={styles.statsGrid}>
+                {/* Ángulo */}
+                <StyledView style={styles.statItem}>
+                  <MaterialCommunityIcons name="angle-acute" size={24} color="white" />
+                  <StyledText style={styles.statValue}>{angle || 0}°</StyledText>
+                  <StyledText style={styles.statLabel}>Angle</StyledText>
                 </StyledView>
-                <StyledText style={styles.statValue}>{angle}°</StyledText>
-              </StyledView>
 
-              {/* Tiempo de Reset */}
-              <StyledView style={styles.statBlock}>
-                <StyledText style={styles.statLabel}>Reset Time</StyledText>
-                <StyledView style={styles.statIconContainer}>
-                  <Clock size={20} color="white" />
+                {/* Tiempo de reset */}
+                <StyledView style={styles.statItem}>
+                  <Ionicons name="refresh" size={24} color="white" />
+                  <StyledText style={styles.statValue}>{resetTime || 0}s</StyledText>
+                  <StyledText style={styles.statLabel}>Reset</StyledText>
                 </StyledView>
-                <StyledText style={styles.statValue}>{formatTime(resetTime, "Sec")}</StyledText>
-              </StyledView>
 
-              {/* Duración */}
-              <StyledView style={styles.statBlock}>
-                <StyledText style={styles.statLabel}>Duration</StyledText>
-                <StyledView style={styles.statIconContainer}>
-                  <Timer size={20} color="white" />
+                {/* Duración */}
+                <StyledView style={styles.statItem}>
+                  <Ionicons name="time" size={24} color="white" />
+                  <StyledText style={styles.statValue}>{duration || 0}s</StyledText>
+                  <StyledText style={styles.statLabel}>Duration</StyledText>
                 </StyledView>
-                <StyledText style={styles.statValue}>{formatTime(duration, "Min")}</StyledText>
-              </StyledView>
 
-              {/* Dificultad */}
-              <StyledView style={styles.statBlock}>
-                <StyledText style={styles.statLabel}>Difficulty</StyledText>
-                <StyledView style={styles.difficultyContainer}>
-                  <StyledText style={styles.difficultyValue}>{difficulty}</StyledText>
+                {/* Dificultad */}
+                <StyledView style={styles.statItem}>
+                  <MaterialIcons name="bar-chart" size={24} color={getDifficultyColor(difficulty)} />
+                  <StyledText style={[styles.statValue, { color: getDifficultyColor(difficulty) }]}>
+                    {getDifficultyText(difficulty)}
+                  </StyledText>
+                  <StyledText style={styles.statLabel}>Difficulty</StyledText>
                 </StyledView>
               </StyledView>
             </LinearGradient>
           </BlurView>
         </StyledView>
       )}
-
-      {/* Botón de toggle - ahora cuadrado con borde */}
-      <StyledTouchableOpacity style={styles.toggleButton} onPress={onToggle}>
-        <StyledView style={styles.toggleBorder}>
-          <BlurView intensity={25} tint="default" style={styles.blurToggle}>
-            <LinearGradient
-              colors={["#d4d4d426", "#6e6e6e14"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientPanel}
-            >
-            <StyledView style={styles.customStatsIcon}>
-              <StyledView style={[styles.statBar, { height: 16 }]} />
-              <StyledView style={[styles.statBar, { height: 24 }]} />
-              <StyledView style={[styles.statBar, { height: 20 }]} />
-            </StyledView>
-            </LinearGradient>
-          </BlurView>
-        </StyledView>
-      </StyledTouchableOpacity>
     </StyledView>
   )
 }
 
-// Modificar los estilos para que el botón permanezca fijo y el panel aparezca encima
-// sin desplazar el botón
-
-// Cambiar el estilo del container para posicionar correctamente
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
-    top: -15,
-    right: 16,
-    zIndex: 20,
+    marginHorizontal: 12,
+    marginBottom: 12,
   },
   toggleButton: {
-    width: 56,
-    height: 56,
-    position: "absolute", // Posición absoluta para el botón
-    right: 0, // Alineado a la derecha
-    bottom: 0, // Alineado abajo
-  },
-  toggleBorder: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
+    alignSelf: "center",
+    borderRadius: 9999,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.5)",
     overflow: "hidden",
   },
   blurToggle: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  customStatsIcon: {
-    width: 24,
-    height: 24,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-  },
-  statBar: {
-    width: 4,
-    backgroundColor: "white",
-    borderRadius: 2,
-    marginHorizontal: 2,
-  },
-  statsPanel: {
-    position: "absolute", // Posición absoluta para el panel
-    bottom: 56, // Posicionado justo encima del botón (48px altura + 8px espacio)
-    right: 0, // Alineado a la derecha
-    borderRadius: 12,
+    borderRadius: 9999,
     overflow: "hidden",
   },
-  blurPanel: {
-    borderRadius: 12,
-  },
-  gradientPanel: {
-    borderRadius: 12,
-    padding: 12,
-  },
-  statBlock: {
+  gradientToggle: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
-    width: 64,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  toggleText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  statsContainer: {
+    marginTop: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.5)",
+    overflow: "hidden",
+  },
+  blurContainer: {
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  gradient: {
+    borderRadius: 20,
+    padding: 16,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  statItem: {
+    width: "48%",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  statValue: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+    marginTop: 4,
   },
   statLabel: {
     color: "rgba(255, 255, 255, 0.7)",
     fontSize: 12,
-    marginBottom: 4,
-  },
-  statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  statValue: {
-    color: "white",
-    fontSize: 12,
-  },
-  difficultyContainer: {
-    width: 40,
-    height: 40,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  difficultyValue: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
+    marginTop: 2,
   },
 })
 

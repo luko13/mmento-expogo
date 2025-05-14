@@ -6,7 +6,7 @@ import { View, Text, TouchableOpacity, StyleSheet, LayoutAnimation, Platform, UI
 import { styled } from "nativewind"
 import { BlurView } from "expo-blur"
 import { LinearGradient } from "expo-linear-gradient"
-import { Zap, Lock, FileText } from "lucide-react-native"
+import { Ionicons, Feather, FontAwesome } from "@expo/vector-icons"
 
 // Habilitar LayoutAnimation en Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -36,13 +36,13 @@ const StageInfoSection: React.FC<StageInfoSectionProps> = ({ stage, category, de
   const getStageIcon = () => {
     switch (stage) {
       case "effect":
-        return <Zap size={24} color="white" />
+        return <Ionicons name="flash" size={24} color="white" />
       case "secret":
-        return <Lock size={24} color="white" />
+        return <Feather name="lock" size={24} color="white" />
       case "extra":
-        return <FileText size={24} color="white" />
+        return <FontAwesome name="file-text-o" size={24} color="white" />
       default:
-        return <Zap size={24} color="white" />
+        return <Ionicons name="flash" size={24} color="white" />
     }
   }
 

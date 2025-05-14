@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { View, Image, TouchableOpacity, Text as RNText } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { User } from "lucide-react-native"
+import { FontAwesome } from "@expo/vector-icons"
 import { supabase } from "../../lib/supabase"
 import { useRouter } from "expo-router"
 
@@ -71,7 +71,7 @@ export default function UserProfile({ onProfilePress }: UserProfileProps) {
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={{ width: 48, height: 48 }} resizeMode="cover" />
           ) : (
-            <User size={24} color="white" />
+            <FontAwesome name="user" size={24} color="white" />
           )}
         </StyledView>
 

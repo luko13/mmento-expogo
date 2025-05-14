@@ -4,7 +4,7 @@ import { useState } from "react"
 import { View, Text, TextInput, TouchableOpacity, Image, Alert, Platform } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { Camera, FileText } from "lucide-react-native"
+import { Feather, FontAwesome } from "@expo/vector-icons"
 import { BlurView } from "expo-blur"
 import type { MagicTrick } from "../AddMagicWizard"
 import * as ImagePicker from "expo-image-picker"
@@ -195,7 +195,7 @@ export default function ExtrasStep({ trickData, updateTrickData }: StepProps) {
         <StyledView className="overflow-hidden rounded-lg">
           <BlurView intensity={20} tint="dark">
             <StyledView className="flex-row items-center p-2">
-              <FileText size={20} color="white" />
+              <FontAwesome name="file-text-o" size={20} color="white" />
               <StyledText className="text-white ml-2">
                 {t("scriptDescription", "What to say during the performance")}
               </StyledText>
@@ -238,7 +238,7 @@ export default function ExtrasStep({ trickData, updateTrickData }: StepProps) {
             disabled={uploading}
             className="bg-emerald-700 p-4 rounded-lg flex-row items-center justify-center"
           >
-            <Camera size={24} color="white" />
+            <Feather name="camera" size={24} color="white" />
             <StyledText className="text-white ml-2">
               {uploading ? t("uploading", "Uploading...") : t("uploadPhoto", "Upload Photo")}
             </StyledText>
@@ -255,4 +255,3 @@ export default function ExtrasStep({ trickData, updateTrickData }: StepProps) {
     </StyledView>
   )
 }
-

@@ -1,25 +1,21 @@
 "use client"
-import { View, TouchableOpacity, Image, Dimensions, Alert } from "react-native"
+import { View, TouchableOpacity, Image, Dimensions } from "react-native"
 import { styled } from "nativewind"
 import { useRouter } from "expo-router"
 import AddMagicWizard from "../../../components/add-magic/AddMagicWizard"
+import { Ionicons } from "@expo/vector-icons"
 
 const StyledView = styled(View)
 const StyledTouchableOpacity = styled(TouchableOpacity)
 
 const { width, height } = Dimensions.get("window")
 
-
 export default function AddMagicScreen() {
   const router = useRouter()
 
   const handleComplete = (trickId: string) => {
-    Alert.alert("Success", "Your magic trick has been saved successfully!", [
-      {
-        text: "OK",
-        onPress: () => router.replace("/(app)/home"),
-      },
-    ])
+    // Implementa la lógica para manejar la finalización
+    router.replace("/(app)/home")
   }
 
   const handleCancel = () => {
@@ -37,8 +33,12 @@ export default function AddMagicScreen() {
         }}
         resizeMode="cover"
       />
+      <StyledView className="absolute top-12 left-4 z-10">
+        <StyledTouchableOpacity onPress={handleCancel} className="p-2 bg-emerald-700 rounded-full">
+          <Ionicons name="chevron-back" size={24} color="white" />
+        </StyledTouchableOpacity>
+      </StyledView>
       <AddMagicWizard onComplete={handleComplete} onCancel={handleCancel} />
     </StyledView>
   )
 }
-

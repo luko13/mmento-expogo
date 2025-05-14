@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { View, Text, TextInput, TouchableOpacity, Alert } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { X, Plus } from "lucide-react-native"
+import { Feather, AntDesign } from "@expo/vector-icons"
 import { supabase } from "../../../lib/supabase"
 import type { MagicTrick } from "../AddMagicWizard"
 import { BlurView } from "expo-blur"
@@ -206,7 +206,7 @@ export default function TitleCategoryStep({ trickData, updateTrickData }: StepPr
             onPress={() => setCreateCategoryModalVisible(true)}
             className="bg-emerald-700 px-3 py-1 rounded-full flex-row items-center"
           >
-            <Plus size={16} color="white" />
+            <AntDesign name="plus" size={16} color="white" />
             <StyledText className="text-white ml-1">{t("newCategory", "New Category")}</StyledText>
           </StyledTouchableOpacity>
         </StyledView>
@@ -296,7 +296,7 @@ export default function TitleCategoryStep({ trickData, updateTrickData }: StepPr
             </BlurView>
           </StyledView>
           <StyledTouchableOpacity onPress={addNewTag} className="bg-emerald-700 p-3 rounded-lg">
-            <Plus size={24} color="white" />
+            <AntDesign name="plus" size={24} color="white" />
           </StyledTouchableOpacity>
         </StyledView>
 
@@ -312,7 +312,7 @@ export default function TitleCategoryStep({ trickData, updateTrickData }: StepPr
               <StyledView key={tag.id} className="flex-row items-center bg-emerald-600 m-1 px-3 py-2 rounded-full">
                 <StyledText className="text-white mr-2">{tag.name}</StyledText>
                 <StyledTouchableOpacity onPress={() => toggleTag(tag.id)}>
-                  <X size={16} color="white" />
+                  <Feather name="x" size={16} color="white" />
                 </StyledTouchableOpacity>
               </StyledView>
             ) : null
@@ -408,4 +408,3 @@ export default function TitleCategoryStep({ trickData, updateTrickData }: StepPr
     </StyledView>
   )
 }
-

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { View, Text, TouchableOpacity, ScrollView, Alert } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { ChevronLeft, ChevronRight, Save } from "lucide-react-native"
+import { Ionicons, Feather } from "@expo/vector-icons"
 import { supabase } from "../../lib/supabase"
 import TitleCategoryStep from "./steps/TitleCategoryStep"
 import EffectStep from "./steps/EffectStep"
@@ -292,7 +292,7 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
           onPress={goToPreviousStep}
           className="bg-emerald-700 px-4 py-2 rounded-lg flex-row items-center"
         >
-          <ChevronLeft size={20} color="white" />
+          <Ionicons name="chevron-back" size={20} color="white" />
           <StyledText className="text-white ml-1">
             {currentStep === 0 ? t("cancel", "Cancel") : t("back_", "Back")}
           </StyledText>
@@ -307,13 +307,12 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
             {currentStep === steps.length - 1 ? t("save", "Save") : t("next", "Next")}
           </StyledText>
           {currentStep === steps.length - 1 ? (
-            <Save size={20} color="white" />
+            <Feather name="save" size={20} color="white" />
           ) : (
-            <ChevronRight size={20} color="white" />
+            <Ionicons name="chevron-forward" size={20} color="white" />
           )}
         </StyledTouchableOpacity>
       </StyledView>
     </StyledView>
   )
 }
-

@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import type React from "react";
-import { useState, useRef, useCallback } from "react";
+import type React from "react"
+import { useState, useRef, useCallback } from "react"
 import {
   View,
   Text,
@@ -12,148 +12,139 @@ import {
   StatusBar,
   Animated,
   FlatList,
-} from "react-native";
-import { Video, ResizeMode } from "expo-av";
-import { Play } from "lucide-react-native";
-import { styled } from "nativewind";
-import { useTranslation } from "react-i18next";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import TopNavigationBar from "./trick-viewer/TopNavigationBar";
-import TrickViewerBottomSection from "./trick-viewer/TrickViewerBottomSection";
-import type { Tag } from "./trick-viewer/TagPillsSection";
-import type { StageType } from "./trick-viewer/StageInfoSection";
+} from "react-native"
+import { Video, ResizeMode } from "expo-av"
+import { Ionicons } from "@expo/vector-icons"
+import { styled } from "nativewind"
+import { useTranslation } from "react-i18next"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+import TopNavigationBar from "./trick-viewer/TopNavigationBar"
+import TrickViewerBottomSection from "./trick-viewer/TrickViewerBottomSection"
+import type { Tag } from "./trick-viewer/TagPillsSection"
+import type { StageType } from "./trick-viewer/StageInfoSection"
 
-const StyledView = styled(View);
-const StyledText = styled(Text);
-const StyledScrollView = styled(ScrollView);
-const StyledTouchableOpacity = styled(TouchableOpacity);
-const StyledFlatList = styled(FlatList);
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledScrollView = styled(ScrollView)
+const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledFlatList = styled(FlatList)
 
-const { width, height } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window")
 
 interface TrickViewScreenProps {
   trick: {
-    id: string;
-    title: string;
-    category: string;
-    effect: string;
-    secret: string;
-    effect_video_url: string | null;
-    secret_video_url: string | null;
-    photo_url: string | null;
-    script: string | null;
-    angles: string[];
-    duration: number | null;
-    reset: number | null;
-    difficulty: number | null;
-    notes?: string;
-    tags?: Tag[];
-    photos?: string[];
-  };
-  onClose: () => void;
+    id: string
+    title: string
+    category: string
+    effect: string
+    secret: string
+    effect_video_url: string | null
+    secret_video_url: string | null
+    photo_url: string | null
+    script: string | null
+    angles: string[]
+    duration: number | null
+    reset: number | null
+    difficulty: number | null
+    notes?: string
+    tags?: Tag[]
+    photos?: string[]
+  }
+  onClose: () => void
 }
 
-const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
-  trick,
-  onClose,
-}) => {
-  const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
-  const [currentSection, setCurrentSection] = useState<StageType>("effect");
-  const scrollViewRef = useRef<ScrollView>(null);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const effectVideoRef = useRef<Video>(null);
-  const secretVideoRef = useRef<Video>(null);
-  const [isLiked, setIsLiked] = useState(false);
-  const [overlayOpacity] = useState(new Animated.Value(0));
+const TrickViewScreen: React.FC<TrickViewScreenProps> = ({ trick, onClose }) => {
+  const { t } = useTranslation()
+  const insets = useSafeAreaInsets()
+  const [currentSection, setCurrentSection] = useState<StageType>("effect")
+  const scrollViewRef = useRef<ScrollView>(null)
+  const [isPlaying, setIsPlaying] = useState(true)
+  const effectVideoRef = useRef<Video>(null)
+  const secretVideoRef = useRef<Video>(null)
+  const [isLiked, setIsLiked] = useState(false)
+  const [overlayOpacity] = useState(new Animated.Value(0))
 
   // Usar las fotos proporcionadas o crear un array con la foto principal si existe
-  const photos = trick.photos || (trick.photo_url ? [trick.photo_url] : []);
+  const photos = trick.photos || (trick.photo_url ? [trick.photo_url] : [])
 
   // Crear tags de ejemplo si no existen
   const tags = trick.tags || [
     { id: "1", name: "Card Magic" },
     { id: "2", name: "Sleight of Hand" },
     { id: "3", name: "Beginner" },
-  ];
+  ]
 
   // Función para manejar el cambio de sección al deslizar
   const handleScroll = useCallback(
     (event: any) => {
-      const offsetY = event.nativeEvent.contentOffset.y;
-      const sectionIndex = Math.floor(offsetY / height + 0.5);
+      const offsetY = event.nativeEvent.contentOffset.y
+      const sectionIndex = Math.floor(offsetY / height + 0.5)
 
       if (sectionIndex === 0 && currentSection !== "effect") {
-        setCurrentSection("effect");
+        setCurrentSection("effect")
       } else if (sectionIndex === 1 && currentSection !== "secret") {
-        setCurrentSection("secret");
+        setCurrentSection("secret")
       } else if (sectionIndex === 2 && currentSection !== "extra") {
-        setCurrentSection("extra");
+        setCurrentSection("extra")
       }
     },
-    [currentSection]
-  );
+    [currentSection],
+  )
 
   // Función para navegar a una sección específica
   const navigateToSection = (section: StageType) => {
-    const sectionIndex =
-      section === "effect" ? 0 : section === "secret" ? 1 : 2;
+    const sectionIndex = section === "effect" ? 0 : section === "secret" ? 1 : 2
     scrollViewRef.current?.scrollTo({
       y: sectionIndex * height,
       animated: true,
-    });
-    setCurrentSection(section);
-  };
+    })
+    setCurrentSection(section)
+  }
 
   // Alternar reproducción de video
   const togglePlayPause = () => {
-    setIsPlaying(!isPlaying);
+    setIsPlaying(!isPlaying)
     if (currentSection === "effect" && effectVideoRef.current) {
       if (isPlaying) {
-        effectVideoRef.current.pauseAsync();
+        effectVideoRef.current.pauseAsync()
       } else {
-        effectVideoRef.current.playAsync();
+        effectVideoRef.current.playAsync()
       }
     } else if (currentSection === "secret" && secretVideoRef.current) {
       if (isPlaying) {
-        secretVideoRef.current.pauseAsync();
+        secretVideoRef.current.pauseAsync()
       } else {
-        secretVideoRef.current.playAsync();
+        secretVideoRef.current.playAsync()
       }
     }
-  };
+  }
 
   // Manejar el botón de like
   const handleLikePress = () => {
-    setIsLiked(!isLiked);
+    setIsLiked(!isLiked)
     // Aquí podrías implementar la lógica para guardar el estado de "me gusta" en la base de datos
-  };
+  }
 
   // Manejar el botón de editar
   const handleEditPress = () => {
     // Implementar la lógica para editar el truco
-    console.log("Edit trick:", trick.id);
-  };
+    console.log("Edit trick:", trick.id)
+  }
 
   // Manejar la eliminación de etiquetas
   const handleRemoveTag = (tagId: string) => {
-    console.log("Remove tag:", tagId);
+    console.log("Remove tag:", tagId)
     // Aquí implementarías la lógica para eliminar la etiqueta
-  };
+  }
 
   // Renderizar video con controles
-  const renderVideo = (
-    url: string | null,
-    videoRef: React.RefObject<Video>
-  ) => {
+  const renderVideo = (url: string | null, videoRef: React.RefObject<Video | null>) => {
     if (!url) {
       return (
         <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
-          <StyledText className="text-white text-xl">
-            {t("noVideoAvailable", "No video available")}
-          </StyledText>
+          <StyledText className="text-white text-xl">{t("noVideoAvailable", "No video available")}</StyledText>
         </StyledView>
-      );
+      )
     }
     return (
       <StyledView className="absolute top-0 left-0 right-0 bottom-0">
@@ -178,24 +169,22 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           {/* Mostrar icono de reproducción solo cuando está pausado */}
           {!isPlaying && (
             <StyledView className="bg-black/30 rounded-full p-5">
-              <Play color="white" size={50} />
+              <Ionicons name="play" color="white" size={50} />
             </StyledView>
           )}
         </StyledTouchableOpacity>
       </StyledView>
-    );
-  };
+    )
+  }
 
   // Renderizar galería de fotos con scroll horizontal
   const renderPhotoGallery = () => {
     if (photos.length === 0) {
       return (
         <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
-          <StyledText className="text-white text-xl">
-            {t("noPhotosAvailable", "No photos available")}
-          </StyledText>
+          <StyledText className="text-white text-xl">{t("noPhotosAvailable", "No photos available")}</StyledText>
         </StyledView>
-      );
+      )
     }
 
     return (
@@ -208,11 +197,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item, index) => `photo-${index}`}
           renderItem={({ item }) => (
-            <Image
-              source={{ uri: item }}
-              style={{ width, height: height * 0.7 }}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: item as string }} style={{ width, height: height * 0.7 }} resizeMode="cover" />
           )}
         />
 
@@ -232,30 +217,26 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           </StyledScrollView>
         </StyledView> */}
       </StyledView>
-    );
-  };
+    )
+  }
 
   // Obtener la descripción según la sección actual
   const getCurrentDescription = () => {
     switch (currentSection) {
       case "effect":
-        return trick.effect;
+        return trick.effect
       case "secret":
-        return trick.secret;
+        return trick.secret
       case "extra":
-        return trick.notes;
+        return trick.notes
       default:
-        return "";
+        return ""
     }
-  };
+  }
 
   return (
     <StyledView className="flex-1 bg-black">
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="light-content"
-      />
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
       <StyledScrollView
         ref={scrollViewRef}
@@ -269,19 +250,13 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         style={{ flex: 1 }}
       >
         {/* Sección de Efecto */}
-        <StyledView style={{ width, height }}>
-          {renderVideo(trick.effect_video_url, effectVideoRef)}
-        </StyledView>
+        <StyledView style={{ width, height }}>{renderVideo(trick.effect_video_url, effectVideoRef)}</StyledView>
 
         {/* Sección de Secreto */}
-        <StyledView style={{ width, height }}>
-          {renderVideo(trick.secret_video_url, secretVideoRef)}
-        </StyledView>
+        <StyledView style={{ width, height }}>{renderVideo(trick.secret_video_url, secretVideoRef)}</StyledView>
 
         {/* Sección de Fotos/Detalles */}
-        <StyledView style={{ width, height }}>
-          {renderPhotoGallery()}
-        </StyledView>
+        <StyledView style={{ width, height }}>{renderPhotoGallery()}</StyledView>
       </StyledScrollView>
 
       {/* Barra de navegación superior */}
@@ -326,7 +301,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         />
       </StyledView>
     </StyledView>
-  );
-};
+  )
+}
 
-export default TrickViewScreen;
+export default TrickViewScreen

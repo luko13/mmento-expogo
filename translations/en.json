@@ -70,6 +70,7 @@
   "front": "Front",
   "side": "Side",
   "back": "Back",
+  "back_": "Back",
   "above": "Above",
   "below": "Below",
   "duration": "Duration",

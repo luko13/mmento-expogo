@@ -15,7 +15,14 @@ import {
 } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { Plus, Book, Eye, Wand2, Wrench, FileText, Trash2, Edit } from "lucide-react-native"
+import {
+  AntDesign,
+  FontAwesome,
+  MaterialCommunityIcons,
+  MaterialIcons,
+  Feather,
+  FontAwesome5,
+} from "@expo/vector-icons"
 import { BlurView } from "expo-blur"
 import { supabase } from "../../lib/supabase"
 import {
@@ -337,15 +344,15 @@ export default function LibrariesSection({ searchQuery = "", searchFilters }: Li
   const getItemIcon = (type: string) => {
     switch (type) {
       case "magic":
-        return <Wand2 size={20} color="white" />
+        return <FontAwesome5 name="magic" size={20} color="white" />
       case "gimmick":
-        return <Wrench size={20} color="white" />
+        return <MaterialCommunityIcons name="wrench" size={20} color="white" />
       case "technique":
-        return <Wrench size={20} color="white" />
+        return <MaterialCommunityIcons name="wrench" size={20} color="white" />
       case "script":
-        return <FileText size={20} color="white" />
+        return <FontAwesome name="file-text-o" size={20} color="white" />
       default:
-        return <Wand2 size={20} color="white" />
+        return <FontAwesome5 name="magic" size={20} color="white" />
     }
   }
 
@@ -427,10 +434,10 @@ export default function LibrariesSection({ searchQuery = "", searchFilters }: Li
             <StyledText className="text-white mr-2">{filteredItems.length}</StyledText>
             <StyledView className="flex-row">
               <StyledTouchableOpacity onPress={() => openEditCategoryModal(item.category)} className="p-2">
-                <Edit size={16} color="white" />
+                <MaterialIcons name="edit" size={16} color="white" />
               </StyledTouchableOpacity>
               <StyledTouchableOpacity onPress={() => handleDeleteCategory(item.category.id)} className="p-2">
-                <Trash2 size={16} color="white" />
+                <Feather name="trash-2" size={16} color="white" />
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
@@ -452,7 +459,7 @@ export default function LibrariesSection({ searchQuery = "", searchFilters }: Li
                 {getItemIcon(libraryItem.type)}
                 <StyledText className="text-white ml-2">{libraryItem.title}</StyledText>
               </StyledView>
-              <Eye size={20} color="white" />
+              <Feather name="eye" size={20} color="white" />
             </StyledTouchableOpacity>
           ))
         ) : (
@@ -473,7 +480,7 @@ export default function LibrariesSection({ searchQuery = "", searchFilters }: Li
       {/* Libraries Header */}
       <StyledView className="flex-row justify-between items-center mb-4">
         <StyledView className="flex-row items-center">
-          <Book size={24} color="white" />
+          <FontAwesome name="book" size={24} color="white" />
           <StyledText className="text-white text-xl ml-2">
             {t("librariesCount", { count: categories.length })}
           </StyledText>
@@ -483,7 +490,7 @@ export default function LibrariesSection({ searchQuery = "", searchFilters }: Li
           className="bg-white/20 p-2 rounded-full"
           onPress={() => setAddCategoryModalVisible(true)}
         >
-          <Plus size={24} color="white" />
+          <AntDesign name="plus" size={24} color="white" />
         </StyledTouchableOpacity>
       </StyledView>
 
@@ -670,4 +677,3 @@ export default function LibrariesSection({ searchQuery = "", searchFilters }: Li
     </StyledView>
   )
 }
-
