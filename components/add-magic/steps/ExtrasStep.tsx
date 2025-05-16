@@ -66,11 +66,11 @@ export default function ExtrasStep({ trickData, updateTrickData }: StepProps) {
         // Verificar tamaño del archivo
         try {
           const fileInfo = await FileSystem.getInfoAsync(uri)
-          console.log("File info:", fileInfo)
+          
 
           // Verificar si el archivo existe y tiene tamaño
           if (fileInfo.exists && "size" in fileInfo) {
-            console.log("File size:", fileInfo.size)
+            
 
             // Si el archivo es mayor a 10MB, mostrar advertencia
             if (fileInfo.size > 10 * 1024 * 1024) {

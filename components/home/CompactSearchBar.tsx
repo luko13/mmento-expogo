@@ -1,13 +1,9 @@
 "use client"
 
 import { useRef, useEffect, useState } from "react"
-import { View, TextInput, TouchableOpacity, Animated, ScrollView, BackHandler, StyleSheet } from "react-native"
+import { View, TextInput, TouchableOpacity, Animated, ScrollView, BackHandler, StyleSheet, PanResponder } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-// Cambiar la importación de Search, X de lucide-react-native
-// Reemplazar:
-// import { Search, X } from "lucide-react-native"
-// Por:
 import { Ionicons, Feather } from "@expo/vector-icons"
 import { BlurView } from "expo-blur"
 import { supabase } from "../../lib/supabase"
@@ -22,10 +18,10 @@ const StyledScrollView = styled(ScrollView)
 const StyledTouchableOpacity = styled(TouchableOpacity)
 const StyledTextInput = styled(TextInput)
 
-// Define a search filters interface
+// Define a search filters interface - KEEP USING IDs for better performance
 export interface SearchFilters {
   categories: string[]
-  tags: string[]
+  tags: string[] // Keep as IDs for consistency with database
   difficulties: string[]
 }
 
@@ -33,16 +29,16 @@ interface CompactSearchBarProps {
   value: string
   onChangeText: (text: string) => void
   onClose: () => void
-  autoHideDelay?: number
   onFiltersChange?: (filters: SearchFilters) => void
+  onSearchBarPress?: () => void // Callback cuando se presiona la barra de búsqueda
 }
 
 export default function CompactSearchBar({
   value,
   onChangeText,
   onClose,
-  autoHideDelay = 8000,
   onFiltersChange,
+  onSearchBarPress,
 }: CompactSearchBarProps) {
   const { t } = useTranslation()
   const inputRef = useRef<TextInput>(null)
@@ -57,8 +53,6 @@ export default function CompactSearchBar({
   const [tags, setTags] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(false)
 
-  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
   // Fetch categories and tags on mount
   useEffect(() => {
     fetchCategoriesAndTags()
@@ -69,7 +63,7 @@ export default function CompactSearchBar({
     if (onFiltersChange) {
       onFiltersChange({
         categories: selectedCategories,
-        tags: selectedTags,
+        tags: selectedTags, // Send IDs - LibrariesSection will handle the lookup
         difficulties: selectedDifficulties,
       })
     }
@@ -107,12 +101,6 @@ export default function CompactSearchBar({
   }
 
   const animateIn = () => {
-    // Limpiar cualquier timeout existente
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current)
-      hideTimeoutRef.current = null
-    }
-
     // Animar la aparición
     Animated.parallel([
       Animated.spring(translateY, {
@@ -135,45 +123,48 @@ export default function CompactSearchBar({
     ]).start()
   }
 
-  const animateOut = () => {
-    // Solo animar hacia fuera si no hay texto y no está enfocado
-    if (value.length === 0 && !isFocused) {
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: -20,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: 0.9,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        if (value.length === 0 && !isFocused) {
-          onClose()
+  // Pan responder for swipe to close gesture
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only respond to horizontal swipes to the right
+        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && gestureState.dx > 10
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        // Update scale and opacity based on swipe progress
+        if (gestureState.dx > 0) {
+          const progress = Math.min(gestureState.dx / 100, 1)
+          scale.setValue(1 - progress * 0.1)
+          opacity.setValue(1 - progress * 0.5)
         }
-      })
-    }
-  }
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        // If swiped far enough to the right, close the search
+        if (gestureState.dx > 80) {
+          onClose()
+        } else {
+          // Otherwise, animate back to original position
+          Animated.parallel([
+            Animated.spring(scale, {
+              toValue: 1,
+              useNativeDriver: true,
+              friction: 8,
+              tension: 40,
+            }),
+            Animated.timing(opacity, {
+              toValue: 1,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+          ]).start()
+        }
+      },
+    }),
+  ).current
 
-  const setupAutoHide = () => {
-    // Limpiar cualquier timeout existente
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current)
-    }
-
-    // Solo configurar el timeout si no está enfocado y no hay texto
-    if (!isFocused && value.length === 0) {
-      hideTimeoutRef.current = setTimeout(() => {
-        animateOut()
-      }, autoHideDelay)
-    }
+  // Función para cerrar el teclado
+  const dismissKeyboard = () => {
+    inputRef.current?.blur()
   }
 
   // Manejar el botón de retroceso en Android
@@ -183,34 +174,22 @@ export default function CompactSearchBar({
         onChangeText("")
         return true
       } else if (isFocused) {
-        inputRef.current?.blur()
+        dismissKeyboard()
+        return true
+      } else {
+        // Si no hay texto y no está enfocado, cerrar la búsqueda
+        onClose()
         return true
       }
-      return false
     })
 
     return () => backHandler.remove()
-  }, [value, isFocused, onChangeText])
+  }, [value, isFocused, onChangeText, onClose])
 
-  // Focus the input when the component mounts
+  // Initialize component animation without focusing input
   useEffect(() => {
     animateIn()
-
-    setTimeout(() => {
-      inputRef.current?.focus()
-    }, 100)
-
-    return () => {
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current)
-      }
-    }
   }, [])
-
-  // Configurar el timeout para auto-ocultar cuando cambian las condiciones
-  useEffect(() => {
-    setupAutoHide()
-  }, [isFocused, value])
 
   const toggleCategory = (categoryId: string) => {
     setSelectedCategories((prev) =>
@@ -219,6 +198,7 @@ export default function CompactSearchBar({
     animateIn()
   }
 
+  // Keep using IDs for tags - this is more efficient
   const toggleTag = (tagId: string) => {
     setSelectedTags((prev) => (prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]))
     animateIn()
@@ -231,13 +211,26 @@ export default function CompactSearchBar({
     animateIn()
   }
 
+  // Función para manejar cuando se presiona la barra de búsqueda (desde el home)
+  const handleSearchBarPress = () => {
+    // Llamar al callback del padre (home) para ejecutar las animaciones
+    if (onSearchBarPress) {
+      onSearchBarPress()
+    }
+    
+    // Enfocar el input después de un pequeño delay para que la animación sea smooth
+    setTimeout(() => {
+      inputRef.current?.focus()
+    }, 300)
+  }
+
   // Dificultades disponibles
   const difficulties = [
-    { id: "beginner", label: t("difficulty.beginner") },
-    { id: "easy", label: t("difficulty.easy") },
-    { id: "intermediate", label: t("difficulty.intermediate") },
-    { id: "advanced", label: t("difficulty.advanced") },
-    { id: "expert", label: t("difficulty.expert") },
+    { id: "beginner", label: t("difficulty.beginner", "Beginner") },
+    { id: "easy", label: t("difficulty.easy", "Easy") },
+    { id: "intermediate", label: t("difficulty.intermediate", "Intermediate") },
+    { id: "advanced", label: t("difficulty.advanced", "Advanced") },
+    { id: "expert", label: t("difficulty.expert", "Expert") },
   ]
 
   return (
@@ -249,20 +242,17 @@ export default function CompactSearchBar({
           opacity,
         },
       ]}
+      {...panResponder.panHandlers}
     >
       {/* Barra de búsqueda */}
-      <StyledView style={styles.searchBarContainer}>
+      <StyledTouchableOpacity style={styles.searchBarContainer} onPress={handleSearchBarPress} activeOpacity={0.9}>
         <BlurView intensity={10} tint="dark" style={styles.blurEffect}>
           <StyledView style={styles.searchInputContainer}>
-            {/* Reemplazar los usos de los iconos */}
-            {/* Cambiar: */}
-            {/* <Search size={16} color="white" /> */}
-            {/* Por: */}
             <Ionicons name="search" size={16} color="white" />
             <StyledTextInput
               ref={inputRef}
               className="flex-1 text-white mx-2 h-10"
-              placeholder={t("searchPlaceholder")}
+              placeholder={t("searchPlaceholder", "Search for tricks...")}
               placeholderTextColor="rgba(255, 255, 255, 0.5)"
               value={value}
               onChangeText={(text) => {
@@ -276,26 +266,32 @@ export default function CompactSearchBar({
               }}
               onBlur={() => {
                 setIsFocused(false)
-                setupAutoHide()
               }}
+              blurOnSubmit={true}
+              enterKeyHint="done"
             />
+            
+            {/* Botón para limpiar texto */}
             {value.length > 0 && (
-              <StyledTouchableOpacity onPress={() => onChangeText("")} style={styles.clearButton}>
-                {/* Reemplazar los usos de los iconos */}
-                {/* Cambiar: */}
-                {/* <X size={16} color="white" /> */}
-                {/* Por: */}
+              <StyledTouchableOpacity onPress={() => onChangeText("")} style={styles.actionButton}>
                 <Feather name="x" size={16} color="white" />
+              </StyledTouchableOpacity>
+            )}
+            
+            {/* Botón para cerrar teclado (visible cuando el input está enfocado) */}
+            {isFocused && (
+              <StyledTouchableOpacity onPress={dismissKeyboard} style={styles.actionButton}>
+                <Ionicons name="chevron-down" size={16} color="white" />
               </StyledTouchableOpacity>
             )}
           </StyledView>
         </BlurView>
-      </StyledView>
+      </StyledTouchableOpacity>
 
       {/* Categorías */}
       <StyledView style={styles.sectionContainer}>
         <Text variant="regular" className="text-white mb-2">
-          {t("categories")}
+          {t("categories", "Categories")}
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContainer}>
           {categories.map((category) => (
@@ -315,10 +311,10 @@ export default function CompactSearchBar({
         </ScrollView>
       </StyledView>
 
-      {/* Etiquetas */}
+      {/* Etiquetas - Keep using IDs for selection */}
       <StyledView style={styles.sectionContainer}>
         <Text variant="regular" className="text-white mb-2">
-          {t("tags")}
+          {t("tags", "Tags")}
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContainer}>
           {tags.map((tag) => (
@@ -376,8 +372,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  clearButton: {
+  actionButton: {
     padding: 4,
+    marginLeft: 4,
   },
   sectionContainer: {
     marginBottom: 12,

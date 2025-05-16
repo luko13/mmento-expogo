@@ -200,22 +200,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({ trick, onClose }) => 
             <Image source={{ uri: item as string }} style={{ width, height: height * 0.7 }} resizeMode="cover" />
           )}
         />
-
-        {/* Notas en la parte inferior */}
-        {/* <StyledView
-          className="absolute bottom-0 left-0 right-0 bg-black/70 p-4"
-          style={{ height: height * 0.3 }}
-        >
-          <StyledText className="text-white text-lg font-bold mb-2">
-            {t("notes", "Notes")}
-          </StyledText>
-          <StyledScrollView>
-            <StyledText className="text-white">
-              {trick.notes ||
-                t("notes", "No additional information available.")}
-            </StyledText>
-          </StyledScrollView>
-        </StyledView> */}
       </StyledView>
     )
   }
@@ -236,8 +220,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({ trick, onClose }) => 
 
   return (
     <StyledView className="flex-1 bg-black">
+      {/* StatusBar transparente para que los videos ocupen toda la pantalla */}
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
+      {/* ScrollView que ocupa toda la pantalla (incluyendo safe areas) */}
       <StyledScrollView
         ref={scrollViewRef}
         pagingEnabled
@@ -248,18 +234,20 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({ trick, onClose }) => 
         snapToInterval={height}
         snapToAlignment="start"
         style={{ flex: 1 }}
+        // Permitir que el contenido se extienda debajo de las safe areas
+        contentInsetAdjustmentBehavior="never"
       >
-        {/* Sección de Efecto */}
+        {/* Sección de Efecto - Video ocupa toda la pantalla */}
         <StyledView style={{ width, height }}>{renderVideo(trick.effect_video_url, effectVideoRef)}</StyledView>
 
-        {/* Sección de Secreto */}
+        {/* Sección de Secreto - Video ocupa toda la pantalla */}
         <StyledView style={{ width, height }}>{renderVideo(trick.secret_video_url, secretVideoRef)}</StyledView>
 
-        {/* Sección de Fotos/Detalles */}
+        {/* Sección de Fotos/Detalles - Fotos ocupan toda la pantalla */}
         <StyledView style={{ width, height }}>{renderPhotoGallery()}</StyledView>
       </StyledScrollView>
 
-      {/* Barra de navegación superior */}
+      {/* Barra de navegación superior - Respeta las Safe Areas */}
       <StyledView
         style={{
           position: "absolute",
@@ -267,6 +255,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({ trick, onClose }) => 
           left: 0,
           right: 0,
           zIndex: 10,
+          paddingHorizontal: insets.left, // Respeta safe areas laterales
         }}
       >
         <TopNavigationBar
@@ -278,7 +267,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({ trick, onClose }) => 
         />
       </StyledView>
 
-      {/* Nueva sección inferior */}
+      {/* Sección inferior - Respeta las Safe Areas */}
       <StyledView
         style={{
           position: "absolute",
@@ -286,6 +275,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({ trick, onClose }) => 
           left: 0,
           right: 0,
           zIndex: 10,
+          paddingHorizontal: insets.left, // Respeta safe areas laterales
         }}
       >
         <TrickViewerBottomSection

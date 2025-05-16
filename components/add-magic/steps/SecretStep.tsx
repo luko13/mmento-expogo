@@ -68,11 +68,11 @@ export default function SecretStep({ trickData, updateTrickData }: StepProps) {
         // Verificar tamaño del archivo
         try {
           const fileInfo = await FileSystem.getInfoAsync(uri)
-          console.log("File info:", fileInfo)
+          
 
           // Verificar si el archivo existe y tiene tamaño
           if (fileInfo.exists && "size" in fileInfo) {
-            console.log("File size:", fileInfo.size)
+            
 
             // Si el archivo es mayor a 50MB, mostrar advertencia
             if (fileInfo.size > 50 * 1024 * 1024) {
@@ -193,7 +193,10 @@ export default function SecretStep({ trickData, updateTrickData }: StepProps) {
     <StyledView className="flex-1">
       {/* Descripción del secreto */}
       <StyledView className="mb-6">
-        <StyledText className="text-white text-lg mb-2">{t("secretDescription", "Secret Description")}*</StyledText>
+        <StyledText className="text-white text-lg mb-2">
+          {t("secretDescription", "Secret Description")}
+          <StyledText className="text-red-400"> *</StyledText>
+        </StyledText>
         <StyledView className="overflow-hidden rounded-lg">
           <BlurView intensity={20} tint="dark">
             <StyledTextInput
@@ -208,6 +211,11 @@ export default function SecretStep({ trickData, updateTrickData }: StepProps) {
             />
           </BlurView>
         </StyledView>
+        {!trickData.secret.trim() && (
+          <StyledText className="text-red-400 text-sm mt-1">
+            {t("secretRequired", "Secret description is required")}
+          </StyledText>
+        )}
       </StyledView>
 
       {/* Video del secreto */}

@@ -59,7 +59,7 @@ interface LibraryItem {
   created_at?: string
   duration?: number
   category_id?: string
-  tags?: string[]
+  tags?: string[] // Store tag IDs
 }
 
 interface CategorySection {
@@ -115,18 +115,33 @@ export default function LibrariesSection({ searchQuery = "", searchFilters }: Li
         for (const category of userCategories) {
           const tricks = await getTricksByCategory(category.id)
 
-          // Transform tricks to LibraryItem format
-          const items: LibraryItem[] = tricks.map((trick) => ({
-            id: trick.id,
-            title: trick.title,
-            type: "magic",
-            difficulty: trick.difficulty,
-            status: trick.status,
-            created_at: trick.created_at,
-            duration: trick.duration,
-            category_id: category.id,
-            // We'll fetch tags separately if needed
-          }))
+          // Transform tricks to LibraryItem format and fetch tags for each trick
+          const items: LibraryItem[] = await Promise.all(
+            tricks.map(async (trick) => {
+              // Fetch tags for this trick
+              const { data: trickTags, error: tagsError } = await supabase
+                .from("trick_tags")
+                .select(`
+                  tag_id
+                `)
+                .eq("trick_id", trick.id)
+
+              // Extract tag IDs directly from the trick_tags table
+              const tagIds = trickTags?.map(item => item.tag_id).filter(Boolean) || []
+
+              return {
+                id: trick.id,
+                title: trick.title,
+                type: "magic",
+                difficulty: trick.difficulty,
+                status: trick.status,
+                created_at: trick.created_at,
+                duration: trick.duration,
+                category_id: category.id,
+                tags: tagIds, // Store tag IDs for filtering
+              }
+            })
+          )
 
           sections.push({
             category,
@@ -292,9 +307,9 @@ export default function LibrariesSection({ searchQuery = "", searchFilters }: Li
             ? item.difficulty && searchFilters.difficulties.includes(item.difficulty)
             : true
 
-          // Filtro de etiquetas (simplificado)
+          // FIXED: Filtro de etiquetas - Check if trick has any of the selected tag IDs
           const matchesTags = searchFilters?.tags.length
-            ? true // Aquí se implementaría la lógica real de filtrado por etiquetas
+            ? item.tags && item.tags.some(tagId => searchFilters.tags.includes(tagId))
             : true
 
           return matchesText && matchesDifficulty && matchesTags
@@ -331,12 +346,17 @@ export default function LibrariesSection({ searchQuery = "", searchFilters }: Li
         ? item.difficulty && searchFilters.difficulties.includes(item.difficulty)
         : true
 
+      // FIXED: Filtro de etiquetas - Check if trick has any of the selected tag IDs
+      const matchesTags = searchFilters?.tags.length
+        ? item.tags && item.tags.some(tagId => searchFilters.tags.includes(tagId))
+        : true
+
       // Filtro de categoría - ya manejado a nivel de sección, pero incluido para completitud
       const matchesCategory = searchFilters?.categories.length
         ? item.category_id && searchFilters.categories.includes(item.category_id)
         : true
 
-      return matchesText && matchesDifficulty && matchesCategory
+      return matchesText && matchesDifficulty && matchesTags && matchesCategory
     })
   }
 

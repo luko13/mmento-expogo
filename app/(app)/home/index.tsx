@@ -14,11 +14,8 @@ import {
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
 import { useRouter } from "expo-router"
-// Cambiar la importación de Search de lucide-react-native
-// Reemplazar:
-// import { Search } from "lucide-react-native"
-// Por:
 import { Ionicons } from "@expo/vector-icons"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import UserProfile from "../../../components/home/UserProfile"
 import ActionButtonsCarousel from "../../../components/home/ActionButtonsCarousel"
 import LibrariesSection from "../../../components/home/LibrariesSection"
@@ -32,14 +29,15 @@ const StyledAnimatedView = styled(Animated.View)
 const { width, height } = Dimensions.get("window")
 
 // Calculate safe area for navigation bar
-const NAVBAR_HEIGHT = 60
+const NAVBAR_HEIGHT = 90
 const BOTTOM_SPACING = Platform.OS === "ios" ? 20 : 10
-const AUTO_HIDE_DELAY = 10000 // 10 segundos
-const SEARCH_BAR_HEIGHT = 260 // Estimated height to avoid overlap
+const SEARCH_BAR_HEIGHT = 140 // Altura más precisa de la barra de búsqueda expandida
+const SEARCH_SPACING = 15 // Espacio entre búsqueda y libraries
 
 export default function Home() {
   const { t } = useTranslation()
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const [isReady, setIsReady] = useState(false)
   const [searchVisible, setSearchVisible] = useState(false)
   const searchVisibleRef = useRef(false) // Referencia para el estado real
@@ -51,7 +49,6 @@ export default function Home() {
   })
   const [carouselInteractive, setCarouselInteractive] = useState(true)
   const [indicatorInteractive, setIndicatorInteractive] = useState(true)
-  const autoHideTimerRef = useRef<NodeJS.Timeout | null>(null)
   const isAnimating = useRef(false)
   const pendingAnimationState = useRef<boolean | null>(null)
   const componentMounted = useRef(true)
@@ -91,7 +88,7 @@ export default function Home() {
           carouselOpacity.setValue(1)
         } else {
           scrollY.setValue(100)
-          librariesTranslateY.setValue(90)
+          librariesTranslateY.setValue(SEARCH_BAR_HEIGHT + SEARCH_SPACING)
           carouselTranslateY.setValue(-150)
           carouselOpacity.setValue(0)
         }
@@ -109,42 +106,9 @@ export default function Home() {
     return () => {
       componentMounted.current = false
       clearTimeout(timer)
-      if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current)
       subscription.remove()
     }
   }, [])
-
-  // Reset auto-hide timer when search is visible or query changes
-  useEffect(() => {
-    if (searchVisible) {
-      resetAutoHideTimer()
-    }
-    return () => {
-      if (autoHideTimerRef.current) {
-        clearTimeout(autoHideTimerRef.current)
-      }
-    }
-  }, [searchVisible, searchQuery, searchFilters])
-
-  // Function to reset the auto-hide timer
-  const resetAutoHideTimer = () => {
-    if (autoHideTimerRef.current) {
-      clearTimeout(autoHideTimerRef.current)
-    }
-
-    autoHideTimerRef.current = setTimeout(() => {
-      // Usar la referencia para estado más actual
-      if (
-        searchVisibleRef.current &&
-        !searchQuery &&
-        searchFilters.categories.length === 0 &&
-        searchFilters.tags.length === 0 &&
-        searchFilters.difficulties.length === 0
-      ) {
-        animateSearch(false)
-      }
-    }, AUTO_HIDE_DELAY)
-  }
 
   // Pan responder for swipe gestures
   const panResponder = useRef(
@@ -166,8 +130,9 @@ export default function Home() {
           const newValue = Math.min(100, gestureState.dy)
           scrollY.setValue(newValue)
 
-          // Animate libraries section down
-          librariesTranslateY.setValue((newValue * 90) / 100)
+          // Animate libraries section down with proper spacing
+          const targetTranslateY = (newValue * (SEARCH_BAR_HEIGHT + SEARCH_SPACING)) / 100
+          librariesTranslateY.setValue(targetTranslateY)
 
           // Animate carousel up and fade out
           const carouselYValue = -Math.min(150, newValue * 1.5)
@@ -178,8 +143,10 @@ export default function Home() {
           const newValue = Math.max(0, 100 + gestureState.dy)
           scrollY.setValue(newValue)
 
-          // Animate libraries section back up
-          librariesTranslateY.setValue(90 - (90 * (100 - newValue)) / 100)
+          // Animate libraries section back up with proper spacing
+          const maxTranslateY = SEARCH_BAR_HEIGHT + SEARCH_SPACING
+          const currentProgress = (100 - newValue) / 100
+          librariesTranslateY.setValue(maxTranslateY * currentProgress)
 
           // Animate carousel back down and fade in
           const carouselProgress = (newValue - 100) / -100 // 0 to 1
@@ -212,7 +179,7 @@ export default function Home() {
               tension: 40,
             }),
             Animated.spring(librariesTranslateY, {
-              toValue: isSearchCurrentlyVisible ? 90 : 0,
+              toValue: isSearchCurrentlyVisible ? SEARCH_BAR_HEIGHT + SEARCH_SPACING : 0,
               useNativeDriver: true,
               friction: 8,
               tension: 40,
@@ -272,7 +239,7 @@ export default function Home() {
           tension: 40,
         }),
         Animated.spring(librariesTranslateY, {
-          toValue: 90,
+          toValue: SEARCH_BAR_HEIGHT + SEARCH_SPACING,
           useNativeDriver: true,
           friction: 8,
           tension: 40,
@@ -290,7 +257,6 @@ export default function Home() {
         }),
       ]).start(() => {
         if (!componentMounted.current) return
-        resetAutoHideTimer()
         isAnimating.current = false
 
         // Ejecuta animación pendiente si existe
@@ -359,13 +325,11 @@ export default function Home() {
   // Handle search query changes
   const handleSearchQueryChange = (query: string) => {
     setSearchQuery(query)
-    resetAutoHideTimer()
   }
 
   // Handle search filters changes
   const handleFiltersChange = (filters: SearchFilters) => {
     setSearchFilters(filters)
-    resetAutoHideTimer()
 
     // If filters are applied, make sure search stays visible
     if (filters.categories.length > 0 || filters.tags.length > 0 || filters.difficulties.length > 0) {
@@ -390,20 +354,17 @@ export default function Home() {
 
   return (
     <StyledView className="flex-1" {...panResponder.panHandlers}>
-      <Image
-        source={require("../../../assets/Background.png")}
-        style={{
-          width: width,
-          height: height,
-          position: "absolute",
-        }}
-        resizeMode="cover"
-      />
-
-      <StyledView className="flex-1 p-6">
+      {/* Background image que viene del layout padre */}
+      
+      {/* Container principal con padding para las safe areas */}
+      <StyledView className="flex-1" style={{ paddingHorizontal: 24 }}>
         {/* User Profile - always visible */}
-        <StyledView style={{ zIndex: 10, marginBottom: 10 }}>
-          <UserProfile onProfilePress={() => router.push("/(app)/profile")} />
+        <StyledView style={{ zIndex: 10, marginBottom: 10, marginTop: 10 }}>
+          <UserProfile 
+            onProfilePress={() => router.push("/(app)/profile")}
+            isSearchVisible={searchVisible}
+            onCloseSearch={() => animateSearch(false)}
+          />
         </StyledView>
 
         {/* Action Buttons Carousel - animates up and out when search is visible */}
@@ -438,10 +399,6 @@ export default function Home() {
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                {/* Reemplazar el uso del icono Search */}
-                {/* Cambiar: */}
-                {/* <Search size={16} color="white" style={{ marginRight: 8 }} /> */}
-                {/* Por: */}
                 <Ionicons name="search" size={16} color="white" style={{ marginRight: 8 }} />
                 <StyledText className="text-white opacity-60">{t("search", "Buscar")}</StyledText>
               </View>
@@ -455,7 +412,7 @@ export default function Home() {
               opacity: searchOpacity,
               zIndex: 50,
               position: "absolute",
-              top: -165,
+              top: -140, // Posición más cerca del UserProfile
             }}
             pointerEvents={isReady && searchVisibleRef.current ? "auto" : "none"}
           >
@@ -466,17 +423,22 @@ export default function Home() {
                 animateSearch(false)
               }}
               onFiltersChange={handleFiltersChange}
+              onSearchBarPress={() => {
+                // Esta función se llama cuando se presiona la barra de búsqueda expandida
+                // No necesita hacer nada adicional porque la barra ya está visible
+              }}
             />
           </StyledAnimatedView>
         </StyledView>
 
-        {/* Libraries Section - animates down when search is visible */}
+        {/* Libraries Section - animates down when search is visible with proper spacing */}
         <StyledAnimatedView
           className="flex-1"
           style={{
             transform: [{ translateY: librariesTranslateY }],
             marginTop: 5,
-            paddingBottom: NAVBAR_HEIGHT + BOTTOM_SPACING,
+            // Usar insets.bottom para el padding inferior junto con los valores existentes
+            paddingBottom: NAVBAR_HEIGHT + BOTTOM_SPACING + insets.bottom,
             zIndex: 1,
           }}
         >

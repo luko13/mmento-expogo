@@ -1,20 +1,13 @@
 "use client"
 
-import { useState } from "react"
-import { View, Text, TouchableOpacity, ScrollView, Alert } from "react-native"
-import { styled } from "nativewind"
+import { useState, useEffect, useMemo } from "react"
+import { Alert } from "react-native"
 import { useTranslation } from "react-i18next"
-import { Ionicons, Feather } from "@expo/vector-icons"
 import { supabase } from "../../lib/supabase"
 import TitleCategoryStep from "./steps/TitleCategoryStep"
 import EffectStep from "./steps/EffectStep"
 import SecretStep from "./steps/SecretStep"
 import ExtrasStep from "./steps/ExtrasStep"
-
-const StyledView = styled(View)
-const StyledText = styled(Text)
-const StyledTouchableOpacity = styled(TouchableOpacity)
-const StyledScrollView = styled(ScrollView)
 
 // Tipo para el truco de magia
 export interface MagicTrick {
@@ -22,7 +15,7 @@ export interface MagicTrick {
   title: string
   categories: string[]
   tags: string[]
-  selectedCategoryId: string | null // Add this line
+  selectedCategoryId: string | null
 
   // Paso 2: Efecto
   effect: string
@@ -87,6 +80,145 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
     { title: t("extras", "Extras"), component: ExtrasStep },
   ]
 
+  // Validación mejorada de los campos obligatorios de cada paso
+  const validateCurrentStep = (): { isValid: boolean; errorMessage?: string } => {
+    switch (currentStep) {
+      case 0: // Paso 1: Título y categorización
+        if (!trickData.title?.trim()) {
+          return { 
+            isValid: false, 
+            errorMessage: t("titleRequired", "El título es obligatorio") 
+          }
+        }
+
+        if (trickData.title.trim().length < 3) {
+          return { 
+            isValid: false, 
+            errorMessage: t("titleTooShort", "El título debe tener al menos 3 caracteres") 
+          }
+        }
+
+        if (trickData.title.trim().length > 100) {
+          return { 
+            isValid: false, 
+            errorMessage: t("titleTooLong", "El título no debe exceder los 100 caracteres") 
+          }
+        }
+
+        if (!trickData.selectedCategoryId) {
+          return { 
+            isValid: false, 
+            errorMessage: t("categoryRequired", "Por favor selecciona una categoría") 
+          }
+        }
+
+        return { isValid: true }
+
+      case 1: // Paso 2: Efecto
+        if (!trickData.effect?.trim()) {
+          return { 
+            isValid: false, 
+            errorMessage: t("effectRequired", "La descripción del efecto es obligatoria") 
+          }
+        }
+
+        if (trickData.effect.trim().length < 10) {
+          return { 
+            isValid: false, 
+            errorMessage: t("effectTooShort", "La descripción del efecto debe tener al menos 10 caracteres") 
+          }
+        }
+
+        return { isValid: true }
+
+      case 2: // Paso 3: Secreto
+        if (!trickData.secret?.trim()) {
+          return { 
+            isValid: false, 
+            errorMessage: t("secretRequired", "La descripción del secreto es obligatoria") 
+          }
+        }
+
+        if (trickData.secret.trim().length < 10) {
+          return { 
+            isValid: false, 
+            errorMessage: t("secretTooShort", "La descripción del secreto debe tener al menos 10 caracteres") 
+          }
+        }
+
+        return { isValid: true }
+
+      case 3: // Paso 4: Extras (todos opcionales)
+        return { isValid: true }
+
+      default:
+        return { isValid: true }
+    }
+  }
+
+  // IMPORTANTE: Calcular el estado del botón usando useMemo
+  const isNextButtonDisabled = useMemo(() => {
+    const validation = validateCurrentStep()
+    return !validation.isValid
+  }, [trickData, currentStep])
+
+  // Nueva función para validar todos los pasos antes del envío final
+  const validateAllSteps = (): { isValid: boolean; errorMessage?: string } => {
+    // Validar paso 1: Título y categoría
+    if (!trickData.title?.trim()) {
+      return { 
+        isValid: false, 
+        errorMessage: t("titleRequired", "El título es obligatorio") 
+      }
+    }
+    
+    if (trickData.title.trim().length < 3) {
+      return { 
+        isValid: false, 
+        errorMessage: t("titleTooShort", "El título debe tener al menos 3 caracteres") 
+      }
+    }
+    
+    if (!trickData.selectedCategoryId) {
+      return { 
+        isValid: false, 
+        errorMessage: t("categoryRequired", "Por favor selecciona una categoría") 
+      }
+    }
+
+    // Validar paso 2: Efecto
+    if (!trickData.effect?.trim()) {
+      return { 
+        isValid: false, 
+        errorMessage: t("effectRequired", "La descripción del efecto es obligatoria") 
+      }
+    }
+
+    if (trickData.effect.trim().length < 10) {
+      return { 
+        isValid: false, 
+        errorMessage: t("effectTooShort", "La descripción del efecto debe tener al menos 10 caracteres") 
+      }
+    }
+
+    // Validar paso 3: Secreto
+    if (!trickData.secret?.trim()) {
+      return { 
+        isValid: false, 
+        errorMessage: t("secretRequired", "La descripción del secreto es obligatoria") 
+      }
+    }
+
+    if (trickData.secret.trim().length < 10) {
+      return { 
+        isValid: false, 
+        errorMessage: t("secretTooShort", "La descripción del secreto debe tener al menos 10 caracteres") 
+      }
+    }
+
+    return { isValid: true }
+  }
+
   // Ir al paso anterior
   const goToPreviousStep = () => {
     if (currentStep > 0) {
@@ -96,12 +228,45 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
     }
   }
 
-  // Ir al paso siguiente
-  const goToNextStep = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1)
-    } else {
-      handleSubmit()
+  // Función mejorada para ir al siguiente paso con mejor manejo de errores
+  const goToNextStep = async () => {
+    try {
+      // Validar el paso actual antes de continuar
+      const validation = validateCurrentStep()
+      
+      if (!validation.isValid) {
+        Alert.alert(
+          t("validationError", "Error de Validación"),
+          validation.errorMessage,
+          [{ text: t("ok", "OK") }]
+        )
+        return
+      }
+
+      // Si es el último paso, validar todo antes de enviar
+      if (currentStep === steps.length - 1) {
+        // Validación final completa
+        const finalValidation = validateAllSteps()
+        if (!finalValidation.isValid) {
+          Alert.alert(
+            t("validationError", "Error de Validación"),
+            finalValidation.errorMessage,
+            [{ text: t("ok", "OK") }]
+          )
+          return
+        }
+        
+        await handleSubmit()
+      } else {
+        setCurrentStep(currentStep + 1)
+      }
+    } catch (error) {
+      console.error("Error in goToNextStep:", error)
+      Alert.alert(
+        t("error", "Error"),
+        t("unexpectedError", "Ocurrió un error inesperado"),
+        [{ text: t("ok", "OK") }]
+      )
     }
   }
 
@@ -122,8 +287,6 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
 
     // Si el perfil no existe, lo creamos
     if (!existingProfile) {
-      console.log("Creating new profile for user:", userId)
-
       // Extraer username del email
       const username = email.split("@")[0]
 
@@ -147,11 +310,21 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
     return userId
   }
 
-  // Update the handleSubmit function to save the selected category
   // Enviar el truco a la base de datos
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true)
+
+      // Validar una última vez antes de enviar
+      const validation = validateAllSteps()
+      if (!validation.isValid) {
+        Alert.alert(
+          t("validationError", "Error de Validación"),
+          validation.errorMessage,
+          [{ text: t("ok", "OK") }]
+        )
+        return
+      }
 
       // Obtener el usuario actual
       const {
@@ -172,14 +345,14 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
         .from("magic_tricks")
         .insert({
           user_id: profileId,
-          title: trickData.title,
-          effect: trickData.effect,
-          secret: trickData.secret,
+          title: trickData.title.trim(), // Asegurar que no hay espacios extra
+          effect: trickData.effect.trim(),
+          secret: trickData.secret.trim(),
           difficulty: trickData.difficulty,
           duration: trickData.duration,
           reset: trickData.reset,
           angles: trickData.angles.length > 0 ? JSON.stringify(trickData.angles) : null,
-          notes: trickData.notes,
+          notes: trickData.notes.trim(),
           special_materials: trickData.special_materials,
           effect_video_url: trickData.effect_video_url,
           secret_video_url: trickData.secret_video_url,
@@ -236,18 +409,51 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
 
       // Si hay etiquetas, asociarlas al truco
       if (trickData.tags.length > 0) {
-        // Aquí se implementaría la lógica para asociar etiquetas
+        try {
+          const tagInserts = trickData.tags.map(tagId => ({
+            trick_id: data.id,
+            tag_id: tagId,
+            created_at: new Date().toISOString(),
+          }))
+
+          const { error: tagError } = await supabase
+            .from("trick_tags")
+            .insert(tagInserts)
+
+          if (tagError && tagError.code !== "23505") {
+            console.error("Error associating tags with trick:", tagError)
+          }
+        } catch (tagError) {
+          console.error("Error in tag association:", tagError)
+        }
       }
 
       // Si hay un script, guardarlo
-      if (trickData.script) {
-        await supabase.from("scripts").insert({
-          user_id: profileId,
-          trick_id: data.id,
-          title: `Script for ${trickData.title}`,
-          content: trickData.script,
-        })
+      if (trickData.script && trickData.script.trim()) {
+        try {
+          const { error: scriptError } = await supabase.from("scripts").insert({
+            user_id: profileId,
+            trick_id: data.id,
+            title: `Script for ${trickData.title}`,
+            content: trickData.script.trim(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+
+          if (scriptError) {
+            console.error("Error creating script:", scriptError)
+          }
+        } catch (scriptError) {
+          console.error("Error in script creation:", scriptError)
+        }
       }
+
+      // Mostrar mensaje de éxito
+      Alert.alert(
+        t("success", "Éxito"),
+        t("trickCreatedSuccessfully", "El truco ha sido creado exitosamente"),
+        [{ text: t("ok", "OK") }]
+      )
 
       // Llamar al callback de completado
       if (onComplete) {
@@ -255,7 +461,10 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
       }
     } catch (error) {
       console.error("Error in submission:", error)
-      Alert.alert(t("error"), t("unexpectedError", "An unexpected error occurred"))
+      Alert.alert(
+        t("error", "Error"), 
+        t("unexpectedError", "Ocurrió un error inesperado")
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -265,54 +474,16 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
   const StepComponent = steps[currentStep].component
 
   return (
-    <StyledView className="flex-1">
-      <StyledView className="bg-emerald-900/90 p-4 rounded-b-xl">
-        <StyledText className="text-white text-xl font-bold text-center">{t("addMagic", "Add Magic")}</StyledText>
-
-        {/* Indicador de pasos */}
-        <StyledView className="flex-row justify-between mt-4">
-          {steps.map((step, index) => (
-            <StyledView
-              key={index}
-              className={`flex-1 h-1 mx-1 rounded-full ${index <= currentStep ? "bg-white" : "bg-white/30"}`}
-            />
-          ))}
-        </StyledView>
-
-        <StyledText className="text-white text-center mt-2">{steps[currentStep].title}</StyledText>
-      </StyledView>
-
-      <StyledScrollView className="flex-1 p-4">
-        <StepComponent trickData={trickData} updateTrickData={updateTrickData} />
-      </StyledScrollView>
-
-      {/* Botones de navegación */}
-      <StyledView className="flex-row justify-between p-4 bg-emerald-900/90">
-        <StyledTouchableOpacity
-          onPress={goToPreviousStep}
-          className="bg-emerald-700 px-4 py-2 rounded-lg flex-row items-center"
-        >
-          <Ionicons name="chevron-back" size={20} color="white" />
-          <StyledText className="text-white ml-1">
-            {currentStep === 0 ? t("cancel", "Cancel") : t("back_", "Back")}
-          </StyledText>
-        </StyledTouchableOpacity>
-
-        <StyledTouchableOpacity
-          onPress={goToNextStep}
-          className="bg-emerald-700 px-4 py-2 rounded-lg flex-row items-center"
-          disabled={isSubmitting}
-        >
-          <StyledText className="text-white mr-1">
-            {currentStep === steps.length - 1 ? t("save", "Save") : t("next", "Next")}
-          </StyledText>
-          {currentStep === steps.length - 1 ? (
-            <Feather name="save" size={20} color="white" />
-          ) : (
-            <Ionicons name="chevron-forward" size={20} color="white" />
-          )}
-        </StyledTouchableOpacity>
-      </StyledView>
-    </StyledView>
+    <StepComponent 
+      trickData={trickData} 
+      updateTrickData={updateTrickData}
+      onNext={goToNextStep}
+      onCancel={goToPreviousStep}
+      currentStep={currentStep}
+      totalSteps={steps.length}
+      isSubmitting={isSubmitting}
+      isNextButtonDisabled={isNextButtonDisabled}
+      isLastStep={currentStep === steps.length - 1}
+    />
   )
 }

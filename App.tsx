@@ -7,6 +7,7 @@ import { ExpoRoot } from "expo-router"
 import { ThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native"
 import * as Font from "expo-font"
 import * as SplashScreen from "expo-splash-screen"
+import { SafeAreaProvider } from "react-native-safe-area-context"
 import i18n from "./i18n"
 
 // Mantén la pantalla de splash visible mientras cargamos las fuentes
@@ -83,7 +84,7 @@ export default function App() {
             NativeModules.SettingsManager.settings.AppleLanguages[0]
           : NativeModules.I18nManager.localeIdentifier
 
-      return deviceLanguage.split("_")[0] // Obtiene solo el código de idioma (ej: 'en' de 'en_US')
+      return deviceLanguage.split("_")[0]
     }
 
     const setAppLanguage = () => {
@@ -93,54 +94,54 @@ export default function App() {
       if (supportedLanguages.includes(deviceLang)) {
         i18n.changeLanguage(deviceLang)
       } else {
-        i18n.changeLanguage("en") // Inglés por defecto si el idioma no es soportado
+        i18n.changeLanguage("en")
       }
     }
 
     setAppLanguage()
 
-    // Ocultar la pantalla de splash cuando las fuentes estén cargadas
     if (fontsLoaded) {
       SplashScreen.hideAsync()
     }
   }, [fontsLoaded])
 
-  // Si hay un error cargando las fuentes, mostramos un mensaje
   if (fontError) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Error cargando fuentes</Text>
-        <Text style={styles.errorText}>{fontError}</Text>
-        <View style={styles.logContainer}>
-          <Text style={styles.logTitle}>Registro de carga:</Text>
-          {fontInfo.map((info, index) => (
-            <Text key={index} style={styles.logText}>
-              {info}
-            </Text>
-          ))}
+      <SafeAreaProvider>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>Error cargando fuentes</Text>
+          <Text style={styles.errorText}>{fontError}</Text>
+          <View style={styles.logContainer}>
+            <Text style={styles.logTitle}>Registro de carga:</Text>
+            {fontInfo.map((info, index) => (
+              <Text key={index} style={styles.logText}>
+                {info}
+              </Text>
+            ))}
+          </View>
         </View>
-      </View>
+      </SafeAreaProvider>
     )
   }
 
-  // Si las fuentes no están listas, mostramos un indicador de carga
   if (!fontsLoaded) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#10b981" />
-        <Text style={styles.loadingText}>Cargando fuentes...</Text>
-        <View style={styles.logContainer}>
-          {fontInfo.map((info, index) => (
-            <Text key={index} style={styles.logText}>
-              {info}
-            </Text>
-          ))}
+      <SafeAreaProvider>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#10b981" />
+          <Text style={styles.loadingText}>Cargando fuentes...</Text>
+          <View style={styles.logContainer}>
+            {fontInfo.map((info, index) => (
+              <Text key={index} style={styles.logText}>
+                {info}
+              </Text>
+            ))}
+          </View>
         </View>
-      </View>
+      </SafeAreaProvider>
     )
   }
 
-  // Crear un tema compatible con React Navigation
   const theme = {
     ...(colorScheme === "dark" ? DarkTheme : DefaultTheme),
     colors: {
@@ -167,11 +168,13 @@ export default function App() {
   }
 
   return (
-    <I18nextProvider i18n={i18n}>
-      <ThemeProvider value={theme}>
-        <ExpoRoot context={require("./app")} />
-      </ThemeProvider>
-    </I18nextProvider>
+    <SafeAreaProvider>
+      <I18nextProvider i18n={i18n}>
+        <ThemeProvider value={theme}>
+          <ExpoRoot context={require("./app")} />
+        </ThemeProvider>
+      </I18nextProvider>
+    </SafeAreaProvider>
   )
 }
 
