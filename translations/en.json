@@ -133,6 +133,67 @@
   "noVideoAvailable": "No video available",
   "noPhotosAvailable": "No photos available",
   "activeFilters": "Active Filters",
-  "clearAll": "Clear All"
+  "clearAll": "Clear All",
+  "common": {
+    "error": "Error",
+    "success": "Success",
+    "loading": "Loading...",
+    "loadingCategories": "Loading categories..."
+  },
+  "forms": {
+    "registerMagic": "Register Magic",
+    "magicTitlePlaceholder": "Magic Title*",
+    "categoryPlaceholder": "Category*",
+    "tagPlaceholder": "Tag",
+    "categoryName": "Category Name",
+    "categoryNamePlaceholder": "Enter category name",
+    "description": "Description",
+    "optional": "optional",
+    "descriptionPlaceholder": "Enter description"
+  },
+  "validation": {
+    "titleRequired": "Title is required",
+    "titleTooShort": "Title must be at least 3 characters",
+    "titleTooLong": "Title must not exceed 100 characters",
+    "categoryRequired": "Please select a category",
+    "categoryNameRequired": "Category name is required"
+  },
+  "actions": {
+    "save": "Save",
+    "next": "Next",
+    "cancel": "Cancel",
+    "create": "Create",
+    "creating": "Creating...",
+    "saving": "Saving...",
+    "createNewCategory": "Create New Category"
+  },
+  "modals": {
+    "selectCategory": "Select Category",
+    "createCategory": "Create Category"
+  },
+  "categories": {
+    "yourCategories": "Your Categories",
+    "suggestedCategories": "Suggested Categories"
+  },
+  "labels": {
+    "suggestedTags": "Suggested Tags"
+  },
+  "navigation": {
+    "stepIndicator": "{{current}} of {{total}}"
+  },
+  "security": {
+    "identitySafe": "Your identity is safe",
+    "endToEndEncrypted": "*End-to-end Encrypted*"
+  },
+  "messages": {
+    "categoryCreatedSuccessfully": "Category created successfully",
+    "noCategoriesFound": "No categories found"
+  },
+  "errors": {
+    "userNotFound": "User not found",
+    "errorCreatingCategory": "Error creating category",
+    "invalidCategory": "Invalid category",
+    "errorCreatingTag": "Error creating tag",
+    "errorAddingTag": "Error adding tag"
+  }
 }
-

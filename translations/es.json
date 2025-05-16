@@ -133,6 +133,67 @@
   "noVideoAvailable": "No hay video disponible",
   "noPhotosAvailable": "No hay fotos disponibles",
   "activeFilters": "Filtros Activos",
-  "clearAll": "Limpiar Todo"
+  "clearAll": "Limpiar Todo",
+  "common": {
+    "error": "Error",
+    "success": "Éxito",
+    "loading": "Cargando...",
+    "loadingCategories": "Cargando categorías..."
+  },
+  "forms": {
+    "registerMagic": "Registrar Magia",
+    "magicTitlePlaceholder": "Título del truco*",
+    "categoryPlaceholder": "Categoría/s*",
+    "tagPlaceholder": "Etiqueta/s",
+    "categoryName": "Nombre de la Categoría",
+    "categoryNamePlaceholder": "Ingresa el nombre de la categoría",
+    "description": "Descripción",
+    "optional": "opcional",
+    "descriptionPlaceholder": "Ingresa la descripción"
+  },
+  "validation": {
+    "titleRequired": "El título es obligatorio",
+    "titleTooShort": "El título debe tener al menos 3 caracteres",
+    "titleTooLong": "El título no debe exceder los 100 caracteres",
+    "categoryRequired": "Por favor selecciona una categoría",
+    "categoryNameRequired": "El nombre de la categoría es obligatorio"
+  },
+  "actions": {
+    "save": "Guardar",
+    "next": "Siguiente",
+    "cancel": "Cancelar",
+    "create": "Crear",
+    "creating": "Creando...",
+    "saving": "Guardando...",
+    "createNewCategory": "Crear Nueva Categoría"
+  },
+  "modals": {
+    "selectCategory": "Seleccionar Categoría",
+    "createCategory": "Crear Categoría"
+  },
+  "categories": {
+    "yourCategories": "Tus Categorías",
+    "suggestedCategories": "Categorías Sugeridas"
+  },
+  "labels": {
+    "suggestedTags": "Etiquetas Sugeridas"
+  },
+  "navigation": {
+    "stepIndicator": "{{current}} de {{total}}"
+  },
+  "security": {
+    "identitySafe": "Tu magia está segura",
+    "endToEndEncrypted": "*Cifrado de extremo a extremo*"
+  },
+  "messages": {
+    "categoryCreatedSuccessfully": "Categoría creada exitosamente",
+    "noCategoriesFound": "No se encontraron categorías"
+  },
+  "errors": {
+    "userNotFound": "Usuario no encontrado",
+    "errorCreatingCategory": "Error al crear la categoría",
+    "invalidCategory": "Categoría inválida",
+    "errorCreatingTag": "Error al crear la etiqueta",
+    "errorAddingTag": "Error al agregar la etiqueta"
+  }
 }
-

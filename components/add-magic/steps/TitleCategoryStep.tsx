@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { View, Text, TextInput, TouchableOpacity, Alert, Dimensions, StatusBar } from "react-native"
+import { useState, useEffect, useMemo, useRef } from "react"
+import { View, Text, TextInput, TouchableOpacity, Alert, Dimensions, ScrollView } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
 import { Feather, AntDesign, Ionicons } from "@expo/vector-icons"
 import { supabase } from "../../../lib/supabase"
 import type { MagicTrick } from "../AddMagicWizard"
-import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import {
   getUserCategories,
@@ -59,6 +58,19 @@ export default function TitleCategoryStep({
   const [newCategoryDescription, setNewCategoryDescription] = useState("")
   const [loading, setLoading] = useState(false)
 
+  // Refs para el carrusel de tags
+  const scrollRef1 = useRef<ScrollView>(null)
+  const scrollRef2 = useRef<ScrollView>(null)
+
+  // Obtener fecha actual formateada
+  const getCurrentDate = () => {
+    const now = new Date()
+    const day = now.getDate().toString().padStart(2, '0')
+    const month = (now.getMonth() + 1).toString().padStart(2, '0')
+    const year = now.getFullYear()
+    return `${day}/${month}/${year}`
+  }
+
   // Validación en tiempo real del título
   const titleValidation = useMemo(() => {
     if (!trickData.title) {
@@ -70,21 +82,21 @@ export default function TitleCategoryStep({
     if (trimmedTitle.length === 0) {
       return { 
         isValid: false, 
-        message: t("titleRequired", "El título es obligatorio") 
+        message: t("validation.titleRequired") 
       }
     }
     
     if (trimmedTitle.length < 3) {
       return { 
         isValid: false, 
-        message: t("titleTooShort", "El título debe tener al menos 3 caracteres") 
+        message: t("validation.titleTooShort") 
       }
     }
     
     if (trimmedTitle.length > 100) {
       return { 
         isValid: false, 
-        message: t("titleTooLong", "El título no debe exceder los 100 caracteres") 
+        message: t("validation.titleTooLong") 
       }
     }
     
@@ -96,7 +108,7 @@ export default function TitleCategoryStep({
     if (!trickData.selectedCategoryId) {
       return { 
         isValid: false, 
-        message: t("categoryRequired", "Por favor selecciona una categoría") 
+        message: t("validation.categoryRequired") 
       }
     }
     return { isValid: true, message: '' }
@@ -104,6 +116,68 @@ export default function TitleCategoryStep({
 
   // Validación general para el botón Next
   const isFormValid = titleValidation.isValid && categoryValidation.isValid
+
+  // Dividir tags en dos filas para mejor distribución
+  const availableTags = tags.filter(tag => !trickData.tags.includes(tag.id))
+  const midpoint = Math.ceil(availableTags.length / 2)
+  const firstRowTags = availableTags.slice(0, midpoint)
+  const secondRowTags = availableTags.slice(midpoint)
+
+  // Componente para el carrusel de tags
+  const TagCarousel = ({ tagsArray, rowIndex }: { tagsArray: { id: string; name: string }[], rowIndex: number }) => {
+    if (tagsArray.length === 0) return null
+
+    return (
+      <View style={{ height: 44, marginBottom: 8 }}>
+        <ScrollView
+          ref={rowIndex === 1 ? scrollRef1 : scrollRef2}
+          horizontal={true}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ 
+            paddingHorizontal: 16,
+            alignItems: 'center',
+            height: 44
+          }}
+          style={{ flex: 1 }}
+          scrollEventThrottle={16}
+          decelerationRate="normal"
+          bounces={true}
+          bouncesZoom={false}
+          alwaysBounceHorizontal={true}
+          nestedScrollEnabled={true}
+          keyboardShouldPersistTaps="handled"
+        >
+          {tagsArray.map((tag, index) => (
+            <TouchableOpacity
+              key={tag.id}
+              onPress={() => toggleTag(tag.id)}
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderWidth: 1,
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                borderRadius: 20,
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                marginRight: index === tagsArray.length - 1 ? 16 : 12,
+                height: 36,
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ 
+                color: 'rgba(255, 255, 255, 0.7)', 
+                fontSize: 14,
+                textAlign: 'center'
+              }}>
+                {tag.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    )
+  }
 
   // Load user and predefined categories
   useEffect(() => {
@@ -145,7 +219,7 @@ export default function TitleCategoryStep({
   // Crear nueva categoría
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) {
-      Alert.alert(t("error"), t("categoryNameRequired", "El nombre de la categoría es obligatorio"))
+      Alert.alert(t("common.error"), t("validation.categoryNameRequired"))
       return
     }
 
@@ -156,7 +230,7 @@ export default function TitleCategoryStep({
       } = await supabase.auth.getUser()
 
       if (!user) {
-        Alert.alert(t("error"), t("userNotFound", "Usuario no encontrado"))
+        Alert.alert(t("common.error"), t("errors.userNotFound"))
         return
       }
 
@@ -179,13 +253,13 @@ export default function TitleCategoryStep({
         setCreateCategoryModalVisible(false)
 
         Alert.alert(
-          t("success", "Éxito"),
-          t("categoryCreatedSuccessfully", "Categoría creada exitosamente")
+          t("common.success"),
+          t("messages.categoryCreatedSuccessfully")
         )
       }
     } catch (error) {
       console.error("Error creating category:", error)
-      Alert.alert(t("error"), t("errorCreatingCategory", "Error al crear la categoría"))
+      Alert.alert(t("common.error"), t("errors.errorCreatingCategory"))
     } finally {
       setLoading(false)
     }
@@ -198,8 +272,8 @@ export default function TitleCategoryStep({
     
     if (!categoryExists) {
       Alert.alert(
-        t("error", "Error"),
-        t("invalidCategory", "Categoría inválida")
+        t("common.error"),
+        t("errors.invalidCategory")
       )
       return
     }
@@ -240,50 +314,42 @@ export default function TitleCategoryStep({
           setTags(prev => [...prev, data])
           updateTrickData({ tags: [...trickData.tags, data.id] })
         } else {
-          Alert.alert(t("error"), t("errorCreatingTag", "Error al crear la etiqueta"))
+          Alert.alert(t("common.error"), t("errors.errorCreatingTag"))
         }
       }
 
       setNewTag("")
     } catch (error) {
       console.error("Error adding tag:", error)
-      Alert.alert(t("error"), t("errorAddingTag", "Error al agregar la etiqueta"))
+      Alert.alert(t("common.error"), t("errors.errorAddingTag"))
     }
   }
 
   // Obtener el nombre de la categoría seleccionada
   const getSelectedCategoryName = () => {
-    if (!trickData.selectedCategoryId) return "Category*"
+    if (!trickData.selectedCategoryId) return t("forms.categoryPlaceholder")
     
     const selectedCategory = [...userCategories, ...predefinedCategories]
       .find(cat => cat.id === trickData.selectedCategoryId)
     
-    return selectedCategory?.name || "Category*"
+    return selectedCategory?.name || t("forms.categoryPlaceholder")
   }
 
   return (
-    <LinearGradient
-      colors={['#064e3b', '#065f46']}
-      style={{ flex: 1 }}
-    >
-      <StatusBar barStyle="light-content" backgroundColor="#064e3b" />
-      
-      {/* Extend background to cover status bar area */}
-      <StyledView className="absolute top-0 left-0 right-0 h-20 bg-emerald-900" />
-      
-      <StyledView className="flex-1" style={{ paddingTop: 10 }}>
+    <StyledView className="flex-1">
+      <StyledView className="flex-1" style={{ paddingTop: 15 }}>
         {/* Header */}
-        <StyledView className="flex-row items-center justify-between px-6 py-4">
+        <StyledView className="flex-row items-center justify-between px-6">
           <StyledTouchableOpacity className="p-2" onPress={onCancel}>
             <Feather name="x" size={24} color="white" />
           </StyledTouchableOpacity>
           
           <StyledView className="flex-1 items-center">
-            <StyledText className="text-white text-lg font-semibold mb">
-              Register Magic
+            <StyledText className="text-white text-lg font-semibold">
+              {t("forms.registerMagic")}
             </StyledText>
             <StyledText className="text-emerald-200 text-sm opacity-70">
-              [D/M/Y]
+              {getCurrentDate()}
             </StyledText>
           </StyledView>
           
@@ -293,7 +359,7 @@ export default function TitleCategoryStep({
         </StyledView>
 
         {/* Form Fields */}
-        <StyledView className="flex-1 px-6 mt-28">
+        <StyledView className="flex-1 px-6 mt-24">
           {/* Magic Title Field */}
           <StyledView className="mb-8">
             <StyledView className="flex-row items-center mb-3">
@@ -302,7 +368,7 @@ export default function TitleCategoryStep({
               </StyledView>
               <StyledTextInput
                 className="flex-1 text-white text-base bg-transparent border-b border-emerald-600 pb-2"
-                placeholder="Magic Title*"
+                placeholder={t("forms.magicTitlePlaceholder")}
                 placeholderTextColor="rgba(255, 255, 255, 0.5)"
                 value={trickData.title}
                 onChangeText={handleTitleChange}
@@ -353,7 +419,7 @@ export default function TitleCategoryStep({
               <StyledView className="flex-1 flex-row items-center border-b border-emerald-600 pb-2">
                 <StyledTextInput
                   className="flex-1 text-white text-base bg-transparent"
-                  placeholder="Tag"
+                  placeholder={t("forms.tagPlaceholder")}
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={newTag}
                   onChangeText={setNewTag}
@@ -399,27 +465,16 @@ export default function TitleCategoryStep({
               </StyledView>
             )}
 
-            {/* Available Tags Pills */}
-            {tags.length > 0 && (
-              <StyledView className="ml-11 mt-4">
+            {/* Carrusel de Tags Sugeridos */}
+            {availableTags.length > 0 && (
+              <StyledView className="mt-4">
                 <StyledText className="text-white/60 text-xs mb-2">
-                  Suggested Tags
+                  {t("labels.suggestedTags")}
                 </StyledText>
-                <StyledView className="flex-row flex-wrap">
-                  {tags
-                    .filter(tag => !trickData.tags.includes(tag.id))
-                    .slice(0, 8)
-                    .map((tag) => (
-                      <StyledTouchableOpacity
-                        key={tag.id}
-                        onPress={() => toggleTag(tag.id)}
-                        className="bg-white/10 border border-white/20 rounded-full px-3 py-1 mr-2 mb-2"
-                        activeOpacity={0.7}
-                      >
-                        <StyledText className="text-white/70 text-sm">{tag.name}</StyledText>
-                      </StyledTouchableOpacity>
-                    ))}
-                </StyledView>
+                <TagCarousel tagsArray={firstRowTags} rowIndex={1} />
+                {secondRowTags.length > 0 && (
+                  <TagCarousel tagsArray={secondRowTags} rowIndex={2} />
+                )}
               </StyledView>
             )}
           </StyledView>
@@ -430,10 +485,10 @@ export default function TitleCategoryStep({
               <Feather name="shield" size={32} color="rgba(255, 255, 255, 0.3)" />
             </StyledView>
             <StyledText className="text-white/40 text-xs mt-2 text-center">
-              Your identity is safe
+              {t("security.identitySafe")}
             </StyledText>
             <StyledText className="text-white/40 text-xs text-center">
-              *End-to-end Encrypted*
+              {t("security.endToEndEncrypted")}
             </StyledText>
           </StyledView>
         </StyledView>
@@ -442,7 +497,7 @@ export default function TitleCategoryStep({
         <StyledView className="px-6" style={{ paddingBottom: insets.bottom + 20 }}>
           {/* Step indicator */}
           <StyledText className="text-white/60 text-center text-sm mb-6">
-            {currentStep + 1} of {totalSteps}
+            {t("navigation.stepIndicator", { current: currentStep + 1, total: totalSteps })}
           </StyledText>
 
           {/* Next Button */}
@@ -462,14 +517,14 @@ export default function TitleCategoryStep({
             {isSubmitting ? (
               <>
                 <StyledText className="text-white font-semibold text-base mr-2">
-                  {t("saving", "Guardando...")}
+                  {t("actions.saving")}
                 </StyledText>
                 <Ionicons name="refresh" size={20} color="white" />
               </>
             ) : (
               <>
                 <StyledText className="text-white font-semibold text-base mr-2">
-                  {isLastStep ? t("save", "Save") : t("next", "Next")}
+                  {isLastStep ? t("actions.save") : t("actions.next")}
                 </StyledText>
                 {isLastStep ? (
                   <Feather name="save" size={20} color="white" />
@@ -494,7 +549,7 @@ export default function TitleCategoryStep({
           <StyledView className="bg-gray-900 rounded-2xl mx-4 p-6 max-h-96">
             <StyledView className="flex-row justify-between items-center mb-6">
               <StyledText className="text-white text-xl font-bold">
-                Select Category
+                {t("modals.selectCategory")}
               </StyledText>
               <StyledTouchableOpacity
                 onPress={() => setCategorySelectModalVisible(false)}
@@ -509,7 +564,7 @@ export default function TitleCategoryStep({
               {userCategories.length > 0 && (
                 <StyledView className="mb-6">
                   <StyledText className="text-emerald-300 text-base font-semibold mb-3">
-                    Your Categories
+                    {t("categories.yourCategories")}
                   </StyledText>
                   <StyledView className="flex-row flex-wrap">
                     {userCategories.map((category) => (
@@ -536,7 +591,7 @@ export default function TitleCategoryStep({
               {predefinedCategories.length > 0 && (
                 <StyledView className="mb-6">
                   <StyledText className="text-blue-300 text-base font-semibold mb-3">
-                    Suggested Categories
+                    {t("categories.suggestedCategories")}
                   </StyledText>
                   <StyledView className="flex-row flex-wrap">
                     {predefinedCategories.map((category) => (
@@ -564,7 +619,7 @@ export default function TitleCategoryStep({
                 <StyledView className="items-center py-8">
                   <Feather name="folder-plus" size={48} color="rgba(255, 255, 255, 0.3)" />
                   <StyledText className="text-white/60 text-center mt-4">
-                    No categories found
+                    {t("messages.noCategoriesFound")}
                   </StyledText>
                 </StyledView>
               )}
@@ -572,7 +627,7 @@ export default function TitleCategoryStep({
               {/* Loading indicator */}
               {loading && (
                 <StyledView className="items-center py-8">
-                  <StyledText className="text-white/60">Loading categories...</StyledText>
+                  <StyledText className="text-white/60">{t("common.loadingCategories")}</StyledText>
                 </StyledView>
               )}
             </StyledView>
@@ -586,7 +641,7 @@ export default function TitleCategoryStep({
               }}
             >
               <StyledText className="text-white font-semibold">
-                Create New Category
+                {t("actions.createNewCategory")}
               </StyledText>
             </StyledTouchableOpacity>
           </StyledView>
@@ -605,7 +660,7 @@ export default function TitleCategoryStep({
           <StyledView className="bg-gray-900 rounded-2xl mx-4 p-6">
             <StyledView className="flex-row justify-between items-center mb-6">
               <StyledText className="text-white text-xl font-bold">
-                Create Category
+                {t("modals.createCategory")}
               </StyledText>
               <StyledTouchableOpacity
                 onPress={() => setCreateCategoryModalVisible(false)}
@@ -617,13 +672,13 @@ export default function TitleCategoryStep({
 
             <StyledView className="mb-4">
               <StyledText className="text-white mb-2 font-medium">
-                Category Name
+                {t("forms.categoryName")}
                 <StyledText className="text-red-400"> *</StyledText>
               </StyledText>
               <StyledView className="bg-gray-700 rounded-lg border border-gray-600">
                 <StyledTextInput
                   className="text-white p-3 text-base"
-                  placeholder="Enter category name"
+                  placeholder={t("forms.categoryNamePlaceholder")}
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={newCategoryName}
                   onChangeText={setNewCategoryName}
@@ -636,12 +691,12 @@ export default function TitleCategoryStep({
 
             <StyledView className="mb-6">
               <StyledText className="text-white mb-2 font-medium">
-                Description (optional)
+                {t("forms.description")} ({t("forms.optional")})
               </StyledText>
               <StyledView className="bg-gray-700 rounded-lg border border-gray-600">
                 <StyledTextInput
                   className="text-white p-3 text-base"
-                  placeholder="Enter description"
+                  placeholder={t("forms.descriptionPlaceholder")}
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={newCategoryDescription}
                   onChangeText={setNewCategoryDescription}
@@ -663,7 +718,7 @@ export default function TitleCategoryStep({
                   setCreateCategoryModalVisible(false)
                 }}
               >
-                <StyledText className="text-white font-medium">Cancel</StyledText>
+                <StyledText className="text-white font-medium">{t("actions.cancel")}</StyledText>
               </StyledTouchableOpacity>
 
               <StyledTouchableOpacity
@@ -676,13 +731,13 @@ export default function TitleCategoryStep({
                 disabled={loading || !newCategoryName.trim()}
               >
                 <StyledText className="text-white font-medium">
-                  {loading ? "Creating..." : "Create"}
+                  {loading ? t("actions.creating") : t("actions.create")}
                 </StyledText>
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
         </Modal>
       </StyledView>
-    </LinearGradient>
+    </StyledView>
   )
 }

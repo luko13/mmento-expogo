@@ -5,6 +5,7 @@ import { styled } from "nativewind"
 import { Slot, useRouter, usePathname } from "expo-router"
 import { Ionicons, FontAwesome5, FontAwesome } from "@expo/vector-icons"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { LinearGradient } from 'expo-linear-gradient'
 
 const StyledView = styled(View)
 const StyledTouchableOpacity = styled(TouchableOpacity)
@@ -16,21 +17,11 @@ export default function AppLayout() {
   const insets = useSafeAreaInsets()
 
   // Verificar si estamos en la ruta de add-magic
-  const isAddMagicRoute = pathname.startsWith("/add-magic")
+  const isAddMagicRoute = pathname.includes("/add-magic")
 
   return (
     <StyledView className="flex-1">
-      {/* Background que ocupa toda la pantalla */}
-      <Image
-        source={require("../../assets/Background.png")}
-        style={{
-          width: width,
-          height: height,
-          position: "absolute",
-        }}
-        resizeMode="cover"
-      />
-
+      
       {/* Contenido principal SIN SafeAreaView wrapper - las pantallas individuales manejan sus own safe areas */}
       <Slot />
 
@@ -47,6 +38,7 @@ export default function AppLayout() {
             paddingBottom: insets.bottom,
           }}
         >
+          
           <StyledView className="flex-1 flex-row justify-evenly items-center">
             <StyledTouchableOpacity onPress={() => router.push("/(app)/home")} className="p-3">
               <Ionicons name="home" size={24} color="#FFFFFF" />

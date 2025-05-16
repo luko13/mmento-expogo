@@ -17,11 +17,17 @@ const initI18n = async () => {
       },
       lng: 'es', // Comienza con español para probar
       fallbackLng: 'en',
+      // Configuración de compatibilidad para React Native
+      compatibilityJSON: 'v3',
       interpolation: {
         escapeValue: false,
       },
       react: {
         useSuspense: false,
+      },
+      // Configuración adicional para React Native
+      detection: {
+        order: ['localStorage', 'navigationLanguage'],
       },
     });
 
