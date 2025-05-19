@@ -37,7 +37,7 @@ export default function EffectStep({
   onNext,
   onCancel,
   currentStep = 1,
-  totalSteps = 3,
+  totalSteps = 2,
   isSubmitting = false,
   isNextButtonDisabled = false,
   isLastStep = false

@@ -41,7 +41,7 @@ export default function TitleCategoryStep({
   onNext, 
   onCancel,
   currentStep = 0,
-  totalSteps = 3,
+  totalSteps = 2,
   isSubmitting = false,
   isNextButtonDisabled = false,
   isLastStep = false
