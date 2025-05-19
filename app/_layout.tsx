@@ -16,6 +16,7 @@ export default function AuthLayout() {
   
   // Verificar si estamos en la ruta de add-magic
   const isAddMagicRoute = pathname.includes("/add-magic")
+  const isAuthRoute = pathname.includes("/auth")
 
   return (
     <SafeAreaProvider>
@@ -36,6 +37,22 @@ export default function AuthLayout() {
                 height: "100%",
                 zIndex: 0,
               }}
+            />
+          ) : isAuthRoute ? (
+            // Imagen de fondo específica para rutas de autenticación
+            <Image
+              source={require("../assets/BG_Auth.png")}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                width: "100%",
+                height: "100%",
+                zIndex: 0,
+              }}
+              resizeMode="cover"
             />
           ) : (
             // Imagen de fondo para otras rutas que cubre TODA la pantalla
@@ -71,9 +88,18 @@ export default function AuthLayout() {
             }}
           >
             <Stack
+              initialRouteName="index"
               screenOptions={{
                 headerShown: false,
-                contentStyle: { backgroundColor: 'transparent' },
+                contentStyle: { 
+                  backgroundColor: 'transparent',
+                },
+                // Animación estándar pero con duración reducida
+                animation: "slide_from_right",
+                animationDuration: 150,
+                animationTypeForReplace: "push",
+                presentation: "card",
+                gestureEnabled: false,
                 headerTitleStyle: {
                   fontFamily: "Outfit_400Regular",
                 },
@@ -83,19 +109,15 @@ export default function AuthLayout() {
               }}
             >
               <Stack.Screen name="index" />
-              <Stack.Screen 
-                name="auth" 
-                options={{ 
-                  headerShown: false,
-                  contentStyle: { backgroundColor: 'transparent' }
-                }} 
-              />
+              <Stack.Screen name="auth/login" />
+              <Stack.Screen name="auth/register" />
+              <Stack.Screen name="auth/password-recover" />
               <Stack.Screen 
                 name="(app)" 
-                options={{ 
-                  headerShown: false,
-                  contentStyle: { backgroundColor: 'transparent' }
-                }} 
+                options={{
+                  animation: "slide_from_right",
+                  animationDuration: 300,
+                }}
               />
             </Stack>
           </StyledSafeAreaView>

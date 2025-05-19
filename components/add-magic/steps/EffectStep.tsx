@@ -1,63 +1,163 @@
 "use client"
 
-import { useState } from "react"
-import { View, Text, TextInput, TouchableOpacity, Alert, Platform } from "react-native"
+import { useState, useEffect } from "react"
+import { View, Text, TextInput, TouchableOpacity, Alert, Platform, ScrollView, Modal } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons"
-import { BlurView } from "expo-blur"
+import { Feather, Ionicons, FontAwesome5 } from "@expo/vector-icons"
+import Slider from "@react-native-community/slider"
 import type { MagicTrick } from "../AddMagicWizard"
 import * as ImagePicker from "expo-image-picker"
 import { supabase } from "../../../lib/supabase"
 import * as FileSystem from "expo-file-system"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { LinearGradient } from 'expo-linear-gradient'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
 const StyledTextInput = styled(TextInput)
 const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledScrollView = styled(ScrollView)
 
 interface StepProps {
   trickData: MagicTrick
   updateTrickData: (data: Partial<MagicTrick>) => void
+  onNext?: () => void
+  onCancel?: () => void
+  currentStep?: number
+  totalSteps?: number
+  isSubmitting?: boolean
+  isNextButtonDisabled?: boolean
+  isLastStep?: boolean
 }
 
-export default function EffectStep({ trickData, updateTrickData }: StepProps) {
+export default function EffectStep({ 
+  trickData, 
+  updateTrickData,
+  onNext,
+  onCancel,
+  currentStep = 1,
+  totalSteps = 3,
+  isSubmitting = false,
+  isNextButtonDisabled = false,
+  isLastStep = false
+}: StepProps) {
   const { t } = useTranslation()
   const [uploading, setUploading] = useState(false)
+  const insets = useSafeAreaInsets()
+  
+  // Time picker state
+  const [showDurationPickerModal, setShowDurationPickerModal] = useState(false)
+  const [showResetPickerModal, setShowResetPickerModal] = useState(false)
+  const [tempMinutes, setTempMinutes] = useState(0)
+  const [tempSeconds, setTempSeconds] = useState(30)
 
-  // Dificultades disponibles
-  const difficulties = [
-    { value: "beginner", label: t("beginner", "Beginner") },
-    { value: "easy", label: t("easy", "Easy") },
-    { value: "intermediate", label: t("intermediate", "Intermediate") },
-    { value: "advanced", label: t("advanced", "Advanced") },
-    { value: "expert", label: t("expert", "Expert") },
-  ]
+  // Set initial values based on trickData
+  useEffect(() => {
+    if (trickData.duration) {
+      setTempMinutes(Math.floor(trickData.duration / 60))
+      setTempSeconds(trickData.duration % 60)
+    }
+  }, [])
 
-  // Ángulos disponibles
+  // Available angles (updated to match the design)
   const angles = [
-    { value: "front", label: t("front", "Front") },
-    { value: "side", label: t("side", "Side") },
-    { value: "back", label: t("back", "Back") },
-    { value: "above", label: t("above", "Above") },
-    { value: "below", label: t("below", "Below") },
+    { value: "90", label: "90°" },
+    { value: "120", label: "120°" },
+    { value: "180", label: "180°" },
+    { value: "360", label: "360°" },
   ]
 
-  // Seleccionar dificultad
-  const selectDifficulty = (difficulty: string) => {
-    updateTrickData({ difficulty })
-  }
-
-  // Seleccionar ángulo
-  const toggleAngle = (angle: string) => {
-    const updatedAngles = trickData.angles.includes(angle)
-      ? trickData.angles.filter((a) => a !== angle)
-      : [...trickData.angles, angle]
-
+  // Select angle (radio button style)
+  const selectAngle = (angle: string): void => {
+    const updatedAngles = [angle] // Only allow one angle selection
     updateTrickData({ angles: updatedAngles })
   }
 
-  // Solicitar permisos
+  // Handle difficulty selection
+  const setDifficulty = (value: number): void => {
+    let difficulty: string;
+    if (value <= 2) difficulty = "beginner";
+    else if (value <= 4) difficulty = "easy";
+    else if (value <= 6) difficulty = "intermediate";
+    else if (value <= 8) difficulty = "advanced";
+    else difficulty = "expert";
+    
+    updateTrickData({ difficulty });
+  }
+  
+  // Get current difficulty value
+  const getDifficultyValue = (): number => {
+    switch (trickData.difficulty) {
+      case "beginner": return 1
+      case "easy": return 3
+      case "intermediate": return 5
+      case "advanced": return 7
+      case "expert": return 10
+      default: return 5
+    }
+  }
+  
+  // Handle showing time picker for duration
+  const showDurationPicker = () => {
+    // Set initial values based on current duration
+    if (trickData.duration) {
+      setTempMinutes(Math.floor(trickData.duration / 60))
+      setTempSeconds(trickData.duration % 60)
+    } else {
+      setTempMinutes(0)
+      setTempSeconds(30)
+    }
+    setShowDurationPickerModal(true)
+  }
+
+  // Handle confirming duration time
+  const confirmDuration = () => {
+    const totalSeconds = (tempMinutes * 60) + tempSeconds
+    updateTrickData({ duration: totalSeconds })
+    setShowDurationPickerModal(false)
+  }
+
+  // Handle showing time picker for reset
+  const showResetTimePicker = () => {
+    // Set initial values based on current reset time
+    if (trickData.reset) {
+      setTempMinutes(Math.floor(trickData.reset / 60))
+      setTempSeconds(trickData.reset % 60)
+    } else {
+      setTempMinutes(0)
+      setTempSeconds(15)
+    }
+    setShowResetPickerModal(true)
+  }
+
+  // Handle confirming reset time
+  const confirmResetTime = () => {
+    const totalSeconds = (tempMinutes * 60) + tempSeconds
+    updateTrickData({ reset: totalSeconds })
+    setShowResetPickerModal(false)
+  }
+
+  // Create a picker wheel option
+  const renderPickerOptions = (max: number) => {
+    const options = []
+    for (let i = 0; i <= max; i++) {
+      options.push(
+        <StyledTouchableOpacity 
+          key={i} 
+          className="py-2 items-center w-full"
+          onPress={() => max === 59 ? setTempSeconds(i) : setTempMinutes(i)}
+        >
+          <StyledText className={`text-lg ${(max === 59 ? tempSeconds : tempMinutes) === i ? 'text-white font-bold' : 'text-white/60'}`}>
+            {i.toString().padStart(2, '0')}
+          </StyledText>
+        </StyledTouchableOpacity>
+      )
+    }
+    return options
+  }
+
+  // Request permissions
   const requestMediaLibraryPermissions = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -76,19 +176,19 @@ export default function EffectStep({ trickData, updateTrickData }: StepProps) {
     }
   }
 
-  // Subir video
+  // Upload video
   const pickVideo = async () => {
     try {
-      // Solicitar permisos primero
+      // Request permissions first
       const hasPermission = await requestMediaLibraryPermissions()
       if (!hasPermission) return
 
-      // Configurar opciones para reducir el tamaño del video
+      // Configure options to reduce video size
       const options: ImagePicker.ImagePickerOptions = {
         mediaTypes: ImagePicker.MediaTypeOptions.Videos,
         allowsEditing: true,
-        quality: 0.5, // Reducir calidad para archivos más pequeños
-        videoMaxDuration: 60, // Limitar duración a 60 segundos
+        quality: 0.5,
+        videoMaxDuration: 60,
       }
 
       const result = await ImagePicker.launchImageLibraryAsync(options)
@@ -96,16 +196,13 @@ export default function EffectStep({ trickData, updateTrickData }: StepProps) {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const uri = result.assets[0].uri
 
-        // Verificar tamaño del archivo
+        // Check file size
         try {
           const fileInfo = await FileSystem.getInfoAsync(uri)
           
-
-          // Verificar si el archivo existe y tiene tamaño
+          // Check if file exists and has size
           if (fileInfo.exists && "size" in fileInfo) {
-            
-
-            // Si el archivo es mayor a 50MB, mostrar advertencia
+            // If file is larger than 50MB, show warning
             if (fileInfo.size > 50 * 1024 * 1024) {
               Alert.alert(
                 t("fileTooLarge", "File Too Large"),
@@ -134,17 +231,17 @@ export default function EffectStep({ trickData, updateTrickData }: StepProps) {
     }
   }
 
-  // Subir video a Supabase Storage
+  // Upload video to Supabase Storage
   const uploadVideo = async (uri: string) => {
     try {
       setUploading(true)
 
-      // Obtener el nombre del archivo
+      // Get file name
       const fileName = uri.split("/").pop() || ""
       const fileExt = fileName.split(".").pop()?.toLowerCase() || "mp4"
       const filePath = `effect_videos/${Date.now()}.${fileExt}`
 
-      // En iOS, usamos FileSystem para leer el archivo en lugar de fetch/blob
+      // On iOS, use FileSystem to read the file instead of fetch/blob
       if (Platform.OS === "ios") {
         try {
           const fileContent = await FileSystem.readAsStringAsync(uri, {
@@ -162,10 +259,10 @@ export default function EffectStep({ trickData, updateTrickData }: StepProps) {
             return
           }
 
-          // Obtener URL pública
+          // Get public URL
           const { data: publicURL } = supabase.storage.from("magic_trick_media").getPublicUrl(filePath)
 
-          // Actualizar datos del truco
+          // Update trick data
           updateTrickData({ effect_video_url: publicURL.publicUrl })
         } catch (error) {
           console.error("Error reading file:", error)
@@ -175,7 +272,7 @@ export default function EffectStep({ trickData, updateTrickData }: StepProps) {
           )
         }
       } else {
-        // Para Android, seguimos usando el método anterior
+        // For Android, continue using the previous method
         const response = await fetch(uri)
         const blob = await response.blob()
 
@@ -187,10 +284,10 @@ export default function EffectStep({ trickData, updateTrickData }: StepProps) {
           return
         }
 
-        // Obtener URL pública
+        // Get public URL
         const { data: publicURL } = supabase.storage.from("magic_trick_media").getPublicUrl(filePath)
 
-        // Actualizar datos del truco
+        // Update trick data
         updateTrickData({ effect_video_url: publicURL.publicUrl })
       }
     } catch (error) {
@@ -206,17 +303,74 @@ export default function EffectStep({ trickData, updateTrickData }: StepProps) {
 
   return (
     <StyledView className="flex-1">
-      {/* Descripción del efecto */}
-      <StyledView className="mb-6">
-        <StyledText className="text-white text-lg mb-2">
-          {t("effectDescription", "Effect Description")}
-          <StyledText className="text-red-400"> *</StyledText>
-        </StyledText>
-        <StyledView className="overflow-hidden rounded-lg">
-          <BlurView intensity={20} tint="dark">
+      {/* Background gradient matching TitleCategoryStep */}
+      <LinearGradient
+        colors={['#064e3b', '#065f46']} 
+        style={{ 
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+        }}
+      />
+
+      {/* Header */}
+      <StyledView className="flex-row items-center px-6 pt-4 pb-4">
+        <StyledTouchableOpacity onPress={onCancel} className="p-2">
+          <Feather name="chevron-left" size={24} color="white" />
+        </StyledTouchableOpacity>
+        
+        <StyledView className="flex-1 items-center">
+          <StyledText className="text-white text-lg font-semibold">
+            {t("effect", "Effect")}
+          </StyledText>
+          <StyledText className="text-emerald-200 text-sm opacity-70">
+            [{trickData.title || t("trickTitle", "[TrickTitle]")}]
+          </StyledText>
+        </StyledView>
+        
+        <StyledTouchableOpacity className="p-2">
+          <Feather name="info" size={24} color="white" />
+        </StyledTouchableOpacity>
+      </StyledView>
+
+      <StyledScrollView className="flex-1 px-6">
+        {/* Video upload section */}
+        <StyledView className="flex-row mb-6 mt-16">
+          <StyledView className="w-12 h-12 bg-emerald-800/40 rounded-lg items-center justify-center">
+            <Feather name="video" size={24} color="white" />
+          </StyledView>
+          
+          <StyledView className="flex-1 ml-3">
+            <StyledTouchableOpacity 
+              onPress={pickVideo}
+              disabled={uploading}
+              className="bg-emerald-800/40 rounded-lg p-3 flex-row items-center justify-between"
+            >
+              <StyledText className="text-white/70">
+                {uploading ? 
+                  t("uploading", "Uploading...") : 
+                  trickData.effect_video_url ? 
+                    t("videoUploaded", "Video uploaded") : 
+                    t("uploadEffectVideo", "Effect video Upload*")
+                }
+              </StyledText>
+              <Feather name="download" size={20} color="white" />
+            </StyledTouchableOpacity>
+          </StyledView>
+        </StyledView>
+
+        {/* Effect description */}
+        <StyledView className="flex-row mb-6">
+          <StyledView className="w-12 h-12 bg-emerald-800/40 rounded-lg items-center justify-center">
+            <Feather name="star" size={24} color="white" />
+          </StyledView>
+          
+          <StyledView className="flex-1 ml-3">
             <StyledTextInput
-              className="text-white p-3"
-              placeholder={t("describeEffect", "Describe what the audience sees...")}
+              className="bg-emerald-800/40 text-white p-3 rounded-lg min-h-[120px]"
+              placeholder={t("effectDescription", "Effect short description")}
               placeholderTextColor="rgba(255, 255, 255, 0.5)"
               value={trickData.effect}
               onChangeText={(text) => updateTrickData({ effect: text })}
@@ -224,129 +378,268 @@ export default function EffectStep({ trickData, updateTrickData }: StepProps) {
               numberOfLines={4}
               textAlignVertical="top"
             />
-          </BlurView>
+          </StyledView>
         </StyledView>
-        {!trickData.effect.trim() && (
-          <StyledText className="text-red-400 text-sm mt-1">
-            {t("effectRequired", "Effect description is required")}
-          </StyledText>
-        )}
-      </StyledView>
 
-      {/* Video del efecto */}
-      <StyledView className="mb-6">
-        <StyledText className="text-white text-lg mb-2">{t("effectVideo", "Effect Video")}</StyledText>
+        {/* Angles */}
+        <StyledView className="flex-row mb-6">
+          <StyledView className="w-12 h-12 bg-emerald-800/40 rounded-lg items-center justify-center">
+            <Feather name="tag" size={24} color="white" />
+          </StyledView>
+          
+          <StyledView className="flex-1 ml-3">
+            <StyledView className="bg-emerald-800/40 p-3 rounded-lg flex-row justify-between">
+              {angles.map((angle) => (
+                <StyledTouchableOpacity
+                  key={angle.value}
+                  onPress={() => selectAngle(angle.value)}
+                  className="flex-row items-center"
+                >
+                  <StyledView 
+                    className={`w-5 h-5 rounded-full border ${
+                      trickData.angles.includes(angle.value) 
+                        ? "border-white bg-white" 
+                        : "border-white/50"
+                    } mr-2`}
+                  >
+                    {trickData.angles.includes(angle.value) && (
+                      <StyledView className="w-3 h-3 rounded-full bg-emerald-800 m-auto" />
+                    )}
+                  </StyledView>
+                  <StyledText className="text-white">{angle.label}</StyledText>
+                </StyledTouchableOpacity>
+              ))}
+            </StyledView>
+          </StyledView>
+        </StyledView>
 
-        {trickData.effect_video_url ? (
-          <StyledView className="bg-white/10 rounded-lg p-2">
-            <StyledText className="text-white mb-2">{t("videoUploaded", "Video uploaded successfully")}</StyledText>
-            <StyledTouchableOpacity
-              onPress={() => updateTrickData({ effect_video_url: null })}
-              className="bg-red-600 py-2 rounded-lg items-center"
+        {/* Duration */}
+        <StyledView className="flex-row mb-6">
+          <StyledView className="w-12 h-12 bg-emerald-800/40 rounded-lg items-center justify-center">
+            <Feather name="clock" size={24} color="white" />
+          </StyledView>
+          
+          <StyledView className="flex-1 ml-3">
+            <StyledTouchableOpacity 
+              className="bg-emerald-800/40 p-3 rounded-lg flex-row items-center justify-between"
+              onPress={showDurationPicker}
             >
-              <StyledText className="text-white">{t("removeVideo", "Remove Video")}</StyledText>
+              <StyledText className="text-white/70">
+                {trickData.duration 
+                  ? `${Math.floor(trickData.duration / 60)}:${(trickData.duration % 60).toString().padStart(2, '0')} ${t("minutes", "minutes")}`
+                  : t("setDurationTime", "Set duration time")
+                }
+              </StyledText>
+              <Feather name="plus" size={20} color="white" />
             </StyledTouchableOpacity>
           </StyledView>
-        ) : (
-          <StyledTouchableOpacity
-            onPress={pickVideo}
-            disabled={uploading}
-            className="bg-emerald-700 p-4 rounded-lg flex-row items-center justify-center"
-          >
-            <Feather name="video" size={24} color="white" />
-            <StyledText className="text-white ml-2">
-              {uploading ? t("uploading", "Uploading...") : t("uploadEffectVideo", "Upload Effect Video")}
-            </StyledText>
-          </StyledTouchableOpacity>
-        )}
-      </StyledView>
+        </StyledView>
 
-      {/* Ángulos */}
-      <StyledView className="mb-6">
-        <StyledText className="text-white text-lg mb-2">{t("angles", "Angles")}</StyledText>
-        <StyledView className="flex-row flex-wrap">
-          {angles.map((angle) => (
-            <StyledTouchableOpacity
-              key={angle.value}
-              onPress={() => toggleAngle(angle.value)}
-              className={`m-1 px-3 py-2 rounded-full flex-row items-center ${
-                trickData.angles.includes(angle.value) ? "bg-emerald-600" : "bg-white/20"
-              }`}
+        {/* Reset Time */}
+        <StyledView className="flex-row mb-6">
+          <StyledView className="w-12 h-12 bg-emerald-800/40 rounded-lg items-center justify-center">
+            <Feather name="refresh-cw" size={24} color="white" />
+          </StyledView>
+          
+          <StyledView className="flex-1 ml-3">
+            <StyledTouchableOpacity 
+              className="bg-emerald-800/40 p-3 rounded-lg flex-row items-center justify-between"
+              onPress={showResetTimePicker}
             >
-              <StyledText className="text-white">{angle.label}</StyledText>
+              <StyledText className="text-white/70">
+                {trickData.reset 
+                  ? `${Math.floor(trickData.reset / 60)}:${(trickData.reset % 60).toString().padStart(2, '0')} ${t("minutes", "minutes")}`
+                  : t("setResetTime", "Set reset time")
+                }
+              </StyledText>
+              <Feather name="plus" size={20} color="white" />
             </StyledTouchableOpacity>
-          ))}
+          </StyledView>
         </StyledView>
-      </StyledView>
 
-      {/* Duración */}
-      <StyledView className="mb-6">
-        <StyledText className="text-white text-lg mb-2">{t("duration", "Duration (seconds)")}</StyledText>
-        <StyledView className="flex-row items-center overflow-hidden rounded-lg">
-          <BlurView intensity={20} tint="dark" style={{ flex: 1 }}>
-            <StyledView className="flex-row items-center p-3">
-              <Ionicons name="time" size={20} color="white" />
-              <StyledTextInput
-                className="text-white ml-2 flex-1"
-                placeholder="60"
-                placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                value={trickData.duration?.toString() || ""}
-                onChangeText={(text) => {
-                  const duration = Number.parseInt(text)
-                  if (!isNaN(duration) || text === "") {
-                    updateTrickData({ duration: text === "" ? null : duration })
-                  }
-                }}
-                keyboardType="number-pad"
-              />
+        {/* Difficulty Slider */}
+        <StyledView className="flex-row mb-12">
+          <StyledView className="w-12 h-12 bg-emerald-800/40 rounded-lg items-center justify-center">
+            <FontAwesome5 name="hand-paper" size={24} color="white" />
+          </StyledView>
+          
+          <StyledView className="flex-1 ml-3">
+            <StyledView className="bg-emerald-800/40 p-3 rounded-lg">
+              <StyledView className="flex-row justify-between mb-1">
+                <StyledText className="text-white/50 text-xs">1</StyledText>
+                <StyledText className="text-white/50 text-xs">5</StyledText>
+                <StyledText className="text-white/50 text-xs">10</StyledText>
+              </StyledView>
+              
+              <StyledView className="h-6 justify-center mb-2">
+                {/* React Native Community Slider */}
+                <Slider
+                  style={{ width: '100%', height: 40 }}
+                  minimumValue={1}
+                  maximumValue={10}
+                  step={1}
+                  value={getDifficultyValue()}
+                  onValueChange={(value: number) => setDifficulty(value)}
+                  minimumTrackTintColor="#059669"
+                  maximumTrackTintColor="rgba(255, 255, 255, 0.2)"
+                  thumbTintColor="#ffffff"
+                />
+              </StyledView>
             </StyledView>
-          </BlurView>
+          </StyledView>
         </StyledView>
+      </StyledScrollView>
+
+      {/* Footer with step indicator and next button */}
+      <StyledView className="px-6 pb-8" style={{ paddingBottom: insets.bottom + 16 }}>
+        <StyledText className="text-center text-white/60 mb-4">
+          {`${currentStep} of ${totalSteps}`}
+        </StyledText>
+        
+        <StyledTouchableOpacity
+          className={`w-full py-4 rounded-lg items-center justify-center flex-row ${
+            isNextButtonDisabled || !trickData.effect.trim() || isSubmitting
+              ? 'bg-white/10'
+              : 'bg-emerald-700'
+          }`}
+          disabled={isNextButtonDisabled || !trickData.effect.trim() || isSubmitting}
+          onPress={onNext}
+        >
+          <StyledText className="text-white font-semibold text-base mr-2">
+            {isLastStep ? t("save", "Save") : t("next", "Next")}
+          </StyledText>
+          {isLastStep ? (
+            <Feather name="save" size={20} color="white" />
+          ) : (
+            <Feather name="chevron-right" size={20} color="white" />
+          )}
+        </StyledTouchableOpacity>
       </StyledView>
 
-      {/* Reset */}
-      <StyledView className="mb-6">
-        <StyledText className="text-white text-lg mb-2">{t("resetTime", "Reset Time (seconds)")}</StyledText>
-        <StyledView className="flex-row items-center overflow-hidden rounded-lg">
-          <BlurView intensity={20} tint="dark" style={{ flex: 1 }}>
-            <StyledView className="flex-row items-center p-3">
-              <Ionicons name="refresh" size={20} color="white" />
-              <StyledTextInput
-                className="text-white ml-2 flex-1"
-                placeholder="30"
-                placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                value={trickData.reset?.toString() || ""}
-                onChangeText={(text) => {
-                  const reset = Number.parseInt(text)
-                  if (!isNaN(reset) || text === "") {
-                    updateTrickData({ reset: text === "" ? null : reset })
-                  }
-                }}
-                keyboardType="number-pad"
-              />
+      {/* Time picker modals */}
+      {/* Duration Picker Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showDurationPickerModal}
+        onRequestClose={() => setShowDurationPickerModal(false)}
+      >
+        <StyledView className="flex-1 justify-end items-center bg-black/50">
+          <StyledView className="w-full bg-gray-900 rounded-t-3xl p-6">
+            <StyledView className="flex-row justify-between items-center mb-6">
+              <StyledTouchableOpacity onPress={() => setShowDurationPickerModal(false)}>
+                <StyledText className="text-white font-medium text-lg">
+                  {t("cancel", "Cancel")}
+                </StyledText>
+              </StyledTouchableOpacity>
+              
+              <StyledText className="text-white font-bold text-xl">
+                {t("setDuration", "Set Duration")}
+              </StyledText>
+              
+              <StyledTouchableOpacity onPress={confirmDuration}>
+                <StyledText className="text-emerald-500 font-medium text-lg">
+                  {t("done", "Done")}
+                </StyledText>
+              </StyledTouchableOpacity>
             </StyledView>
-          </BlurView>
+            
+            <StyledView className="flex-row justify-center items-center mb-6">
+              {/* Picker container with mm:ss format */}
+              <StyledView className="flex-row items-center">
+                {/* Minutes picker */}
+                <StyledView className="w-20 h-40 overflow-hidden">
+                  <StyledScrollView 
+                    className="h-full"
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingVertical: 50 }}
+                  >
+                    {renderPickerOptions(59)}
+                  </StyledScrollView>
+                </StyledView>
+                
+                <StyledText className="text-white text-2xl mx-2">:</StyledText>
+                
+                {/* Seconds picker */}
+                <StyledView className="w-20 h-40 overflow-hidden">
+                  <StyledScrollView 
+                    className="h-full"
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingVertical: 50 }}
+                  >
+                    {renderPickerOptions(59)}
+                  </StyledScrollView>
+                </StyledView>
+              </StyledView>
+            </StyledView>
+            
+            {/* Current selection indicator */}
+            <StyledView className="absolute top-1/2 left-0 right-0 h-12 border-t border-b border-emerald-600/30 bg-emerald-600/10" />
+          </StyledView>
         </StyledView>
-      </StyledView>
-
-      {/* Dificultad */}
-      <StyledView className="mb-6">
-        <StyledText className="text-white text-lg mb-2">{t("difficulty", "Difficulty")}</StyledText>
-        <StyledView className="flex-row flex-wrap">
-          {difficulties.map((difficulty) => (
-            <StyledTouchableOpacity
-              key={difficulty.value}
-              onPress={() => selectDifficulty(difficulty.value)}
-              className={`m-1 px-3 py-2 rounded-full flex-row items-center ${
-                trickData.difficulty === difficulty.value ? "bg-emerald-600" : "bg-white/20"
-              }`}
-            >
-              <MaterialIcons name="bar-chart" size={16} color="white" />
-              <StyledText className="text-white ml-1">{difficulty.label}</StyledText>
-            </StyledTouchableOpacity>
-          ))}
+      </Modal>
+      
+      {/* Reset Time Picker Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showResetPickerModal}
+        onRequestClose={() => setShowResetPickerModal(false)}
+      >
+        <StyledView className="flex-1 justify-end items-center bg-black/50">
+          <StyledView className="w-full bg-gray-900 rounded-t-3xl p-6">
+            <StyledView className="flex-row justify-between items-center mb-6">
+              <StyledTouchableOpacity onPress={() => setShowResetPickerModal(false)}>
+                <StyledText className="text-white font-medium text-lg">
+                  {t("cancel", "Cancel")}
+                </StyledText>
+              </StyledTouchableOpacity>
+              
+              <StyledText className="text-white font-bold text-xl">
+                {t("setResetTime", "Set Reset Time")}
+              </StyledText>
+              
+              <StyledTouchableOpacity onPress={confirmResetTime}>
+                <StyledText className="text-emerald-500 font-medium text-lg">
+                  {t("done", "Done")}
+                </StyledText>
+              </StyledTouchableOpacity>
+            </StyledView>
+            
+            <StyledView className="flex-row justify-center items-center mb-6">
+              {/* Picker container with mm:ss format */}
+              <StyledView className="flex-row items-center">
+                {/* Minutes picker */}
+                <StyledView className="w-20 h-40 overflow-hidden">
+                  <StyledScrollView 
+                    className="h-full"
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingVertical: 50 }}
+                  >
+                    {renderPickerOptions(59)}
+                  </StyledScrollView>
+                </StyledView>
+                
+                <StyledText className="text-white text-2xl mx-2">:</StyledText>
+                
+                {/* Seconds picker */}
+                <StyledView className="w-20 h-40 overflow-hidden">
+                  <StyledScrollView 
+                    className="h-full"
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingVertical: 50 }}
+                  >
+                    {renderPickerOptions(59)}
+                  </StyledScrollView>
+                </StyledView>
+              </StyledView>
+            </StyledView>
+            
+            {/* Current selection indicator */}
+            <StyledView className="absolute top-1/2 left-0 right-0 h-12 border-t border-b border-emerald-600/30 bg-emerald-600/10" />
+          </StyledView>
         </StyledView>
-      </StyledView>
+      </Modal>
     </StyledView>
   )
 }

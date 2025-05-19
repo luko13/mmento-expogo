@@ -1,13 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Image,
   Dimensions,
   Alert,
   KeyboardAvoidingView,
@@ -17,14 +16,15 @@ import {
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
 import { router } from "expo-router"
-import { BlurView } from "expo-blur"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { signUp } from "../../utils/auth"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
 const StyledTextInput = styled(TextInput)
 const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledSafeAreaView = styled(SafeAreaView)
 
 const { width, height } = Dimensions.get("window")
 
@@ -34,10 +34,16 @@ export default function Register() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false) // Estado para controlar la navegación
+
+  // Reset el estado de navegación al montar el componente
+  useEffect(() => {
+    setIsNavigating(false)
+  }, [])
 
   const handleRegister = async () => {
     if (!email || !password || !confirmPassword) {
-      Alert.alert(t("error"), "Por favor, completa todos los campos")
+      Alert.alert(t("error"), t("fillAllFields"))
       return
     }
 
@@ -51,6 +57,9 @@ export default function Register() {
       const success = await signUp(email, password)
 
       if (success) {
+        // Ocultar la pantalla antes de navegar
+        setIsNavigating(true)
+        
         // Guardar la sesión en AsyncStorage para mantener al usuario logueado
         await AsyncStorage.setItem("session", "true")
 
@@ -65,42 +74,58 @@ export default function Register() {
           },
         ])
       } else {
-        Alert.alert(t("registrationError"), "No se pudo completar el registro")
+        Alert.alert(t("registrationError"), t("registrationFailed"))
       }
     } catch (error) {
       console.error("Error en registro:", error)
       Alert.alert(t("registrationError"), error instanceof Error ? error.message : String(error))
     } finally {
-      setLoading(false)
+      if (!isNavigating) {
+        setLoading(false)
+      }
     }
   }
 
   const goToLogin = () => {
-    router.push("/auth/login")
+    // Ocultar la pantalla actual antes de navegar
+    setIsNavigating(true)
+    
+    // Pequeño delay para asegurar que la UI se ha actualizado
+    setTimeout(() => {
+      router.replace("/auth/login")
+    }, 10)
+  }
+
+  const handleSocialSignup = (provider: string) => {
+    Alert.alert(t("comingSoon"), t("socialSignupNotAvailable", { provider }))
+  }
+
+  // Si estamos navegando, no mostramos ningún contenido
+  if (isNavigating) {
+    return <View style={{ flex: 1, backgroundColor: 'transparent' }} />
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <Image
-          source={require("../../assets/BG_Auth.png")}
-          style={{
-            width: width,
-            height: height,
-            position: "absolute",
-          }}
-          resizeMode="cover"
-        />
-        <StyledView className="flex-1 justify-center p-6">
-          <StyledView className="mb-8 items-center">
-          </StyledView>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === "ios" ? "padding" : "height"} 
+      style={{ flex: 1 }}
+    >
+      <StyledSafeAreaView className="flex-1" style={{ backgroundColor: 'transparent' }}>
+        <ScrollView 
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <StyledView className="flex-1 justify-center items-center px-6">
+            {/* Card Container */}
+            <StyledView className="w-full bg-black/20 backdrop-blur-sm rounded-xl p-6 border border-emerald-100/50">
+              <StyledText className="text-white text-xl font-semibold mb-6">
+                {t("register")}
+              </StyledText>
 
-          <StyledView className="mb-6 overflow-hidden rounded-xl">
-            <BlurView intensity={20} tint="dark" style={{ padding: 20 }}>
+              {/* Email Field */}
               <StyledView className="mb-4">
-                <StyledText className="text-white mb-2">{t("email")}</StyledText>
                 <StyledTextInput
-                  className="bg-white/10 text-white p-3 rounded-lg"
+                  className="w-full bg-white/10 border border-white/20 rounded-md h-12 px-4 text-white"
                   placeholder={t("email")}
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={email}
@@ -110,10 +135,10 @@ export default function Register() {
                 />
               </StyledView>
 
+              {/* Password Field */}
               <StyledView className="mb-4">
-                <StyledText className="text-white mb-2">{t("password")}</StyledText>
                 <StyledTextInput
-                  className="bg-white/10 text-white p-3 rounded-lg"
+                  className="w-full bg-white/10 border border-white/20 rounded-md h-12 px-4 text-white"
                   placeholder={t("password")}
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={password}
@@ -122,11 +147,11 @@ export default function Register() {
                 />
               </StyledView>
 
-              <StyledView className="mb-6">
-                <StyledText className="text-white mb-2">{t("confirmPassword")}</StyledText>
+              {/* Confirm Password Field */}
+              <StyledView className="mb-5">
                 <StyledTextInput
-                  className="bg-white/10 text-white p-3 rounded-lg"
-                  placeholder={t("confirmPassword")}
+                  className="w-full bg-white/10 border border-white/20 rounded-md h-12 px-4 text-white"
+                  placeholder={t("password")}
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -134,29 +159,55 @@ export default function Register() {
                 />
               </StyledView>
 
+              {/* Social Signup Buttons */}
               <StyledTouchableOpacity
-                className="bg-emerald-700 py-3 rounded-lg items-center mb-4"
+                className="w-full bg-white/20 rounded-md h-11 items-center justify-center mb-3"
+                onPress={() => handleSocialSignup("Apple")}
+              >
+                <StyledText className="text-white/90 font-medium">
+                  Apple
+                </StyledText>
+              </StyledTouchableOpacity>
+
+              <StyledTouchableOpacity
+                className="w-full bg-white/20 rounded-md h-11 items-center justify-center mb-5"
+                onPress={() => handleSocialSignup("Google")}
+              >
+                <StyledText className="text-white/90 font-medium">
+                  Google
+                </StyledText>
+              </StyledTouchableOpacity>
+
+              {/* Login Link */}
+              <StyledView className="flex-row justify-center mb-6">
+                <StyledText className="text-white/70 text-sm">
+                  {t("login")} 
+                </StyledText>
+                <StyledTouchableOpacity onPress={goToLogin}>
+                  <StyledText className="text-white text-sm ml-1">
+                    {t("here")}
+                  </StyledText>
+                </StyledTouchableOpacity>
+              </StyledView>
+
+              {/* Register Button */}
+              <StyledTouchableOpacity
+                className="w-full bg-emerald-700 rounded-md h-12 items-center justify-center"
                 onPress={handleRegister}
                 disabled={loading}
               >
                 {loading ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <StyledText className="text-white font-bold">{t("register")}</StyledText>
+                  <StyledText className="text-white font-semibold">
+                    {t("register")}
+                  </StyledText>
                 )}
               </StyledTouchableOpacity>
-            </BlurView>
+            </StyledView>
           </StyledView>
-
-          <StyledView className="flex-row justify-center">
-            <StyledText className="text-white/70 mr-1">{t("alreadyHaveAccount")}</StyledText>
-            <StyledTouchableOpacity onPress={goToLogin}>
-              <StyledText className="text-emerald-400 font-bold">{t("login")}</StyledText>
-            </StyledTouchableOpacity>
-          </StyledView>
-        </StyledView>
-      </ScrollView>
+        </ScrollView>
+      </StyledSafeAreaView>
     </KeyboardAvoidingView>
   )
 }
-
