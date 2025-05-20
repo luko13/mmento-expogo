@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react"
 import { View, Text, TextInput, TouchableOpacity, Alert, Dimensions, ScrollView } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { Feather, AntDesign, Ionicons } from "@expo/vector-icons"
+import { Feather, AntDesign, Ionicons, FontAwesome6 } from "@expo/vector-icons"
 import { supabase } from "../../../lib/supabase"
 import type { MagicTrick } from "../AddMagicWizard"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -360,14 +360,17 @@ export default function TitleCategoryStep({
 
         {/* Form Fields */}
         <StyledView className="flex-1 px-6 mt-24">
+          <StyledText className="text-white/60 text-lg font-semibold mb-4">
+            {t("clasify", "Clasify")}
+          </StyledText>
           {/* Magic Title Field */}
           <StyledView className="mb-8">
             <StyledView className="flex-row items-center mb-3">
-              <StyledView className="w-8 h-8 bg-white/10 rounded-lg items-center justify-center mr-3">
-                <Ionicons name="sparkles" size={18} color="white" />
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <FontAwesome6 name="wand-magic-sparkles" size={18} color="white" />
               </StyledView>
               <StyledTextInput
-                className="flex-1 text-white text-base bg-transparent border-b border-emerald-600 pb-2"
+                className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]"
                 placeholder={t("forms.magicTitlePlaceholder")}
                 placeholderTextColor="rgba(255, 255, 255, 0.5)"
                 value={trickData.title}
@@ -388,11 +391,11 @@ export default function TitleCategoryStep({
           {/* Category Field */}
           <StyledView className="mb-8">
             <StyledView className="flex-row items-center">
-              <StyledView className="w-8 h-8 bg-white/10 rounded-lg items-center justify-center mr-3">
-                <Feather name="folder" size={18} color="white" />
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="folder" size={24} color="white" />
               </StyledView>
               <StyledTouchableOpacity 
-                className="flex-1 flex-row items-center justify-between border-b border-emerald-600 pb-2"
+                className="flex-1 flex-row items-center justify-between text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]"
                 onPress={() => setCategorySelectModalVisible(true)}
               >
                 <StyledText className={`text-base ${
@@ -403,20 +406,20 @@ export default function TitleCategoryStep({
                 <Feather name="chevron-down" size={20} color="white" />
               </StyledTouchableOpacity>
             </StyledView>
-            {!categoryValidation.isValid && (
+            {/* {!categoryValidation.isValid && (
               <StyledText className="text-red-400 text-xs ml-11 mt-1">
                 {categoryValidation.message}
               </StyledText>
-            )}
+            )} */}
           </StyledView>
 
           {/* Tag Field */}
           <StyledView className="mb-6">
             <StyledView className="flex-row items-center">
-              <StyledView className="w-8 h-8 bg-white/10 rounded-lg items-center justify-center mr-3">
-                <Feather name="tag" size={18} color="white" />
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+                <Feather name="tag" size={24} color="white" />
               </StyledView>
-              <StyledView className="flex-1 flex-row items-center border-b border-emerald-600 pb-2">
+              <StyledView className="flex-1 flex-row items-center text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40">
                 <StyledTextInput
                   className="flex-1 text-white text-base bg-transparent"
                   placeholder={t("forms.tagPlaceholder")}

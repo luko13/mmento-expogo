@@ -6,11 +6,15 @@ import { useTranslation } from "react-i18next"
 import { supabase } from "../../lib/supabase"
 import TitleCategoryStep from "./steps/TitleCategoryStep"
 import EffectStep from "./steps/EffectStep"
-import SecretStep from "./steps/SecretStep"
+//import SecretStep from "./steps/SecretStep"
 import ExtrasStep from "./steps/ExtrasStep"
 
 // Tipo para el truco de magia
 export interface MagicTrick {
+  // ID y usuario (necesarios para referencias en la base de datos)
+  id?: string
+  user_id?: string
+
   // Paso 1: Título y categorización
   title: string
   categories: string[]
@@ -32,7 +36,12 @@ export interface MagicTrick {
 
   // Paso 4: Extras
   notes: string
+  // Relaciones con otras entidades
+  techniqueIds?: string[]
+  gimmickIds?: string[]
+  // Scripts
   script: string
+  scriptId?: string
   photo_url: string | null
 }
 
@@ -65,6 +74,8 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
     notes: "",
     script: "",
     photo_url: null,
+    techniqueIds: [],
+    gimmickIds: [],
   })
 
   // Actualizar datos del truco
@@ -76,7 +87,7 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
   const steps = [
     { title: t("titleAndCategories", "Title & Categories"), component: TitleCategoryStep },
     { title: t("effect", "Effect"), component: EffectStep },
-    { title: t("secret", "Secret"), component: SecretStep },
+    //{ title: t("secret", "Secret"), component: SecretStep },
     { title: t("extras", "Extras"), component: ExtrasStep },
   ]
 
@@ -447,6 +458,48 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
           console.error("Error in script creation:", scriptError)
         }
       }
+      
+      // Si hay técnicas seleccionadas, asociarlas al truco
+      if (trickData.techniqueIds && trickData.techniqueIds.length > 0) {
+        try {
+          const techniqueInserts = trickData.techniqueIds.map(techniqueId => ({
+            trick_id: data.id,
+            technique_id: techniqueId,
+            created_at: new Date().toISOString(),
+          }))
+
+          const { error: techniqueError } = await supabase
+            .from("trick_techniques")
+            .insert(techniqueInserts)
+
+          if (techniqueError && techniqueError.code !== "23505") {
+            console.error("Error associating techniques with trick:", techniqueError)
+          }
+        } catch (techniqueError) {
+          console.error("Error in technique association:", techniqueError)
+        }
+      }
+      
+      // Si hay gimmicks seleccionados, asociarlos al truco
+      if (trickData.gimmickIds && trickData.gimmickIds.length > 0) {
+        try {
+          const gimmickInserts = trickData.gimmickIds.map(gimmickId => ({
+            trick_id: data.id,
+            gimmick_id: gimmickId,
+            created_at: new Date().toISOString(),
+          }))
+
+          const { error: gimmickError } = await supabase
+            .from("trick_gimmicks")
+            .insert(gimmickInserts)
+
+          if (gimmickError && gimmickError.code !== "23505") {
+            console.error("Error associating gimmicks with trick:", gimmickError)
+          }
+        } catch (gimmickError) {
+          console.error("Error in gimmick association:", gimmickError)
+        }
+      }
 
       // Mostrar mensaje de éxito
       Alert.alert(
@@ -479,7 +532,7 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
       updateTrickData={updateTrickData}
       onNext={goToNextStep}
       onCancel={goToPreviousStep}
-      currentStep={currentStep}
+      currentStep={currentStep + 1}
       totalSteps={steps.length}
       isSubmitting={isSubmitting}
       isNextButtonDisabled={isNextButtonDisabled}

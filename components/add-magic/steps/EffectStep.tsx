@@ -1,17 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { View, Text, TextInput, TouchableOpacity, Alert, Platform, ScrollView, Modal } from "react-native"
+import { View, Text, TextInput, TouchableOpacity, Alert, Platform, ScrollView } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
 import { Feather, Ionicons, FontAwesome5 } from "@expo/vector-icons"
-import Slider from "@react-native-community/slider"
 import type { MagicTrick } from "../AddMagicWizard"
 import * as ImagePicker from "expo-image-picker"
 import { supabase } from "../../../lib/supabase"
 import * as FileSystem from "expo-file-system"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinearGradient } from 'expo-linear-gradient'
+import { useRouter } from "expo-router"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -31,8 +31,8 @@ interface StepProps {
   isLastStep?: boolean
 }
 
-export default function EffectStep({ 
-  trickData, 
+export default function EffectStep({
+  trickData,
   updateTrickData,
   onNext,
   onCancel,
@@ -44,118 +44,9 @@ export default function EffectStep({
 }: StepProps) {
   const { t } = useTranslation()
   const [uploading, setUploading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const insets = useSafeAreaInsets()
-  
-  // Time picker state
-  const [showDurationPickerModal, setShowDurationPickerModal] = useState(false)
-  const [showResetPickerModal, setShowResetPickerModal] = useState(false)
-  const [tempMinutes, setTempMinutes] = useState(0)
-  const [tempSeconds, setTempSeconds] = useState(30)
-
-  // Set initial values based on trickData
-  useEffect(() => {
-    if (trickData.duration) {
-      setTempMinutes(Math.floor(trickData.duration / 60))
-      setTempSeconds(trickData.duration % 60)
-    }
-  }, [])
-
-  // Available angles (updated to match the design)
-  const angles = [
-    { value: "90", label: "90°" },
-    { value: "120", label: "120°" },
-    { value: "180", label: "180°" },
-    { value: "360", label: "360°" },
-  ]
-
-  // Select angle (radio button style)
-  const selectAngle = (angle: string): void => {
-    const updatedAngles = [angle] // Only allow one angle selection
-    updateTrickData({ angles: updatedAngles })
-  }
-
-  // Handle difficulty selection
-  const setDifficulty = (value: number): void => {
-    let difficulty: string;
-    if (value <= 2) difficulty = "beginner";
-    else if (value <= 4) difficulty = "easy";
-    else if (value <= 6) difficulty = "intermediate";
-    else if (value <= 8) difficulty = "advanced";
-    else difficulty = "expert";
-    
-    updateTrickData({ difficulty });
-  }
-  
-  // Get current difficulty value
-  const getDifficultyValue = (): number => {
-    switch (trickData.difficulty) {
-      case "beginner": return 1
-      case "easy": return 3
-      case "intermediate": return 5
-      case "advanced": return 7
-      case "expert": return 10
-      default: return 5
-    }
-  }
-  
-  // Handle showing time picker for duration
-  const showDurationPicker = () => {
-    // Set initial values based on current duration
-    if (trickData.duration) {
-      setTempMinutes(Math.floor(trickData.duration / 60))
-      setTempSeconds(trickData.duration % 60)
-    } else {
-      setTempMinutes(0)
-      setTempSeconds(30)
-    }
-    setShowDurationPickerModal(true)
-  }
-
-  // Handle confirming duration time
-  const confirmDuration = () => {
-    const totalSeconds = (tempMinutes * 60) + tempSeconds
-    updateTrickData({ duration: totalSeconds })
-    setShowDurationPickerModal(false)
-  }
-
-  // Handle showing time picker for reset
-  const showResetTimePicker = () => {
-    // Set initial values based on current reset time
-    if (trickData.reset) {
-      setTempMinutes(Math.floor(trickData.reset / 60))
-      setTempSeconds(trickData.reset % 60)
-    } else {
-      setTempMinutes(0)
-      setTempSeconds(15)
-    }
-    setShowResetPickerModal(true)
-  }
-
-  // Handle confirming reset time
-  const confirmResetTime = () => {
-    const totalSeconds = (tempMinutes * 60) + tempSeconds
-    updateTrickData({ reset: totalSeconds })
-    setShowResetPickerModal(false)
-  }
-
-  // Create a picker wheel option
-  const renderPickerOptions = (max: number) => {
-    const options = []
-    for (let i = 0; i <= max; i++) {
-      options.push(
-        <StyledTouchableOpacity 
-          key={i} 
-          className="py-2 items-center w-full"
-          onPress={() => max === 59 ? setTempSeconds(i) : setTempMinutes(i)}
-        >
-          <StyledText className={`text-lg ${(max === 59 ? tempSeconds : tempMinutes) === i ? 'text-white font-bold' : 'text-white/60'}`}>
-            {i.toString().padStart(2, '0')}
-          </StyledText>
-        </StyledTouchableOpacity>
-      )
-    }
-    return options
-  }
+  const router = useRouter()
 
   // Request permissions
   const requestMediaLibraryPermissions = async () => {
@@ -176,8 +67,8 @@ export default function EffectStep({
     }
   }
 
-  // Upload video
-  const pickVideo = async () => {
+  // Upload effect video
+  const pickEffectVideo = async () => {
     try {
       // Request permissions first
       const hasPermission = await requestMediaLibraryPermissions()
@@ -219,7 +110,7 @@ export default function EffectStep({
           console.error("Error checking file size:", error)
         }
 
-        await uploadVideo(uri)
+        await uploadEffectVideo(uri)
       }
     } catch (error) {
       console.error("Error picking video:", error)
@@ -231,8 +122,63 @@ export default function EffectStep({
     }
   }
 
-  // Upload video to Supabase Storage
-  const uploadVideo = async (uri: string) => {
+  // Upload secret video
+  const pickSecretVideo = async () => {
+    try {
+      // Request permissions first
+      const hasPermission = await requestMediaLibraryPermissions()
+      if (!hasPermission) return
+
+      // Configure options to reduce video size
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        allowsEditing: true,
+        quality: 0.5,
+        videoMaxDuration: 60,
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync(options)
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uri = result.assets[0].uri
+
+        // Check file size
+        try {
+          const fileInfo = await FileSystem.getInfoAsync(uri)
+          
+          // Check if file exists and has size
+          if (fileInfo.exists && "size" in fileInfo) {
+            // If file is larger than 50MB, show warning
+            if (fileInfo.size > 50 * 1024 * 1024) {
+              Alert.alert(
+                t("fileTooLarge", "File Too Large"),
+                t(
+                  "fileSizeWarning",
+                  "The selected video is too large. Please select a smaller video or trim this one.",
+                ),
+                [{ text: t("ok", "OK") }],
+              )
+              return
+            }
+          }
+        } catch (error) {
+          console.error("Error checking file size:", error)
+        }
+
+        await uploadSecretVideo(uri)
+      }
+    } catch (error) {
+      console.error("Error picking video:", error)
+      Alert.alert(
+        t("error", "Error"),
+        t("videoPickError", "There was an error selecting the video. Please try again."),
+        [{ text: t("ok", "OK") }],
+      )
+    }
+  }
+
+  // Upload effect video to Supabase Storage
+  const uploadEffectVideo = async (uri: string) => {
     try {
       setUploading(true)
 
@@ -301,9 +247,233 @@ export default function EffectStep({
     }
   }
 
+  // Upload secret video to Supabase Storage
+  const uploadSecretVideo = async (uri: string) => {
+    try {
+      setUploading(true)
+
+      // Get file name
+      const fileName = uri.split("/").pop() || ""
+      const fileExt = fileName.split(".").pop()?.toLowerCase() || "mp4"
+      const filePath = `secret_videos/${Date.now()}.${fileExt}`
+
+      // On iOS, use FileSystem to read the file instead of fetch/blob
+      if (Platform.OS === "ios") {
+        try {
+          const fileContent = await FileSystem.readAsStringAsync(uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          })
+
+          const { data, error } = await supabase.storage.from("magic_trick_media").upload(filePath, fileContent, {
+            contentType: `video/${fileExt}`,
+            upsert: true,
+          })
+
+          if (error) {
+            console.error("Error uploading video:", error)
+            Alert.alert(t("uploadError", "Upload Error"), error.message)
+            return
+          }
+
+          // Get public URL
+          const { data: publicURL } = supabase.storage.from("magic_trick_media").getPublicUrl(filePath)
+
+          // Update trick data
+          updateTrickData({ secret_video_url: publicURL.publicUrl })
+        } catch (error) {
+          console.error("Error reading file:", error)
+          Alert.alert(
+            t("fileReadError", "File Read Error"),
+            t("couldNotReadFile", "Could not read the video file. Please try again with a different video."),
+          )
+        }
+      } else {
+        // For Android, continue using the previous method
+        const response = await fetch(uri)
+        const blob = await response.blob()
+
+        const { data, error } = await supabase.storage.from("magic_trick_media").upload(filePath, blob)
+
+        if (error) {
+          console.error("Error uploading video:", error)
+          Alert.alert(t("uploadError", "Upload Error"), error.message)
+          return
+        }
+
+        // Get public URL
+        const { data: publicURL } = supabase.storage.from("magic_trick_media").getPublicUrl(filePath)
+
+        // Update trick data
+        updateTrickData({ secret_video_url: publicURL.publicUrl })
+      }
+    } catch (error) {
+      console.error("Error in upload process:", error)
+      Alert.alert(
+        t("uploadError", "Upload Error"),
+        t("generalUploadError", "There was an error uploading the video. Please try again."),
+      )
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  // Esta función maneja la navegación hacia ExtrasStep
+  const goToExtrasStep = () => {
+    if (onNext) {
+      onNext()
+    }
+  }
+  
+  // Función para guardar el truco directamente
+  const handleRegisterMagic = async () => {
+    try {
+      setSaving(true)
+      
+      // Validar que los campos necesarios estén completos
+      if (!trickData.effect?.trim() || !trickData.secret?.trim()) {
+        Alert.alert(
+          t("validationError", "Error de Validación"),
+          t("requiredFieldsMissing", "Por favor complete todos los campos obligatorios."),
+          [{ text: t("ok", "OK") }]
+        )
+        return
+      }
+      
+      // Obtener el usuario actual
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        console.error("No user found")
+        Alert.alert(t("error"), t("userNotFound", "Usuario no encontrado"))
+        return
+      }
+
+      // Verificar si el usuario ya tiene un perfil
+      const { data: existingProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError && profileError.code !== "PGRST116") {
+        console.error("Error checking profile:", profileError)
+        throw new Error("Error checking user profile")
+      }
+
+      // Si el perfil no existe, crearlo
+      if (!existingProfile) {
+        const username = user.email?.split("@")[0] || ""
+
+        const { error: insertError } = await supabase.from("profiles").insert({
+          id: user.id,
+          email: user.email || "",
+          username: username,
+          is_active: true,
+          is_verified: false,
+          subscription_type: "free",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+
+        if (insertError) {
+          console.error("Error creating profile:", insertError)
+          throw new Error("Could not create user profile")
+        }
+      }
+
+      // Insertar el truco en la base de datos
+      const { data, error } = await supabase
+        .from("magic_tricks")
+        .insert({
+          user_id: user.id,
+          title: trickData.title.trim(),
+          effect: trickData.effect.trim(),
+          secret: trickData.secret.trim(),
+          difficulty: trickData.difficulty,
+          duration: trickData.duration,
+          reset: trickData.reset,
+          angles: trickData.angles.length > 0 ? JSON.stringify(trickData.angles) : null,
+          notes: trickData.notes?.trim() || "",
+          special_materials: trickData.special_materials,
+          effect_video_url: trickData.effect_video_url,
+          secret_video_url: trickData.secret_video_url,
+          photo_url: trickData.photo_url,
+          status: "draft",
+        })
+        .select("id")
+        .single()
+
+      if (error) {
+        console.error("Error creating trick:", error)
+        Alert.alert(t("error"), t("errorCreatingTrick", "Error creando el truco"))
+        return
+      }
+
+      // Asociar categoría si está seleccionada
+      if (trickData.selectedCategoryId) {
+        try {
+          const { error: categoryError } = await supabase.from("trick_categories").insert({
+            trick_id: data.id,
+            category_id: trickData.selectedCategoryId,
+            created_at: new Date().toISOString(),
+          })
+
+          if (categoryError) {
+            console.error("Error associating category with trick:", categoryError)
+          }
+        } catch (categoryError) {
+          console.error("Error in category association:", categoryError)
+        }
+      }
+
+      // Asociar etiquetas
+      if (trickData.tags.length > 0) {
+        try {
+          const tagInserts = trickData.tags.map(tagId => ({
+            trick_id: data.id,
+            tag_id: tagId,
+            created_at: new Date().toISOString(),
+          }))
+
+          const { error: tagError } = await supabase
+            .from("trick_tags")
+            .insert(tagInserts)
+
+          if (tagError && tagError.code !== "23505") {
+            console.error("Error associating tags with trick:", tagError)
+          }
+        } catch (tagError) {
+          console.error("Error in tag association:", tagError)
+        }
+      }
+
+      // Mensaje de éxito
+      Alert.alert(
+        t("success", "Éxito"),
+        t("trickCreatedSuccessfully", "El truco ha sido creado exitosamente"),
+        [{ text: t("ok", "OK") }]
+      )
+
+      // Navegar a la pantalla principal
+      router.replace("/(app)/home")
+      
+    } catch (error) {
+      console.error("Error saving trick:", error)
+      Alert.alert(
+        t("error", "Error"),
+        t("unexpectedError", "Ocurrió un error inesperado"),
+        [{ text: t("ok", "OK") }]
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <StyledView className="flex-1">
-      {/* Background gradient matching TitleCategoryStep */}
+      {/* Background gradient */}
       <LinearGradient
         colors={['#064e3b', '#065f46']} 
         style={{ 
@@ -323,10 +493,10 @@ export default function EffectStep({
         
         <StyledView className="flex-1 items-center">
           <StyledText className="text-white text-lg font-semibold">
-            {t("effect", "Effect")}
+            {trickData.title || t("trickTitle", "[Title Magic]")}
           </StyledText>
           <StyledText className="text-emerald-200 text-sm opacity-70">
-            [{trickData.title || t("trickTitle", "[TrickTitle]")}]
+            {t("content", "Content")}
           </StyledText>
         </StyledView>
         
@@ -336,310 +506,147 @@ export default function EffectStep({
       </StyledView>
 
       <StyledScrollView className="flex-1 px-6">
-        {/* Video upload section */}
-        <StyledView className="flex-row mb-6 mt-16">
-          <StyledView className="w-12 h-12 bg-emerald-800/40 rounded-lg items-center justify-center">
-            <Feather name="video" size={24} color="white" />
+        {/* Effect Section */}
+        <StyledView className="mt-6 mb-6">
+          <StyledText className="text-white/60 text-lg font-semibold mb-4">
+            {t("effect", "Effect")}
+          </StyledText>
+          
+          {/* Effect Video */}
+          <StyledView className="flex-row mb-4">
+            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+              <Feather name="video" size={24} color="white" />
+            </StyledView>
+            
+            <StyledView className="flex-1">
+              <StyledTouchableOpacity 
+                onPress={pickEffectVideo}
+                disabled={uploading}
+                className=" text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
+              >
+                <StyledText className="text-white/70">
+                  {uploading ? 
+                    t("uploading", "Uploading...") : 
+                    trickData.effect_video_url ? 
+                      t("videoUploaded", "Video uploaded") : 
+                      t("uploadEffectVideo", "Effect video Upload*")
+                  }
+                </StyledText>
+                <Feather name="upload" size={20} color="white" />
+              </StyledTouchableOpacity>
+            </StyledView>
           </StyledView>
           
-          <StyledView className="flex-1 ml-3">
-            <StyledTouchableOpacity 
-              onPress={pickVideo}
-              disabled={uploading}
-              className="bg-emerald-800/40 rounded-lg p-3 flex-row items-center justify-between"
-            >
-              <StyledText className="text-white/70">
-                {uploading ? 
-                  t("uploading", "Uploading...") : 
-                  trickData.effect_video_url ? 
-                    t("videoUploaded", "Video uploaded") : 
-                    t("uploadEffectVideo", "Effect video Upload*")
-                }
-              </StyledText>
-              <Feather name="download" size={20} color="white" />
-            </StyledTouchableOpacity>
-          </StyledView>
-        </StyledView>
-
-        {/* Effect description */}
-        <StyledView className="flex-row mb-6">
-          <StyledView className="w-12 h-12 bg-emerald-800/40 rounded-lg items-center justify-center">
-            <Feather name="star" size={24} color="white" />
-          </StyledView>
-          
-          <StyledView className="flex-1 ml-3">
-            <StyledTextInput
-              className="bg-emerald-800/40 text-white p-3 rounded-lg min-h-[120px]"
-              placeholder={t("effectDescription", "Effect short description")}
-              placeholderTextColor="rgba(255, 255, 255, 0.5)"
-              value={trickData.effect}
-              onChangeText={(text) => updateTrickData({ effect: text })}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          </StyledView>
-        </StyledView>
-
-        {/* Angles */}
-        <StyledView className="flex-row mb-6">
-          <StyledView className="w-12 h-12 bg-emerald-800/40 rounded-lg items-center justify-center">
-            <Feather name="tag" size={24} color="white" />
-          </StyledView>
-          
-          <StyledView className="flex-1 ml-3">
-            <StyledView className="bg-emerald-800/40 p-3 rounded-lg flex-row justify-between">
-              {angles.map((angle) => (
-                <StyledTouchableOpacity
-                  key={angle.value}
-                  onPress={() => selectAngle(angle.value)}
-                  className="flex-row items-center"
-                >
-                  <StyledView 
-                    className={`w-5 h-5 rounded-full border ${
-                      trickData.angles.includes(angle.value) 
-                        ? "border-white bg-white" 
-                        : "border-white/50"
-                    } mr-2`}
-                  >
-                    {trickData.angles.includes(angle.value) && (
-                      <StyledView className="w-3 h-3 rounded-full bg-emerald-800 m-auto" />
-                    )}
-                  </StyledView>
-                  <StyledText className="text-white">{angle.label}</StyledText>
-                </StyledTouchableOpacity>
-              ))}
+          {/* Effect Description */}
+          <StyledView className="flex-row mb-6">
+            <StyledView className="w-12 h-19 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+              <Feather name="star" size={24} color="white" />
+            </StyledView>
+            
+            <StyledView className="flex-1">
+              <StyledTextInput
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[80px]"
+                placeholder={t("effectShortDescription", "Effect short description")}
+                placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                value={trickData.effect}
+                onChangeText={(text) => updateTrickData({ effect: text })}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
             </StyledView>
           </StyledView>
         </StyledView>
-
-        {/* Duration */}
-        <StyledView className="flex-row mb-6">
-          <StyledView className="w-12 h-12 bg-emerald-800/40 rounded-lg items-center justify-center">
-            <Feather name="clock" size={24} color="white" />
+        
+        {/* Secret Section */}
+        <StyledView className="mb-6">
+          <StyledText className="text-white/60 text-lg font-semibold mb-4">
+            {t("secret", "Secret")}
+          </StyledText>
+          
+          {/* Secret Video */}
+          <StyledView className="flex-row mb-4">
+            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+              <Feather name="video" size={24} color="white" />
+            </StyledView>
+            
+            <StyledView className="flex-1 ml-3">
+              <StyledTouchableOpacity 
+                onPress={pickSecretVideo}
+                disabled={uploading}
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
+              >
+                <StyledText className="text-white/70">
+                  {uploading ? 
+                    t("uploading", "Uploading...") : 
+                    trickData.secret_video_url ? 
+                      t("videoUploaded", "Video uploaded") : 
+                      t("secretVideoUpload", "Secret video Upload")
+                  }
+                </StyledText>
+                <Feather name="upload" size={20} color="white" />
+              </StyledTouchableOpacity>
+            </StyledView>
           </StyledView>
           
-          <StyledView className="flex-1 ml-3">
-            <StyledTouchableOpacity 
-              className="bg-emerald-800/40 p-3 rounded-lg flex-row items-center justify-between"
-              onPress={showDurationPicker}
-            >
-              <StyledText className="text-white/70">
-                {trickData.duration 
-                  ? `${Math.floor(trickData.duration / 60)}:${(trickData.duration % 60).toString().padStart(2, '0')} ${t("minutes", "minutes")}`
-                  : t("setDurationTime", "Set duration time")
-                }
-              </StyledText>
-              <Feather name="plus" size={20} color="white" />
-            </StyledTouchableOpacity>
-          </StyledView>
-        </StyledView>
-
-        {/* Reset Time */}
-        <StyledView className="flex-row mb-6">
-          <StyledView className="w-12 h-12 bg-emerald-800/40 rounded-lg items-center justify-center">
-            <Feather name="refresh-cw" size={24} color="white" />
-          </StyledView>
-          
-          <StyledView className="flex-1 ml-3">
-            <StyledTouchableOpacity 
-              className="bg-emerald-800/40 p-3 rounded-lg flex-row items-center justify-between"
-              onPress={showResetTimePicker}
-            >
-              <StyledText className="text-white/70">
-                {trickData.reset 
-                  ? `${Math.floor(trickData.reset / 60)}:${(trickData.reset % 60).toString().padStart(2, '0')} ${t("minutes", "minutes")}`
-                  : t("setResetTime", "Set reset time")
-                }
-              </StyledText>
-              <Feather name="plus" size={20} color="white" />
-            </StyledTouchableOpacity>
-          </StyledView>
-        </StyledView>
-
-        {/* Difficulty Slider */}
-        <StyledView className="flex-row mb-12">
-          <StyledView className="w-12 h-12 bg-emerald-800/40 rounded-lg items-center justify-center">
-            <FontAwesome5 name="hand-paper" size={24} color="white" />
-          </StyledView>
-          
-          <StyledView className="flex-1 ml-3">
-            <StyledView className="bg-emerald-800/40 p-3 rounded-lg">
-              <StyledView className="flex-row justify-between mb-1">
-                <StyledText className="text-white/50 text-xs">1</StyledText>
-                <StyledText className="text-white/50 text-xs">5</StyledText>
-                <StyledText className="text-white/50 text-xs">10</StyledText>
-              </StyledView>
-              
-              <StyledView className="h-6 justify-center mb-2">
-                {/* React Native Community Slider */}
-                <Slider
-                  style={{ width: '100%', height: 40 }}
-                  minimumValue={1}
-                  maximumValue={10}
-                  step={1}
-                  value={getDifficultyValue()}
-                  onValueChange={(value: number) => setDifficulty(value)}
-                  minimumTrackTintColor="#059669"
-                  maximumTrackTintColor="rgba(255, 255, 255, 0.2)"
-                  thumbTintColor="#ffffff"
-                />
-              </StyledView>
+          {/* Secret Description */}
+          <StyledView className="flex-row mb-28">
+            <StyledView className="w-12 h-19 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+              <Feather name="lock" size={24} color="white" />
+            </StyledView>
+            
+            <StyledView className="flex-1 ml-3">
+              <StyledTextInput
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[80px]"
+                placeholder={t("effectSecretDescription", "Effect secret description")}
+                placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                value={trickData.secret}
+                onChangeText={(text) => updateTrickData({ secret: text })}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
             </StyledView>
           </StyledView>
         </StyledView>
-      </StyledScrollView>
-
-      {/* Footer with step indicator and next button */}
-      <StyledView className="px-6 pb-8" style={{ paddingBottom: insets.bottom + 16 }}>
+      
+        {/* Step indicator */}
         <StyledText className="text-center text-white/60 mb-4">
           {`${currentStep} of ${totalSteps}`}
         </StyledText>
         
+        {/* Statistics Button (Navigate to ExtrasStep) */}
         <StyledTouchableOpacity
-          className={`w-full py-4 rounded-lg items-center justify-center flex-row ${
-            isNextButtonDisabled || !trickData.effect.trim() || isSubmitting
-              ? 'bg-white/10'
+          className="w-full py-4 rounded-lg items-center justify-center flex-row border border-[#2C6B5C] bg-transparent mb-4"
+          onPress={goToExtrasStep}
+        >
+          <StyledText className="text-white font-semibold text-base">
+            {t("statistics", "Statistics")}
+          </StyledText>
+          <StyledText className="text-white/60 text-base ml-1">
+            {t("optional", "(Optional)")}
+          </StyledText>
+          <Feather name="chevron-right" size={20} color="white" style={{ position: 'absolute', right: 16 }} />
+        </StyledTouchableOpacity>
+        
+        {/* Register Magic Button */}
+        <StyledTouchableOpacity
+          className={`w-full py-4 rounded-lg items-center justify-center flex-row mb-6 ${
+            saving || !trickData.effect.trim() || !trickData.secret.trim() 
+              ? 'bg-white/10' 
               : 'bg-emerald-700'
           }`}
-          disabled={isNextButtonDisabled || !trickData.effect.trim() || isSubmitting}
-          onPress={onNext}
+          disabled={saving || !trickData.effect.trim() || !trickData.secret.trim()}
+          onPress={handleRegisterMagic}
         >
-          <StyledText className="text-white font-semibold text-base mr-2">
-            {isLastStep ? t("save", "Save") : t("next", "Next")}
+          <StyledText className="text-white font-semibold text-base">
+            {saving ? t("saving", "Saving...") : t("registerMagic", "Register Magic")}
           </StyledText>
-          {isLastStep ? (
-            <Feather name="save" size={20} color="white" />
-          ) : (
-            <Feather name="chevron-right" size={20} color="white" />
+          {saving && (
+            <Ionicons name="refresh" size={20} color="white" style={{ marginLeft: 8 }} />
           )}
         </StyledTouchableOpacity>
-      </StyledView>
-
-      {/* Time picker modals */}
-      {/* Duration Picker Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showDurationPickerModal}
-        onRequestClose={() => setShowDurationPickerModal(false)}
-      >
-        <StyledView className="flex-1 justify-end items-center bg-black/50">
-          <StyledView className="w-full bg-gray-900 rounded-t-3xl p-6">
-            <StyledView className="flex-row justify-between items-center mb-6">
-              <StyledTouchableOpacity onPress={() => setShowDurationPickerModal(false)}>
-                <StyledText className="text-white font-medium text-lg">
-                  {t("cancel", "Cancel")}
-                </StyledText>
-              </StyledTouchableOpacity>
-              
-              <StyledText className="text-white font-bold text-xl">
-                {t("setDuration", "Set Duration")}
-              </StyledText>
-              
-              <StyledTouchableOpacity onPress={confirmDuration}>
-                <StyledText className="text-emerald-500 font-medium text-lg">
-                  {t("done", "Done")}
-                </StyledText>
-              </StyledTouchableOpacity>
-            </StyledView>
-            
-            <StyledView className="flex-row justify-center items-center mb-6">
-              {/* Picker container with mm:ss format */}
-              <StyledView className="flex-row items-center">
-                {/* Minutes picker */}
-                <StyledView className="w-20 h-40 overflow-hidden">
-                  <StyledScrollView 
-                    className="h-full"
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingVertical: 50 }}
-                  >
-                    {renderPickerOptions(59)}
-                  </StyledScrollView>
-                </StyledView>
-                
-                <StyledText className="text-white text-2xl mx-2">:</StyledText>
-                
-                {/* Seconds picker */}
-                <StyledView className="w-20 h-40 overflow-hidden">
-                  <StyledScrollView 
-                    className="h-full"
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingVertical: 50 }}
-                  >
-                    {renderPickerOptions(59)}
-                  </StyledScrollView>
-                </StyledView>
-              </StyledView>
-            </StyledView>
-            
-            {/* Current selection indicator */}
-            <StyledView className="absolute top-1/2 left-0 right-0 h-12 border-t border-b border-emerald-600/30 bg-emerald-600/10" />
-          </StyledView>
-        </StyledView>
-      </Modal>
-      
-      {/* Reset Time Picker Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showResetPickerModal}
-        onRequestClose={() => setShowResetPickerModal(false)}
-      >
-        <StyledView className="flex-1 justify-end items-center bg-black/50">
-          <StyledView className="w-full bg-gray-900 rounded-t-3xl p-6">
-            <StyledView className="flex-row justify-between items-center mb-6">
-              <StyledTouchableOpacity onPress={() => setShowResetPickerModal(false)}>
-                <StyledText className="text-white font-medium text-lg">
-                  {t("cancel", "Cancel")}
-                </StyledText>
-              </StyledTouchableOpacity>
-              
-              <StyledText className="text-white font-bold text-xl">
-                {t("setResetTime", "Set Reset Time")}
-              </StyledText>
-              
-              <StyledTouchableOpacity onPress={confirmResetTime}>
-                <StyledText className="text-emerald-500 font-medium text-lg">
-                  {t("done", "Done")}
-                </StyledText>
-              </StyledTouchableOpacity>
-            </StyledView>
-            
-            <StyledView className="flex-row justify-center items-center mb-6">
-              {/* Picker container with mm:ss format */}
-              <StyledView className="flex-row items-center">
-                {/* Minutes picker */}
-                <StyledView className="w-20 h-40 overflow-hidden">
-                  <StyledScrollView 
-                    className="h-full"
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingVertical: 50 }}
-                  >
-                    {renderPickerOptions(59)}
-                  </StyledScrollView>
-                </StyledView>
-                
-                <StyledText className="text-white text-2xl mx-2">:</StyledText>
-                
-                {/* Seconds picker */}
-                <StyledView className="w-20 h-40 overflow-hidden">
-                  <StyledScrollView 
-                    className="h-full"
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingVertical: 50 }}
-                  >
-                    {renderPickerOptions(59)}
-                  </StyledScrollView>
-                </StyledView>
-              </StyledView>
-            </StyledView>
-            
-            {/* Current selection indicator */}
-            <StyledView className="absolute top-1/2 left-0 right-0 h-12 border-t border-b border-emerald-600/30 bg-emerald-600/10" />
-          </StyledView>
-        </StyledView>
-      </Modal>
+      </StyledScrollView>
     </StyledView>
   )
 }
