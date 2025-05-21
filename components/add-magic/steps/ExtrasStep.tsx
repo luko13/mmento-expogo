@@ -1,58 +1,77 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { View, Text, TextInput, TouchableOpacity, Alert, Platform, ScrollView } from "react-native"
-import { styled } from "nativewind"
-import { useTranslation } from "react-i18next"
-import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons"
-import type { MagicTrick } from "../AddMagicWizard"
-import * as ImagePicker from "expo-image-picker"
-import { supabase } from "../../../lib/supabase"
-import * as FileSystem from "expo-file-system"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { LinearGradient } from 'expo-linear-gradient'
-import { useRouter } from "expo-router"
+import { useState, useEffect } from "react";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  Platform,
+  ScrollView,
+  Modal,
+} from "react-native";
+import { styled } from "nativewind";
+import { useTranslation } from "react-i18next";
+import {
+  Entypo,
+  Feather,
+  Ionicons,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from "@expo/vector-icons";
+import type { MagicTrick } from "../AddMagicWizard";
+import * as ImagePicker from "expo-image-picker";
+import { supabase } from "../../../lib/supabase";
+import * as FileSystem from "expo-file-system";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import Slider from "@react-native-community/slider";
 
-// Import modals
-import TechniquesModal from "../../../components/add-magic/ui/TechniquesModal"
-import GimmicksModal from "../../../components/add-magic/ui/GimmicksModal"
-import ScriptModal from "../../../components/add-magic/ui/ScriptModal"
+// Importar modales
+import TechniquesModal from "../../../components/add-magic/ui/TechniquesModal";
+import GimmicksModal from "../../../components/add-magic/ui/GimmicksModal";
+import ScriptModal from "../../../components/add-magic/ui/ScriptModal";
+import DifficultySlider from "../../../components/add-magic/ui/DifficultySlider";
 
-const StyledView = styled(View)
-const StyledText = styled(Text)
-const StyledTextInput = styled(TextInput)
-const StyledTouchableOpacity = styled(TouchableOpacity)
-const StyledScrollView = styled(ScrollView)
+const StyledView = styled(View);
+const StyledText = styled(Text);
+const StyledTextInput = styled(TextInput);
+const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledScrollView = styled(ScrollView);
 
-// Define interfaces for technique and gimmick
+// Definir interfaces para técnica y gimmick
 interface Technique {
-  id: string
-  name: string
-  description?: string
+  id: string;
+  name: string;
+  description?: string;
 }
 
 interface Gimmick {
-  id: string
-  name: string
-  description?: string
+  id: string;
+  name: string;
+  description?: string;
 }
 
 interface ScriptData {
-  id?: string
-  title: string
-  content: string
+  id?: string;
+  title: string;
+  content: string;
 }
 
 interface StepProps {
-  trickData: MagicTrick
-  updateTrickData: (data: Partial<MagicTrick>) => void
-  onNext?: () => void
-  onCancel?: () => void
-  currentStep?: number
-  totalSteps?: number
-  isSubmitting?: boolean
-  isNextButtonDisabled?: boolean
-  isLastStep?: boolean
+  trickData: MagicTrick;
+  updateTrickData: (data: Partial<MagicTrick>) => void;
+  onNext?: () => void;
+  onCancel?: () => void;
+  currentStep?: number;
+  totalSteps?: number;
+  isSubmitting?: boolean;
+  isNextButtonDisabled?: boolean;
+  isLastStep?: boolean;
 }
 
 export default function ExtrasStep({
@@ -64,267 +83,326 @@ export default function ExtrasStep({
   totalSteps = 2,
   isSubmitting = false,
   isNextButtonDisabled = false,
-  isLastStep = true
+  isLastStep = true,
 }: StepProps) {
-  const { t } = useTranslation()
-  const [uploading, setUploading] = useState(false)
-  const insets = useSafeAreaInsets()
-  const router = useRouter()
-  
-  // State for modals
-  const [techniquesModalVisible, setTechniquesModalVisible] = useState(false)
-  const [gimmicksModalVisible, setGimmicksModalVisible] = useState(false)
-  const [scriptModalVisible, setScriptModalVisible] = useState(false)
-  
-  // State for data
-  const [techniques, setTechniques] = useState<Technique[]>([])
-  const [gimmicks, setGimmicks] = useState<Gimmick[]>([])
-  const [selectedTechniques, setSelectedTechniques] = useState<Technique[]>([])
-  const [selectedGimmicks, setSelectedGimmicks] = useState<Gimmick[]>([])
+  const { t } = useTranslation();
+  const [uploading, setUploading] = useState(false);
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  // Estados para modales
+  const [techniquesModalVisible, setTechniquesModalVisible] = useState(false);
+  const [gimmicksModalVisible, setGimmicksModalVisible] = useState(false);
+  const [scriptModalVisible, setScriptModalVisible] = useState(false);
+
+  // Estados para los selectores de tiempo
+  const [showDurationPicker, setShowDurationPicker] = useState(false);
+  const [showResetPicker, setShowResetPicker] = useState(false);
+  const [durationDate, setDurationDate] = useState(new Date());
+  const [resetDate, setResetDate] = useState(new Date());
+
+  // Estados para datos
+  const [techniques, setTechniques] = useState<Technique[]>([]);
+  const [gimmicks, setGimmicks] = useState<Gimmick[]>([]);
+  const [selectedTechniques, setSelectedTechniques] = useState<Technique[]>([]);
+  const [selectedGimmicks, setSelectedGimmicks] = useState<Gimmick[]>([]);
   const [scriptData, setScriptData] = useState<ScriptData>({
-    title: '',
-    content: ''
-  })
-  
-  // Angles select options
+    title: "",
+    content: "",
+  });
+
+  // Opciones de selección de ángulos
   const angles = [
     { value: "90", label: "90°" },
     { value: "120", label: "120°" },
     { value: "180", label: "180°" },
     { value: "360", label: "360°" },
-  ]
+  ];
 
-  // Select angle (radio button style)
+  // Seleccionar ángulo (estilo botón de radio)
   const selectAngle = (angle: string): void => {
-    const updatedAngles = trickData.angles.includes(angle) 
-      ? trickData.angles.filter(a => a !== angle)
+    const updatedAngles = trickData.angles.includes(angle)
+      ? trickData.angles.filter((a) => a !== angle)
       : [...trickData.angles, angle];
-    
-    updateTrickData({ angles: updatedAngles })
-  }
 
-  // Show duration time picker
-  const showDurationPicker = () => {
-    // Placeholder for now - will implement the time picker in a separate component
-    Alert.alert(
-      t("info", "Info"),
-      t("notImplemented", "Time picker will be implemented separately"),
-      [{ text: t("ok", "OK") }]
-    )
-  }
+    updateTrickData({ angles: updatedAngles });
+  };
 
-  // Show reset time picker
-  const showResetTimePicker = () => {
-    // Placeholder for now - will implement the time picker in a separate component
-    Alert.alert(
-      t("info", "Info"),
-      t("notImplemented", "Time picker will be implemented separately"),
-      [{ text: t("ok", "OK") }]
-    )
-  }
+  // Mostrar selector de tiempo de duración
+  const openDurationPicker  = () => {
+    // Crear una fecha con los minutos y segundos actuales
+    const currentDate = new Date();
+    if (trickData.duration) {
+      const minutes = Math.floor(trickData.duration / 60);
+      const seconds = trickData.duration % 60;
+      currentDate.setHours(0, minutes, seconds, 0);
+    } else {
+      currentDate.setHours(0, 0, 0, 0);
+    }
 
-  // Handle difficulty change
+    setDurationDate(currentDate);
+    setShowDurationPicker(true);
+  };
+  // Mostrar selector de tiempo de reinicio
+  const openResetTimePicker  = () => {
+    // Crear una fecha con los minutos y segundos actuales
+    const currentDate = new Date();
+    if (trickData.reset) {
+      const minutes = Math.floor(trickData.reset / 60);
+      const seconds = trickData.reset % 60;
+      currentDate.setHours(0, minutes, seconds, 0);
+    } else {
+      currentDate.setHours(0, 0, 0, 0);
+    }
+
+    setResetDate(currentDate);
+    setShowResetPicker(true);
+  };
+
+  // Manejar cambio de duración
+  const handleDurationChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowDurationPicker(Platform.OS === "ios");
+
+    if (selectedDate) {
+      const minutes = selectedDate.getMinutes();
+      const seconds = selectedDate.getSeconds();
+      const totalSeconds = minutes * 60 + seconds;
+      updateTrickData({ duration: totalSeconds });
+    }
+  };
+
+  // Manejar cambio de tiempo de reinicio
+  const handleResetChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowResetPicker(Platform.OS === "ios");
+
+    if (selectedDate) {
+      const minutes = selectedDate.getMinutes();
+      const seconds = selectedDate.getSeconds();
+      const totalSeconds = minutes * 60 + seconds;
+      updateTrickData({ reset: totalSeconds });
+    }
+  };
+
+  // Manejar cambio de dificultad
   const handleDifficultyChange = (value: number) => {
-    updateTrickData({ difficulty: value.toString() })
-  }
-  
-  // Fetch techniques and gimmicks from database
+    updateTrickData({ difficulty: value });
+  };
+
+  // Obtener técnicas y gimmicks de la base de datos
   useEffect(() => {
-    fetchTechniques()
-    fetchGimmicks()
-    
-    // Initialize selected items if trick data has them
+    fetchTechniques();
+    fetchGimmicks();
+
+    // Inicializar elementos seleccionados si los datos del truco los tienen
     if (trickData.techniqueIds && trickData.techniqueIds.length > 0) {
-      fetchSelectedTechniques(trickData.techniqueIds)
+      fetchSelectedTechniques(trickData.techniqueIds);
     }
-    
+
     if (trickData.gimmickIds && trickData.gimmickIds.length > 0) {
-      fetchSelectedGimmicks(trickData.gimmickIds)
+      fetchSelectedGimmicks(trickData.gimmickIds);
     }
-    
-    // Initialize script data if available
+
+    // Inicializar datos del script si están disponibles
     if (trickData.scriptId) {
-      fetchScriptData(trickData.scriptId)
+      fetchScriptData(trickData.scriptId);
     }
-  }, [])
+  }, []);
 
   const fetchTechniques = async () => {
     try {
       const { data, error } = await supabase
-        .from('techniques')
-        .select('id, name, description')
-        .eq('is_public', true)
-      
-      if (error) throw error
-      setTechniques(data || [])
+        .from("techniques")
+        .select("id, name, description")
+        .eq("is_public", true);
+
+      if (error) throw error;
+      setTechniques(data || []);
     } catch (error) {
-      console.error('Error fetching techniques:', error)
-      Alert.alert(t('error', 'Error'), t('errorFetchingTechniques', 'Error fetching techniques'))
+      console.error("Error al obtener técnicas:", error);
+      Alert.alert(
+        t("error", "Error"),
+        t("errorFetchingTechniques", "Error al obtener técnicas")
+      );
     }
-  }
-  
+  };
+
   const fetchGimmicks = async () => {
     try {
       const { data, error } = await supabase
-        .from('gimmicks')
-        .select('id, name, description')
-        .eq('is_public', true)
-      
-      if (error) throw error
-      setGimmicks(data || [])
+        .from("gimmicks")
+        .select("id, name, description")
+        .eq("is_public", true);
+
+      if (error) throw error;
+      setGimmicks(data || []);
     } catch (error) {
-      console.error('Error fetching gimmicks:', error)
-      Alert.alert(t('error', 'Error'), t('errorFetchingGimmicks', 'Error fetching gimmicks'))
+      console.error("Error al obtener gimmicks:", error);
+      Alert.alert(
+        t("error", "Error"),
+        t("errorFetchingGimmicks", "Error al obtener gimmicks")
+      );
     }
-  }
-  
+  };
+
   const fetchSelectedTechniques = async (techniqueIds: string[]) => {
     try {
       const { data, error } = await supabase
-        .from('techniques')
-        .select('id, name, description')
-        .in('id', techniqueIds)
-      
-      if (error) throw error
-      setSelectedTechniques(data || [])
+        .from("techniques")
+        .select("id, name, description")
+        .in("id", techniqueIds);
+
+      if (error) throw error;
+      setSelectedTechniques(data || []);
     } catch (error) {
-      console.error('Error fetching selected techniques:', error)
+      console.error("Error al obtener técnicas seleccionadas:", error);
     }
-  }
-  
+  };
+
   const fetchSelectedGimmicks = async (gimmickIds: string[]) => {
     try {
       const { data, error } = await supabase
-        .from('gimmicks')
-        .select('id, name, description')
-        .in('id', gimmickIds)
-      
-      if (error) throw error
-      setSelectedGimmicks(data || [])
+        .from("gimmicks")
+        .select("id, name, description")
+        .in("id", gimmickIds);
+
+      if (error) throw error;
+      setSelectedGimmicks(data || []);
     } catch (error) {
-      console.error('Error fetching selected gimmicks:', error)
+      console.error("Error al obtener gimmicks seleccionados:", error);
     }
-  }
-  
+  };
+
   const fetchScriptData = async (scriptId: string) => {
     try {
       const { data, error } = await supabase
-        .from('scripts')
-        .select('id, title, content')
-        .eq('id', scriptId)
-        .single()
-      
-      if (error) throw error
+        .from("scripts")
+        .select("id, title, content")
+        .eq("id", scriptId)
+        .single();
+
+      if (error) throw error;
       if (data) {
-        setScriptData(data)
+        setScriptData(data);
       }
     } catch (error) {
-      console.error('Error fetching script data:', error)
+      console.error("Error al obtener datos del script:", error);
     }
-  }
-  
-  // Toggle selection of techniques (will be moved to TechniquesModal component)
+  };
+
+  // Alternar selección de técnicas (se moverá al componente TechniquesModal)
   const toggleTechniqueSelection = (technique: Technique) => {
-    const isSelected = selectedTechniques.some(t => t.id === technique.id)
-    
+    const isSelected = selectedTechniques.some((t) => t.id === technique.id);
+
     if (isSelected) {
-      setSelectedTechniques(selectedTechniques.filter(t => t.id !== technique.id))
+      setSelectedTechniques(
+        selectedTechniques.filter((t) => t.id !== technique.id)
+      );
     } else {
-      setSelectedTechniques([...selectedTechniques, technique])
+      setSelectedTechniques([...selectedTechniques, technique]);
     }
-  }
-  
-  // Toggle selection of gimmicks (will be moved to GimmicksModal component)
+  };
+
+  // Alternar selección de gimmicks (se moverá al componente GimmicksModal)
   const toggleGimmickSelection = (gimmick: Gimmick) => {
-    const isSelected = selectedGimmicks.some(g => g.id === gimmick.id)
-    
+    const isSelected = selectedGimmicks.some((g) => g.id === gimmick.id);
+
     if (isSelected) {
-      setSelectedGimmicks(selectedGimmicks.filter(g => g.id !== gimmick.id))
+      setSelectedGimmicks(selectedGimmicks.filter((g) => g.id !== gimmick.id));
     } else {
-      setSelectedGimmicks([...selectedGimmicks, gimmick])
+      setSelectedGimmicks([...selectedGimmicks, gimmick]);
     }
-  }
-  
-  // Save techniques to the trick (will be moved to TechniquesModal component)
+  };
+
+  // Guardar técnicas en el truco (se moverá al componente TechniquesModal)
   const saveTechniques = () => {
-    const techniqueIds = selectedTechniques.map(t => t.id)
-    updateTrickData({ techniqueIds })
-    setTechniquesModalVisible(false)
-  }
-  
-  // Save gimmicks to the trick (will be moved to GimmicksModal component)
+    const techniqueIds = selectedTechniques.map((t) => t.id);
+    updateTrickData({ techniqueIds });
+    setTechniquesModalVisible(false);
+  };
+
+  // Guardar gimmicks en el truco (se moverá al componente GimmicksModal)
   const saveGimmicks = () => {
-    const gimmickIds = selectedGimmicks.map(g => g.id)
-    updateTrickData({ gimmickIds })
-    setGimmicksModalVisible(false)
-  }
-  
-  // Save script for the trick (will be moved to ScriptModal component)
+    const gimmickIds = selectedGimmicks.map((g) => g.id);
+    updateTrickData({ gimmickIds });
+    setGimmicksModalVisible(false);
+  };
+
+  // Guardar script para el truco (se moverá al componente ScriptModal)
   const saveScript = async () => {
     try {
       if (!scriptData.title || !scriptData.content) {
         Alert.alert(
-          t('missingFields', 'Missing Fields'),
-          t('pleaseCompleteTitleAndContent', 'Please complete both title and content')
-        )
-        return
+          t("missingFields", "Campos faltantes"),
+          t(
+            "pleaseCompleteTitleAndContent",
+            "Por favor completa tanto el título como el contenido"
+          )
+        );
+        return;
       }
-      
-      let scriptId = scriptData.id
-      
+
+      let scriptId = scriptData.id;
+
       if (scriptId) {
-        // Update existing script
+        // Actualizar script existente
         const { error } = await supabase
-          .from('scripts')
+          .from("scripts")
           .update({
             title: scriptData.title,
             content: scriptData.content,
-            updated_at: new Date()
+            updated_at: new Date(),
           })
-          .eq('id', scriptId)
-        
-        if (error) throw error
+          .eq("id", scriptId);
+
+        if (error) throw error;
       } else {
-        // Create new script
+        // Crear nuevo script
         const { data, error } = await supabase
-          .from('scripts')
+          .from("scripts")
           .insert({
             title: scriptData.title,
             content: scriptData.content,
             trick_id: trickData.id,
             user_id: trickData.user_id,
-            language: 'es' // Default language
+            language: "es", // Idioma predeterminado
           })
-          .select('id')
-          .single()
-        
-        if (error) throw error
+          .select("id")
+          .single();
+
+        if (error) throw error;
         if (data) {
-          scriptId = data.id
+          scriptId = data.id;
         }
       }
-      
-      // Update trick data with script ID
-      updateTrickData({ scriptId })
-      setScriptModalVisible(false)
-    } catch (error) {
-      console.error('Error saving script:', error)
-      Alert.alert(t('error', 'Error'), t('errorSavingScript', 'Error saving script'))
-    }
-  }
 
-  // Pick image for the trick
+      // Actualizar datos del truco con ID del script
+      updateTrickData({ scriptId });
+      setScriptModalVisible(false);
+    } catch (error) {
+      console.error("Error al guardar script:", error);
+      Alert.alert(
+        t("error", "Error"),
+        t("errorSavingScript", "Error al guardar el script")
+      );
+    }
+  };
+
+  // Seleccionar imagen para el truco
   const pickImage = async () => {
     try {
-      // Request permissions first
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      // Solicitar permisos primero
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert(
-          t("permissionRequired", "Permission Required"),
-          t("mediaLibraryPermission", "We need access to your media library to upload photos."),
-          [{ text: t("ok", "OK") }],
-        )
-        return
+          t("permissionRequired", "Permiso Requerido"),
+          t(
+            "mediaLibraryPermission",
+            "Necesitamos acceso a tu galería de medios para subir fotos."
+          ),
+          [{ text: t("ok", "OK") }]
+        );
+        return;
       }
 
       const options: ImagePicker.ImagePickerOptions = {
@@ -332,156 +410,181 @@ export default function ExtrasStep({
         allowsEditing: true,
         quality: 0.7,
         aspect: [4, 3] as [number, number],
-      }
+      };
 
-      const result = await ImagePicker.launchImageLibraryAsync(options)
+      const result = await ImagePicker.launchImageLibraryAsync(options);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri
+        const uri = result.assets[0].uri;
 
-        // Check file size
+        // Verificar tamaño del archivo
         try {
-          const fileInfo = await FileSystem.getInfoAsync(uri)
-          
-          // Check if file exists and has size
+          const fileInfo = await FileSystem.getInfoAsync(uri);
+
+          // Verificar si el archivo existe y tiene tamaño
           if (fileInfo.exists && "size" in fileInfo) {
-            // If file is larger than 10MB, show warning
+            // Si el archivo es más grande que 10MB, mostrar advertencia
             if (fileInfo.size > 10 * 1024 * 1024) {
               Alert.alert(
-                t("fileTooLarge", "File Too Large"),
-                t("imageSizeWarning", "The selected image is too large. Please select a smaller image."),
-                [{ text: t("ok", "OK") }],
-              )
-              return
+                t("fileTooLarge", "Archivo Demasiado Grande"),
+                t(
+                  "imageSizeWarning",
+                  "La imagen seleccionada es demasiado grande. Por favor selecciona una imagen más pequeña."
+                ),
+                [{ text: t("ok", "OK") }]
+              );
+              return;
             }
           }
         } catch (error) {
-          console.error("Error checking file size:", error)
+          console.error("Error al verificar tamaño del archivo:", error);
         }
 
-        await uploadImage(uri)
+        await uploadImage(uri);
       }
     } catch (error) {
-      console.error("Error picking image:", error)
+      console.error("Error al seleccionar imagen:", error);
       Alert.alert(
         t("error", "Error"),
-        t("imagePickError", "There was an error selecting the image. Please try again."),
-        [{ text: t("ok", "OK") }],
-      )
+        t(
+          "imagePickError",
+          "Hubo un error al seleccionar la imagen. Por favor intenta de nuevo."
+        ),
+        [{ text: t("ok", "OK") }]
+      );
     }
-  }
+  };
 
-  // Upload image to Supabase Storage
+  // Subir imagen a Supabase Storage
   const uploadImage = async (uri: string) => {
     try {
-      setUploading(true)
+      setUploading(true);
 
-      // Get file name
-      const fileName = uri.split("/").pop() || ""
-      const fileExt = fileName.split(".").pop()?.toLowerCase() || "jpg"
-      const filePath = `trick_photos/${Date.now()}.${fileExt}`
+      // Obtener nombre de archivo
+      const fileName = uri.split("/").pop() || "";
+      const fileExt = fileName.split(".").pop()?.toLowerCase() || "jpg";
+      const filePath = `trick_photos/${Date.now()}.${fileExt}`;
 
-      // On iOS, use FileSystem to read the file instead of fetch/blob
+      // En iOS, usar FileSystem para leer el archivo en lugar de fetch/blob
       if (Platform.OS === "ios") {
         try {
           const fileContent = await FileSystem.readAsStringAsync(uri, {
             encoding: FileSystem.EncodingType.Base64,
-          })
+          });
 
-          const { data, error } = await supabase.storage.from("magic_trick_media").upload(filePath, fileContent, {
-            contentType: `image/${fileExt}`,
-            upsert: true,
-          })
+          const { data, error } = await supabase.storage
+            .from("magic_trick_media")
+            .upload(filePath, fileContent, {
+              contentType: `image/${fileExt}`,
+              upsert: true,
+            });
 
           if (error) {
-            console.error("Error uploading image:", error)
-            Alert.alert(t("uploadError", "Upload Error"), error.message)
-            return
+            console.error("Error al subir imagen:", error);
+            Alert.alert(t("uploadError", "Error de Subida"), error.message);
+            return;
           }
 
-          // Get public URL
-          const { data: publicURL } = supabase.storage.from("magic_trick_media").getPublicUrl(filePath)
+          // Obtener URL pública
+          const { data: publicURL } = supabase.storage
+            .from("magic_trick_media")
+            .getPublicUrl(filePath);
 
-          // Update trick data
-          updateTrickData({ photo_url: publicURL.publicUrl })
+          // Actualizar datos del truco
+          updateTrickData({ photo_url: publicURL.publicUrl });
         } catch (error) {
-          console.error("Error reading file:", error)
+          console.error("Error al leer archivo:", error);
           Alert.alert(
-            t("fileReadError", "File Read Error"),
-            t("couldNotReadFile", "Could not read the image file. Please try again with a different image."),
-          )
+            t("fileReadError", "Error de Lectura de Archivo"),
+            t(
+              "couldNotReadFile",
+              "No se pudo leer el archivo de imagen. Por favor intenta con una imagen diferente."
+            )
+          );
         }
       } else {
-        // For Android, continue using the previous method
-        const response = await fetch(uri)
-        const blob = await response.blob()
+        // Para Android, continuar usando el método anterior
+        const response = await fetch(uri);
+        const blob = await response.blob();
 
-        const { data, error } = await supabase.storage.from("magic_trick_media").upload(filePath, blob)
+        const { data, error } = await supabase.storage
+          .from("magic_trick_media")
+          .upload(filePath, blob);
 
         if (error) {
-          console.error("Error uploading image:", error)
-          Alert.alert(t("uploadError", "Upload Error"), error.message)
-          return
+          console.error("Error al subir imagen:", error);
+          Alert.alert(t("uploadError", "Error de Subida"), error.message);
+          return;
         }
 
-        // Get public URL
-        const { data: publicURL } = supabase.storage.from("magic_trick_media").getPublicUrl(filePath)
+        // Obtener URL pública
+        const { data: publicURL } = supabase.storage
+          .from("magic_trick_media")
+          .getPublicUrl(filePath);
 
-        // Update trick data
-        updateTrickData({ photo_url: publicURL.publicUrl })
+        // Actualizar datos del truco
+        updateTrickData({ photo_url: publicURL.publicUrl });
       }
     } catch (error) {
-      console.error("Error in upload process:", error)
+      console.error("Error en el proceso de subida:", error);
       Alert.alert(
-        t("uploadError", "Upload Error"),
-        t("generalUploadError", "There was an error uploading the image. Please try again."),
-      )
+        t("uploadError", "Error de Subida"),
+        t(
+          "generalUploadError",
+          "Hubo un error al subir la imagen. Por favor intenta de nuevo."
+        )
+      );
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
-  }
+  };
 
-  // Handle data from modal components
+  // Manejar datos de componentes modales
   const handleSaveTechniques = (techniqueIds: string[]) => {
-    updateTrickData({ techniqueIds })
-  }
+    updateTrickData({ techniqueIds });
+  };
 
   const handleSaveGimmicks = (gimmickIds: string[]) => {
-    updateTrickData({ gimmickIds })
-  }
+    updateTrickData({ gimmickIds });
+  };
 
   const handleSaveScript = (newScriptId: string) => {
-    updateTrickData({ scriptId: newScriptId })
-  }
+    updateTrickData({ scriptId: newScriptId });
+  };
 
-  // Format duration time for display
+  // Formatear tiempo de duración para mostrar
   const formatDuration = (durationInSeconds: number | null) => {
-    if (!durationInSeconds) return t("setDurationTime", "Set duration time");
-    
+    if (!durationInSeconds)
+      return t("setDurationTime", "Establecer tiempo de duración");
+
     const minutes = Math.floor(durationInSeconds / 60);
     const seconds = durationInSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')} ${t("minutes", "minutes")}`;
+    return `${minutes}:${seconds.toString().padStart(2, "0")} ${t(
+      "minutes",
+      "minutos"
+    )}`;
   };
 
-  // Format reset time for display
+  // Formatear tiempo de reinicio para mostrar
   const formatReset = (resetInSeconds: number | null) => {
-    if (!resetInSeconds) return t("setResetTime", "Set reset time");
-    
+    if (!resetInSeconds)
+      return t("setResetTime", "Establecer tiempo de reinicio");
+
     const minutes = Math.floor(resetInSeconds / 60);
     const seconds = resetInSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')} ${t("minutes", "minutes")}`;
+    return `${minutes}:${seconds.toString().padStart(2, "0")} ${t(
+      "minutes",
+      "minutos"
+    )}`;
   };
-  
-  // Get difficulty value as number
-  const difficultyValue = trickData.difficulty ? parseInt(trickData.difficulty) : 5;
 
   return (
     <StyledView className="flex-1">
-      {/* Background gradient */}
+      {/* Gradiente de fondo */}
       <LinearGradient
-        colors={['#064e3b', '#065f46']} 
-        style={{ 
-          position: 'absolute',
+        colors={["#064e3b", "#065f46"]}
+        style={{
+          position: "absolute",
           top: 0,
           bottom: 0,
           left: 0,
@@ -489,39 +592,39 @@ export default function ExtrasStep({
         }}
       />
 
-      {/* Header */}
-      <StyledView className="flex-row items-center px-6 pt-4 pb-2">
+      {/* Encabezado */}
+      <StyledView className="flex-row items-center px-6 pt-4">
         <StyledTouchableOpacity onPress={onCancel} className="p-2">
           <Feather name="chevron-left" size={24} color="white" />
         </StyledTouchableOpacity>
-        
+
         <StyledView className="flex-1 items-center">
           <StyledText className="text-white text-lg font-semibold">
-            {trickData.title || t("trickTitle", "[Title Magic]")}
+            {trickData.title || t("trickTitle", "[Título Magia]")}
           </StyledText>
           <StyledText className="text-emerald-200 text-sm opacity-70">
-            {t("statistics", "Statistics")}
+            {t("statistics", "Estadísticas")}
           </StyledText>
         </StyledView>
-        
+
         <StyledTouchableOpacity className="p-2">
           <Feather name="info" size={24} color="white" />
         </StyledTouchableOpacity>
       </StyledView>
 
       <StyledScrollView className="flex-1 px-6">
-        {/* Statistics Section */}
+        {/* Sección de Estadísticas */}
         <StyledView className="mt-6">
           <StyledText className="text-white/60 text-lg font-semibold mb-4">
-            {t("statistics", "Statistics")}
+            {t("statistics", "Estadísticas")}
           </StyledText>
-          
-          {/* Angles Selection */}
+
+          {/* Selección de Ángulos */}
           <StyledView className="flex-row mb-6">
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
               <Feather name="tag" size={24} color="white" />
             </StyledView>
-            
+
             <StyledView className="flex-1">
               <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between">
                 {angles.map((angle) => (
@@ -530,10 +633,10 @@ export default function ExtrasStep({
                     onPress={() => selectAngle(angle.value)}
                     className="flex-row items-center"
                   >
-                    <StyledView 
+                    <StyledView
                       className={`w-5 h-5 rounded-full border ${
-                        trickData.angles.includes(angle.value) 
-                          ? "border-white bg-white" 
+                        trickData.angles.includes(angle.value)
+                          ? "border-white bg-white"
                           : "border-white/50"
                       } mr-2`}
                     >
@@ -541,23 +644,25 @@ export default function ExtrasStep({
                         <StyledView className="w-3 h-3 rounded-full bg-emerald-800 m-auto" />
                       )}
                     </StyledView>
-                    <StyledText className="text-white">{angle.label}</StyledText>
+                    <StyledText className="text-white">
+                      {angle.label}
+                    </StyledText>
                   </StyledTouchableOpacity>
                 ))}
               </StyledView>
             </StyledView>
           </StyledView>
-          
-          {/* Duration Time */}
+
+          {/* Tiempo de Duración */}
           <StyledView className="flex-row mb-6">
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
               <Feather name="clock" size={24} color="white" />
             </StyledView>
-            
+
             <StyledView className="flex-1">
-              <StyledTouchableOpacity 
+              <StyledTouchableOpacity
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
-                onPress={showDurationPicker}
+                onPress={openDurationPicker}
               >
                 <StyledText className="text-white/70">
                   {formatDuration(trickData.duration)}
@@ -566,17 +671,17 @@ export default function ExtrasStep({
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
-          
-          {/* Reset Time */}
+
+          {/* Tiempo de Reinicio */}
           <StyledView className="flex-row mb-6">
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
               <Feather name="refresh-cw" size={24} color="white" />
             </StyledView>
-            
+
             <StyledView className="flex-1">
-              <StyledTouchableOpacity 
+              <StyledTouchableOpacity
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
-                onPress={showResetTimePicker}
+                onPress={openResetTimePicker}
               >
                 <StyledText className="text-white/70">
                   {formatReset(trickData.reset)}
@@ -585,192 +690,167 @@ export default function ExtrasStep({
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
-          
-          {/* Difficulty slider */}
+
+          {/* Deslizador de dificultad */}
           <StyledView className="flex-row mb-3">
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <MaterialIcons name="signal-cellular-alt" size={24} color="white" />
+              <MaterialIcons
+                name="signal-cellular-alt"
+                size={24}
+                color="white"
+              />
             </StyledView>
-            
+
             <StyledView className="flex-1">
-              <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]">
-                {/* Custom Slider */}
-                <StyledView className="w-full">
-                  {/* Slider Numbers */}
-                  <StyledView className="h-6 flex-row justify-between items-center">
-                    <StyledTouchableOpacity 
-                      onPress={() => handleDifficultyChange(1)}
-                      className="items-center"
-                    >
-                      <StyledText className="text-white/50 text-xs">1</StyledText>
-                    </StyledTouchableOpacity>
-                    
-                    <StyledTouchableOpacity 
-                      onPress={() => handleDifficultyChange(5)}
-                      className="items-center"
-                    >
-                      <StyledText className="text-white/50 text-xs">5</StyledText>
-                    </StyledTouchableOpacity>
-                    
-                    <StyledTouchableOpacity 
-                      onPress={() => handleDifficultyChange(10)}
-                      className="items-center"
-                    >
-                      <StyledText className="text-white/50 text-xs">10</StyledText>
-                    </StyledTouchableOpacity>
-                  </StyledView>
-                  
-                  {/* Slider bar */}
-                  <StyledView className="flex-row items-center">
-                    {/* Active part */}
-                    <StyledView 
-                      className="h-1 bg-emerald-700 rounded-l-full" 
-                      style={{ width: `${((difficultyValue - 1) / 9) * 100}%` }} 
-                    />
-                    
-                    {/* Inactive part */}
-                    <StyledView 
-                      className="h-1 bg-white/20 rounded-r-full" 
-                      style={{ width: `${100 - ((difficultyValue - 1) / 9) * 100}%` }} 
-                    />
-                  </StyledView>
-                  
-                  {/* Slider thumb */}
-                  <StyledView 
-                    className="absolute h-3 w-3 bg-white rounded-full top-7" 
-                    style={{ 
-                      left: `${((difficultyValue - 1) / 9) * 100}%`, 
-                      transform: [{ translateX: -6 }] 
-                    }} 
-                  />
-                </StyledView>
+              <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg pb-3 border border-[#5bb9a3]">
+                {/* Componente DifficultySlider */}
+                <DifficultySlider
+                  value={trickData.difficulty || 5}
+                  onChange={handleDifficultyChange}
+                  min={1}
+                  max={10}
+                  step={1}
+                />
               </StyledView>
             </StyledView>
           </StyledView>
         </StyledView>
-        
-        {/* Extras Section */}
+
+        {/* Sección de Extras */}
         <StyledView className="mb-2">
           <StyledText className="text-white/60 text-lg font-semibold mb-2">
             {t("extras", "Extras")}
           </StyledText>
-          
-          {/* Image Upload */}
+
+          {/* Subida de Imagen */}
           <StyledView className="flex-row mb-6">
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
               <Feather name="image" size={24} color="white" />
             </StyledView>
-            
+
             <StyledView className="flex-1">
-              <StyledTouchableOpacity 
+              <StyledTouchableOpacity
                 onPress={pickImage}
                 disabled={uploading}
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
               >
                 <StyledText className="text-white/70">
-                  {uploading ? 
-                    t("uploading", "Uploading...") : 
-                    trickData.photo_url ? 
-                      t("imageUploaded", "Image uploaded") : 
-                      t("imagesUpload", "Images Upload")
-                  }
+                  {uploading
+                    ? t("uploading", "Subiendo...")
+                    : trickData.photo_url
+                    ? t("imageUploaded", "Imagen subida")
+                    : t("imagesUpload", "Subir Imágenes")}
                 </StyledText>
                 <Feather name="upload" size={20} color="white" />
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
-          
-          {/* Techniques Selection */}
+
+          {/* Selección de Técnicas */}
           <StyledView className="flex-row mb-6">
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
               <Feather name="award" size={24} color="white" />
             </StyledView>
-            
+
             <StyledView className="flex-1">
-              <StyledTouchableOpacity 
+              <StyledTouchableOpacity
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
                 onPress={() => setTechniquesModalVisible(true)}
               >
                 <StyledText className="text-white/70">
-                  {selectedTechniques.length > 0 
-                    ? `${selectedTechniques.length} ${t("techniquesSelected", "techniques selected")}`
-                    : t("technique", "Technique")
-                  }
+                  {selectedTechniques.length > 0
+                    ? `${selectedTechniques.length} ${t(
+                        "techniquesSelected",
+                        "técnicas seleccionadas"
+                      )}`
+                    : t("technique", "Técnica")}
                 </StyledText>
-                <Feather name="download" size={20} color="white" />
+                <Feather name="plus" size={20} color="white" />
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
-          
-          {/* Gimmicks Selection */}
+
+          {/* Selección de Gimmicks */}
           <StyledView className="flex-row mb-6">
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
               <Feather name="box" size={24} color="white" />
             </StyledView>
-            
+
             <StyledView className="flex-1">
-              <StyledTouchableOpacity 
+              <StyledTouchableOpacity
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
                 onPress={() => setGimmicksModalVisible(true)}
               >
                 <StyledText className="text-white/70">
-                  {selectedGimmicks.length > 0 
-                    ? `${selectedGimmicks.length} ${t("gimmicksSelected", "gimmicks selected")}`
-                    : t("gimmicks", "Gimmicks")
-                  }
+                  {selectedGimmicks.length > 0
+                    ? `${selectedGimmicks.length} ${t(
+                        "gimmicksSelected",
+                        "gimmicks seleccionados"
+                      )}`
+                    : t("gimmicks", "Gimmicks")}
                 </StyledText>
-                <Feather name="download" size={20} color="white" />
+                <Feather name="plus" size={20} color="white" />
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
-          
-          {/* Script Writing */}
+
+          {/* Escritura de Script */}
           <StyledView className="flex-row mb-2">
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
               <Feather name="edit" size={24} color="white" />
             </StyledView>
-            
+
             <StyledView className="flex-1">
-              <StyledTouchableOpacity 
+              <StyledTouchableOpacity
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
                 onPress={() => setScriptModalVisible(true)}
               >
                 <StyledText className="text-white/70">
-                  {scriptData.title 
-                    ? scriptData.title 
-                    : t("writeScript", "Write Script")
-                  }
+                  {scriptData.title
+                    ? scriptData.title
+                    : t("writeScript", "Escribir Script")}
                 </StyledText>
-                <Feather name="download" size={20} color="white" />
+                <MaterialCommunityIcons
+                  name="typewriter"
+                  size={20}
+                  color="white"
+                />
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
         </StyledView>
-        
-        {/* Step indicator */}
+
+        {/* Indicador de paso */}
         <StyledText className="text-center text-white/60 mb-4">
-          {`${currentStep} of ${totalSteps}`}
+          {`${currentStep} de ${totalSteps}`}
         </StyledText>
-        
-        {/* Register Magic Button */}
+
+        {/* Botón de Registro de Magia */}
         <StyledTouchableOpacity
           className={`w-full py-4 rounded-lg items-center justify-center flex-row mb-6 ${
-            isSubmitting ? 'bg-white/10' : 'bg-emerald-700'
+            isSubmitting ? "bg-white/10" : "bg-emerald-700"
           }`}
           disabled={isSubmitting}
           onPress={onNext}
         >
           <StyledText className="text-white font-semibold text-base">
-            {isSubmitting ? t("saving", "Saving...") : t("registerMagic", "Register Magic")}
+            {isSubmitting
+              ? t("saving", "Guardando...")
+              : t("registerMagic", "Registrar Magia")}
           </StyledText>
           {isSubmitting && (
-            <Ionicons name="refresh" size={20} color="white" style={{ marginLeft: 8 }} />
+            <Ionicons
+              name="refresh"
+              size={20}
+              color="white"
+              style={{ marginLeft: 8 }}
+            />
           )}
         </StyledTouchableOpacity>
       </StyledScrollView>
-      
-      {/* Modals - These will be moved to separate components */}
-      {/* For now, rendering conditionally with placeholder for future components */}
+
+      {/* Modales - Estos se moverán a componentes separados */}
+      {/* Por ahora, renderizando condicionalmente con marcadores de posición para futuros componentes */}
       {techniquesModalVisible && (
         <TechniquesModal
           visible={techniquesModalVisible}
@@ -781,7 +861,7 @@ export default function ExtrasStep({
           onToggleSelection={toggleTechniqueSelection}
         />
       )}
-      
+
       {gimmicksModalVisible && (
         <GimmicksModal
           visible={gimmicksModalVisible}
@@ -792,7 +872,7 @@ export default function ExtrasStep({
           onToggleSelection={toggleGimmickSelection}
         />
       )}
-      
+
       {scriptModalVisible && (
         <ScriptModal
           visible={scriptModalVisible}
@@ -803,6 +883,29 @@ export default function ExtrasStep({
           userId={trickData.user_id}
         />
       )}
+      {/* DateTimePicker nativo para duración */}
+      {showDurationPicker && (
+        <DateTimePicker
+          value={durationDate}
+          mode="time"
+          is24Hour={true}
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={handleDurationChange}
+          minuteInterval={1}
+        />
+      )}
+
+      {/* DateTimePicker nativo para reinicio */}
+      {showResetPicker && (
+        <DateTimePicker
+          value={resetDate}
+          mode="time"
+          is24Hour={true}
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={handleResetChange}
+          minuteInterval={1}
+        />
+      )}
     </StyledView>
-  )
+  );
 }

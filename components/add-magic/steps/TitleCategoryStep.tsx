@@ -14,7 +14,7 @@ import {
   createCategory,
   type Category,
 } from "../../../utils/categoryService"
-import Modal from "react-native-modal"
+import CategoryModal from "../../../components/add-magic/ui/CategoryModal"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -33,6 +33,12 @@ interface StepProps {
   isLastStep?: boolean
 }
 
+interface Tag {
+  id: string
+  name: string
+  usage_count?: number
+}
+
 const { width } = Dimensions.get('window')
 
 export default function TitleCategoryStep({ 
@@ -41,7 +47,7 @@ export default function TitleCategoryStep({
   onNext, 
   onCancel,
   currentStep = 0,
-  totalSteps = 2,
+  totalSteps = 3,
   isSubmitting = false,
   isNextButtonDisabled = false,
   isLastStep = false
@@ -50,17 +56,16 @@ export default function TitleCategoryStep({
   const insets = useSafeAreaInsets()
   const [userCategories, setUserCategories] = useState<Category[]>([])
   const [predefinedCategories, setPredefinedCategories] = useState<Category[]>([])
-  const [tags, setTags] = useState<{ id: string; name: string }[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
+  const [filteredTags, setFilteredTags] = useState<Tag[]>([])
   const [newTag, setNewTag] = useState("")
-  const [isCreateCategoryModalVisible, setCreateCategoryModalVisible] = useState(false)
-  const [isCategorySelectModalVisible, setCategorySelectModalVisible] = useState(false)
-  const [newCategoryName, setNewCategoryName] = useState("")
-  const [newCategoryDescription, setNewCategoryDescription] = useState("")
+  const [isCategoryModalVisible, setCategoryModalVisible] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [selectedCategoryName, setSelectedCategoryName] = useState<string>("")
 
-  // Refs para el carrusel de tags
-  const scrollRef1 = useRef<ScrollView>(null)
-  const scrollRef2 = useRef<ScrollView>(null)
+  // Ref para el carrusel de tags
+  const tagsScrollRef = useRef<ScrollView>(null)
+  const selectedTagsScrollRef = useRef<ScrollView>(null)
 
   // Obtener fecha actual formateada
   const getCurrentDate = () => {
@@ -117,172 +122,216 @@ export default function TitleCategoryStep({
   // Validación general para el botón Next
   const isFormValid = titleValidation.isValid && categoryValidation.isValid
 
-  // Dividir tags en dos filas para mejor distribución
-  const availableTags = tags.filter(tag => !trickData.tags.includes(tag.id))
-  const midpoint = Math.ceil(availableTags.length / 2)
-  const firstRowTags = availableTags.slice(0, midpoint)
-  const secondRowTags = availableTags.slice(midpoint)
+  // Filtro para las tags basado en el texto de búsqueda
+  useEffect(() => {
+    if (newTag.trim() === '') {
+      // Si no hay texto, mostrar todas las tags disponibles (las que no están seleccionadas)
+      // ordenadas por frecuencia de uso (de mayor a menor)
+      setFilteredTags(
+        tags
+          .filter(tag => !trickData.tags.includes(tag.id))
+          .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
+      );
+    } else {
+      // Filtrar las tags por el texto ingresado y ordenarlas por frecuencia de uso
+      const filtered = tags
+        .filter(
+          tag => 
+            !trickData.tags.includes(tag.id) && 
+            tag.name.toLowerCase().includes(newTag.toLowerCase())
+        )
+        .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0));
+      
+      setFilteredTags(filtered);
+    }
+  }, [newTag, tags, trickData.tags]);
 
   // Componente para el carrusel de tags
-  const TagCarousel = ({ tagsArray, rowIndex }: { tagsArray: { id: string; name: string }[], rowIndex: number }) => {
+  const TagCarousel = ({ tagsArray, isSelected = false }: { tagsArray: Tag[], isSelected?: boolean }) => {
     if (tagsArray.length === 0) return null
 
     return (
-      <View style={{ height: 44, marginBottom: 8 }}>
-        <ScrollView
-          ref={rowIndex === 1 ? scrollRef1 : scrollRef2}
-          horizontal={true}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ 
-            paddingHorizontal: 16,
-            alignItems: 'center',
-            height: 44
-          }}
-          style={{ flex: 1 }}
-          scrollEventThrottle={16}
-          decelerationRate="normal"
-          bounces={true}
-          bouncesZoom={false}
-          alwaysBounceHorizontal={true}
-          nestedScrollEnabled={true}
-          keyboardShouldPersistTaps="handled"
-        >
-          {tagsArray.map((tag, index) => (
-            <TouchableOpacity
-              key={tag.id}
-              onPress={() => toggleTag(tag.id)}
-              style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                borderWidth: 1,
-                borderColor: 'rgba(255, 255, 255, 0.2)',
-                borderRadius: 20,
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                marginRight: index === tagsArray.length - 1 ? 16 : 12,
-                height: 36,
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={{ 
-                color: 'rgba(255, 255, 255, 0.7)', 
-                fontSize: 14,
-                textAlign: 'center'
-              }}>
-                {tag.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      <ScrollView
+        ref={isSelected ? selectedTagsScrollRef : tagsScrollRef}
+        horizontal={true}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ 
+          paddingHorizontal: 16,
+          alignItems: 'center',
+          height: 44
+        }}
+        style={{ flex: 1 }}
+        scrollEventThrottle={16}
+        decelerationRate="normal"
+        bounces={true}
+        bouncesZoom={false}
+        alwaysBounceHorizontal={true}
+        nestedScrollEnabled={true}
+        keyboardShouldPersistTaps="handled"
+      >
+        {tagsArray.map((tag, index) => (
+          <TouchableOpacity
+            key={tag.id}
+            onPress={() => toggleTag(tag.id)}
+            style={{
+              backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.8)' : 'rgba(255, 255, 255, 0.1)',
+              borderWidth: 1,
+              borderColor: isSelected ? 'rgba(16, 185, 129, 0.9)' : 'rgba(255, 255, 255, 0.2)',
+              borderRadius: 20,
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              marginRight: index === tagsArray.length - 1 ? 16 : 12,
+              height: 36,
+              justifyContent: 'center',
+              alignItems: 'center',
+              flexDirection: 'row'
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={{ 
+              color: isSelected ? 'white' : 'rgba(255, 255, 255, 0.7)', 
+              fontSize: 14,
+              textAlign: 'center'
+            }}>
+              {tag.name}
+            </Text>
+            {isSelected && (
+              <Feather 
+                name="x" 
+                size={14} 
+                color="white" 
+                style={{ marginLeft: 4 }}
+              />
+            )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
     )
   }
 
-  // Load user and predefined categories
+  // Cargar las categorías y tags
   useEffect(() => {
-    const fetchCategories = async () => {
-      setLoading(true)
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-
-        if (user) {
-          const userCats = await getUserCategories(user.id)
-          setUserCategories(userCats)
-
-          const predefinedCats = await getPredefinedCategories()
-          setPredefinedCategories(predefinedCats)
-        }
-
-        const { data: tagData, error: tagError } = await supabase.from("predefined_tags").select("id, name")
-
-        if (tagData && !tagError) {
-          setTags(tagData)
-        }
-      } catch (error) {
-        console.error("Error fetching categories:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchCategories()
+    fetchData()
   }, [])
+
+  // Cuando cambia la categoría seleccionada, actualizar el nombre
+  useEffect(() => {
+    if (trickData.selectedCategoryId) {
+      fetchCategoryName(trickData.selectedCategoryId)
+    } else {
+      setSelectedCategoryName("")
+    }
+  }, [trickData.selectedCategoryId])
+
+  // Función para cargar los datos iniciales
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      // Fetch categories
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (user) {
+        const userCats = await getUserCategories(user.id)
+        setUserCategories(userCats)
+
+        const predefinedCats = await getPredefinedCategories()
+        setPredefinedCategories(predefinedCats)
+
+        // Si hay una categoría seleccionada, obtener su nombre
+        if (trickData.selectedCategoryId) {
+          const category = [...userCats, ...predefinedCats].find(
+            cat => cat.id === trickData.selectedCategoryId
+          )
+          if (category) {
+            setSelectedCategoryName(category.name)
+          }
+        }
+      }
+
+      // Obtener tags de la base de datos, incluyendo el contador de uso
+      const { data: tagData, error: tagError } = await supabase
+        .from("predefined_tags")
+        .select("id, name, usage_count")
+        .order('usage_count', { ascending: false }) // Ordenar por uso, de mayor a menor
+
+      if (tagData && !tagError) {
+        setTags(tagData);
+        setFilteredTags(
+          tagData
+            .filter(tag => !trickData.tags.includes(tag.id))
+            .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Función para obtener el nombre de una categoría por su ID
+  const fetchCategoryName = async (categoryId: string) => {
+    try {
+      // Primero buscar en las categorías ya cargadas
+      let category = [...userCategories, ...predefinedCategories].find(
+        cat => cat.id === categoryId
+      )
+
+      if (category) {
+        setSelectedCategoryName(category.name)
+        return
+      }
+
+      // Si no se encuentra, buscar en la base de datos
+      // Primero en user_categories
+      const { data: userCatData, error: userCatError } = await supabase
+        .from("user_categories")
+        .select("name")
+        .eq("id", categoryId)
+        .single()
+
+      if (userCatData && !userCatError) {
+        setSelectedCategoryName(userCatData.name)
+        return
+      }
+
+      // Luego en predefined_categories
+      const { data: predefinedCatData, error: predefinedCatError } = await supabase
+        .from("predefined_categories")
+        .select("name")
+        .eq("id", categoryId)
+        .single()
+
+      if (predefinedCatData && !predefinedCatError) {
+        setSelectedCategoryName(predefinedCatData.name)
+        return
+      }
+
+      // Si no se encuentra en ninguna tabla
+      setSelectedCategoryName(t("forms.unknownCategory", "Unknown category"))
+    } catch (error) {
+      console.error("Error fetching category name:", error)
+      setSelectedCategoryName(t("forms.unknownCategory", "Unknown category"))
+    }
+  }
 
   // Handler para el cambio de título
   const handleTitleChange = (text: string) => {
     updateTrickData({ title: text })
   }
 
-  // Crear nueva categoría
-  const handleCreateCategory = async () => {
-    if (!newCategoryName.trim()) {
-      Alert.alert(t("common.error"), t("validation.categoryNameRequired"))
-      return
-    }
-
-    try {
-      setLoading(true)
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        Alert.alert(t("common.error"), t("errors.userNotFound"))
-        return
-      }
-
-      const newCategory = await createCategory(
-        user.id,
-        newCategoryName.trim(),
-        newCategoryDescription.trim() || undefined,
-      )
-
-      if (newCategory) {
-        setUserCategories(prev => [...prev, newCategory])
-
-        updateTrickData({
-          selectedCategoryId: newCategory.id,
-          categories: [...trickData.categories],
-        })
-
-        setNewCategoryName("")
-        setNewCategoryDescription("")
-        setCreateCategoryModalVisible(false)
-
-        Alert.alert(
-          t("common.success"),
-          t("messages.categoryCreatedSuccessfully")
-        )
-      }
-    } catch (error) {
-      console.error("Error creating category:", error)
-      Alert.alert(t("common.error"), t("errors.errorCreatingCategory"))
-    } finally {
-      setLoading(false)
-    }
-  }
-
   // Handler para selección de categoría
-  const selectCategory = (categoryId: string) => {
-    const categoryExists = [...userCategories, ...predefinedCategories]
-      .some(cat => cat.id === categoryId)
-    
-    if (!categoryExists) {
-      Alert.alert(
-        t("common.error"),
-        t("errors.invalidCategory")
-      )
-      return
-    }
-
-    updateTrickData({
-      selectedCategoryId: categoryId,
-      categories: trickData.categories,
-    })
-  }
+  const selectCategory = (categoryId: string, categoryName: string) => {
+  updateTrickData({
+    selectedCategoryId: categoryId,
+    categories: trickData.categories,
+  });
+  
+  // Actualizar directamente el nombre sin necesidad de hacer una llamada a la BD
+  setSelectedCategoryName(categoryName);
+}
 
   // Tag functionality
   const toggleTag = (tagId: string) => {
@@ -306,8 +355,11 @@ export default function TitleCategoryStep({
       } else {
         const { data, error } = await supabase
           .from("predefined_tags")
-          .insert({ name: newTag.trim() })
-          .select("id, name")
+          .insert({ 
+            name: newTag.trim(),
+            usage_count: 0 // Inicializar con 0 usos
+          })
+          .select("id, name, usage_count")
           .single()
 
         if (data && !error) {
@@ -325,14 +377,20 @@ export default function TitleCategoryStep({
     }
   }
 
-  // Obtener el nombre de la categoría seleccionada
+  // Obtener el nombre de la categoría seleccionada para mostrar
   const getSelectedCategoryName = () => {
-    if (!trickData.selectedCategoryId) return t("forms.categoryPlaceholder")
+    if (!trickData.selectedCategoryId) {
+      return t("forms.categoryPlaceholder", "Select category")
+    }
     
-    const selectedCategory = [...userCategories, ...predefinedCategories]
-      .find(cat => cat.id === trickData.selectedCategoryId)
-    
-    return selectedCategory?.name || t("forms.categoryPlaceholder")
+    return selectedCategoryName || t("forms.loadingCategory", "Loading category...")
+  }
+
+  // Obtener tags seleccionadas como objetos
+  const getSelectedTags = () => {
+    return trickData.tags
+      .map(tagId => tags.find(tag => tag.id === tagId))
+      .filter(tag => tag !== undefined) as Tag[];
   }
 
   return (
@@ -396,7 +454,7 @@ export default function TitleCategoryStep({
               </StyledView>
               <StyledTouchableOpacity 
                 className="flex-1 flex-row items-center justify-between text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]"
-                onPress={() => setCategorySelectModalVisible(true)}
+                onPress={() => setCategoryModalVisible(true)}
               >
                 <StyledText className={`text-base ${
                   trickData.selectedCategoryId ? 'text-white' : 'text-white/50'
@@ -445,39 +503,22 @@ export default function TitleCategoryStep({
               </StyledView>
             </StyledView>
             
-            {/* Selected Tags */}
+            {/* Selected Tags Carousel */}
             {trickData.tags.length > 0 && (
-              <StyledView className="ml-11 mt-3 flex-row flex-wrap">
-                {trickData.tags.map((tagId) => {
-                  const tag = tags.find((t) => t.id === tagId)
-                  return tag ? (
-                    <StyledView 
-                      key={tag.id} 
-                      className="bg-emerald-700 rounded-full px-3 py-1 mr-2 mb-2 flex-row items-center"
-                    >
-                      <StyledText className="text-white text-sm mr-1">{tag.name}</StyledText>
-                      <StyledTouchableOpacity 
-                        onPress={() => toggleTag(tag.id)}
-                        hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
-                      >
-                        <Feather name="x" size={14} color="white" />
-                      </StyledTouchableOpacity>
-                    </StyledView>
-                  ) : null
-                })}
+              <StyledView className="ml-11 mt-3" style={{ height: 44 }}>
+                <TagCarousel tagsArray={getSelectedTags()} isSelected={true} />
               </StyledView>
             )}
 
-            {/* Carrusel de Tags Sugeridos */}
-            {availableTags.length > 0 && (
+            {/* Carrusel de Tags Sugeridos/Filtrados */}
+            {filteredTags.length > 0 && (
               <StyledView className="mt-4">
                 <StyledText className="text-white/60 text-xs mb-2">
                   {t("labels.suggestedTags")}
                 </StyledText>
-                <TagCarousel tagsArray={firstRowTags} rowIndex={1} />
-                {secondRowTags.length > 0 && (
-                  <TagCarousel tagsArray={secondRowTags} rowIndex={2} />
-                )}
+                <StyledView style={{ height: 44 }}>
+                  <TagCarousel tagsArray={filteredTags} />
+                </StyledView>
               </StyledView>
             )}
           </StyledView>
@@ -500,7 +541,7 @@ export default function TitleCategoryStep({
         <StyledView className="px-6" style={{ paddingBottom: insets.bottom + 20 }}>
           {/* Step indicator */}
           <StyledText className="text-white/60 text-center text-sm mb-6">
-            {t("navigation.stepIndicator", { current: currentStep + 1, total: totalSteps })}
+            {t("navigation.stepIndicator", { current: 1, total: totalSteps })}
           </StyledText>
 
           {/* Next Button */}
@@ -539,207 +580,14 @@ export default function TitleCategoryStep({
           </StyledTouchableOpacity>
         </StyledView>
 
-        {/* Category Selection Modal */}
-        <Modal
-          isVisible={isCategorySelectModalVisible}
-          onBackdropPress={() => setCategorySelectModalVisible(false)}
-          backdropOpacity={0.7}
-          animationIn="slideInUp"
-          animationOut="slideOutDown"
-          useNativeDriverForBackdrop={true}
-          hideModalContentWhileAnimating={true}
-        >
-          <StyledView className="bg-gray-900 rounded-2xl mx-4 p-6 max-h-96">
-            <StyledView className="flex-row justify-between items-center mb-6">
-              <StyledText className="text-white text-xl font-bold">
-                {t("modals.selectCategory")}
-              </StyledText>
-              <StyledTouchableOpacity
-                onPress={() => setCategorySelectModalVisible(false)}
-                className="p-2"
-              >
-                <Feather name="x" size={24} color="white" />
-              </StyledTouchableOpacity>
-            </StyledView>
-
-            <StyledView className="max-h-64">
-              {/* User Categories */}
-              {userCategories.length > 0 && (
-                <StyledView className="mb-6">
-                  <StyledText className="text-emerald-300 text-base font-semibold mb-3">
-                    {t("categories.yourCategories")}
-                  </StyledText>
-                  <StyledView className="flex-row flex-wrap">
-                    {userCategories.map((category) => (
-                      <StyledTouchableOpacity
-                        key={category.id}
-                        onPress={() => {
-                          selectCategory(category.id)
-                          setCategorySelectModalVisible(false)
-                        }}
-                        className={`m-1 px-4 py-2 rounded-full ${
-                          trickData.selectedCategoryId === category.id 
-                            ? "bg-emerald-600" 
-                            : "bg-gray-700 border border-gray-600"
-                        }`}
-                      >
-                        <StyledText className="text-white text-sm">{category.name}</StyledText>
-                      </StyledTouchableOpacity>
-                    ))}
-                  </StyledView>
-                </StyledView>
-              )}
-
-              {/* Predefined Categories */}
-              {predefinedCategories.length > 0 && (
-                <StyledView className="mb-6">
-                  <StyledText className="text-blue-300 text-base font-semibold mb-3">
-                    {t("categories.suggestedCategories")}
-                  </StyledText>
-                  <StyledView className="flex-row flex-wrap">
-                    {predefinedCategories.map((category) => (
-                      <StyledTouchableOpacity
-                        key={category.id}
-                        onPress={() => {
-                          selectCategory(category.id)
-                          setCategorySelectModalVisible(false)
-                        }}
-                        className={`m-1 px-4 py-2 rounded-full ${
-                          trickData.selectedCategoryId === category.id 
-                            ? "bg-emerald-600" 
-                            : "bg-gray-700 border border-gray-600"
-                        }`}
-                      >
-                        <StyledText className="text-white text-sm">{category.name}</StyledText>
-                      </StyledTouchableOpacity>
-                    ))}
-                  </StyledView>
-                </StyledView>
-              )}
-
-              {/* No categories message */}
-              {userCategories.length === 0 && predefinedCategories.length === 0 && !loading && (
-                <StyledView className="items-center py-8">
-                  <Feather name="folder-plus" size={48} color="rgba(255, 255, 255, 0.3)" />
-                  <StyledText className="text-white/60 text-center mt-4">
-                    {t("messages.noCategoriesFound")}
-                  </StyledText>
-                </StyledView>
-              )}
-
-              {/* Loading indicator */}
-              {loading && (
-                <StyledView className="items-center py-8">
-                  <StyledText className="text-white/60">{t("common.loadingCategories")}</StyledText>
-                </StyledView>
-              )}
-            </StyledView>
-
-            {/* Create new category button */}
-            <StyledTouchableOpacity
-              className="bg-emerald-700 rounded-xl py-3 items-center mt-4"
-              onPress={() => {
-                setCategorySelectModalVisible(false)
-                setCreateCategoryModalVisible(true)
-              }}
-            >
-              <StyledText className="text-white font-semibold">
-                {t("actions.createNewCategory")}
-              </StyledText>
-            </StyledTouchableOpacity>
-          </StyledView>
-        </Modal>
-
-        {/* Create Category Modal */}
-        <Modal
-          isVisible={isCreateCategoryModalVisible}
-          onBackdropPress={() => setCreateCategoryModalVisible(false)}
-          backdropOpacity={0.7}
-          animationIn="slideInUp"
-          animationOut="slideOutDown"
-          useNativeDriverForBackdrop={true}
-          hideModalContentWhileAnimating={true}
-        >
-          <StyledView className="bg-gray-900 rounded-2xl mx-4 p-6">
-            <StyledView className="flex-row justify-between items-center mb-6">
-              <StyledText className="text-white text-xl font-bold">
-                {t("modals.createCategory")}
-              </StyledText>
-              <StyledTouchableOpacity
-                onPress={() => setCreateCategoryModalVisible(false)}
-                className="p-2"
-              >
-                <Feather name="x" size={24} color="white" />
-              </StyledTouchableOpacity>
-            </StyledView>
-
-            <StyledView className="mb-4">
-              <StyledText className="text-white mb-2 font-medium">
-                {t("forms.categoryName")}
-                <StyledText className="text-red-400"> *</StyledText>
-              </StyledText>
-              <StyledView className="bg-gray-700 rounded-lg border border-gray-600">
-                <StyledTextInput
-                  className="text-white p-3 text-base"
-                  placeholder={t("forms.categoryNamePlaceholder")}
-                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                  value={newCategoryName}
-                  onChangeText={setNewCategoryName}
-                  autoCapitalize="sentences"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                />
-              </StyledView>
-            </StyledView>
-
-            <StyledView className="mb-6">
-              <StyledText className="text-white mb-2 font-medium">
-                {t("forms.description")} ({t("forms.optional")})
-              </StyledText>
-              <StyledView className="bg-gray-700 rounded-lg border border-gray-600">
-                <StyledTextInput
-                  className="text-white p-3 text-base"
-                  placeholder={t("forms.descriptionPlaceholder")}
-                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                  value={newCategoryDescription}
-                  onChangeText={setNewCategoryDescription}
-                  multiline
-                  numberOfLines={3}
-                  textAlignVertical="top"
-                  autoCapitalize="sentences"
-                  returnKeyType="done"
-                />
-              </StyledView>
-            </StyledView>
-
-            <StyledView className="flex-row justify-end">
-              <StyledTouchableOpacity
-                className="bg-gray-600 px-4 py-2 rounded-lg mr-2"
-                onPress={() => {
-                  setNewCategoryName("")
-                  setNewCategoryDescription("")
-                  setCreateCategoryModalVisible(false)
-                }}
-              >
-                <StyledText className="text-white font-medium">{t("actions.cancel")}</StyledText>
-              </StyledTouchableOpacity>
-
-              <StyledTouchableOpacity
-                className={`px-4 py-2 rounded-lg ${
-                  loading || !newCategoryName.trim() 
-                    ? 'bg-gray-500' 
-                    : 'bg-emerald-700'
-                }`}
-                onPress={handleCreateCategory}
-                disabled={loading || !newCategoryName.trim()}
-              >
-                <StyledText className="text-white font-medium">
-                  {loading ? t("actions.creating") : t("actions.create")}
-                </StyledText>
-              </StyledTouchableOpacity>
-            </StyledView>
-          </StyledView>
-        </Modal>
+        {/* Category Modal */}
+        <CategoryModal
+          visible={isCategoryModalVisible}
+          onClose={() => setCategoryModalVisible(false)}
+          selectedCategoryId={trickData.selectedCategoryId}
+          onSelectCategory={selectCategory}
+          trickTitle={trickData.title}
+        />
       </StyledView>
     </StyledView>
   )

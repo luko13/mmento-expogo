@@ -27,7 +27,7 @@ export interface MagicTrick {
   angles: string[]
   duration: number | null
   reset: number | null
-  difficulty: string | null
+  difficulty: number | null
 
   // Paso 3: Secreto
   secret: string
@@ -67,7 +67,7 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
     angles: [],
     duration: null,
     reset: null,
-    difficulty: null,
+    difficulty: 5,
     secret: "",
     secret_video_url: null,
     special_materials: [],
@@ -82,7 +82,25 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
   const updateTrickData = (data: Partial<MagicTrick>) => {
     setTrickData((prev) => ({ ...prev, ...data }))
   }
-
+// Función para actualizar el contador de uso de las etiquetas seleccionadas
+const updateTagsUsageCount = async (tagIds: string[]) => {
+  try {
+    if (!tagIds || tagIds.length === 0) return;
+    
+    // Llamamos a la función de Supabase para cada etiqueta
+    for (const tagId of tagIds) {
+      const { error } = await supabase.rpc('increment_tag_usage', {
+        tag_id: tagId
+      });
+      
+      if (error) {
+        console.error(`Error incrementing usage count for tag ${tagId}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error("Error updating tag usage counts:", error);
+  }
+}
   // Pasos del asistente
   const steps = [
     { title: t("titleAndCategories", "Title & Categories"), component: TitleCategoryStep },
@@ -420,24 +438,28 @@ export default function AddMagicWizard({ onComplete, onCancel }: AddMagicWizardP
 
       // Si hay etiquetas, asociarlas al truco
       if (trickData.tags.length > 0) {
-        try {
-          const tagInserts = trickData.tags.map(tagId => ({
-            trick_id: data.id,
-            tag_id: tagId,
-            created_at: new Date().toISOString(),
-          }))
+  try {
+    const tagInserts = trickData.tags.map(tagId => ({
+      trick_id: data.id,
+      tag_id: tagId,
+      created_at: new Date().toISOString(),
+    }))
 
-          const { error: tagError } = await supabase
-            .from("trick_tags")
-            .insert(tagInserts)
+    const { error: tagError } = await supabase
+      .from("trick_tags")
+      .insert(tagInserts)
 
-          if (tagError && tagError.code !== "23505") {
-            console.error("Error associating tags with trick:", tagError)
-          }
-        } catch (tagError) {
-          console.error("Error in tag association:", tagError)
-        }
-      }
+    if (tagError && tagError.code !== "23505") {
+      console.error("Error associating tags with trick:", tagError)
+    }
+    
+    // Agregar esta llamada para actualizar el contador de uso de las etiquetas
+    await updateTagsUsageCount(trickData.tags);
+    
+  } catch (tagError) {
+    console.error("Error in tag association:", tagError)
+  }
+}
 
       // Si hay un script, guardarlo
       if (trickData.script && trickData.script.trim()) {
