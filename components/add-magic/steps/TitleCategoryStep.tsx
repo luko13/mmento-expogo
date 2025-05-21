@@ -525,13 +525,13 @@ export default function TitleCategoryStep({
 
           {/* Shield Icon */}
           <StyledView className="items-center mb-8">
-            <StyledView className="w-16 h-16 bg-white/5 rounded-full items-center justify-center">
+            <StyledView className="w-16 h-16 bg-[#5BB9A3]/40 rounded-full items-center justify-center">
               <Feather name="shield" size={32} color="rgba(255, 255, 255, 0.3)" />
             </StyledView>
-            <StyledText className="text-white/40 text-xs mt-2 text-center">
+            <StyledText className="text-[#5BB9A3]/40 text-xs mt-2 text-center">
               {t("security.identitySafe")}
             </StyledText>
-            <StyledText className="text-white/40 text-xs text-center">
+            <StyledText className="text-[#5BB9A3]/40 text-xs text-center">
               {t("security.endToEndEncrypted")}
             </StyledText>
           </StyledView>

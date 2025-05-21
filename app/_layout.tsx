@@ -26,7 +26,7 @@ export default function AuthLayout() {
           {isAddMagicRoute ? (
             // Gradiente verde para add-magic que cubre TODA la pantalla
             <LinearGradient
-              colors={['#064e3b', '#065f46']}
+              colors={['#15322C', '#15322C']}
               style={{
                 position: "absolute",
                 top: 0,

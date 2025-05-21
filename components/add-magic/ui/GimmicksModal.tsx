@@ -97,13 +97,13 @@ export default function GimmicksModal({
     <StyledModal
       visible={visible}
       animationType="slide"
-      transparent={false}
+      transparent={true}
       onRequestClose={onClose}
     >
       <StyledView className="flex-1" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
         {/* Background gradient */}
         <LinearGradient
-          colors={['#064e3b', '#065f46']} 
+          colors={['#15322C', '#15322C']} 
           style={{ 
             position: 'absolute',
             top: 0,

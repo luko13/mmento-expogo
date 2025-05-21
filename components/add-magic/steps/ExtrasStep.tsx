@@ -582,7 +582,7 @@ export default function ExtrasStep({
     <StyledView className="flex-1">
       {/* Gradiente de fondo */}
       <LinearGradient
-        colors={["#064e3b", "#065f46"]}
+        colors={["#15322C", "#15322C"]}
         style={{
           position: "absolute",
           top: 0,
@@ -765,7 +765,7 @@ export default function ExtrasStep({
                       )}`
                     : t("technique", "Técnica")}
                 </StyledText>
-                <Feather name="plus" size={20} color="white" />
+                <Feather name="link" size={20} color="white" />
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
@@ -789,7 +789,7 @@ export default function ExtrasStep({
                       )}`
                     : t("gimmicks", "Gimmicks")}
                 </StyledText>
-                <Feather name="plus" size={20} color="white" />
+                <Feather name="link" size={20} color="white" />
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>

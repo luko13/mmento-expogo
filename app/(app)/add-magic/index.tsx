@@ -23,11 +23,11 @@ export default function AddMagicScreen() {
   return (
     <StyledView className="flex-1">
       {/* StatusBar configuration */}
-      <StatusBar barStyle="light-content" backgroundColor="#064e3b" />
+      <StatusBar barStyle="light-content" backgroundColor="#15322C" />
       
       {/* Full screen gradient background */}
       <LinearGradient
-        colors={['#064e3b', '#065f46']}
+        colors={['#15322C', '#15322C']}
         style={{ 
           position: 'absolute',
           top: 0,

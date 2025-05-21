@@ -144,22 +144,48 @@ export default function CategoryModal({
     <StyledModal
       visible={visible}
       animationType="slide"
-      transparent={false}
+      transparent={true}
       onRequestClose={onClose}
     >
-      <StyledView className="flex-1" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
-        {/* Background gradient */}
-        <LinearGradient
-          colors={['#064e3b', '#065f46']} 
-          style={{ 
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
-          }}
-        />
+      
+<TouchableOpacity 
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: 'rgba(0,0,0,0)'
+        }} 
+        activeOpacity={1}
+        onPress={onClose}
+      />
 
+      <StyledView 
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '60%', // Ajusta este valor para cambiar la altura del modal
+          backgroundColor: '#0d1d1d',
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          overflow: 'hidden'
+        }}
+      >
+        {/* Línea de indicación para arrastrar */}
+        {/* <StyledView 
+          style={{
+            alignSelf: 'center',
+            width: 50,
+            height: 5,
+            backgroundColor: 'rgba(255,255,255,0.3)',
+            borderRadius: 2.5,
+            marginTop: 10,
+            marginBottom: 10
+          }} 
+        /> */}
         {isCreateCategoryVisible ? (
           // Create New Category View
           <StyledView className="flex-1 px-4">

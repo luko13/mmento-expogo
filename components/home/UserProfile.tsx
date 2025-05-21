@@ -89,7 +89,7 @@ export default function UserProfile({ onProfilePress, isSearchVisible = false, o
     // Fadeout rápido al presionar
     Animated.timing(buttonOpacity, {
       toValue: 0,
-      duration: 3000, // Velocidad del fadeout
+      duration: 50, // Velocidad del fadeout
       useNativeDriver: true,
     }).start(() => {
       // Llamar a onCloseSearch después del fadeout

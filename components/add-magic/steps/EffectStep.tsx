@@ -559,7 +559,7 @@ export default function EffectStep({
     <StyledView className="flex-1">
       {/* Background gradient */}
       <LinearGradient
-        colors={["#064e3b", "#065f46"]}
+        colors={["#15322C", "#15322C"]}
         style={{
           position: "absolute",
           top: 0,
