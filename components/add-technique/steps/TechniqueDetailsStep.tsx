@@ -392,6 +392,28 @@ export default function TechniqueDetailsStep({
     updateTechniqueData({ special_materials: updatedMaterials });
   };
 
+  const updateTagsUsageCount = async (tagIds: string[]) => {
+    try {
+      if (!tagIds || tagIds.length === 0) return;
+
+      // Llamamos a la función de Supabase para cada etiqueta
+      for (const tagId of tagIds) {
+        const { error } = await supabase.rpc("increment_tag_usage", {
+          tag_id: tagId,
+        });
+
+        if (error) {
+          console.error(
+            `Error incrementing usage count for tag ${tagId}:`,
+            error
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error updating tag usage counts:", error);
+    }
+  };
+
   // Función para guardar la técnica directamente
   const handleCreateTechnique = async () => {
     try {
@@ -484,6 +506,53 @@ export default function TechniqueDetailsStep({
           t("errorCreatingTechnique", "Error creando la técnica")
         );
         return;
+      }
+
+      // Asociar categoría si está seleccionada
+      if (techniqueData.selectedCategoryId) {
+        try {
+          const { error: categoryError } = await supabase
+            .from("technique_categories")
+            .insert({
+              technique_id: data.id,
+              category_id: techniqueData.selectedCategoryId,
+              created_at: new Date().toISOString(),
+            });
+
+          if (categoryError) {
+            console.error(
+              "Error associating category with technique:",
+              categoryError
+            );
+          }
+        } catch (categoryError) {
+          console.error("Error in category association:", categoryError);
+        }
+      }
+
+      // Asociar etiquetas
+      if (techniqueData.tags.length > 0) {
+        try {
+          const tagInserts = techniqueData.tags.map(tagId => ({
+            technique_id: data.id,
+            tag_id: tagId,
+            created_at: new Date().toISOString(),
+          }))
+
+          const { error: tagError } = await supabase
+            .from("technique_tags")
+            .insert(tagInserts)
+
+          if (tagError && tagError.code !== "23505") {
+            console.error("Error associating tags with technique:", tagError)
+          }
+          
+          // Actualizar el contador de uso de las etiquetas
+          await updateTagsUsageCount(techniqueData.tags);
+          
+        } catch (tagError) {
+          console.error("Error in tag association:", tagError)
+        }
       }
 
       // Mensaje de éxito

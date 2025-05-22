@@ -13,10 +13,13 @@ export interface Technique {
   id?: string
   user_id?: string
 
-  // Paso 1: Información básica
+  // Paso 1: Información básica con categorías y tags
   name: string
   description: string
   difficulty: number | null
+  categories: string[]
+  tags: string[]
+  selectedCategoryId: string | null
 
   // Paso 2: Detalles
   angles: string[]
@@ -45,6 +48,9 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
     name: "",
     description: "",
     difficulty: 5,
+    categories: [],
+    tags: [],
+    selectedCategoryId: null,
     angles: [],
     notes: "",
     special_materials: [],
@@ -58,6 +64,29 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
   // Actualizar datos de la técnica
   const updateTechniqueData = (data: Partial<Technique>) => {
     setTechniqueData((prev) => ({ ...prev, ...data }))
+  }
+
+  // Función para actualizar el contador de uso de las etiquetas seleccionadas
+  const updateTagsUsageCount = async (tagIds: string[]) => {
+    try {
+      if (!tagIds || tagIds.length === 0) return
+
+      // Llamamos a la función de Supabase para cada etiqueta
+      for (const tagId of tagIds) {
+        const { error } = await supabase.rpc("increment_tag_usage", {
+          tag_id: tagId,
+        })
+
+        if (error) {
+          console.error(
+            `Error incrementing usage count for tag ${tagId}:`,
+            error
+          )
+        }
+      }
+    } catch (error) {
+      console.error("Error updating tag usage counts:", error)
+    }
   }
 
   // Pasos del asistente
@@ -105,6 +134,13 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
           }
         }
 
+        if (!techniqueData.selectedCategoryId) {
+          return { 
+            isValid: false, 
+            errorMessage: t("categoryRequired", "Por favor selecciona una categoría") 
+          }
+        }
+
         return { isValid: true }
 
       case 1: // Paso 2: Detalles (todos opcionales)
@@ -149,6 +185,13 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
       return { 
         isValid: false, 
         errorMessage: t("descriptionTooShort", "La descripción debe tener al menos 10 caracteres") 
+      }
+    }
+
+    if (!techniqueData.selectedCategoryId) {
+      return { 
+        isValid: false, 
+        errorMessage: t("categoryRequired", "Por favor selecciona una categoría") 
       }
     }
 
@@ -300,6 +343,70 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
         console.error("Error creating technique:", error)
         Alert.alert(t("error"), t("errorCreatingTechnique", "Error creating technique"))
         return
+      }
+
+      // Si hay una categoría seleccionada, asociarla
+      if (techniqueData.selectedCategoryId) {
+        try {
+          const { error: categoryError } = await supabase.from("technique_categories").insert({
+            technique_id: data.id,
+            category_id: techniqueData.selectedCategoryId,
+            created_at: new Date().toISOString(),
+          })
+
+          if (categoryError) {
+            console.error("Error associating category with technique:", categoryError)
+          }
+        } catch (categoryError) {
+          console.error("Error in category association:", categoryError)
+        }
+      }
+
+      // Para compatibilidad hacia atrás, manejar el array de categorías también
+      if (techniqueData.categories.length > 0) {
+        for (const categoryId of techniqueData.categories) {
+          try {
+            const { error: categoryError } = await supabase.from("technique_categories").insert({
+              technique_id: data.id,
+              category_id: categoryId,
+              created_at: new Date().toISOString(),
+            })
+
+            if (categoryError && categoryError.code !== "23505") {
+              // Ignorar errores de clave duplicada
+              console.error("Error associating category with technique:", categoryError)
+            }
+          } catch (categoryError) {
+            console.error("Error in category association:", categoryError)
+          }
+        }
+      }
+
+      // Si hay etiquetas, asociarlas a la técnica
+      if (techniqueData.tags.length > 0) {
+        try {
+          // Crear tabla de relación technique_tags si no existe
+          const tagInserts = techniqueData.tags.map(tagId => ({
+            technique_id: data.id,
+            tag_id: tagId,
+            created_at: new Date().toISOString(),
+          }))
+
+          // Nota: Necesitarás crear la tabla technique_tags similar a trick_tags
+          const { error: tagError } = await supabase
+            .from("technique_tags")
+            .insert(tagInserts)
+
+          if (tagError && tagError.code !== "23505") {
+            console.error("Error associating tags with technique:", tagError)
+          }
+          
+          // Actualizar el contador de uso de las etiquetas
+          await updateTagsUsageCount(techniqueData.tags)
+          
+        } catch (tagError) {
+          console.error("Error in tag association:", tagError)
+        }
       }
 
       // Mostrar mensaje de éxito

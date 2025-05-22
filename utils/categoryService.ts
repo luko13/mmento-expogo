@@ -7,7 +7,8 @@ export interface Category {
   user_id?: string
   created_at?: string
   updated_at?: string
-  count?: number // For UI display purposes
+  count?: number
+  type?: 'user' | 'predefined' // Add this line
 }
 
 export interface TrickCategory {
@@ -235,4 +236,248 @@ export const ensureDefaultCategories = async (userId: string): Promise<void> => 
     }
   }
 }
+/**
+ * Obtener técnicas por categoría
+ */
+export const getTechniquesByCategory = async (categoryId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from("techniques")
+      .select(`
+        id,
+        name,
+        description,
+        difficulty,
+        status,
+        created_at,
+        image_url,
+        video_url,
+        is_public,
+        user_id,
+        technique_categories!inner(category_id)
+      `)
+      .eq("technique_categories.category_id", categoryId)
+      .order("created_at", { ascending: false });
 
+    if (error) {
+      console.error("Error fetching techniques by category:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("Error in getTechniquesByCategory:", error);
+    return [];
+  }
+};
+
+/**
+ * Función para garantizar que el usuario tenga categorías por defecto para técnicas
+ */
+export const ensureDefaultTechniqueCategories = async (userId: string) => {
+  try {
+    // Verificar si ya tiene categorías de técnicas
+    const existingCategories = await getUserCategories(userId);
+    const hasTechniqueCategories = existingCategories.some(cat => 
+      cat.name.toLowerCase().includes('técnica') || 
+      cat.name.toLowerCase().includes('technique') ||
+      cat.name.toLowerCase().includes('sleight')
+    );
+
+    if (!hasTechniqueCategories) {
+      // Crear categorías por defecto para técnicas
+      const defaultTechniqueCategories = [
+        {
+          name: "Sleight of Hand",
+          description: "Manual dexterity and manipulation techniques"
+        },
+        {
+          name: "Misdirection",
+          description: "Techniques for directing audience attention"
+        },
+        {
+          name: "Flourishes",
+          description: "Ornamental moves and displays"
+        }
+      ];
+
+      for (const category of defaultTechniqueCategories) {
+        await createCategory(userId, category.name, category.description);
+      }
+    }
+  } catch (error) {
+    console.error("Error ensuring default technique categories:", error);
+  }
+};
+
+/**
+ * Obtener todas las técnicas del usuario con sus categorías
+ */
+export const getUserTechniquesWithCategories = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from("techniques")
+      .select(`
+        id,
+        name,
+        description,
+        difficulty,
+        status,
+        created_at,
+        image_url,
+        video_url,
+        is_public,
+        technique_categories(
+          category_id,
+          user_categories(name),
+          predefined_categories(name)
+        )
+      `)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching user techniques with categories:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("Error in getUserTechniquesWithCategories:", error);
+    return [];
+  }
+};
+
+/**
+ * Asociar una técnica con una categoría
+ */
+export const associateTechniqueWithCategory = async (techniqueId: string, categoryId: string) => {
+  try {
+    const { error } = await supabase
+      .from("technique_categories")
+      .insert({
+        technique_id: techniqueId,
+        category_id: categoryId,
+        created_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      console.error("Error associating technique with category:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in associateTechniqueWithCategory:", error);
+    return false;
+  }
+};
+
+/**
+ * Eliminar asociación entre técnica y categoría
+ */
+export const dissociateTechniqueFromCategory = async (techniqueId: string, categoryId: string) => {
+  try {
+    const { error } = await supabase
+      .from("technique_categories")
+      .delete()
+      .eq("technique_id", techniqueId)
+      .eq("category_id", categoryId);
+
+    if (error) {
+      console.error("Error dissociating technique from category:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in dissociateTechniqueFromCategory:", error);
+    return false;
+  }
+};
+
+/**
+ * Obtener las categorías de una técnica específica
+ */
+export const getTechniqueCategories = async (techniqueId: string): Promise<Category[]> => {
+  try {
+    const { data, error } = await supabase
+      .from("technique_categories")
+      .select(`
+        category_id,
+        user_categories(id, name, description),
+        predefined_categories(id, name, description)
+      `)
+      .eq("technique_id", techniqueId);
+
+    if (error) {
+      console.error("Error fetching technique categories:", error);
+      return [];
+    }
+
+    // Combinar categorías de usuario y predefinidas
+    const categories: Category[] = [];
+    
+    data?.forEach(item => {
+      if (item.user_categories) {
+        // user_categories puede ser un array o un objeto individual
+        const userCats = Array.isArray(item.user_categories) 
+          ? item.user_categories 
+          : [item.user_categories];
+        
+        userCats.forEach(cat => {
+          if (cat) {
+            categories.push({
+              id: cat.id,
+              name: cat.name,
+              description: cat.description,
+            });
+          }
+        });
+      }
+      
+      if (item.predefined_categories) {
+        // predefined_categories puede ser un array o un objeto individual
+        const predefinedCats = Array.isArray(item.predefined_categories) 
+          ? item.predefined_categories 
+          : [item.predefined_categories];
+        
+        predefinedCats.forEach(cat => {
+          if (cat) {
+            categories.push({
+              id: cat.id,
+              name: cat.name,
+              description: cat.description,
+            });
+          }
+        });
+      }
+    });
+
+    return categories;
+  } catch (error) {
+    console.error("Error in getTechniqueCategories:", error);
+    return [];
+  }
+};
+/**
+ * Contar técnicas por categoría
+ */
+export const countTechniquesByCategory = async (categoryId: string) => {
+  try {
+    const { count, error } = await supabase
+      .from("technique_categories")
+      .select("*", { count: "exact", head: true })
+      .eq("category_id", categoryId);
+
+    if (error) {
+      console.error("Error counting techniques by category:", error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error("Error in countTechniquesByCategory:", error);
+    return 0;
+  }
+};
