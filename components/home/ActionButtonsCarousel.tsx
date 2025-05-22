@@ -74,7 +74,7 @@ export default function ActionButtonsCarousel() {
       id: "3",
       icon: <Ionicons name="flash" size={36} color="white" />,
       title: t("addTechnique"),
-      onPress: () => console.log("Add Technique pressed"),
+      onPress: () => router.push("/(app)/add-technique"),
     },
     {
       id: "4",

@@ -18,6 +18,10 @@ export default function AppLayout() {
 
   // Verificar si estamos en la ruta de add-magic
   const isAddMagicRoute = pathname.includes("/add-magic")
+  const isAddTechniqueRoute = pathname.includes("/add-technique")
+  const isAddGimmickRoute = pathname.includes("/add-gimmick")
+  const isAddQuickMagicRoute = pathname.includes("/add-quick-magic")
+  const isAddScriptRoute = pathname.includes("/add-script")
 
   return (
     <StyledView className="flex-1">
@@ -26,7 +30,7 @@ export default function AppLayout() {
       <Slot />
 
       {/* Bottom navigation bar que respeta las safe areas */}
-      {!isAddMagicRoute && (
+      {!isAddMagicRoute && !isAddTechniqueRoute && (
         <StyledView
           className="absolute bottom-0 left-24 right-0 z-10"
           style={{
