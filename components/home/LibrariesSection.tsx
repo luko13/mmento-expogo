@@ -38,6 +38,8 @@ import {
 import TrickViewScreen from "../TrickViewScreen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import type { SearchFilters } from "./CompactSearchBar";
+import { EncryptedContentService } from "../../services/encryptedContentService";
+import { useEncryption } from "../../hooks/useEncryption";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -99,6 +101,8 @@ export default function LibrariesSection({
   const [selectedTrickData, setSelectedTrickData] = useState<any>(null);
   const [allItems, setAllItems] = useState<LibraryItem[]>([]);
 
+  const { decryptForSelf, keyPair } = useEncryption();
+  const encryptedService = new EncryptedContentService();
   // Fetch user categories and all items (tricks, techniques, gimmicks)
   useEffect(() => {
     const fetchData = async () => {
@@ -131,7 +135,7 @@ export default function LibrariesSection({
 
           // 1. Get magic tricks for this category
           const tricks = await getTricksByCategory(category.id);
-          
+
           // Transform tricks to LibraryItem format and fetch tags
           const trickItems: LibraryItem[] = await Promise.all(
             tricks.map(async (trick) => {
@@ -141,7 +145,8 @@ export default function LibrariesSection({
                 .select("tag_id")
                 .eq("trick_id", trick.id);
 
-              const tagIds = trickTags?.map((item) => item.tag_id).filter(Boolean) || [];
+              const tagIds =
+                trickTags?.map((item) => item.tag_id).filter(Boolean) || [];
 
               return {
                 id: trick.id,
@@ -178,39 +183,55 @@ export default function LibrariesSection({
                 .single();
 
               if (techCategory) {
+                // Descifrar si está cifrada
+                let decryptedTechnique = technique;
+                if (technique.is_encrypted && decryptForSelf && keyPair) {
+                  const decrypted = await encryptedService.getOwnContent(
+                    technique.id,
+                    "techniques",
+                    decryptForSelf,
+                    () => keyPair.privateKey
+                  );
+                  if (decrypted) {
+                    decryptedTechnique = decrypted;
+                  }
+                }
                 // Fetch tags for this technique
                 const { data: techniqueTags } = await supabase
                   .from("technique_tags")
                   .select("tag_id")
                   .eq("technique_id", technique.id);
 
-                const tagIds = techniqueTags?.map((item) => item.tag_id).filter(Boolean) || [];
+                const tagIds =
+                  techniqueTags?.map((item) => item.tag_id).filter(Boolean) ||
+                  [];
 
                 // Parse angles if stored as JSON string
                 let angles = [];
                 if (technique.angles) {
                   try {
-                    angles = typeof technique.angles === 'string' 
-                      ? JSON.parse(technique.angles) 
-                      : technique.angles;
+                    angles =
+                      typeof technique.angles === "string"
+                        ? JSON.parse(technique.angles)
+                        : technique.angles;
                   } catch {
                     angles = [];
                   }
                 }
 
                 techniqueItems.push({
-                  id: technique.id,
-                  title: technique.name,
+                  id: decryptedTechnique.id,
+                  title: decryptedTechnique.name, // Ahora descifrado
                   type: "technique" as const,
-                  difficulty: technique.difficulty,
-                  status: technique.status,
-                  created_at: technique.created_at,
+                  difficulty: decryptedTechnique.difficulty,
+                  status: decryptedTechnique.status,
+                  created_at: decryptedTechnique.created_at,
                   category_id: category.id,
                   tags: tagIds,
-                  description: technique.description,
-                  notes: technique.notes,
+                  description: decryptedTechnique.description, // Descifrado
+                  notes: decryptedTechnique.notes, // Descifrado
                   angles: angles,
-                  special_materials: technique.special_materials,
+                  special_materials: decryptedTechnique.special_materials,
                 });
               }
             }
@@ -243,9 +264,10 @@ export default function LibrariesSection({
                 let angles = [];
                 if (gimmick.angles) {
                   try {
-                    angles = typeof gimmick.angles === 'string' 
-                      ? JSON.parse(gimmick.angles) 
-                      : gimmick.angles;
+                    angles =
+                      typeof gimmick.angles === "string"
+                        ? JSON.parse(gimmick.angles)
+                        : gimmick.angles;
                   } catch {
                     angles = [];
                   }
@@ -271,8 +293,12 @@ export default function LibrariesSection({
           }
 
           // Combine all items for this category
-          const allCategoryItems = [...trickItems, ...techniqueItems, ...gimmickItems];
-          
+          const allCategoryItems = [
+            ...trickItems,
+            ...techniqueItems,
+            ...gimmickItems,
+          ];
+
           sections.push({
             category,
             items: allCategoryItems,
@@ -440,7 +466,8 @@ export default function LibrariesSection({
           // Búsqueda de texto
           const matchesText = query
             ? item.title.toLowerCase().includes(query) ||
-              (item.description && item.description.toLowerCase().includes(query))
+              (item.description &&
+                item.description.toLowerCase().includes(query))
             : true;
 
           // Filtro de dificultad
@@ -515,7 +542,9 @@ export default function LibrariesSection({
       case "magic":
         return <FontAwesome5 name="magic" size={20} color="white" />;
       case "gimmick":
-        return <MaterialCommunityIcons name="toolbox" size={20} color="white" />;
+        return (
+          <MaterialCommunityIcons name="toolbox" size={20} color="white" />
+        );
       case "technique":
         return <Ionicons name="flash" size={20} color="white" />;
       case "script":
@@ -608,9 +637,10 @@ export default function LibrariesSection({
         let angles = [];
         if (data.angles) {
           try {
-            angles = typeof data.angles === 'string' 
-              ? JSON.parse(data.angles) 
-              : data.angles;
+            angles =
+              typeof data.angles === "string"
+                ? JSON.parse(data.angles)
+                : data.angles;
           } catch {
             angles = [];
           }
@@ -672,9 +702,10 @@ export default function LibrariesSection({
         let angles = [];
         if (data.angles) {
           try {
-            angles = typeof data.angles === 'string' 
-              ? JSON.parse(data.angles) 
-              : data.angles;
+            angles =
+              typeof data.angles === "string"
+                ? JSON.parse(data.angles)
+                : data.angles;
           } catch {
             angles = [];
           }
@@ -773,15 +804,21 @@ export default function LibrariesSection({
             >
               <StyledView className="flex-row items-center flex-1">
                 {getItemIcon(libraryItem.type)}
-                <StyledText className="text-white ml-2 flex-1" numberOfLines={1}>
+                <StyledText
+                  className="text-white ml-2 flex-1"
+                  numberOfLines={1}
+                >
                   {libraryItem.title}
                 </StyledText>
                 {/* Mostrar tipo de contenido */}
                 <StyledText className="text-white/50 text-xs ml-2">
-                  {libraryItem.type === "magic" ? t("trick") : 
-                   libraryItem.type === "technique" ? t("technique") : 
-                   libraryItem.type === "gimmick" ? t("gimmick") : 
-                   t("script")}
+                  {libraryItem.type === "magic"
+                    ? t("trick")
+                    : libraryItem.type === "technique"
+                    ? t("technique")
+                    : libraryItem.type === "gimmick"
+                    ? t("gimmick")
+                    : t("script")}
                 </StyledText>
               </StyledView>
             </StyledTouchableOpacity>
@@ -927,7 +964,7 @@ export default function LibrariesSection({
           </StyledView>
         </StyledView>
       </Modal>
-{/* Edit Category Modal */}
+      {/* Edit Category Modal */}
       <Modal
         visible={isEditCategoryModalVisible}
         transparent

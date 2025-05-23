@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { Alert } from "react-native"
 import { useTranslation } from "react-i18next"
+import { v4 as uuidv4 } from 'uuid'
 import { supabase } from "../../lib/supabase"
 import { useEncryption } from "../../hooks/useEncryption"
 import { FileEncryptionService } from "../../utils/fileEncryption"
@@ -218,169 +219,165 @@ export default function AddTechniqueWizardEncrypted({
   }
 
   const handleSubmit = async () => {
-    try {
-      setIsSubmitting(true)
+  try {
+    setIsSubmitting(true)
 
-      if (!keyPair) {
-        Alert.alert(
-          t("security.encryptionRequired", "Cifrado Requerido"),
-          t("security.setupEncryptionFirst", "Configura el cifrado antes de guardar la técnica"),
-          [
-            { text: t("actions.cancel", "Cancelar"), style: "cancel" },
-            { text: t("security.setupNow", "Configurar"), onPress: () => setShowEncryptionSetup(true) }
-          ]
-        )
-        return
-      }
+    // Verificar que las claves de cifrado estén disponibles
+    if (!keyPair) {
+      Alert.alert(
+        t("security.encryptionRequired", "Cifrado Requerido"),
+        t("security.setupEncryptionFirst", "Configura el cifrado antes de guardar la técnica"),
+        [
+          { text: t("actions.cancel", "Cancelar"), style: "cancel" },
+          { text: t("security.setupNow", "Configurar"), onPress: () => setShowEncryptionSetup(true) }
+        ]
+      )
+      return
+    }
 
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        console.error("No user found")
-        Alert.alert(t("error"), t("userNotFound", "Usuario no encontrado"))
-        return
-      }
+    // Obtener el usuario actual
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      console.error("No se encontró usuario autenticado")
+      Alert.alert(t("error"), t("userNotFound", "Usuario no encontrado"))
+      return
+    }
 
-      const profileId = await ensureUserProfile(user.id, user.email || "")
-      const encryptedTechniqueData = await encryptAllSensitiveFields(techniqueData)
-      
-      // Handle encrypted files if any
-      const encryptedFileIds: { [key: string]: string } = {}
-      
-      if (techniqueData.image_url && techniqueData.image_url.startsWith('file://')) {
-        const metadata = await fileEncryptionService.encryptAndUploadFile(
-          techniqueData.image_url,
-          `technique_image_${Date.now()}.jpg`,
-          'image/jpeg',
-          profileId,
-          [profileId],
-          getPublicKey,
-          () => keyPair.privateKey
-        )
-        encryptedFileIds.image = metadata.fileId
-      }
+    // Asegurar que el perfil del usuario existe
+    const profileId = await ensureUserProfile(user.id, user.email || "")
+    
+    // Cifrar todos los campos sensibles de la técnica
+    const encryptedTechniqueData = await encryptAllSensitiveFields(techniqueData)
+    
+    // Manejar archivos cifrados si existen
+    const encryptedFileIds: { [key: string]: string } = {}
+    
+    // Procesar imagen si existe
+    if (techniqueData.image_url && techniqueData.image_url.startsWith('file://')) {
+      const metadata = await fileEncryptionService.encryptAndUploadFile(
+        techniqueData.image_url,
+        `technique_image_${Date.now()}.jpg`,
+        'image/jpeg',
+        profileId,
+        [profileId],
+        getPublicKey,
+        () => keyPair.privateKey
+      )
+      encryptedFileIds.image = metadata.fileId
+    }
 
-      if (techniqueData.video_url && techniqueData.video_url.startsWith('file://')) {
-        const metadata = await fileEncryptionService.encryptAndUploadFile(
-          techniqueData.video_url,
-          `technique_video_${Date.now()}.mp4`,
-          'video/mp4',
-          profileId,
-          [profileId],
-          getPublicKey,
-          () => keyPair.privateKey
-        )
-        encryptedFileIds.video = metadata.fileId
-      }
+    // Procesar video si existe
+    if (techniqueData.video_url && techniqueData.video_url.startsWith('file://')) {
+      const metadata = await fileEncryptionService.encryptAndUploadFile(
+        techniqueData.video_url,
+        `technique_video_${Date.now()}.mp4`,
+        'video/mp4',
+        profileId,
+        [profileId],
+        getPublicKey,
+        () => keyPair.privateKey
+      )
+      encryptedFileIds.video = metadata.fileId
+    }
 
-      const dbRecord: Omit<TechniqueDBRecord, 'id' | 'created_at' | 'updated_at'> = {
-        user_id: profileId,
-        name: encryptedTechniqueData.name,
-        description: encryptedTechniqueData.description,
-        difficulty: encryptedTechniqueData.difficulty,
-        angles: encryptedTechniqueData.angles.length > 0 ? JSON.stringify(encryptedTechniqueData.angles) : null,
-        notes: encryptedTechniqueData.notes,
-        special_materials: encryptedTechniqueData.special_materials,
-        image_url: encryptedFileIds.image || encryptedTechniqueData.image_url,
-        video_url: encryptedFileIds.video || encryptedTechniqueData.video_url,
-        is_public: encryptedTechniqueData.is_public,
-        status: encryptedTechniqueData.status,
-        price: encryptedTechniqueData.price,
-        is_encrypted: true,
-      }
+    // Generar un ID único para la técnica
+    const techniqueId = uuidv4()
 
-      const { data, error } = await supabase
-        .from("techniques")
-        .insert(dbRecord)
-        .select("id")
-        .single()
+    // Usar la función RPC para crear técnica y metadatos en una transacción
+const { data, error } = await supabase.rpc('create_encrypted_technique', {
+  technique_id: techniqueId,
+  technique_data: {
+    user_id: profileId,
+    name: encryptedTechniqueData.name,
+    description: encryptedTechniqueData.description,
+    difficulty: encryptedTechniqueData.difficulty,
+    angles: encryptedTechniqueData.angles,
+    notes: encryptedTechniqueData.notes,
+    special_materials: encryptedTechniqueData.special_materials,
+    image_url: encryptedFileIds.image || encryptedTechniqueData.image_url,
+    video_url: encryptedFileIds.video || encryptedTechniqueData.video_url,
+    is_public: encryptedTechniqueData.is_public,
+    status: encryptedTechniqueData.status,
+    price: encryptedTechniqueData.price,
+    is_encrypted: true,
+  },
+  encryption_metadata: {
+    content_type: "techniques",
+    user_id: profileId,
+    encrypted_fields: encryptedTechniqueData.encryptedFields,
+    encrypted_files: encryptedFileIds,
+  }
+})
 
-      if (error) {
-        console.error("Error creating technique:", error)
-        Alert.alert(t("error"), t("errorCreatingTechnique", "Error creando la técnica"))
-        return
-      }
+if (error) {
+  console.error("Error al crear la técnica:", error)
+  Alert.alert(t("error"), t("errorCreatingTechnique", "Error creando la técnica"))
+  return
+}
 
-      // Save encryption metadata
-      const { error: encryptionError } = await supabase
-        .from("encrypted_content")
-        .insert({
-          content_id: data.id,
-          content_type: "technique",
-          user_id: profileId,
-          encrypted_fields: encryptedTechniqueData.encryptedFields,
-          encrypted_files: encryptedFileIds,
-          created_at: new Date().toISOString()
+    // Asociar la categoría seleccionada
+    if (techniqueData.selectedCategoryId) {
+      try {
+        const { error: categoryError } = await supabase.from("technique_categories").insert({
+          technique_id: techniqueId,
+          category_id: techniqueData.selectedCategoryId,
+          created_at: new Date().toISOString(),
         })
 
-      if (encryptionError) {
-        console.error("Error saving encryption metadata:", encryptionError)
-        await supabase.from("techniques").delete().eq("id", data.id)
-        throw new Error("Error guardando metadatos de cifrado")
-      }
-
-      // 6. Asociar categoría
-      if (techniqueData.selectedCategoryId) {
-        try {
-          const { error: categoryError } = await supabase.from("technique_categories").insert({
-            technique_id: data.id,
-            category_id: techniqueData.selectedCategoryId,
-            created_at: new Date().toISOString(),
-          })
-
-          if (categoryError) {
-            console.error("Error associating category with technique:", categoryError)
-          }
-        } catch (categoryError) {
-          console.error("Error in category association:", categoryError)
+        if (categoryError) {
+          console.error("Error al asociar categoría:", categoryError)
         }
+      } catch (categoryError) {
+        console.error("Fallo al vincular categoría:", categoryError)
       }
-
-      // 7. Asociar tags
-      if (techniqueData.tags.length > 0) {
-        try {
-          const tagInserts = techniqueData.tags.map(tagId => ({
-            technique_id: data.id,
-            tag_id: tagId,
-            created_at: new Date().toISOString(),
-          }))
-
-          const { error: tagError } = await supabase
-            .from("technique_tags")
-            .insert(tagInserts)
-
-          if (tagError && tagError.code !== "23505") {
-            console.error("Error associating tags with technique:", tagError)
-          }
-          
-          // Actualizar contador de uso de tags
-          await updateTagsUsageCount(techniqueData.tags)
-          
-        } catch (tagError) {
-          console.error("Error in tag association:", tagError)
-        }
-      }
-
-      // 8. Mostrar éxito
-      Alert.alert(
-        t("success", "Éxito"),
-        t("techniqueCreatedSuccessfully", "La técnica ha sido creada y cifrada exitosamente"),
-        [{ text: t("ok", "OK") }]
-      )
-
-      if (onComplete) {
-        onComplete(data.id)
-      }
-    } catch (error) {
-      console.error("Error in submission:", error)
-      Alert.alert(
-        t("error", "Error"), 
-        error instanceof Error ? error.message : t("unexpectedError", "Ocurrió un error inesperado")
-      )
-    } finally {
-      setIsSubmitting(false)
     }
-  }
 
+    // Asociar las etiquetas seleccionadas
+    if (techniqueData.tags.length > 0) {
+      try {
+        const tagInserts = techniqueData.tags.map(tagId => ({
+          technique_id: techniqueId,
+          tag_id: tagId,
+          created_at: new Date().toISOString(),
+        }))
+
+        const { error: tagError } = await supabase
+          .from("technique_tags")
+          .insert(tagInserts)
+
+        if (tagError && tagError.code !== "23505") {
+          console.error("Error al asociar etiquetas:", tagError)
+        }
+        
+        // Actualizar estadísticas de uso de las etiquetas
+        await updateTagsUsageCount(techniqueData.tags)
+        
+      } catch (tagError) {
+        console.error("Fallo al vincular etiquetas:", tagError)
+      }
+    }
+
+    // Notificar éxito al usuario
+    Alert.alert(
+      t("success", "Éxito"),
+      t("techniqueCreatedSuccessfully", "La técnica ha sido creada y cifrada exitosamente"),
+      [{ text: t("ok", "OK") }]
+    )
+
+    // Ejecutar callback de finalización
+    if (onComplete) {
+      onComplete(techniqueId)
+    }
+  } catch (error) {
+    console.error("Error durante el guardado:", error)
+    Alert.alert(
+      t("error", "Error"), 
+      error instanceof Error ? error.message : t("unexpectedError", "Ocurrió un error inesperado")
+    )
+  } finally {
+    setIsSubmitting(false)
+  }
+}
   // Actualizar contadores de uso de tags
   const updateTagsUsageCount = async (tagIds: string[]) => {
     try {

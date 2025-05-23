@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { I18nextProvider } from "react-i18next"
-import 'react-native-get-random-values';
+import 'react-native-get-random-values'; // Must be first import
 import { useColorScheme, NativeModules, Platform, View, Text, StyleSheet, ActivityIndicator } from "react-native"
 import { ExpoRoot } from "expo-router"
 import { ThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native"
@@ -11,7 +11,7 @@ import * as SplashScreen from "expo-splash-screen"
 import { SafeAreaProvider } from "react-native-safe-area-context"
 import i18n from "./i18n"
 
-// Mantén la pantalla de splash visible mientras cargamos las fuentes
+// Keep splash screen visible while loading fonts
 SplashScreen.preventAutoHideAsync()
 
 export default function App() {
@@ -20,57 +20,57 @@ export default function App() {
   const [fontError, setFontError] = useState<string | null>(null)
   const [fontInfo, setFontInfo] = useState<string[]>([])
 
-  // Cargar fuentes manualmente
+  // Load fonts manually
   useEffect(() => {
     async function loadFonts() {
       try {
-        console.log("Iniciando carga de fuentes...")
-        setFontInfo((prev) => [...prev, "Iniciando carga de fuentes..."])
+        console.log("Starting font loading...")
+        setFontInfo((prev) => [...prev, "Starting font loading..."])
 
-        // Método 1: Cargar fuentes directamente desde assets
+        // Method 1: Load fonts directly from assets
         try {
           await Font.loadAsync({
             "Outfit-Regular": require("./assets/fonts/Outfit-Regular.ttf"),
             "Outfit-Bold": require("./assets/fonts/Outfit-Bold.ttf"),
           })
-          console.log("Fuentes cargadas desde assets locales")
-          setFontInfo((prev) => [...prev, "✓ Fuentes cargadas desde assets locales"])
+          console.log("Fonts loaded from local assets")
+          setFontInfo((prev) => [...prev, "✓ Fonts loaded from local assets"])
         } catch (error) {
-          console.error("Error cargando fuentes desde assets:", error)
+          console.error("Error loading fonts from assets:", error)
           setFontInfo((prev) => [
             ...prev,
-            `✗ Error cargando desde assets: ${error instanceof Error ? error.message : String(error)}`,
+            `✗ Error loading from assets: ${error instanceof Error ? error.message : String(error)}`,
           ])
 
-          // Método 2: Intentar con @expo-google-fonts
+          // Method 2: Try with @expo-google-fonts
           try {
             const Outfit = require("@expo-google-fonts/outfit")
             await Font.loadAsync({
               "Outfit-Regular": Outfit.Outfit_400Regular,
               "Outfit-Bold": Outfit.Outfit_700Bold,
             })
-            console.log("Fuentes cargadas desde @expo-google-fonts")
-            setFontInfo((prev) => [...prev, "✓ Fuentes cargadas desde @expo-google-fonts"])
+            console.log("Fonts loaded from @expo-google-fonts")
+            setFontInfo((prev) => [...prev, "✓ Fonts loaded from @expo-google-fonts"])
           } catch (error) {
-            console.error("Error cargando fuentes desde @expo-google-fonts:", error)
+            console.error("Error loading fonts from @expo-google-fonts:", error)
             setFontInfo((prev) => [
               ...prev,
-              `✗ Error con @expo-google-fonts: ${error instanceof Error ? error.message : String(error)}`,
+              `✗ Error with @expo-google-fonts: ${error instanceof Error ? error.message : String(error)}`,
             ])
             throw error
           }
         }
 
-        // Verificar que las fuentes estén disponibles
+        // Verify fonts are available
         const fontNames = await Font.getLoadedFonts()
-        console.log("Fuentes disponibles:", fontNames)
-        setFontInfo((prev) => [...prev, `Fuentes disponibles: ${fontNames.join(", ")}`])
+        console.log("Available fonts:", fontNames)
+        setFontInfo((prev) => [...prev, `Available fonts: ${fontNames.join(", ")}`])
 
         setFontsLoaded(true)
       } catch (error) {
-        console.error("Error cargando fuentes:", error)
+        console.error("Error loading fonts:", error)
         setFontError(error instanceof Error ? error.message : String(error))
-        setFontInfo((prev) => [...prev, `Error final: ${error instanceof Error ? error.message : String(error)}`])
+        setFontInfo((prev) => [...prev, `Final error: ${error instanceof Error ? error.message : String(error)}`])
       }
     }
 
@@ -110,10 +110,10 @@ export default function App() {
     return (
       <SafeAreaProvider>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>Error cargando fuentes</Text>
+          <Text style={styles.errorTitle}>Font loading error</Text>
           <Text style={styles.errorText}>{fontError}</Text>
           <View style={styles.logContainer}>
-            <Text style={styles.logTitle}>Registro de carga:</Text>
+            <Text style={styles.logTitle}>Loading log:</Text>
             {fontInfo.map((info, index) => (
               <Text key={index} style={styles.logText}>
                 {info}
@@ -130,7 +130,7 @@ export default function App() {
       <SafeAreaProvider>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#10b981" />
-          <Text style={styles.loadingText}>Cargando fuentes...</Text>
+          <Text style={styles.loadingText}>Loading fonts...</Text>
           <View style={styles.logContainer}>
             {fontInfo.map((info, index) => (
               <Text key={index} style={styles.logText}>
