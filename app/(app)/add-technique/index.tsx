@@ -4,7 +4,8 @@ import { styled } from "nativewind"
 import { useRouter } from "expo-router"
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import AddTechniqueWizard from "../../../components/add-technique/AddTechniqueWizard"
+import AddTechniqueWizardEncrypted from "../../../components/add-technique/AddTechniqueWizard"
+
 
 const StyledView = styled(View)
 
@@ -38,7 +39,7 @@ export default function AddTechniqueScreen() {
       />
       
       {/* Wizard content */}
-      <AddTechniqueWizard onComplete={handleComplete} onCancel={handleCancel} />
+      <AddTechniqueWizardEncrypted  onComplete={handleComplete} onCancel={handleCancel} />
     </StyledView>
   )
 }

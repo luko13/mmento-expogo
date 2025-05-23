@@ -41,7 +41,8 @@
             "android": true
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "router": {

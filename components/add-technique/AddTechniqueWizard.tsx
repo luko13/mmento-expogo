@@ -1,50 +1,45 @@
+// components/add-technique/AddTechniqueWizardEncrypted.tsx
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
 import { Alert } from "react-native"
 import { useTranslation } from "react-i18next"
 import { supabase } from "../../lib/supabase"
-import TechniqueBasicsStep from "./steps/TechniqueBasicsStep"
-import TechniqueDetailsStep from "./steps/TechniqueDetailsStep"
+import { useEncryption } from "../../hooks/useEncryption"
+import { FileEncryptionService } from "../../utils/fileEncryption"
+import { EncryptionSetup } from "../security/EncryptionSetup"
+import { type EncryptedTechnique, type TechniqueDBRecord } from "../../types/encryptedTechnique"
+import TechniqueBasicsStepEncrypted from "./steps/TechniqueBasicsStepEncrypted"
+import TechniqueDetailsStepEncrypted from "./steps/TechniqueDetailsStepEncrypted"
 
-// Tipo para la técnica
-export interface Technique {
-  // ID y usuario
-  id?: string
-  user_id?: string
-
-  // Paso 1: Información básica con categorías y tags
-  name: string
-  description: string
-  difficulty: number | null
-  categories: string[]
-  tags: string[]
-  selectedCategoryId: string | null
-
-  // Paso 2: Detalles
-  angles: string[]
-  notes: string
-  special_materials: string[]
-  image_url: string | null
-  video_url: string | null
-  is_public: boolean
-  status: string
-  price: number | null
-}
-
-// Props para el componente
-interface AddTechniqueWizardProps {
+interface AddTechniqueWizardEncryptedProps {
   onComplete?: (techniqueId: string) => void
   onCancel?: () => void
 }
 
-export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqueWizardProps) {
+export default function AddTechniqueWizardEncrypted({ 
+  onComplete, 
+  onCancel 
+}: AddTechniqueWizardEncryptedProps) {
   const { t } = useTranslation()
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showEncryptionSetup, setShowEncryptionSetup] = useState(false)
+  
+  // Hook de cifrado
+  const {
+    isReady: encryptionReady,
+    keyPair,
+    encryptForSelf,
+    decryptForSelf,
+    getPublicKey,
+    error: encryptionError
+  } = useEncryption()
 
-  // Estado inicial de la técnica
-  const [techniqueData, setTechniqueData] = useState<Technique>({
+  const fileEncryptionService = new FileEncryptionService()
+
+  // Estado de la técnica con cifrado habilitado por defecto
+  const [techniqueData, setTechniqueData] = useState<EncryptedTechnique>({
     name: "",
     description: "",
     difficulty: 5,
@@ -59,46 +54,122 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
     is_public: false,
     status: "draft",
     price: null,
+    isEncryptionEnabled: true, // SIEMPRE cifrado para técnicas
+    encryptedFields: {},
+    encryptedFiles: {}
   })
 
-  // Actualizar datos de la técnica
-  const updateTechniqueData = (data: Partial<Technique>) => {
+  // Verificar configuración de cifrado al montar
+  useEffect(() => {
+    if (!encryptionReady && !encryptionError) {
+      return // Esperar inicialización
+    }
+    
+    if (!keyPair && !encryptionError) {
+      setShowEncryptionSetup(true)
+    }
+  }, [encryptionReady, keyPair, encryptionError])
+
+  const updateTechniqueData = (data: Partial<EncryptedTechnique>) => {
     setTechniqueData((prev) => ({ ...prev, ...data }))
   }
 
-  // Función para actualizar el contador de uso de las etiquetas seleccionadas
-  const updateTagsUsageCount = async (tagIds: string[]) => {
+  // Función para cifrar TODOS los campos sensibles
+  const encryptAllSensitiveFields = async (data: EncryptedTechnique): Promise<EncryptedTechnique> => {
+    if (!keyPair) {
+      throw new Error('Claves de cifrado no disponibles')
+    }
+
+    const encryptedData = { ...data }
+    const encryptedFields: any = {}
+
     try {
-      if (!tagIds || tagIds.length === 0) return
-
-      // Llamamos a la función de Supabase para cada etiqueta
-      for (const tagId of tagIds) {
-        const { error } = await supabase.rpc("increment_tag_usage", {
-          tag_id: tagId,
-        })
-
-        if (error) {
-          console.error(
-            `Error incrementing usage count for tag ${tagId}:`,
-            error
-          )
-        }
+      // Cifrar TODOS los campos sensibles
+      
+      // 1. Nombre de la técnica (por privacidad)
+      if (data.name?.trim()) {
+        encryptedFields.name = await encryptForSelf(data.name.trim())
+        encryptedData.name = "[ENCRYPTED]"
       }
+
+      // 2. Descripción completa
+      if (data.description?.trim()) {
+        encryptedFields.description = await encryptForSelf(data.description.trim())
+        encryptedData.description = "[ENCRYPTED]"
+      }
+
+      // 3. Notas personales
+      if (data.notes?.trim()) {
+        encryptedFields.notes = await encryptForSelf(data.notes.trim())
+        encryptedData.notes = "[ENCRYPTED]"
+      }
+
+      // 4. Materiales especiales (pueden revelar la técnica)
+      if (data.special_materials && data.special_materials.length > 0) {
+        const materialsJson = JSON.stringify(data.special_materials)
+        encryptedFields.special_materials = await encryptForSelf(materialsJson)
+        encryptedData.special_materials = ["[ENCRYPTED]"]
+      }
+
+      encryptedData.encryptedFields = encryptedFields
+      return encryptedData
+
     } catch (error) {
-      console.error("Error updating tag usage counts:", error)
+      console.error('Error cifrando campos de técnica:', error)
+      throw new Error('Error al cifrar información de la técnica')
     }
   }
 
-  // Pasos del asistente
+  // Función para cifrar archivos multimedia
+  const encryptMultimediaFiles = async (userId: string): Promise<{ [key: string]: string }> => {
+    const encryptedFileIds: { [key: string]: string } = {}
+
+    try {
+      // Cifrar imagen si existe y es local
+      if (techniqueData.image_url && techniqueData.image_url.startsWith('file://')) {
+        const metadata = await fileEncryptionService.encryptAndUploadFile(
+          techniqueData.image_url,
+          `technique_image_${Date.now()}.jpg`,
+          'image/jpeg',
+          userId,
+          [userId], // Solo el autor tiene acceso inicialmente
+          getPublicKey,
+          () => keyPair!.privateKey
+        )
+        encryptedFileIds.image = metadata.fileId
+      }
+
+      // Cifrar video si existe y es local
+      if (techniqueData.video_url && techniqueData.video_url.startsWith('file://')) {
+        const metadata = await fileEncryptionService.encryptAndUploadFile(
+          techniqueData.video_url,
+          `technique_video_${Date.now()}.mp4`,
+          'video/mp4',
+          userId,
+          [userId],
+          getPublicKey,
+          () => keyPair!.privateKey
+        )
+        encryptedFileIds.video = metadata.fileId
+      }
+
+      return encryptedFileIds
+    } catch (error) {
+      console.error('Error cifrando archivos de técnica:', error)
+      throw new Error('Error al cifrar archivos multimedia')
+    }
+  }
+
+  // Pasos del wizard
   const steps = [
-    { title: t("basicInformation", "Basic Information"), component: TechniqueBasicsStep },
-    { title: t("details", "Details"), component: TechniqueDetailsStep },
+    { title: t("basicInformation", "Información Básica"), component: TechniqueBasicsStepEncrypted },
+    { title: t("details", "Detalles"), component: TechniqueDetailsStepEncrypted },
   ]
 
-  // Validación mejorada de los campos obligatorios de cada paso
+  // Validación de pasos
   const validateCurrentStep = (): { isValid: boolean; errorMessage?: string } => {
     switch (currentStep) {
-      case 0: // Paso 1: Información básica
+      case 0: // Información básica
         if (!techniqueData.name?.trim()) {
           return { 
             isValid: false, 
@@ -110,13 +181,6 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
           return { 
             isValid: false, 
             errorMessage: t("nameTooShort", "El nombre debe tener al menos 3 caracteres") 
-          }
-        }
-
-        if (techniqueData.name.trim().length > 100) {
-          return { 
-            isValid: false, 
-            errorMessage: t("nameTooLong", "El nombre no debe exceder los 100 caracteres") 
           }
         }
 
@@ -143,7 +207,7 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
 
         return { isValid: true }
 
-      case 1: // Paso 2: Detalles (todos opcionales)
+      case 1: // Detalles (todos opcionales)
         return { isValid: true }
 
       default:
@@ -151,54 +215,11 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
     }
   }
 
-  // IMPORTANTE: Calcular el estado del botón usando useMemo
   const isNextButtonDisabled = useMemo(() => {
     const validation = validateCurrentStep()
     return !validation.isValid
   }, [techniqueData, currentStep])
 
-  // Nueva función para validar todos los pasos antes del envío final
-  const validateAllSteps = (): { isValid: boolean; errorMessage?: string } => {
-    // Validar paso 1: Información básica
-    if (!techniqueData.name?.trim()) {
-      return { 
-        isValid: false, 
-        errorMessage: t("nameRequired", "El nombre es obligatorio") 
-      }
-    }
-    
-    if (techniqueData.name.trim().length < 3) {
-      return { 
-        isValid: false, 
-        errorMessage: t("nameTooShort", "El nombre debe tener al menos 3 caracteres") 
-      }
-    }
-    
-    if (!techniqueData.description?.trim()) {
-      return { 
-        isValid: false, 
-        errorMessage: t("descriptionRequired", "La descripción es obligatoria") 
-      }
-    }
-
-    if (techniqueData.description.trim().length < 10) {
-      return { 
-        isValid: false, 
-        errorMessage: t("descriptionTooShort", "La descripción debe tener al menos 10 caracteres") 
-      }
-    }
-
-    if (!techniqueData.selectedCategoryId) {
-      return { 
-        isValid: false, 
-        errorMessage: t("categoryRequired", "Por favor selecciona una categoría") 
-      }
-    }
-
-    return { isValid: true }
-  }
-
-  // Ir al paso anterior
   const goToPreviousStep = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1)
@@ -207,10 +228,8 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
     }
   }
 
-  // Función mejorada para ir al siguiente paso con mejor manejo de errores
   const goToNextStep = async () => {
     try {
-      // Validar el paso actual antes de continuar
       const validation = validateCurrentStep()
       
       if (!validation.isValid) {
@@ -222,19 +241,7 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
         return
       }
 
-      // Si es el último paso, validar todo antes de enviar
       if (currentStep === steps.length - 1) {
-        // Validación final completa
-        const finalValidation = validateAllSteps()
-        if (!finalValidation.isValid) {
-          Alert.alert(
-            t("validationError", "Error de Validación"),
-            finalValidation.errorMessage,
-            [{ text: t("ok", "OK") }]
-          )
-          return
-        }
-        
         await handleSubmit()
       } else {
         setCurrentStep(currentStep + 1)
@@ -249,9 +256,8 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
     }
   }
 
-  // Verificar o crear perfil de usuario
+  // Asegurar perfil de usuario
   const ensureUserProfile = async (userId: string, email: string) => {
-    // Verificamos si el usuario ya tiene un perfil
     const { data: existingProfile, error: profileError } = await supabase
       .from("profiles")
       .select("id")
@@ -259,14 +265,11 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
       .single()
 
     if (profileError && profileError.code !== "PGRST116") {
-      // Error diferente a "no se encontró ningún registro"
       console.error("Error checking profile:", profileError)
       throw new Error("Error checking user profile")
     }
 
-    // Si el perfil no existe, lo creamos
     if (!existingProfile) {
-      // Extraer username del email
       const username = email.split("@")[0]
 
       const { error: insertError } = await supabase.from("profiles").insert({
@@ -289,63 +292,93 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
     return userId
   }
 
-  // Enviar la técnica a la base de datos
+  // Función principal de envío
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true)
 
-      // Validar una última vez antes de enviar
-      const validation = validateAllSteps()
-      if (!validation.isValid) {
+      // Verificar que el cifrado esté configurado
+      if (!keyPair) {
         Alert.alert(
-          t("validationError", "Error de Validación"),
-          validation.errorMessage,
-          [{ text: t("ok", "OK") }]
+          t("security.encryptionRequired", "Cifrado Requerido"),
+          t("security.setupEncryptionFirst", "Configura el cifrado antes de guardar la técnica"),
+          [
+            { text: t("actions.cancel", "Cancelar"), style: "cancel" },
+            { 
+              text: t("security.setupNow", "Configurar"), 
+              onPress: () => setShowEncryptionSetup(true)
+            }
+          ]
         )
         return
       }
 
-      // Obtener el usuario actual
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
         console.error("No user found")
-        Alert.alert(t("error"), t("userNotFound", "User not found"))
+        Alert.alert(t("error"), t("userNotFound", "Usuario no encontrado"))
         return
       }
 
-      // Asegurarnos de que el usuario tiene un perfil
       const profileId = await ensureUserProfile(user.id, user.email || "")
 
-      // Insertar la técnica en la base de datos
+      // 1. Cifrar todos los campos sensibles
+      const encryptedTechniqueData = await encryptAllSensitiveFields(techniqueData)
+      
+      // 2. Cifrar archivos multimedia
+      const encryptedFileIds = await encryptMultimediaFiles(profileId)
+
+      // 3. Preparar datos para la base de datos
+      const dbRecord: Omit<TechniqueDBRecord, 'id' | 'created_at' | 'updated_at'> = {
+        user_id: profileId,
+        name: encryptedTechniqueData.name,
+        description: encryptedTechniqueData.description,
+        difficulty: encryptedTechniqueData.difficulty,
+        angles: encryptedTechniqueData.angles.length > 0 ? JSON.stringify(encryptedTechniqueData.angles) : null,
+        notes: encryptedTechniqueData.notes,
+        special_materials: encryptedTechniqueData.special_materials,
+        image_url: encryptedFileIds.image || encryptedTechniqueData.image_url,
+        video_url: encryptedFileIds.video || encryptedTechniqueData.video_url,
+        is_public: encryptedTechniqueData.is_public,
+        status: encryptedTechniqueData.status,
+        price: encryptedTechniqueData.price,
+        is_encrypted: true, // SIEMPRE cifrado
+      }
+
+      // 4. Insertar técnica en la base de datos
       const { data, error } = await supabase
         .from("techniques")
-        .insert({
-          user_id: profileId,
-          name: techniqueData.name.trim(),
-          description: techniqueData.description.trim(),
-          difficulty: techniqueData.difficulty,
-          angles: techniqueData.angles.length > 0 ? JSON.stringify(techniqueData.angles) : null,
-          notes: techniqueData.notes.trim(),
-          special_materials: techniqueData.special_materials,
-          image_url: techniqueData.image_url,
-          video_url: techniqueData.video_url,
-          is_public: techniqueData.is_public,
-          status: techniqueData.status,
-          price: techniqueData.price,
-        })
+        .insert(dbRecord)
         .select("id")
         .single()
 
       if (error) {
         console.error("Error creating technique:", error)
-        Alert.alert(t("error"), t("errorCreatingTechnique", "Error creating technique"))
+        Alert.alert(t("error"), t("errorCreatingTechnique", "Error creando la técnica"))
         return
       }
 
-      // Si hay una categoría seleccionada, asociarla
+      // 5. Guardar metadatos de cifrado
+      const { error: encryptionError } = await supabase
+        .from("encrypted_content")
+        .insert({
+          content_id: data.id,
+          content_type: "technique",
+          user_id: profileId,
+          encrypted_fields: encryptedTechniqueData.encryptedFields,
+          encrypted_files: encryptedFileIds,
+          created_at: new Date().toISOString()
+        })
+
+      if (encryptionError) {
+        console.error("Error saving encryption metadata:", encryptionError)
+        // Intentar limpiar la técnica creada
+        await supabase.from("techniques").delete().eq("id", data.id)
+        throw new Error("Error guardando metadatos de cifrado")
+      }
+
+      // 6. Asociar categoría
       if (techniqueData.selectedCategoryId) {
         try {
           const { error: categoryError } = await supabase.from("technique_categories").insert({
@@ -362,37 +395,15 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
         }
       }
 
-      // Para compatibilidad hacia atrás, manejar el array de categorías también
-      if (techniqueData.categories.length > 0) {
-        for (const categoryId of techniqueData.categories) {
-          try {
-            const { error: categoryError } = await supabase.from("technique_categories").insert({
-              technique_id: data.id,
-              category_id: categoryId,
-              created_at: new Date().toISOString(),
-            })
-
-            if (categoryError && categoryError.code !== "23505") {
-              // Ignorar errores de clave duplicada
-              console.error("Error associating category with technique:", categoryError)
-            }
-          } catch (categoryError) {
-            console.error("Error in category association:", categoryError)
-          }
-        }
-      }
-
-      // Si hay etiquetas, asociarlas a la técnica
+      // 7. Asociar tags
       if (techniqueData.tags.length > 0) {
         try {
-          // Crear tabla de relación technique_tags si no existe
           const tagInserts = techniqueData.tags.map(tagId => ({
             technique_id: data.id,
             tag_id: tagId,
             created_at: new Date().toISOString(),
           }))
 
-          // Nota: Necesitarás crear la tabla technique_tags similar a trick_tags
           const { error: tagError } = await supabase
             .from("technique_tags")
             .insert(tagInserts)
@@ -401,7 +412,7 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
             console.error("Error associating tags with technique:", tagError)
           }
           
-          // Actualizar el contador de uso de las etiquetas
+          // Actualizar contador de uso de tags
           await updateTagsUsageCount(techniqueData.tags)
           
         } catch (tagError) {
@@ -409,14 +420,13 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
         }
       }
 
-      // Mostrar mensaje de éxito
+      // 8. Mostrar éxito
       Alert.alert(
         t("success", "Éxito"),
-        t("techniqueCreatedSuccessfully", "La técnica ha sido creada exitosamente"),
+        t("techniqueCreatedSuccessfully", "La técnica ha sido creada y cifrada exitosamente"),
         [{ text: t("ok", "OK") }]
       )
 
-      // Llamar al callback de completado
       if (onComplete) {
         onComplete(data.id)
       }
@@ -424,27 +434,57 @@ export default function AddTechniqueWizard({ onComplete, onCancel }: AddTechniqu
       console.error("Error in submission:", error)
       Alert.alert(
         t("error", "Error"), 
-        t("unexpectedError", "Ocurrió un error inesperado")
+        error instanceof Error ? error.message : t("unexpectedError", "Ocurrió un error inesperado")
       )
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // Renderizar el componente del paso actual
+  // Actualizar contadores de uso de tags
+  const updateTagsUsageCount = async (tagIds: string[]) => {
+    try {
+      if (!tagIds || tagIds.length === 0) return
+
+      for (const tagId of tagIds) {
+        const { error } = await supabase.rpc('increment_tag_usage', {
+          tag_id: tagId
+        })
+
+        if (error) {
+          console.error(`Error incrementing usage count for tag ${tagId}:`, error)
+        }
+      }
+    } catch (error) {
+      console.error("Error updating tag usage counts:", error)
+    }
+  }
+
+  // Renderizar componente del paso actual
   const StepComponent = steps[currentStep].component
 
   return (
-    <StepComponent 
-      techniqueData={techniqueData} 
-      updateTechniqueData={updateTechniqueData}
-      onNext={goToNextStep}
-      onCancel={goToPreviousStep}
-      currentStep={currentStep + 1}
-      totalSteps={steps.length}
-      isSubmitting={isSubmitting}
-      isNextButtonDisabled={isNextButtonDisabled}
-      isLastStep={currentStep === steps.length - 1}
-    />
+    <>
+      <StepComponent 
+        techniqueData={techniqueData} 
+        updateTechniqueData={updateTechniqueData}
+        onNext={goToNextStep}
+        onCancel={goToPreviousStep}
+        currentStep={currentStep + 1}
+        totalSteps={steps.length}
+        isSubmitting={isSubmitting}
+        isNextButtonDisabled={isNextButtonDisabled}
+        isLastStep={currentStep === steps.length - 1}
+      />
+
+      {/* Modal de configuración de cifrado */}
+      <EncryptionSetup
+        visible={showEncryptionSetup}
+        onClose={() => setShowEncryptionSetup(false)}
+        onSetupComplete={() => {
+          console.log('Cifrado configurado correctamente para técnicas')
+        }}
+      />
+    </>
   )
 }
