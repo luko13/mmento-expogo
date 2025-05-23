@@ -1,4 +1,4 @@
-// utils/fileEncryption.ts
+// utils/fileEncryption.ts - Simplified version using TweetNaCl only
 import { CryptoService } from './cryptoService';
 import { supabase } from '../lib/supabase';
 import * as FileSystem from 'expo-file-system';
@@ -13,30 +13,14 @@ export interface EncryptedFileMetadata {
     encryptedKey: string;
     nonce: string;
   }>;
-  header: string; // Para stream cipher
-  chunks: number;
-}
-
-// Tipos específicos para la respuesta de Supabase
-interface SupabaseEncryptedFileData {
-  original_name: string;
-  mime_type: string;
-  size: number;
-  author_id: string;
-  created_at: string;
-}
-
-interface SupabaseFileKeyResponse {
-  file_id: string;
-  encrypted_files: SupabaseEncryptedFileData;
+  fileNonce: string; // For the file encryption
 }
 
 export class FileEncryptionService {
   private cryptoService = CryptoService.getInstance();
-  private readonly CHUNK_SIZE = 64 * 1024; // 64KB chunks
 
   /**
-   * Cifra y sube un archivo
+   * Encrypts and uploads a file using simple secretbox
    */
   async encryptAndUploadFile(
     fileUri: string,
@@ -48,46 +32,26 @@ export class FileEncryptionService {
     getPrivateKey: () => string
   ): Promise<EncryptedFileMetadata> {
     try {
-      // 1. Generar clave simétrica
+      // 1. Generate symmetric key
       const symmetricKey = await this.cryptoService.generateSymmetricKey();
       
-      // 2. Leer archivo y obtener información
+      // 2. Read and get file info
       const fileInfo = await FileSystem.getInfoAsync(fileUri);
       if (!fileInfo.exists) {
         throw new Error('Archivo no encontrado');
       }
 
-      // 3. Inicializar cifrado de stream
-      const { state, header } = await this.cryptoService.initStreamEncryption(symmetricKey);
-      
-      // 4. Leer y cifrar archivo en chunks
-      const encryptedChunks: Uint8Array[] = [];
-      const fileSize = 'size' in fileInfo ? fileInfo.size : 0;
-      const totalChunks = Math.ceil(fileSize / this.CHUNK_SIZE);
-      
-      // Leer archivo como base64 y convertir a chunks
+      // 3. Read file data
       const fileData = await FileSystem.readAsStringAsync(fileUri, {
         encoding: FileSystem.EncodingType.Base64
       });
       
       const fileBuffer = this.base64ToUint8Array(fileData);
       
-      for (let i = 0; i < totalChunks; i++) {
-        const start = i * this.CHUNK_SIZE;
-        const end = Math.min(start + this.CHUNK_SIZE, fileBuffer.length);
-        const chunk = fileBuffer.slice(start, end);
-        const isLastChunk = i === totalChunks - 1;
-        
-        const encryptedChunk = await this.cryptoService.encryptChunk(
-          state,
-          chunk,
-          isLastChunk
-        );
-        
-        encryptedChunks.push(encryptedChunk);
-      }
+      // 4. Encrypt file with symmetric key
+      const { encrypted, nonce } = await this.cryptoService.encryptFile(fileBuffer, symmetricKey);
 
-      // 5. Cifrar clave simétrica para cada destinatario
+      // 5. Encrypt symmetric key for each recipient
       const privateKey = getPrivateKey();
       const encryptedKeys = [];
       
@@ -108,16 +72,13 @@ export class FileEncryptionService {
         }
       }
 
-      // 6. Subir archivo cifrado
+      // 6. Upload encrypted file
       const fileId = `encrypted_${Date.now()}_${authorUserId}`;
       const filePath = `encrypted_files/${fileId}`;
       
-      // Combinar header y chunks cifrados
-      const combinedData = this.combineEncryptedData(header, encryptedChunks);
-      
       const { error: uploadError } = await supabase.storage
         .from('encrypted_media')
-        .upload(filePath, combinedData, {
+        .upload(filePath, encrypted, {
           contentType: 'application/octet-stream',
           upsert: true
         });
@@ -126,18 +87,18 @@ export class FileEncryptionService {
         throw new Error(`Error subiendo archivo: ${uploadError.message}`);
       }
 
-      // 7. Crear metadata
+      // 7. Create metadata
+      const fileSize = 'size' in fileInfo ? fileInfo.size : 0;
       const metadata: EncryptedFileMetadata = {
         fileId,
         originalName: fileName,
         mimeType,
         size: fileSize,
         encryptedKeys,
-        header: this.uint8ArrayToBase64(header),
-        chunks: totalChunks
+        fileNonce: this.uint8ArrayToBase64(nonce)
       };
 
-      // 8. Guardar metadata en base de datos
+      // 8. Save metadata to database
       const { error: metadataError } = await supabase
         .from('encrypted_files')
         .insert({
@@ -146,8 +107,7 @@ export class FileEncryptionService {
           mime_type: mimeType,
           size: fileSize,
           author_id: authorUserId,
-          header: metadata.header,
-          chunks: totalChunks,
+          file_nonce: metadata.fileNonce,
           created_at: new Date().toISOString()
         });
 
@@ -155,7 +115,7 @@ export class FileEncryptionService {
         throw new Error(`Error guardando metadata: ${metadataError.message}`);
       }
 
-      // 9. Guardar claves cifradas
+      // 9. Save encrypted keys
       for (const keyData of encryptedKeys) {
         const { error: keyError } = await supabase
           .from('encrypted_file_keys')
@@ -180,7 +140,7 @@ export class FileEncryptionService {
   }
 
   /**
-   * Descarga y descifra un archivo
+   * Downloads and decrypts a file
    */
   async downloadAndDecryptFile(
     fileId: string,
@@ -193,7 +153,7 @@ export class FileEncryptionService {
     mimeType: string;
   }> {
     try {
-      // 1. Obtener metadata del archivo
+      // 1. Get file metadata
       const { data: fileMetadata, error: metadataError } = await supabase
         .from('encrypted_files')
         .select('*')
@@ -204,7 +164,7 @@ export class FileEncryptionService {
         throw new Error('Archivo no encontrado');
       }
 
-      // 2. Obtener clave cifrada para el usuario
+      // 2. Get encrypted key for user
       const { data: keyData, error: keyError } = await supabase
         .from('encrypted_file_keys')
         .select('*')
@@ -216,13 +176,13 @@ export class FileEncryptionService {
         throw new Error('No tienes acceso a este archivo');
       }
 
-      // 3. Obtener clave pública del autor
+      // 3. Get author's public key
       const authorPublicKey = await getPublicKey(fileMetadata.author_id);
       if (!authorPublicKey) {
         throw new Error('No se pudo obtener la clave del autor');
       }
 
-      // 4. Descifrar clave simétrica
+      // 4. Decrypt symmetric key
       const symmetricKey = await this.cryptoService.decryptSymmetricKey(
         {
           ciphertext: keyData.encrypted_key,
@@ -232,7 +192,7 @@ export class FileEncryptionService {
         getPrivateKey()
       );
 
-      // 5. Descargar archivo cifrado
+      // 5. Download encrypted file
       const { data: encryptedFile, error: downloadError } = await supabase.storage
         .from('encrypted_media')
         .download(`encrypted_files/${fileId}`);
@@ -241,39 +201,15 @@ export class FileEncryptionService {
         throw new Error('Error descargando archivo');
       }
 
-      // 6. Separar header y chunks
+      // 6. Decrypt file
       const fileBuffer = new Uint8Array(await encryptedFile.arrayBuffer());
-      const header = this.base64ToUint8Array(fileMetadata.header);
-      const encryptedData = fileBuffer.slice(header.length);
-
-      // 7. Inicializar descifrado de stream
-      const state = await this.cryptoService.initStreamDecryption(header, symmetricKey);
-
-      // 8. Descifrar chunks
-      const decryptedChunks: Uint8Array[] = [];
-      let offset = 0;
-
-      for (let i = 0; i < fileMetadata.chunks; i++) {
-        // En un stream cipher, cada chunk puede tener diferente tamaño debido al overhead
-        // Necesitamos determinar el tamaño del chunk cifrado
-        const chunkSize = this.getEncryptedChunkSize(encryptedData, offset);
-        const encryptedChunk = encryptedData.slice(offset, offset + chunkSize);
-        
-        const { message } = await this.cryptoService.decryptChunk(state, encryptedChunk);
-        decryptedChunks.push(message);
-        
-        offset += chunkSize;
-      }
-
-      // 9. Combinar chunks descifrados
-      const totalSize = decryptedChunks.reduce((sum, chunk) => sum + chunk.length, 0);
-      const decryptedFile = new Uint8Array(totalSize);
-      let writeOffset = 0;
-
-      for (const chunk of decryptedChunks) {
-        decryptedFile.set(chunk, writeOffset);
-        writeOffset += chunk.length;
-      }
+      const fileNonce = this.base64ToUint8Array(fileMetadata.file_nonce);
+      
+      const decryptedFile = await this.cryptoService.decryptFile(
+        fileBuffer,
+        fileNonce,
+        symmetricKey
+      );
 
       return {
         data: decryptedFile,
@@ -286,188 +222,7 @@ export class FileEncryptionService {
     }
   }
 
-  /**
-   * Obtiene la lista de archivos cifrados accesibles por un usuario
-   */
-  async getAccessibleFiles(userId: string): Promise<Array<{
-    fileId: string;
-    fileName: string;
-    mimeType: string;
-    size: number;
-    authorId: string;
-    createdAt: string;
-  }>> {
-    try {
-      const { data, error } = await supabase
-        .from('encrypted_file_keys')
-        .select(`
-          file_id,
-          encrypted_files (
-            original_name,
-            mime_type,
-            size,
-            author_id,
-            created_at
-          )
-        `)
-        .eq('user_id', userId);
-
-      if (error) {
-        throw new Error(`Error obteniendo archivos: ${error.message}`);
-      }
-
-      // Manejo seguro de tipos sin type guards complejos
-      if (!data || !Array.isArray(data)) {
-        return [];
-      }
-
-      return data
-        .filter((item: any) => {
-          // Verificación básica de estructura
-          return item && 
-                 item.file_id && 
-                 item.encrypted_files && 
-                 item.encrypted_files.original_name;
-        })
-        .map((item: any) => {
-          // Manejar tanto objeto único como array
-          const fileData = Array.isArray(item.encrypted_files) 
-            ? item.encrypted_files[0] 
-            : item.encrypted_files;
-            
-          return {
-            fileId: item.file_id,
-            fileName: fileData.original_name,
-            mimeType: fileData.mime_type,
-            size: fileData.size,
-            authorId: fileData.author_id,
-            createdAt: fileData.created_at
-          };
-        });
-    } catch (error) {
-      console.error('Error obteniendo archivos accesibles:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Revoca el acceso de un usuario a un archivo
-   */
-  async revokeFileAccess(fileId: string, userId: string, authorId: string): Promise<boolean> {
-    try {
-      // Verificar que quien revoca es el autor
-      const { data: fileData } = await supabase
-        .from('encrypted_files')
-        .select('author_id')
-        .eq('file_id', fileId)
-        .single();
-
-      if (!fileData || fileData.author_id !== authorId) {
-        throw new Error('No tienes permisos para revocar acceso a este archivo');
-      }
-
-      const { error } = await supabase
-        .from('encrypted_file_keys')
-        .delete()
-        .eq('file_id', fileId)
-        .eq('user_id', userId);
-
-      if (error) {
-        throw new Error(`Error revocando acceso: ${error.message}`);
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error revocando acceso:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Concede acceso a un archivo a nuevos usuarios
-   */
-  async grantFileAccess(
-    fileId: string,
-    newUserIds: string[],
-    authorId: string,
-    getPublicKey: (userId: string) => Promise<string | null>,
-    getPrivateKey: () => string
-  ): Promise<boolean> {
-    try {
-      // Verificar que quien concede es el autor
-      const { data: fileData } = await supabase
-        .from('encrypted_files')
-        .select('author_id')
-        .eq('file_id', fileId)
-        .single();
-
-      if (!fileData || fileData.author_id !== authorId) {
-        throw new Error('No tienes permisos para conceder acceso a este archivo');
-      }
-
-      // Obtener la clave cifrada del autor
-      const { data: authorKeyData } = await supabase
-        .from('encrypted_file_keys')
-        .select('*')
-        .eq('file_id', fileId)
-        .eq('user_id', authorId)
-        .single();
-
-      if (!authorKeyData) {
-        throw new Error('No se pudo obtener la clave del archivo');
-      }
-
-      // Descifrar la clave simétrica
-      const authorPublicKey = await getPublicKey(authorId);
-      if (!authorPublicKey) {
-        throw new Error('No se pudo obtener la clave pública del autor');
-      }
-
-      const symmetricKey = await this.cryptoService.decryptSymmetricKey(
-        {
-          ciphertext: authorKeyData.encrypted_key,
-          nonce: authorKeyData.nonce
-        },
-        authorPublicKey,
-        getPrivateKey()
-      );
-
-      // Cifrar la clave para cada nuevo usuario
-      const privateKey = getPrivateKey();
-      for (const userId of newUserIds) {
-        const publicKey = await getPublicKey(userId);
-        if (publicKey) {
-          const encryptedKeyData = await this.cryptoService.encryptSymmetricKey(
-            symmetricKey,
-            publicKey,
-            privateKey
-          );
-
-          const { error } = await supabase
-            .from('encrypted_file_keys')
-            .insert({
-              file_id: fileId,
-              user_id: userId,
-              encrypted_key: encryptedKeyData.ciphertext,
-              nonce: encryptedKeyData.nonce,
-              created_at: new Date().toISOString()
-            });
-
-          if (error) {
-            console.error(`Error concediendo acceso a usuario ${userId}:`, error);
-          }
-        }
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error concediendo acceso:', error);
-      return false;
-    }
-  }
-
-  // Métodos auxiliares privados
-
+  // Helper methods
   private base64ToUint8Array(base64: string): Uint8Array {
     const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);
@@ -483,31 +238,5 @@ export class FileEncryptionService {
       binaryString += String.fromCharCode(uint8Array[i]);
     }
     return btoa(binaryString);
-  }
-
-  private combineEncryptedData(header: Uint8Array, chunks: Uint8Array[]): Uint8Array {
-    const totalSize = header.length + chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    const combined = new Uint8Array(totalSize);
-    
-    combined.set(header, 0);
-    let offset = header.length;
-    
-    for (const chunk of chunks) {
-      combined.set(chunk, offset);
-      offset += chunk.length;
-    }
-    
-    return combined;
-  }
-
-  private getEncryptedChunkSize(data: Uint8Array, offset: number): number {
-    // Para XChaCha20-Poly1305, cada chunk tiene 17 bytes de overhead (16 para MAC + 1 para tag)
-    // Necesitamos leer el tamaño del chunk desde los metadatos o usar un tamaño fijo
-    // Por simplicidad, asumimos chunks de tamaño fijo + overhead
-    const OVERHEAD = 17;
-    const remainingData = data.length - offset;
-    const expectedChunkSize = this.CHUNK_SIZE + OVERHEAD;
-    
-    return Math.min(expectedChunkSize, remainingData);
   }
 }

@@ -1,48 +1,60 @@
 // components/add-technique/steps/TechniqueBasicsStepEncrypted.tsx
-"use client"
+"use client";
 
-import { useState, useEffect, useMemo, useRef } from "react"
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Dimensions } from "react-native"
-import { styled } from "nativewind"
-import { useTranslation } from "react-i18next"
-import { Feather, MaterialCommunityIcons, FontAwesome6, MaterialIcons } from "@expo/vector-icons"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
-import DifficultySlider from "../../add-magic/ui/DifficultySlider"
-import CategoryModal from "../../add-magic/ui/CategoryModal"
-import { supabase } from "../../../lib/supabase"
+import { useState, useEffect, useMemo, useRef } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Dimensions,
+} from "react-native";
+import { styled } from "nativewind";
+import { useTranslation } from "react-i18next";
+import {
+  Feather,
+  MaterialCommunityIcons,
+  FontAwesome6,
+  MaterialIcons,
+} from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import DifficultySlider from "../../add-magic/ui/DifficultySlider";
+import CategoryModal from "../../add-magic/ui/CategoryModal";
+import { supabase } from "../../../lib/supabase";
 import {
   getUserCategories,
   getPredefinedCategories,
   type Category,
-} from "../../../utils/categoryService"
-import { type EncryptedTechnique } from "../../../types/encryptedTechnique"
+} from "../../../utils/categoryService";
+import { type EncryptedTechnique } from "../../../types/encryptedTechnique";
 
-const StyledView = styled(View)
-const StyledText = styled(Text)
-const StyledTextInput = styled(TextInput)
-const StyledTouchableOpacity = styled(TouchableOpacity)
-const StyledScrollView = styled(ScrollView)
+const StyledView = styled(View);
+const StyledText = styled(Text);
+const StyledTextInput = styled(TextInput);
+const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledScrollView = styled(ScrollView);
 
 interface StepProps {
-  techniqueData: EncryptedTechnique
-  updateTechniqueData: (data: Partial<EncryptedTechnique>) => void
-  onNext?: () => void
-  onCancel?: () => void
-  currentStep?: number
-  totalSteps?: number
-  isSubmitting?: boolean
-  isNextButtonDisabled?: boolean
-  isLastStep?: boolean
+  techniqueData: EncryptedTechnique;
+  updateTechniqueData: (data: Partial<EncryptedTechnique>) => void;
+  onNext?: () => void;
+  onCancel?: () => void;
+  currentStep?: number;
+  totalSteps?: number;
+  isSubmitting?: boolean;
+  isNextButtonDisabled?: boolean;
+  isLastStep?: boolean;
 }
 
 interface Tag {
-  id: string
-  name: string
-  usage_count?: number
+  id: string;
+  name: string;
+  usage_count?: number;
 }
 
-const { width } = Dimensions.get('window')
+const { width } = Dimensions.get("window");
 
 export default function TechniqueBasicsStepEncrypted({
   techniqueData,
@@ -55,135 +67,146 @@ export default function TechniqueBasicsStepEncrypted({
   isNextButtonDisabled = false,
   isLastStep = false,
 }: StepProps) {
-  const { t } = useTranslation()
-  const insets = useSafeAreaInsets()
-  const [userCategories, setUserCategories] = useState<Category[]>([])
-  const [predefinedCategories, setPredefinedCategories] = useState<Category[]>([])
-  const [tags, setTags] = useState<Tag[]>([])
-  const [filteredTags, setFilteredTags] = useState<Tag[]>([])
-  const [newTag, setNewTag] = useState("")
-  const [isCategoryModalVisible, setCategoryModalVisible] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [selectedCategoryName, setSelectedCategoryName] = useState<string>("")
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const [userCategories, setUserCategories] = useState<Category[]>([]);
+  const [predefinedCategories, setPredefinedCategories] = useState<Category[]>(
+    []
+  );
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [filteredTags, setFilteredTags] = useState<Tag[]>([]);
+  const [newTag, setNewTag] = useState("");
+  const [isCategoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [selectedCategoryName, setSelectedCategoryName] = useState<string>("");
 
   // Ref para el carrusel de tags
-  const tagsScrollRef = useRef<ScrollView>(null)
-  const selectedTagsScrollRef = useRef<ScrollView>(null)
+  const tagsScrollRef = useRef<ScrollView>(null);
+  const selectedTagsScrollRef = useRef<ScrollView>(null);
 
   // Obtener fecha actual formateada
   const getCurrentDate = () => {
-    const now = new Date()
-    const day = now.getDate().toString().padStart(2, '0')
-    const month = (now.getMonth() + 1).toString().padStart(2, '0')
-    const year = now.getFullYear()
-    return `${day}/${month}/${year}`
-  }
+    const now = new Date();
+    const day = now.getDate().toString().padStart(2, "0");
+    const month = (now.getMonth() + 1).toString().padStart(2, "0");
+    const year = now.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
 
   // Validación en tiempo real del nombre
   const nameValidation = useMemo(() => {
     if (!techniqueData.name) {
-      return { isValid: false, message: '' }
+      return { isValid: false, message: "" };
     }
-    
-    const trimmedName = techniqueData.name.trim()
-    
+
+    const trimmedName = techniqueData.name.trim();
+
     if (trimmedName.length === 0) {
-      return { 
-        isValid: false, 
-        message: t("validation.nameRequired") 
-      }
+      return {
+        isValid: false,
+        message: t("validation.nameRequired"),
+      };
     }
-    
+
     if (trimmedName.length < 3) {
-      return { 
-        isValid: false, 
-        message: t("validation.nameTooShort") 
-      }
+      return {
+        isValid: false,
+        message: t("validation.nameTooShort"),
+      };
     }
-    
+
     if (trimmedName.length > 100) {
-      return { 
-        isValid: false, 
-        message: t("validation.nameTooLong") 
-      }
+      return {
+        isValid: false,
+        message: t("validation.nameTooLong"),
+      };
     }
-    
-    return { isValid: true, message: '' }
-  }, [techniqueData.name, t])
+
+    return { isValid: true, message: "" };
+  }, [techniqueData.name, t]);
 
   // Validación de la descripción
   const descriptionValidation = useMemo(() => {
     if (!techniqueData.description) {
-      return { isValid: false, message: '' }
+      return { isValid: false, message: "" };
     }
-    
-    const trimmedDescription = techniqueData.description.trim()
-    
+
+    const trimmedDescription = techniqueData.description.trim();
+
     if (trimmedDescription.length === 0) {
-      return { 
-        isValid: false, 
-        message: t("validation.descriptionRequired") 
-      }
+      return {
+        isValid: false,
+        message: t("validation.descriptionRequired"),
+      };
     }
-    
+
     if (trimmedDescription.length < 10) {
-      return { 
-        isValid: false, 
-        message: t("validation.descriptionTooShort") 
-      }
+      return {
+        isValid: false,
+        message: t("validation.descriptionTooShort"),
+      };
     }
-    
-    return { isValid: true, message: '' }
-  }, [techniqueData.description, t])
+
+    return { isValid: true, message: "" };
+  }, [techniqueData.description, t]);
 
   // Validación de categoría
   const categoryValidation = useMemo(() => {
     if (!techniqueData.selectedCategoryId) {
-      return { 
-        isValid: false, 
-        message: t("validation.categoryRequired") 
-      }
+      return {
+        isValid: false,
+        message: t("validation.categoryRequired"),
+      };
     }
-    return { isValid: true, message: '' }
-  }, [techniqueData.selectedCategoryId, t])
+    return { isValid: true, message: "" };
+  }, [techniqueData.selectedCategoryId, t]);
 
   // Validación general para el botón Next
-  const isFormValid = nameValidation.isValid && descriptionValidation.isValid && categoryValidation.isValid
+  const isFormValid =
+    nameValidation.isValid &&
+    descriptionValidation.isValid &&
+    categoryValidation.isValid;
 
   // Filtro para las tags basado en el texto de búsqueda
   useEffect(() => {
-    if (newTag.trim() === '') {
+    if (newTag.trim() === "") {
       setFilteredTags(
         tags
-          .filter(tag => !techniqueData.tags.includes(tag.id))
+          .filter((tag) => !techniqueData.tags.includes(tag.id))
           .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
       );
     } else {
       const filtered = tags
         .filter(
-          tag => 
-            !techniqueData.tags.includes(tag.id) && 
+          (tag) =>
+            !techniqueData.tags.includes(tag.id) &&
             tag.name.toLowerCase().includes(newTag.toLowerCase())
         )
         .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0));
-      
+
       setFilteredTags(filtered);
     }
   }, [newTag, tags, techniqueData.tags]);
 
   // Componente para el carrusel de tags
-  const TagCarousel = ({ tagsArray, isSelected = false }: { tagsArray: Tag[], isSelected?: boolean }) => {
-    if (tagsArray.length === 0) return null
+  const TagCarousel = ({
+    tagsArray,
+    isSelected = false,
+  }: {
+    tagsArray: Tag[];
+    isSelected?: boolean;
+  }) => {
+    if (tagsArray.length === 0) return null;
 
     return (
       <ScrollView
         ref={isSelected ? selectedTagsScrollRef : tagsScrollRef}
         horizontal={true}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ 
+        contentContainerStyle={{
           paddingHorizontal: 16,
-          alignItems: 'center',
-          height: 44
+          alignItems: "center",
+          height: 44,
         }}
         style={{ flex: 1 }}
         scrollEventThrottle={16}
@@ -199,76 +222,82 @@ export default function TechniqueBasicsStepEncrypted({
             key={tag.id}
             onPress={() => toggleTag(tag.id)}
             style={{
-              backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.8)' : 'rgba(255, 255, 255, 0.1)',
+              backgroundColor: isSelected
+                ? "rgba(16, 185, 129, 0.8)"
+                : "rgba(255, 255, 255, 0.1)",
               borderWidth: 1,
-              borderColor: isSelected ? 'rgba(16, 185, 129, 0.9)' : 'rgba(255, 255, 255, 0.2)',
+              borderColor: isSelected
+                ? "rgba(16, 185, 129, 0.9)"
+                : "rgba(255, 255, 255, 0.2)",
               borderRadius: 20,
               paddingHorizontal: 16,
               paddingVertical: 8,
               marginRight: index === tagsArray.length - 1 ? 16 : 12,
               height: 36,
-              justifyContent: 'center',
-              alignItems: 'center',
-              flexDirection: 'row'
+              justifyContent: "center",
+              alignItems: "center",
+              flexDirection: "row",
             }}
             activeOpacity={0.7}
           >
-            <Text style={{ 
-              color: isSelected ? 'white' : 'rgba(255, 255, 255, 0.7)', 
-              fontSize: 14,
-              textAlign: 'center'
-            }}>
+            <Text
+              style={{
+                color: isSelected ? "white" : "rgba(255, 255, 255, 0.7)",
+                fontSize: 14,
+                textAlign: "center",
+              }}
+            >
               {tag.name}
             </Text>
             {isSelected && (
-              <Feather 
-                name="x" 
-                size={14} 
-                color="white" 
+              <Feather
+                name="x"
+                size={14}
+                color="white"
                 style={{ marginLeft: 4 }}
               />
             )}
           </TouchableOpacity>
         ))}
       </ScrollView>
-    )
-  }
+    );
+  };
 
   // Cargar las categorías y tags
   useEffect(() => {
-    fetchData()
-  }, [])
+    fetchData();
+  }, []);
 
   // Cuando cambie la categoría seleccionada, actualizar el nombre
   useEffect(() => {
     if (techniqueData.selectedCategoryId) {
-      fetchCategoryName(techniqueData.selectedCategoryId)
+      fetchCategoryName(techniqueData.selectedCategoryId);
     } else {
-      setSelectedCategoryName("")
+      setSelectedCategoryName("");
     }
-  }, [techniqueData.selectedCategoryId])
+  }, [techniqueData.selectedCategoryId]);
 
   // Función para cargar los datos iniciales
   const fetchData = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await supabase.auth.getUser();
 
       if (user) {
-        const userCats = await getUserCategories(user.id)
-        setUserCategories(userCats)
+        const userCats = await getUserCategories(user.id);
+        setUserCategories(userCats);
 
-        const predefinedCats = await getPredefinedCategories()
-        setPredefinedCategories(predefinedCats)
+        const predefinedCats = await getPredefinedCategories();
+        setPredefinedCategories(predefinedCats);
 
         if (techniqueData.selectedCategoryId) {
           const category = [...userCats, ...predefinedCats].find(
-            cat => cat.id === techniqueData.selectedCategoryId
-          )
+            (cat) => cat.id === techniqueData.selectedCategoryId
+          );
           if (category) {
-            setSelectedCategoryName(category.name)
+            setSelectedCategoryName(category.name);
           }
         }
       }
@@ -277,141 +306,151 @@ export default function TechniqueBasicsStepEncrypted({
       const { data: tagData, error: tagError } = await supabase
         .from("predefined_tags")
         .select("id, name, usage_count")
-        .order('usage_count', { ascending: false })
+        .order("usage_count", { ascending: false });
 
       if (tagData && !tagError) {
         setTags(tagData);
         setFilteredTags(
           tagData
-            .filter(tag => !techniqueData.tags.includes(tag.id))
+            .filter((tag) => !techniqueData.tags.includes(tag.id))
             .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
         );
       }
     } catch (error) {
-      console.error("Error fetching data:", error)
+      console.error("Error fetching data:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Función para obtener el nombre de una categoría por su ID
   const fetchCategoryName = async (categoryId: string) => {
     try {
       let category = [...userCategories, ...predefinedCategories].find(
-        cat => cat.id === categoryId
-      )
+        (cat) => cat.id === categoryId
+      );
 
       if (category) {
-        setSelectedCategoryName(category.name)
-        return
+        setSelectedCategoryName(category.name);
+        return;
       }
 
       const { data: userCatData, error: userCatError } = await supabase
         .from("user_categories")
         .select("name")
         .eq("id", categoryId)
-        .single()
+        .single();
 
       if (userCatData && !userCatError) {
-        setSelectedCategoryName(userCatData.name)
-        return
+        setSelectedCategoryName(userCatData.name);
+        return;
       }
 
-      const { data: predefinedCatData, error: predefinedCatError } = await supabase
-        .from("predefined_categories")
-        .select("name")
-        .eq("id", categoryId)
-        .single()
+      const { data: predefinedCatData, error: predefinedCatError } =
+        await supabase
+          .from("predefined_categories")
+          .select("name")
+          .eq("id", categoryId)
+          .single();
 
       if (predefinedCatData && !predefinedCatError) {
-        setSelectedCategoryName(predefinedCatData.name)
-        return
+        setSelectedCategoryName(predefinedCatData.name);
+        return;
       }
 
-      setSelectedCategoryName(t("forms.unknownCategory", "Categoría desconocida"))
+      setSelectedCategoryName(
+        t("forms.unknownCategory", "Categoría desconocida")
+      );
     } catch (error) {
-      console.error("Error fetching category name:", error)
-      setSelectedCategoryName(t("forms.unknownCategory", "Categoría desconocida"))
+      console.error("Error fetching category name:", error);
+      setSelectedCategoryName(
+        t("forms.unknownCategory", "Categoría desconocida")
+      );
     }
-  }
+  };
 
   // Handlers
   const handleNameChange = (text: string) => {
-    updateTechniqueData({ name: text })
-  }
+    updateTechniqueData({ name: text });
+  };
 
   const handleDescriptionChange = (text: string) => {
-    updateTechniqueData({ description: text })
-  }
+    updateTechniqueData({ description: text });
+  };
 
   const selectCategory = (categoryId: string, categoryName: string) => {
     updateTechniqueData({
       selectedCategoryId: categoryId,
       categories: techniqueData.categories,
     });
-    
+
     setSelectedCategoryName(categoryName);
-  }
+  };
 
   const toggleTag = (tagId: string) => {
     const updatedTags = techniqueData.tags.includes(tagId)
       ? techniqueData.tags.filter((id) => id !== tagId)
-      : [...techniqueData.tags, tagId]
+      : [...techniqueData.tags, tagId];
 
-    updateTechniqueData({ tags: updatedTags })
-  }
+    updateTechniqueData({ tags: updatedTags });
+  };
 
   const addNewTag = async () => {
-    if (!newTag.trim()) return
+    if (!newTag.trim()) return;
 
     try {
-      const existingTag = tags.find((tag) => tag.name.toLowerCase() === newTag.toLowerCase())
+      const existingTag = tags.find(
+        (tag) => tag.name.toLowerCase() === newTag.toLowerCase()
+      );
 
       if (existingTag) {
         if (!techniqueData.tags.includes(existingTag.id)) {
-          toggleTag(existingTag.id)
+          toggleTag(existingTag.id);
         }
       } else {
         const { data, error } = await supabase
           .from("predefined_tags")
-          .insert({ 
+          .insert({
             name: newTag.trim(),
-            usage_count: 0
+            usage_count: 0,
           })
           .select("id, name, usage_count")
-          .single()
+          .single();
 
         if (data && !error) {
-          setTags(prev => [...prev, data])
-          updateTechniqueData({ tags: [...techniqueData.tags, data.id] })
+          setTags((prev) => [...prev, data]);
+          updateTechniqueData({ tags: [...techniqueData.tags, data.id] });
         } else {
-          console.error("Error creating tag:", error)
+          console.error("Error creating tag:", error);
         }
       }
 
-      setNewTag("")
+      setNewTag("");
     } catch (error) {
-      console.error("Error adding tag:", error)
+      console.error("Error adding tag:", error);
     }
-  }
+  };
 
   const handleDifficultyChange = (value: number) => {
-    updateTechniqueData({ difficulty: value })
-  }
+    updateTechniqueData({ difficulty: value });
+  };
 
   const getSelectedCategoryName = () => {
     if (!techniqueData.selectedCategoryId) {
-      return t("forms.categoryPlaceholder", "Seleccionar categoría")
+      return t("forms.categoryPlaceholder", "Seleccionar categoría");
     }
-    
-    return selectedCategoryName || t("forms.loadingCategory", "Cargando categoría...")
-  }
+
+    return (
+      selectedCategoryName ||
+      t("forms.loadingCategory", "Cargando categoría...")
+    );
+  };
 
   const getSelectedTags = () => {
     return techniqueData.tags
-      .map(tagId => tags.find(tag => tag.id === tagId))
-      .filter(tag => tag !== undefined) as Tag[];
-  }
+      .map((tagId) => tags.find((tag) => tag.id === tagId))
+      .filter((tag) => tag !== undefined) as Tag[];
+  };
 
   return (
     <StyledView className="flex-1">
@@ -432,7 +471,7 @@ export default function TechniqueBasicsStepEncrypted({
         <StyledTouchableOpacity className="p-2" onPress={onCancel}>
           <Feather name="x" size={24} color="white" />
         </StyledTouchableOpacity>
-        
+
         <StyledView className="flex-1 items-center">
           <StyledText className="text-white text-lg font-semibold">
             {t("addTechnique", "Añadir Técnica")}
@@ -441,7 +480,7 @@ export default function TechniqueBasicsStepEncrypted({
             {getCurrentDate()}
           </StyledText>
         </StyledView>
-        
+
         <StyledTouchableOpacity className="p-2">
           <MaterialIcons name="security" size={24} color="#10b981" />
         </StyledTouchableOpacity>
@@ -449,7 +488,7 @@ export default function TechniqueBasicsStepEncrypted({
 
       <StyledScrollView className="flex-1 px-6 mt-6">
         {/* Aviso de cifrado */}
-        <StyledView className="bg-emerald-500/20 rounded-lg p-4 mb-6 border border-emerald-500/30">
+        {/* <StyledView className="bg-emerald-500/20 rounded-lg p-4 mb-6 border border-emerald-500/30">
           <StyledView className="flex-row items-center mb-2">
             <MaterialIcons name="security" size={20} color="#10b981" />
             <StyledText className="text-emerald-200 font-semibold ml-3">
@@ -457,9 +496,12 @@ export default function TechniqueBasicsStepEncrypted({
             </StyledText>
           </StyledView>
           <StyledText className="text-emerald-200/80 text-sm">
-            {t("security.techniqueEncryptionNotice", "Toda la información de esta técnica será cifrada de extremo a extremo para proteger tu conocimiento.")}
+            {t(
+              "security.techniqueEncryptionNotice",
+              "Toda la información de esta técnica será cifrada de extremo a extremo para proteger tu conocimiento."
+            )}
           </StyledText>
-        </StyledView>
+        </StyledView> */}
 
         <StyledText className="text-white/60 text-lg font-semibold mb-6">
           {t("clasify", "Clasificar")}
@@ -496,13 +538,17 @@ export default function TechniqueBasicsStepEncrypted({
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
               <Feather name="folder" size={24} color="white" />
             </StyledView>
-            <StyledTouchableOpacity 
+            <StyledTouchableOpacity
               className="flex-1 flex-row items-center justify-between text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]"
               onPress={() => setCategoryModalVisible(true)}
             >
-              <StyledText className={`text-base ${
-                techniqueData.selectedCategoryId ? 'text-white' : 'text-white/50'
-              }`}>
+              <StyledText
+                className={`text-base ${
+                  techniqueData.selectedCategoryId
+                    ? "text-white"
+                    : "text-white/50"
+                }`}
+              >
                 {getSelectedCategoryName()}
               </StyledText>
               <Feather name="chevron-down" size={20} color="white" />
@@ -528,20 +574,20 @@ export default function TechniqueBasicsStepEncrypted({
                 returnKeyType="done"
                 onSubmitEditing={addNewTag}
               />
-              <StyledTouchableOpacity 
+              <StyledTouchableOpacity
                 onPress={addNewTag}
                 className="ml-2"
                 disabled={!newTag.trim()}
               >
-                <Feather 
-                  name="plus" 
-                  size={20} 
-                  color={newTag.trim() ? "white" : "rgba(255, 255, 255, 0.3)"} 
+                <Feather
+                  name="plus"
+                  size={20}
+                  color={newTag.trim() ? "white" : "rgba(255, 255, 255, 0.3)"}
                 />
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
-          
+
           {/* Selected Tags Carousel */}
           {techniqueData.tags.length > 0 && (
             <StyledView className="ml-11 mt-3" style={{ height: 44 }}>
@@ -572,7 +618,10 @@ export default function TechniqueBasicsStepEncrypted({
             <StyledView className="flex-1">
               <StyledTextInput
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[120px]"
-                placeholder={t("techniqueDescription", "Describe la técnica en detalle*")}
+                placeholder={t(
+                  "techniqueDescription",
+                  "Describe la técnica en detalle*"
+                )}
                 placeholderTextColor="rgba(255, 255, 255, 0.5)"
                 value={techniqueData.description}
                 onChangeText={handleDescriptionChange}
@@ -593,7 +642,11 @@ export default function TechniqueBasicsStepEncrypted({
         <StyledView className="mb-6">
           <StyledView className="flex-row mb-3">
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <MaterialCommunityIcons name="signal-cellular-3" size={24} color="white" />
+              <MaterialCommunityIcons
+                name="signal-cellular-3"
+                size={24}
+                color="white"
+              />
             </StyledView>
 
             <StyledView className="flex-1">
@@ -628,23 +681,27 @@ export default function TechniqueBasicsStepEncrypted({
       </StyledScrollView>
 
       {/* Bottom Section */}
-      <StyledView className="px-6" style={{ paddingBottom: insets.bottom + 20 }}>
+      <StyledView
+        className="px-6"
+        style={{ paddingBottom: insets.bottom + 20 }}
+      >
         {/* Step indicator */}
         <StyledText className="text-white/60 text-center text-sm mb-6">
-          {t("navigation.stepIndicator", { current: currentStep, total: totalSteps })}
+          {t("navigation.stepIndicator", {
+            current: currentStep,
+            total: totalSteps,
+          })}
         </StyledText>
 
         {/* Next Button */}
         <StyledTouchableOpacity
           className={`w-full h-12 rounded-xl items-center justify-center flex-row ${
-            isFormValid && !isSubmitting
-              ? 'bg-emerald-700'
-              : 'bg-white/10'
+            isFormValid && !isSubmitting ? "bg-emerald-700" : "bg-white/10"
           }`}
           disabled={!isFormValid || isSubmitting}
           onPress={() => {
             if (isFormValid && onNext) {
-              onNext()
+              onNext();
             }
           }}
         >
@@ -658,7 +715,9 @@ export default function TechniqueBasicsStepEncrypted({
           ) : (
             <>
               <StyledText className="text-white font-semibold text-base mr-2">
-                {isLastStep ? t("createTechnique", "Crear Técnica") : t("actions.next", "Siguiente")}
+                {isLastStep
+                  ? t("createTechnique", "Crear Técnica")
+                  : t("actions.next", "Siguiente")}
               </StyledText>
               {isLastStep ? (
                 <MaterialIcons name="security" size={20} color="white" />
@@ -679,5 +738,5 @@ export default function TechniqueBasicsStepEncrypted({
         trickTitle={techniqueData.name}
       />
     </StyledView>
-  )
+  );
 }

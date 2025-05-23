@@ -1,9 +1,8 @@
-// utils/cryptoService.ts
+// utils/cryptoService.ts - Fixed version
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import nacl from 'tweetnacl';
 import { encodeBase64, decodeBase64, encodeUTF8, decodeUTF8 } from 'tweetnacl-util';
-import _sodium from 'libsodium-wrappers';
 
 export interface EncryptedData {
   ciphertext: string;
@@ -18,11 +17,9 @@ export interface KeyPair {
 
 export class CryptoService {
   private static instance: CryptoService;
-  private sodiumReady = false;
-  private sodium: any;
 
   private constructor() {
-    this.initializeSodium();
+    // Remove libsodium initialization - use TweetNaCl only
   }
 
   static getInstance(): CryptoService {
@@ -30,16 +27,6 @@ export class CryptoService {
       CryptoService.instance = new CryptoService();
     }
     return CryptoService.instance;
-  }
-
-  private async initializeSodium(): Promise<void> {
-    try {
-      await _sodium.ready;
-      this.sodium = _sodium;
-      this.sodiumReady = true;
-    } catch (error) {
-      console.error('Error inicializando libsodium:', error);
-    }
   }
 
   /**
@@ -111,13 +98,10 @@ export class CryptoService {
   }
 
   /**
-   * Genera una clave simétrica para cifrado de archivos grandes
+   * Genera una clave simétrica usando TweetNaCl (32 bytes)
    */
   async generateSymmetricKey(): Promise<Uint8Array> {
-    if (!this.sodiumReady) {
-      await this.initializeSodium();
-    }
-    return this.sodium.crypto_secretstream_xchacha20poly1305_keygen();
+    return nacl.randomBytes(32); // Use TweetNaCl instead of libsodium
   }
 
   /**
@@ -163,63 +147,41 @@ export class CryptoService {
   }
 
   /**
-   * Inicializa el cifrado de stream para archivos grandes
+   * Cifrado simple para archivos usando TweetNaCl secretbox
    */
-  async initStreamEncryption(key: Uint8Array): Promise<{
-    state: any;
-    header: Uint8Array;
+  async encryptFile(data: Uint8Array, key: Uint8Array): Promise<{
+    encrypted: Uint8Array;
+    nonce: Uint8Array;
   }> {
-    if (!this.sodiumReady) {
-      await this.initializeSodium();
+    const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
+    const encrypted = nacl.secretbox(data, nonce, key);
+    
+    if (!encrypted) {
+      throw new Error('Error al cifrar archivo');
     }
     
-    return this.sodium.crypto_secretstream_xchacha20poly1305_init_push(key);
+    return { encrypted, nonce };
   }
 
   /**
-   * Cifra un chunk de datos en stream
+   * Descifrado simple para archivos
    */
-  async encryptChunk(
-    state: any,
-    chunk: Uint8Array,
-    isLastChunk: boolean = false
+  async decryptFile(
+    encrypted: Uint8Array,
+    nonce: Uint8Array,
+    key: Uint8Array
   ): Promise<Uint8Array> {
-    const tag = isLastChunk
-      ? this.sodium.crypto_secretstream_xchacha20poly1305_TAG_FINAL
-      : this.sodium.crypto_secretstream_xchacha20poly1305_TAG_MESSAGE;
-
-    return this.sodium.crypto_secretstream_xchacha20poly1305_push(
-      state,
-      chunk,
-      null,
-      tag
-    );
-  }
-
-  /**
-   * Inicializa el descifrado de stream
-   */
-  async initStreamDecryption(header: Uint8Array, key: Uint8Array): Promise<any> {
-    if (!this.sodiumReady) {
-      await this.initializeSodium();
+    const decrypted = nacl.secretbox.open(encrypted, nonce, key);
+    
+    if (!decrypted) {
+      throw new Error('Error al descifrar archivo');
     }
     
-    return this.sodium.crypto_secretstream_xchacha20poly1305_init_pull(header, key);
-  }
-
-  /**
-   * Descifra un chunk de datos en stream
-   */
-  async decryptChunk(state: any, encryptedChunk: Uint8Array): Promise<{
-    message: Uint8Array;
-    tag: number;
-  }> {
-    return this.sodium.crypto_secretstream_xchacha20poly1305_pull(state, encryptedChunk, null);
+    return decrypted;
   }
 
   /**
    * Cifrado simple para datos no sensibles usando TweetNaCl SecretBox
-   * Esta implementación es más confiable que crypto-es
    */
   async encryptForSelf(plaintext: string, userPrivateKey: string): Promise<string> {
     try {
@@ -242,7 +204,7 @@ export class CryptoService {
       return JSON.stringify({
         ciphertext: encodeBase64(encrypted),
         nonce: encodeBase64(nonce),
-        version: 'nacl_secretbox_v1' // Para compatibilidad futura
+        version: 'nacl_secretbox_v1'
       });
     } catch (error) {
       console.error('Error en encryptForSelf:', error);

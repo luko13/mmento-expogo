@@ -1,4 +1,4 @@
-// components/add-technique/AddTechniqueWizardEncrypted.tsx
+// components/add-technique/AddTechniqueWizard.tsx - Simplified version
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -26,19 +26,18 @@ export default function AddTechniqueWizardEncrypted({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showEncryptionSetup, setShowEncryptionSetup] = useState(false)
   
-  // Hook de cifrado
+  // Encryption hook
   const {
     isReady: encryptionReady,
     keyPair,
     encryptForSelf,
-    decryptForSelf,
     getPublicKey,
+    generateKeys,
     error: encryptionError
   } = useEncryption()
 
   const fileEncryptionService = new FileEncryptionService()
 
-  // Estado de la técnica con cifrado habilitado por defecto
   const [techniqueData, setTechniqueData] = useState<EncryptedTechnique>({
     name: "",
     description: "",
@@ -54,162 +53,55 @@ export default function AddTechniqueWizardEncrypted({
     is_public: false,
     status: "draft",
     price: null,
-    isEncryptionEnabled: true, // SIEMPRE cifrado para técnicas
+    isEncryptionEnabled: true,
     encryptedFields: {},
     encryptedFiles: {}
   })
-
-  // Verificar configuración de cifrado al montar
-  useEffect(() => {
-    if (!encryptionReady && !encryptionError) {
-      return // Esperar inicialización
-    }
-    
-    if (!keyPair && !encryptionError) {
-      setShowEncryptionSetup(true)
-    }
-  }, [encryptionReady, keyPair, encryptionError])
 
   const updateTechniqueData = (data: Partial<EncryptedTechnique>) => {
     setTechniqueData((prev) => ({ ...prev, ...data }))
   }
 
-  // Función para cifrar TODOS los campos sensibles
-  const encryptAllSensitiveFields = async (data: EncryptedTechnique): Promise<EncryptedTechnique> => {
-    if (!keyPair) {
-      throw new Error('Claves de cifrado no disponibles')
+  // Show encryption setup if no keys and user is authenticated
+  useEffect(() => {
+    const checkEncryptionSetup = async () => {
+      if (encryptionReady && !keyPair && !encryptionError) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          setShowEncryptionSetup(true)
+        }
+      }
     }
+    
+    checkEncryptionSetup()
+  }, [encryptionReady, keyPair, encryptionError])
 
-    const encryptedData = { ...data }
-    const encryptedFields: any = {}
-
-    try {
-      // Cifrar TODOS los campos sensibles
-      
-      // 1. Nombre de la técnica (por privacidad)
-      if (data.name?.trim()) {
-        encryptedFields.name = await encryptForSelf(data.name.trim())
-        encryptedData.name = "[ENCRYPTED]"
-      }
-
-      // 2. Descripción completa
-      if (data.description?.trim()) {
-        encryptedFields.description = await encryptForSelf(data.description.trim())
-        encryptedData.description = "[ENCRYPTED]"
-      }
-
-      // 3. Notas personales
-      if (data.notes?.trim()) {
-        encryptedFields.notes = await encryptForSelf(data.notes.trim())
-        encryptedData.notes = "[ENCRYPTED]"
-      }
-
-      // 4. Materiales especiales (pueden revelar la técnica)
-      if (data.special_materials && data.special_materials.length > 0) {
-        const materialsJson = JSON.stringify(data.special_materials)
-        encryptedFields.special_materials = await encryptForSelf(materialsJson)
-        encryptedData.special_materials = ["[ENCRYPTED]"]
-      }
-
-      encryptedData.encryptedFields = encryptedFields
-      return encryptedData
-
-    } catch (error) {
-      console.error('Error cifrando campos de técnica:', error)
-      throw new Error('Error al cifrar información de la técnica')
-    }
-  }
-
-  // Función para cifrar archivos multimedia
-  const encryptMultimediaFiles = async (userId: string): Promise<{ [key: string]: string }> => {
-    const encryptedFileIds: { [key: string]: string } = {}
-
-    try {
-      // Cifrar imagen si existe y es local
-      if (techniqueData.image_url && techniqueData.image_url.startsWith('file://')) {
-        const metadata = await fileEncryptionService.encryptAndUploadFile(
-          techniqueData.image_url,
-          `technique_image_${Date.now()}.jpg`,
-          'image/jpeg',
-          userId,
-          [userId], // Solo el autor tiene acceso inicialmente
-          getPublicKey,
-          () => keyPair!.privateKey
-        )
-        encryptedFileIds.image = metadata.fileId
-      }
-
-      // Cifrar video si existe y es local
-      if (techniqueData.video_url && techniqueData.video_url.startsWith('file://')) {
-        const metadata = await fileEncryptionService.encryptAndUploadFile(
-          techniqueData.video_url,
-          `technique_video_${Date.now()}.mp4`,
-          'video/mp4',
-          userId,
-          [userId],
-          getPublicKey,
-          () => keyPair!.privateKey
-        )
-        encryptedFileIds.video = metadata.fileId
-      }
-
-      return encryptedFileIds
-    } catch (error) {
-      console.error('Error cifrando archivos de técnica:', error)
-      throw new Error('Error al cifrar archivos multimedia')
-    }
-  }
-
-  // Pasos del wizard
   const steps = [
     { title: t("basicInformation", "Información Básica"), component: TechniqueBasicsStepEncrypted },
     { title: t("details", "Detalles"), component: TechniqueDetailsStepEncrypted },
   ]
 
-  // Validación de pasos
   const validateCurrentStep = (): { isValid: boolean; errorMessage?: string } => {
     switch (currentStep) {
-      case 0: // Información básica
+      case 0:
         if (!techniqueData.name?.trim()) {
-          return { 
-            isValid: false, 
-            errorMessage: t("nameRequired", "El nombre es obligatorio") 
-          }
+          return { isValid: false, errorMessage: t("nameRequired", "El nombre es obligatorio") }
         }
-
         if (techniqueData.name.trim().length < 3) {
-          return { 
-            isValid: false, 
-            errorMessage: t("nameTooShort", "El nombre debe tener al menos 3 caracteres") 
-          }
+          return { isValid: false, errorMessage: t("nameTooShort", "El nombre debe tener al menos 3 caracteres") }
         }
-
         if (!techniqueData.description?.trim()) {
-          return { 
-            isValid: false, 
-            errorMessage: t("descriptionRequired", "La descripción es obligatoria") 
-          }
+          return { isValid: false, errorMessage: t("descriptionRequired", "La descripción es obligatoria") }
         }
-
         if (techniqueData.description.trim().length < 10) {
-          return { 
-            isValid: false, 
-            errorMessage: t("descriptionTooShort", "La descripción debe tener al menos 10 caracteres") 
-          }
+          return { isValid: false, errorMessage: t("descriptionTooShort", "La descripción debe tener al menos 10 caracteres") }
         }
-
         if (!techniqueData.selectedCategoryId) {
-          return { 
-            isValid: false, 
-            errorMessage: t("categoryRequired", "Por favor selecciona una categoría") 
-          }
+          return { isValid: false, errorMessage: t("categoryRequired", "Por favor selecciona una categoría") }
         }
-
         return { isValid: true }
-
-      case 1: // Detalles (todos opcionales)
+      case 1:
         return { isValid: true }
-
       default:
         return { isValid: true }
     }
@@ -233,11 +125,7 @@ export default function AddTechniqueWizardEncrypted({
       const validation = validateCurrentStep()
       
       if (!validation.isValid) {
-        Alert.alert(
-          t("validationError", "Error de Validación"),
-          validation.errorMessage,
-          [{ text: t("ok", "OK") }]
-        )
+        Alert.alert(t("validationError", "Error de Validación"), validation.errorMessage, [{ text: t("ok", "OK") }])
         return
       }
 
@@ -248,15 +136,10 @@ export default function AddTechniqueWizardEncrypted({
       }
     } catch (error) {
       console.error("Error in goToNextStep:", error)
-      Alert.alert(
-        t("error", "Error"),
-        t("unexpectedError", "Ocurrió un error inesperado"),
-        [{ text: t("ok", "OK") }]
-      )
+      Alert.alert(t("error", "Error"), t("unexpectedError", "Ocurrió un error inesperado"), [{ text: t("ok", "OK") }])
     }
   }
 
-  // Asegurar perfil de usuario
   const ensureUserProfile = async (userId: string, email: string) => {
     const { data: existingProfile, error: profileError } = await supabase
       .from("profiles")
@@ -271,7 +154,6 @@ export default function AddTechniqueWizardEncrypted({
 
     if (!existingProfile) {
       const username = email.split("@")[0]
-
       const { error: insertError } = await supabase.from("profiles").insert({
         id: userId,
         email: email,
@@ -292,29 +174,61 @@ export default function AddTechniqueWizardEncrypted({
     return userId
   }
 
-  // Función principal de envío
+  const encryptAllSensitiveFields = async (data: EncryptedTechnique): Promise<EncryptedTechnique> => {
+    if (!keyPair) {
+      throw new Error('Claves de cifrado no disponibles')
+    }
+
+    const encryptedData = { ...data }
+    const encryptedFields: any = {}
+
+    try {
+      if (data.name?.trim()) {
+        encryptedFields.name = await encryptForSelf(data.name.trim())
+        encryptedData.name = "[ENCRYPTED]"
+      }
+
+      if (data.description?.trim()) {
+        encryptedFields.description = await encryptForSelf(data.description.trim())
+        encryptedData.description = "[ENCRYPTED]"
+      }
+
+      if (data.notes?.trim()) {
+        encryptedFields.notes = await encryptForSelf(data.notes.trim())
+        encryptedData.notes = "[ENCRYPTED]"
+      }
+
+      if (data.special_materials && data.special_materials.length > 0) {
+        const materialsJson = JSON.stringify(data.special_materials)
+        encryptedFields.special_materials = await encryptForSelf(materialsJson)
+        encryptedData.special_materials = ["[ENCRYPTED]"]
+      }
+
+      encryptedData.encryptedFields = encryptedFields
+      return encryptedData
+    } catch (error) {
+      console.error('Error cifrando campos de técnica:', error)
+      throw new Error('Error al cifrar información de la técnica')
+    }
+  }
+
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true)
 
-      // Verificar que el cifrado esté configurado
       if (!keyPair) {
         Alert.alert(
           t("security.encryptionRequired", "Cifrado Requerido"),
           t("security.setupEncryptionFirst", "Configura el cifrado antes de guardar la técnica"),
           [
             { text: t("actions.cancel", "Cancelar"), style: "cancel" },
-            { 
-              text: t("security.setupNow", "Configurar"), 
-              onPress: () => setShowEncryptionSetup(true)
-            }
+            { text: t("security.setupNow", "Configurar"), onPress: () => setShowEncryptionSetup(true) }
           ]
         )
         return
       }
 
       const { data: { user } } = await supabase.auth.getUser()
-
       if (!user) {
         console.error("No user found")
         Alert.alert(t("error"), t("userNotFound", "Usuario no encontrado"))
@@ -322,14 +236,37 @@ export default function AddTechniqueWizardEncrypted({
       }
 
       const profileId = await ensureUserProfile(user.id, user.email || "")
-
-      // 1. Cifrar todos los campos sensibles
       const encryptedTechniqueData = await encryptAllSensitiveFields(techniqueData)
       
-      // 2. Cifrar archivos multimedia
-      const encryptedFileIds = await encryptMultimediaFiles(profileId)
+      // Handle encrypted files if any
+      const encryptedFileIds: { [key: string]: string } = {}
+      
+      if (techniqueData.image_url && techniqueData.image_url.startsWith('file://')) {
+        const metadata = await fileEncryptionService.encryptAndUploadFile(
+          techniqueData.image_url,
+          `technique_image_${Date.now()}.jpg`,
+          'image/jpeg',
+          profileId,
+          [profileId],
+          getPublicKey,
+          () => keyPair.privateKey
+        )
+        encryptedFileIds.image = metadata.fileId
+      }
 
-      // 3. Preparar datos para la base de datos
+      if (techniqueData.video_url && techniqueData.video_url.startsWith('file://')) {
+        const metadata = await fileEncryptionService.encryptAndUploadFile(
+          techniqueData.video_url,
+          `technique_video_${Date.now()}.mp4`,
+          'video/mp4',
+          profileId,
+          [profileId],
+          getPublicKey,
+          () => keyPair.privateKey
+        )
+        encryptedFileIds.video = metadata.fileId
+      }
+
       const dbRecord: Omit<TechniqueDBRecord, 'id' | 'created_at' | 'updated_at'> = {
         user_id: profileId,
         name: encryptedTechniqueData.name,
@@ -343,10 +280,9 @@ export default function AddTechniqueWizardEncrypted({
         is_public: encryptedTechniqueData.is_public,
         status: encryptedTechniqueData.status,
         price: encryptedTechniqueData.price,
-        is_encrypted: true, // SIEMPRE cifrado
+        is_encrypted: true,
       }
 
-      // 4. Insertar técnica en la base de datos
       const { data, error } = await supabase
         .from("techniques")
         .insert(dbRecord)
@@ -359,7 +295,7 @@ export default function AddTechniqueWizardEncrypted({
         return
       }
 
-      // 5. Guardar metadatos de cifrado
+      // Save encryption metadata
       const { error: encryptionError } = await supabase
         .from("encrypted_content")
         .insert({
@@ -373,7 +309,6 @@ export default function AddTechniqueWizardEncrypted({
 
       if (encryptionError) {
         console.error("Error saving encryption metadata:", encryptionError)
-        // Intentar limpiar la técnica creada
         await supabase.from("techniques").delete().eq("id", data.id)
         throw new Error("Error guardando metadatos de cifrado")
       }

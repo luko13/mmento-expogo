@@ -412,7 +412,7 @@ export default function TechniqueDetailsStepEncrypted({
 
       <StyledScrollView className="flex-1 px-6 mt-6">
         {/* Aviso de cifrado */}
-        <StyledView className="bg-emerald-500/20 rounded-lg p-4 mb-6 border border-emerald-500/30">
+        {/* <StyledView className="bg-emerald-500/20 rounded-lg p-4 mb-6 border border-emerald-500/30">
           <StyledView className="flex-row items-center mb-2">
             <MaterialIcons name="security" size={20} color="#10b981" />
             <StyledText className="text-emerald-200 font-semibold ml-3">
@@ -422,7 +422,7 @@ export default function TechniqueDetailsStepEncrypted({
           <StyledText className="text-emerald-200/80 text-sm">
             {t("security.mediaEncryptionNotice", "Todos los archivos multimedia serán cifrados de extremo a extremo antes de ser almacenados.")}
           </StyledText>
-        </StyledView>
+        </StyledView> */}
 
         {/* Statistics Section */}
         <StyledView className="mb-6">
@@ -671,7 +671,7 @@ export default function TechniqueDetailsStepEncrypted({
         </StyledView>
 
         {/* Security Information */}
-        <StyledView className="bg-slate-800/30 rounded-lg p-4 mb-6 border border-slate-600/30">
+        {/* <StyledView className="bg-slate-800/30 rounded-lg p-4 mb-6 border border-slate-600/30">
           <StyledView className="flex-row items-center mb-3">
             <MaterialIcons name="info" size={20} color="#10b981" />
             <StyledText className="text-white font-semibold ml-3">
@@ -681,7 +681,7 @@ export default function TechniqueDetailsStepEncrypted({
           <StyledText className="text-white/70 text-sm leading-5">
             {t("security.encryptionExplanation", "Todos los datos sensibles (nombre, descripción, notas, materiales y archivos multimedia) son cifrados de extremo a extremo antes de ser almacenados. Solo tú tienes acceso a la clave de descifrado.")}
           </StyledText>
-        </StyledView>
+        </StyledView> */}
       </StyledScrollView>
 
       {/* Bottom Section */}

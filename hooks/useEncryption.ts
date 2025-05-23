@@ -1,4 +1,4 @@
-// hooks/useEncryption.ts
+// hooks/useEncryption.ts - Fixed version
 import { useState, useEffect, useCallback } from 'react';
 import { CryptoService, type KeyPair } from '../utils/cryptoService';
 import { supabase } from '../lib/supabase';
@@ -25,32 +25,76 @@ export const useEncryption = (): UseEncryptionReturn => {
 
   const cryptoService = CryptoService.getInstance();
 
-  // Inicializar el hook
+  // Only initialize after user authentication
   useEffect(() => {
-    initializeEncryption();
+    let mounted = true;
+    
+    const checkAuthAndInitialize = async () => {
+      try {
+        // Check if user is authenticated first
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          // User not authenticated, don't initialize crypto
+          if (mounted) {
+            setIsReady(false);
+            setError(null);
+          }
+          return;
+        }
+
+        if (mounted) {
+          setCurrentUserId(user.id);
+          await initializeEncryption(user.id);
+        }
+      } catch (err) {
+        if (mounted) {
+          console.error('Error checking auth:', err);
+          setError(err instanceof Error ? err.message : 'Error desconocido');
+        }
+      }
+    };
+
+    checkAuthAndInitialize();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+
+        if (event === 'SIGNED_IN' && session?.user) {
+          setCurrentUserId(session.user.id);
+          await initializeEncryption(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          // Clear crypto state on logout
+          setKeyPair(null);
+          setPublicKeys(new Map());
+          setIsReady(false);
+          setCurrentUserId(null);
+          setError(null);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const initializeEncryption = async () => {
+  const initializeEncryption = async (userId: string) => {
     try {
       setError(null);
-      
-      // Obtener usuario actual
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Usuario no autenticado');
-      }
 
-      setCurrentUserId(user.id);
-
-      // Intentar cargar clave privada existente
-      const existingPrivateKey = await cryptoService.getPrivateKey(user.id);
+      // Try to load existing private key
+      const existingPrivateKey = await cryptoService.getPrivateKey(userId);
       
       if (existingPrivateKey) {
-        // Obtener clave pública del servidor
+        // Get public key from server
         const { data: profile } = await supabase
           .from('profiles')
           .select('public_key')
-          .eq('id', user.id)
+          .eq('id', userId)
           .single();
 
         if (profile?.public_key) {
@@ -59,13 +103,11 @@ export const useEncryption = (): UseEncryptionReturn => {
             privateKey: existingPrivateKey
           });
         } else {
-          // Regenerar par de claves si falta la pública
+          // Regenerate keypair if public key is missing
           await generateKeys();
         }
-      } else {
-        // Generar nuevo par de claves
-        await generateKeys();
       }
+      // Don't auto-generate keys - let user trigger this explicitly
 
       setIsReady(true);
     } catch (err) {
@@ -80,13 +122,13 @@ export const useEncryption = (): UseEncryptionReturn => {
         throw new Error('Usuario no autenticado');
       }
 
-      // Generar nuevo par de claves
+      // Generate new keypair
       const newKeyPair = await cryptoService.generateKeyPair();
       
-      // Guardar clave privada en SecureStore
+      // Store private key securely
       await cryptoService.storePrivateKey(newKeyPair.privateKey, currentUserId);
       
-      // Enviar clave pública al servidor
+      // Send public key to server
       const { error } = await supabase
         .from('profiles')
         .update({ public_key: newKeyPair.publicKey })
@@ -106,12 +148,12 @@ export const useEncryption = (): UseEncryptionReturn => {
 
   const getPublicKey = useCallback(async (userId: string): Promise<string | null> => {
     try {
-      // Verificar cache primero
+      // Check cache first
       if (publicKeys.has(userId)) {
         return publicKeys.get(userId)!;
       }
 
-      // Obtener del servidor
+      // Get from server
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('public_key')
@@ -123,7 +165,7 @@ export const useEncryption = (): UseEncryptionReturn => {
         return null;
       }
 
-      // Agregar al cache
+      // Add to cache
       setPublicKeys(prev => new Map(prev.set(userId, profile.public_key)));
       
       return profile.public_key;
