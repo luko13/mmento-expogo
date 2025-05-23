@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase"
 
+// Type for category
 export interface Category {
   id: string
   name: string
@@ -7,477 +8,320 @@ export interface Category {
   user_id?: string
   created_at?: string
   updated_at?: string
-  count?: number
-  type?: 'user' | 'predefined' // Add this line
 }
 
-export interface TrickCategory {
-  trick_id: string
-  category_id: string
-  created_at?: string
+// Type for trick
+export interface Trick {
+  id: string
+  title: string
+  effect: string
+  secret: string
+  difficulty: string
+  status: string
+  created_at: string
+  duration?: number | null
+  reset?: number | null
+  user_id: string
+  notes?: string
 }
 
-// Get all categories for a user
-export const getUserCategories = async (userId: string): Promise<Category[]> => {
-  const { data, error } = await supabase
-    .from("user_categories")
-    .select("id, name, description, user_id, created_at, updated_at")
-    .eq("user_id", userId)
-    .order("name")
+// Type for technique
+export interface Technique {
+  id: string
+  name: string
+  description: string
+  difficulty?: number | null
+  status: string
+  created_at: string
+  user_id: string
+  notes?: string
+  angles?: any
+  special_materials?: string[]
+  image_url?: string | null
+  video_url?: string | null
+  is_public: boolean
+  price?: number | null
+}
 
-  if (error) {
+// Type for gimmick
+export interface Gimmick {
+  id: string
+  name: string
+  description?: string
+  secret_description?: string
+  difficulty?: string | null
+  status: string
+  created_at: string
+  user_id: string
+  notes?: string
+  instructions?: string
+  angles?: any
+  reset_time?: number | null
+  special_materials?: string[]
+  image_url?: string | null
+  video_url?: string | null
+  craft_video_url?: string | null
+  is_public: boolean
+  price?: number | null
+}
+
+// Get user categories
+export async function getUserCategories(userId: string): Promise<Category[]> {
+  try {
+    const { data, error } = await supabase
+      .from("user_categories")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
     console.error("Error fetching user categories:", error)
     return []
   }
-
-  // Get count of tricks for each category
-  const categoriesWithCount = await Promise.all(
-    data.map(async (category) => {
-      const { count, error: countError } = await supabase
-        .from("trick_categories")
-        .select("*", { count: "exact", head: true })
-        .eq("category_id", category.id)
-
-      if (countError) {
-        console.error("Error counting tricks for category:", countError)
-        return { ...category, count: 0 }
-      }
-
-      return { ...category, count: count || 0 }
-    }),
-  )
-
-  return categoriesWithCount
 }
 
 // Get predefined categories
-export const getPredefinedCategories = async (): Promise<Category[]> => {
-  const { data, error } = await supabase
-    .from("predefined_categories")
-    .select("id, name, description, created_at")
-    .order("name")
+export async function getPredefinedCategories(): Promise<Category[]> {
+  try {
+    const { data, error } = await supabase
+      .from("predefined_categories")
+      .select("*")
+      .order("name", { ascending: true })
 
-  if (error) {
+    if (error) throw error
+    return data || []
+  } catch (error) {
     console.error("Error fetching predefined categories:", error)
     return []
   }
-
-  return data
 }
 
 // Create a new category
-export const createCategory = async (userId: string, name: string, description?: string): Promise<Category | null> => {
-  const { data, error } = await supabase
-    .from("user_categories")
-    .insert({
-      user_id: userId,
-      name,
-      description,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .select()
-    .single()
+export async function createCategory(
+  userId: string,
+  name: string,
+  description?: string,
+): Promise<Category | null> {
+  try {
+    const { data, error } = await supabase
+      .from("user_categories")
+      .insert({
+        user_id: userId,
+        name,
+        description,
+      })
+      .select()
+      .single()
 
-  if (error) {
+    if (error) throw error
+    return data
+  } catch (error) {
     console.error("Error creating category:", error)
     return null
   }
-
-  return { ...data, count: 0 }
 }
 
 // Update a category
-export const updateCategory = async (categoryId: string, name: string, description?: string): Promise<boolean> => {
-  const { error } = await supabase
-    .from("user_categories")
-    .update({
-      name,
-      description,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", categoryId)
+export async function updateCategory(
+  categoryId: string,
+  name: string,
+  description?: string,
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from("user_categories")
+      .update({
+        name,
+        description,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", categoryId)
 
-  if (error) {
+    if (error) throw error
+    return true
+  } catch (error) {
     console.error("Error updating category:", error)
     return false
   }
-
-  return true
 }
 
 // Delete a category
-export const deleteCategory = async (categoryId: string): Promise<boolean> => {
-  // First, remove all trick associations
-  const { error: associationError } = await supabase.from("trick_categories").delete().eq("category_id", categoryId)
+export async function deleteCategory(categoryId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from("user_categories").delete().eq("id", categoryId)
 
-  if (associationError) {
-    console.error("Error removing trick associations:", associationError)
-    return false
-  }
-
-  // Then delete the category
-  const { error } = await supabase.from("user_categories").delete().eq("id", categoryId)
-
-  if (error) {
+    if (error) throw error
+    return true
+  } catch (error) {
     console.error("Error deleting category:", error)
     return false
   }
-
-  return true
 }
 
 // Get tricks by category
-export const getTricksByCategory = async (categoryId: string): Promise<any[]> => {
-  const { data, error } = await supabase
-    .from("trick_categories")
-    .select(`
-      trick_id,
-      magic_tricks(
-        id, title, effect, difficulty, status, duration, created_at, photo_url
-      )
-    `)
-    .eq("category_id", categoryId)
+export async function getTricksByCategory(categoryId: string): Promise<Trick[]> {
+  try {
+    // First get all trick IDs for this category
+    const { data: trickCategories, error: catError } = await supabase
+      .from("trick_categories")
+      .select("trick_id")
+      .eq("category_id", categoryId)
 
-  if (error) {
+    if (catError) throw catError
+
+    if (!trickCategories || trickCategories.length === 0) return []
+
+    // Then get all tricks with those IDs
+    const trickIds = trickCategories.map((tc) => tc.trick_id)
+    const { data: tricks, error: tricksError } = await supabase
+      .from("magic_tricks")
+      .select("*")
+      .in("id", trickIds)
+      .order("created_at", { ascending: false })
+
+    if (tricksError) throw tricksError
+
+    return tricks || []
+  } catch (error) {
     console.error("Error fetching tricks by category:", error)
     return []
   }
-
-  // Transform the data to a more usable format
-  return data.map((item) => item.magic_tricks)
 }
 
-// Associate a trick with a category
-export const addTrickToCategory = async (trickId: string, categoryId: string): Promise<boolean> => {
-  const { error } = await supabase.from("trick_categories").insert({
-    trick_id: trickId,
-    category_id: categoryId,
-    created_at: new Date().toISOString(),
-  })
+// Get techniques by category
+export async function getTechniquesByCategory(categoryId: string, userId: string): Promise<Technique[]> {
+  try {
+    // First get all technique IDs for this category
+    const { data: techniqueCategories, error: catError } = await supabase
+      .from("technique_categories")
+      .select("technique_id")
+      .eq("category_id", categoryId)
 
-  if (error) {
-    // If it's a duplicate, that's okay
-    if (error.code === "23505") {
-      return true
-    }
-    console.error("Error adding trick to category:", error)
-    return false
+    if (catError) throw catError
+
+    if (!techniqueCategories || techniqueCategories.length === 0) return []
+
+    // Then get all techniques with those IDs
+    const techniqueIds = techniqueCategories.map((tc) => tc.technique_id)
+    const { data: techniques, error: techniquesError } = await supabase
+      .from("techniques")
+      .select("*")
+      .in("id", techniqueIds)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+
+    if (techniquesError) throw techniquesError
+
+    return techniques || []
+  } catch (error) {
+    console.error("Error fetching techniques by category:", error)
+    return []
   }
-
-  return true
 }
 
-// Remove a trick from a category
-export const removeTrickFromCategory = async (trickId: string, categoryId: string): Promise<boolean> => {
-  const { error } = await supabase
-    .from("trick_categories")
-    .delete()
-    .eq("trick_id", trickId)
-    .eq("category_id", categoryId)
+// Get gimmicks by category
+export async function getGimmicksByCategory(categoryId: string, userId: string): Promise<Gimmick[]> {
+  try {
+    // First get all gimmick IDs for this category
+    const { data: gimmickCategories, error: catError } = await supabase
+      .from("gimmick_categories")
+      .select("gimmick_id")
+      .eq("category_id", categoryId)
 
-  if (error) {
-    console.error("Error removing trick from category:", error)
-    return false
+    if (catError) throw catError
+
+    if (!gimmickCategories || gimmickCategories.length === 0) return []
+
+    // Then get all gimmicks with those IDs
+    const gimmickIds = gimmickCategories.map((gc) => gc.gimmick_id)
+    const { data: gimmicks, error: gimmicksError } = await supabase
+      .from("gimmicks")
+      .select("*")
+      .in("id", gimmickIds)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+
+    if (gimmicksError) throw gimmicksError
+
+    return gimmicks || []
+  } catch (error) {
+    console.error("Error fetching gimmicks by category:", error)
+    return []
   }
-
-  return true
 }
-
-// Get all categories for a trick
-// Get all categories for a trick
-export const getCategoriesForTrick = async (trickId: string): Promise<Category[]> => {
-    const { data, error } = await supabase
-      .from("trick_categories")
-      .select(`
-        category_id,
-        user_categories(id, name, description, user_id, created_at, updated_at)
-      `)
-      .eq("trick_id", trickId)
-  
-    if (error) {
-      console.error("Error fetching categories for trick:", error)
-      return []
-    }
-  
-    // Flatten the array of arrays into a single array of Category objects
-    return data.flatMap((item) => {
-      // If user_categories is an array, return it; otherwise, wrap it in an array
-      const categories = Array.isArray(item.user_categories) 
-        ? item.user_categories 
-        : [item.user_categories];
-      
-      return categories as Category[];
-    });
-  }
 
 // Ensure user has default categories
-export const ensureDefaultCategories = async (userId: string): Promise<void> => {
-  // Check if user already has categories
-  const { data, error } = await supabase.from("user_categories").select("id").eq("user_id", userId).limit(1)
+export async function ensureDefaultCategories(userId: string): Promise<void> {
+  try {
+    // Check if user already has categories
+    const { data: existingCategories, error: checkError } = await supabase
+      .from("user_categories")
+      .select("id")
+      .eq("user_id", userId)
 
-  if (error) {
-    console.error("Error checking user categories:", error)
-    return
-  }
+    if (checkError) throw checkError
 
-  // If user has no categories, create default ones
-  if (data.length === 0) {
+    // If user already has categories, don't create defaults
+    if (existingCategories && existingCategories.length > 0) return
+
+    // Default categories to create
     const defaultCategories = [
-      { name: "Card Magic", description: "Tricks involving playing cards" },
-      { name: "Coin Magic", description: "Tricks involving coins" },
-      { name: "Mentalism", description: "Mind reading and psychological illusions" },
-      { name: "Close-up", description: "Magic performed up close" },
-      { name: "Stage Magic", description: "Magic performed on stage" },
+      { name: "Close-up", description: "Magia de cerca" },
+      { name: "Stage", description: "Magia de escenario" },
+      { name: "Mentalism", description: "Mentalismo" },
+      { name: "Card Magic", description: "Magia con cartas" },
+      { name: "Coins", description: "Magia con monedas" },
     ]
 
-    for (const category of defaultCategories) {
-      await createCategory(userId, category.name, category.description)
-    }
+    // Create default categories for the user
+    const categoriesToCreate = defaultCategories.map((cat) => ({
+      user_id: userId,
+      name: cat.name,
+      description: cat.description,
+    }))
+
+    const { error: insertError } = await supabase.from("user_categories").insert(categoriesToCreate)
+
+    if (insertError) throw insertError
+  } catch (error) {
+    console.error("Error ensuring default categories:", error)
   }
 }
-/**
- * Obtener técnicas por categoría
- */
-export const getTechniquesByCategory = async (categoryId: string) => {
+
+// Get all items count by category (tricks, techniques, gimmicks)
+export async function getCategoryItemsCount(categoryId: string, userId: string): Promise<number> {
   try {
-    const { data, error } = await supabase
-      .from("techniques")
-      .select(`
-        id,
-        name,
-        description,
-        difficulty,
-        status,
-        created_at,
-        image_url,
-        video_url,
-        is_public,
-        user_id,
-        technique_categories!inner(category_id)
-      `)
-      .eq("technique_categories.category_id", categoryId)
-      .order("created_at", { ascending: false });
+    let totalCount = 0
 
-    if (error) {
-      console.error("Error fetching techniques by category:", error);
-      return [];
-    }
+    // Count tricks
+    const { count: tricksCount, error: tricksError } = await supabase
+      .from("trick_categories")
+      .select("trick_id", { count: "exact", head: true })
+      .eq("category_id", categoryId)
 
-    return data || [];
-  } catch (error) {
-    console.error("Error in getTechniquesByCategory:", error);
-    return [];
-  }
-};
+    if (!tricksError && tricksCount) totalCount += tricksCount
 
-/**
- * Función para garantizar que el usuario tenga categorías por defecto para técnicas
- */
-export const ensureDefaultTechniqueCategories = async (userId: string) => {
-  try {
-    // Verificar si ya tiene categorías de técnicas
-    const existingCategories = await getUserCategories(userId);
-    const hasTechniqueCategories = existingCategories.some(cat => 
-      cat.name.toLowerCase().includes('técnica') || 
-      cat.name.toLowerCase().includes('technique') ||
-      cat.name.toLowerCase().includes('sleight')
-    );
-
-    if (!hasTechniqueCategories) {
-      // Crear categorías por defecto para técnicas
-      const defaultTechniqueCategories = [
-        {
-          name: "Sleight of Hand",
-          description: "Manual dexterity and manipulation techniques"
-        },
-        {
-          name: "Misdirection",
-          description: "Techniques for directing audience attention"
-        },
-        {
-          name: "Flourishes",
-          description: "Ornamental moves and displays"
-        }
-      ];
-
-      for (const category of defaultTechniqueCategories) {
-        await createCategory(userId, category.name, category.description);
-      }
-    }
-  } catch (error) {
-    console.error("Error ensuring default technique categories:", error);
-  }
-};
-
-/**
- * Obtener todas las técnicas del usuario con sus categorías
- */
-export const getUserTechniquesWithCategories = async (userId: string) => {
-  try {
-    const { data, error } = await supabase
-      .from("techniques")
-      .select(`
-        id,
-        name,
-        description,
-        difficulty,
-        status,
-        created_at,
-        image_url,
-        video_url,
-        is_public,
-        technique_categories(
-          category_id,
-          user_categories(name),
-          predefined_categories(name)
-        )
-      `)
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching user techniques with categories:", error);
-      return [];
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error("Error in getUserTechniquesWithCategories:", error);
-    return [];
-  }
-};
-
-/**
- * Asociar una técnica con una categoría
- */
-export const associateTechniqueWithCategory = async (techniqueId: string, categoryId: string) => {
-  try {
-    const { error } = await supabase
+    // Count techniques
+    const { count: techniquesCount, error: techniquesError } = await supabase
       .from("technique_categories")
-      .insert({
-        technique_id: techniqueId,
-        category_id: categoryId,
-        created_at: new Date().toISOString(),
-      });
+      .select("technique_id", { count: "exact", head: true })
+      .eq("category_id", categoryId)
 
-    if (error) {
-      console.error("Error associating technique with category:", error);
-      return false;
-    }
+    if (!techniquesError && techniquesCount) totalCount += techniquesCount
 
-    return true;
+    // Count gimmicks
+    const { count: gimmicksCount, error: gimmicksError } = await supabase
+      .from("gimmick_categories")
+      .select("gimmick_id", { count: "exact", head: true })
+      .eq("category_id", categoryId)
+
+    if (!gimmicksError && gimmicksCount) totalCount += gimmicksCount
+
+    return totalCount
   } catch (error) {
-    console.error("Error in associateTechniqueWithCategory:", error);
-    return false;
+    console.error("Error counting category items:", error)
+    return 0
   }
-};
-
-/**
- * Eliminar asociación entre técnica y categoría
- */
-export const dissociateTechniqueFromCategory = async (techniqueId: string, categoryId: string) => {
-  try {
-    const { error } = await supabase
-      .from("technique_categories")
-      .delete()
-      .eq("technique_id", techniqueId)
-      .eq("category_id", categoryId);
-
-    if (error) {
-      console.error("Error dissociating technique from category:", error);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Error in dissociateTechniqueFromCategory:", error);
-    return false;
-  }
-};
-
-/**
- * Obtener las categorías de una técnica específica
- */
-export const getTechniqueCategories = async (techniqueId: string): Promise<Category[]> => {
-  try {
-    const { data, error } = await supabase
-      .from("technique_categories")
-      .select(`
-        category_id,
-        user_categories(id, name, description),
-        predefined_categories(id, name, description)
-      `)
-      .eq("technique_id", techniqueId);
-
-    if (error) {
-      console.error("Error fetching technique categories:", error);
-      return [];
-    }
-
-    // Combinar categorías de usuario y predefinidas
-    const categories: Category[] = [];
-    
-    data?.forEach(item => {
-      if (item.user_categories) {
-        // user_categories puede ser un array o un objeto individual
-        const userCats = Array.isArray(item.user_categories) 
-          ? item.user_categories 
-          : [item.user_categories];
-        
-        userCats.forEach(cat => {
-          if (cat) {
-            categories.push({
-              id: cat.id,
-              name: cat.name,
-              description: cat.description,
-            });
-          }
-        });
-      }
-      
-      if (item.predefined_categories) {
-        // predefined_categories puede ser un array o un objeto individual
-        const predefinedCats = Array.isArray(item.predefined_categories) 
-          ? item.predefined_categories 
-          : [item.predefined_categories];
-        
-        predefinedCats.forEach(cat => {
-          if (cat) {
-            categories.push({
-              id: cat.id,
-              name: cat.name,
-              description: cat.description,
-            });
-          }
-        });
-      }
-    });
-
-    return categories;
-  } catch (error) {
-    console.error("Error in getTechniqueCategories:", error);
-    return [];
-  }
-};
-/**
- * Contar técnicas por categoría
- */
-export const countTechniquesByCategory = async (categoryId: string) => {
-  try {
-    const { count, error } = await supabase
-      .from("technique_categories")
-      .select("*", { count: "exact", head: true })
-      .eq("category_id", categoryId);
-
-    if (error) {
-      console.error("Error counting techniques by category:", error);
-      return 0;
-    }
-
-    return count || 0;
-  } catch (error) {
-    console.error("Error in countTechniquesByCategory:", error);
-    return 0;
-  }
-};
+}
