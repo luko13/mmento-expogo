@@ -62,13 +62,18 @@ export default function AddTechniqueWizardEncrypted({
     setTechniqueData((prev) => ({ ...prev, ...data }))
   }
 
-  // Show encryption setup if no keys and user is authenticated
+  // Automaticamente generar claves de cifrado al iniciar
   useEffect(() => {
     const checkEncryptionSetup = async () => {
       if (encryptionReady && !keyPair && !encryptionError) {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
-          setShowEncryptionSetup(true)
+          // Generar claves automáticamente sin mostrar modal
+          try {
+            await generateKeys()
+          } catch (error) {
+            console.error("Error generando claves automáticamente:", error)
+          }
         }
       }
     }

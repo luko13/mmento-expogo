@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { I18nextProvider } from "react-i18next"
+import 'react-native-get-random-values';
 import { useColorScheme, NativeModules, Platform, View, Text, StyleSheet, ActivityIndicator } from "react-native"
 import { ExpoRoot } from "expo-router"
 import { ThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native"
