@@ -12,7 +12,6 @@ import {
   Platform,
   ActivityIndicator,
   TextInput,
-  Alert,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -89,7 +88,7 @@ interface LibrariesSectionProps {
   searchFilters?: SearchFilters;
 }
 
-// Helper function to get item icon
+// Funcion para obtener el icono del item
 const getItemIcon = (type: string) => {
   switch (type) {
     case "magic":
@@ -105,7 +104,7 @@ const getItemIcon = (type: string) => {
   }
 };
 
-// Memoized library item row component
+// Componente memoizado para la fila de los item de la biblioteca (Trucos de magia, técnicas y gimmicks)
 const LibraryItemRow = memo(({ 
   item, 
   onPress 
@@ -117,7 +116,7 @@ const LibraryItemRow = memo(({
   
   return (
     <StyledTouchableOpacity
-      className="flex-row justify-between items-center bg-white/5 p-3 rounded-lg mb-1"
+      className="flex-row justify-between items-center p-3 rounded-lg mb-1 border-b border-white/10"
       onPress={() => onPress(item)}
     >
       <StyledView className="flex-row items-center flex-1">
@@ -129,11 +128,6 @@ const LibraryItemRow = memo(({
           {item.is_shared && (
             <Feather name="users" size={14} color="#3b82f6" style={{ marginRight: 8 }} />
           )}
-          <StyledText className="text-white/50 text-xs">
-            {item.type === "magic" ? t("trick") : 
-             item.type === "technique" ? t("technique") :
-             item.type === "gimmick" ? t("gimmick") : t("script")}
-          </StyledText>
         </StyledView>
       </StyledView>
     </StyledTouchableOpacity>
@@ -1012,7 +1006,7 @@ export default function LibrariesSection({
 
     return (
       <StyledView className="mb-4">
-        <StyledView className="flex-row justify-between items-center bg-white/10 p-3 rounded-lg mb-2">
+        <StyledView className="flex-row justify-between items-center bg-white/10 px-3 border border-white/20 rounded-lg mb-2">
           <StyledText className="text-white font-bold">{item.category.name}</StyledText>
           <StyledView className="flex-row items-center">
             <StyledText className="text-white mr-2">{filteredItems.length}</StyledText>
@@ -1056,7 +1050,7 @@ export default function LibrariesSection({
   return (
     <StyledView className="flex-1">
       {/* Header de libraries */}
-      <StyledView className="flex-row justify-between items-center mb-4">
+      <StyledView className="flex-row justify-between items-center mb-2">
         <StyledView className="flex-row items-center">
           <FontAwesome name="book" size={24} color="white" />
           <StyledText className="text-white text-xl ml-2">
@@ -1065,7 +1059,7 @@ export default function LibrariesSection({
         </StyledView>
 
         <StyledTouchableOpacity
-          className="bg-white/20 p-2 rounded-full"
+          className="p-2"
           onPress={() => setAddCategoryModalVisible(true)}
         >
           <AntDesign name="plus" size={24} color="white" />
