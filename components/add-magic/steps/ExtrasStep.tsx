@@ -12,6 +12,7 @@ import {
   Platform,
   ScrollView,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -30,6 +31,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Slider from "@react-native-community/slider";
+import { useEncryption } from "../../../hooks/useEncryption";
+import { FileEncryptionService } from "../../../utils/fileEncryption";
 
 // Importar modales
 import TechniquesModal from "../../../components/add-magic/ui/TechniquesModal";
@@ -74,7 +77,7 @@ interface StepProps {
   isLastStep?: boolean;
 }
 
-export default function ExtrasStep({
+export default function ExtrasStepEncrypted({
   trickData,
   updateTrickData,
   onNext,
@@ -87,8 +90,20 @@ export default function ExtrasStep({
 }: StepProps) {
   const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
+  const [uploadingType, setUploadingType] = useState<'photo' | null>(null);
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  // Hooks de cifrado
+  const {
+    isReady: encryptionReady,
+    keyPair,
+    encryptForSelf,
+    getPublicKey,
+    error: encryptionError
+  } = useEncryption();
+
+  const fileEncryptionService = new FileEncryptionService();
 
   // Estados para modales
   const [techniquesModalVisible, setTechniquesModalVisible] = useState(false);
@@ -111,6 +126,19 @@ export default function ExtrasStep({
     content: "",
   });
 
+  // Verificar que el cifrado esté listo
+  useEffect(() => {
+    if (!encryptionReady && !encryptionError) {
+      console.log('Esperando inicialización del cifrado...')
+    } else if (encryptionError) {
+      console.error('Error en el cifrado:', encryptionError)
+      Alert.alert(
+        t('security.error', 'Error de Seguridad'),
+        t('security.encryptionNotReady', 'El sistema de cifrado no está listo')
+      )
+    }
+  }, [encryptionReady, encryptionError, t])
+
   // Opciones de selección de ángulos
   const angles = [
     { value: "90", label: "90°" },
@@ -130,7 +158,6 @@ export default function ExtrasStep({
 
   // Mostrar selector de tiempo de duración
   const openDurationPicker  = () => {
-    // Crear una fecha con los minutos y segundos actuales
     const currentDate = new Date();
     if (trickData.duration) {
       const minutes = Math.floor(trickData.duration / 60);
@@ -143,9 +170,9 @@ export default function ExtrasStep({
     setDurationDate(currentDate);
     setShowDurationPicker(true);
   };
+
   // Mostrar selector de tiempo de reinicio
   const openResetTimePicker  = () => {
-    // Crear una fecha con los minutos y segundos actuales
     const currentDate = new Date();
     if (trickData.reset) {
       const minutes = Math.floor(trickData.reset / 60);
@@ -289,7 +316,7 @@ export default function ExtrasStep({
     }
   };
 
-  // Alternar selección de técnicas (se moverá al componente TechniquesModal)
+  // Alternar selección de técnicas
   const toggleTechniqueSelection = (technique: Technique) => {
     const isSelected = selectedTechniques.some((t) => t.id === technique.id);
 
@@ -302,7 +329,7 @@ export default function ExtrasStep({
     }
   };
 
-  // Alternar selección de gimmicks (se moverá al componente GimmicksModal)
+  // Alternar selección de gimmicks
   const toggleGimmickSelection = (gimmick: Gimmick) => {
     const isSelected = selectedGimmicks.some((g) => g.id === gimmick.id);
 
@@ -313,21 +340,21 @@ export default function ExtrasStep({
     }
   };
 
-  // Guardar técnicas en el truco (se moverá al componente TechniquesModal)
+  // Guardar técnicas en el truco
   const saveTechniques = () => {
     const techniqueIds = selectedTechniques.map((t) => t.id);
     updateTrickData({ techniqueIds });
     setTechniquesModalVisible(false);
   };
 
-  // Guardar gimmicks en el truco (se moverá al componente GimmicksModal)
+  // Guardar gimmicks en el truco
   const saveGimmicks = () => {
     const gimmickIds = selectedGimmicks.map((g) => g.id);
     updateTrickData({ gimmickIds });
     setGimmicksModalVisible(false);
   };
 
-  // Guardar script para el truco (se moverá al componente ScriptModal)
+  // Guardar script para el truco
   const saveScript = async () => {
     try {
       if (!scriptData.title || !scriptData.content) {
@@ -341,42 +368,8 @@ export default function ExtrasStep({
         return;
       }
 
-      let scriptId = scriptData.id;
-
-      if (scriptId) {
-        // Actualizar script existente
-        const { error } = await supabase
-          .from("scripts")
-          .update({
-            title: scriptData.title,
-            content: scriptData.content,
-            updated_at: new Date(),
-          })
-          .eq("id", scriptId);
-
-        if (error) throw error;
-      } else {
-        // Crear nuevo script
-        const { data, error } = await supabase
-          .from("scripts")
-          .insert({
-            title: scriptData.title,
-            content: scriptData.content,
-            trick_id: trickData.id,
-            user_id: trickData.user_id,
-            language: "es", // Idioma predeterminado
-          })
-          .select("id")
-          .single();
-
-        if (error) throw error;
-        if (data) {
-          scriptId = data.id;
-        }
-      }
-
-      // Actualizar datos del truco con ID del script
-      updateTrickData({ scriptId });
+      // Actualizar el script en el estado del truco
+      updateTrickData({ script: scriptData.content });
       setScriptModalVisible(false);
     } catch (error) {
       console.error("Error al guardar script:", error);
@@ -387,9 +380,17 @@ export default function ExtrasStep({
     }
   };
 
-  // Seleccionar imagen para el truco
+  // Seleccionar imagen para el truco con cifrado
   const pickImage = async () => {
     try {
+      if (!encryptionReady || !keyPair) {
+        Alert.alert(
+          t('security.error', 'Error de Seguridad'),
+          t('security.encryptionNotReady', 'El sistema de cifrado no está listo')
+        );
+        return;
+      }
+
       // Solicitar permisos primero
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -440,7 +441,7 @@ export default function ExtrasStep({
           console.error("Error al verificar tamaño del archivo:", error);
         }
 
-        await uploadImage(uri);
+        await encryptAndStoreImage(uri);
       }
     } catch (error) {
       console.error("Error al seleccionar imagen:", error);
@@ -455,87 +456,56 @@ export default function ExtrasStep({
     }
   };
 
-  // Subir imagen a Supabase Storage
-  const uploadImage = async (uri: string) => {
+  // Cifrar y almacenar imagen
+  const encryptAndStoreImage = async (uri: string) => {
+    if (!keyPair) return;
+
     try {
       setUploading(true);
+      setUploadingType('photo');
 
-      // Obtener nombre de archivo
-      const fileName = uri.split("/").pop() || "";
-      const fileExt = fileName.split(".").pop()?.toLowerCase() || "jpg";
-      const filePath = `trick_photos/${Date.now()}.${fileExt}`;
-
-      // En iOS, usar FileSystem para leer el archivo en lugar de fetch/blob
-      if (Platform.OS === "ios") {
-        try {
-          const fileContent = await FileSystem.readAsStringAsync(uri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-
-          const { data, error } = await supabase.storage
-            .from("magic_trick_media")
-            .upload(filePath, fileContent, {
-              contentType: `image/${fileExt}`,
-              upsert: true,
-            });
-
-          if (error) {
-            console.error("Error al subir imagen:", error);
-            Alert.alert(t("uploadError", "Error de Subida"), error.message);
-            return;
-          }
-
-          // Obtener URL pública
-          const { data: publicURL } = supabase.storage
-            .from("magic_trick_media")
-            .getPublicUrl(filePath);
-
-          // Actualizar datos del truco
-          updateTrickData({ photo_url: publicURL.publicUrl });
-        } catch (error) {
-          console.error("Error al leer archivo:", error);
-          Alert.alert(
-            t("fileReadError", "Error de Lectura de Archivo"),
-            t(
-              "couldNotReadFile",
-              "No se pudo leer el archivo de imagen. Por favor intenta con una imagen diferente."
-            )
-          );
-        }
-      } else {
-        // Para Android, continuar usando el método anterior
-        const response = await fetch(uri);
-        const blob = await response.blob();
-
-        const { data, error } = await supabase.storage
-          .from("magic_trick_media")
-          .upload(filePath, blob);
-
-        if (error) {
-          console.error("Error al subir imagen:", error);
-          Alert.alert(t("uploadError", "Error de Subida"), error.message);
-          return;
-        }
-
-        // Obtener URL pública
-        const { data: publicURL } = supabase.storage
-          .from("magic_trick_media")
-          .getPublicUrl(filePath);
-
-        // Actualizar datos del truco
-        updateTrickData({ photo_url: publicURL.publicUrl });
+      // Obtener información del usuario
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuario no autenticado');
       }
-    } catch (error) {
-      console.error("Error en el proceso de subida:", error);
+
+      // Cifrar y subir imagen
+      const metadata = await fileEncryptionService.encryptAndUploadFile(
+        uri,
+        `trick_photo_${Date.now()}.jpg`,
+        'image/jpeg',
+        user.id,
+        [user.id], // Solo el autor tiene acceso
+        getPublicKey,
+        () => keyPair.privateKey
+      );
+
+      // Actualizar los datos del truco con el ID del archivo cifrado
+      updateTrickData({ 
+        photo_url: metadata.fileId,
+        encryptedFiles: {
+          ...trickData.encryptedFiles,
+          photo: metadata.fileId
+        }
+      });
+
       Alert.alert(
-        t("uploadError", "Error de Subida"),
-        t(
-          "generalUploadError",
-          "Hubo un error al subir la imagen. Por favor intenta de nuevo."
-        )
+        t('security.success', 'Éxito'),
+        t('security.photoEncrypted', 'Foto cifrada y almacenada'),
+        [{ text: t('ok', 'OK') }]
+      );
+
+    } catch (error) {
+      console.error('Error cifrando imagen:', error);
+      Alert.alert(
+        t('security.error', 'Error de Cifrado'),
+        t('security.imageEncryptionError', 'No se pudo cifrar la imagen. Inténtalo de nuevo.'),
+        [{ text: t('ok', 'OK') }]
       );
     } finally {
       setUploading(false);
+      setUploadingType(null);
     }
   };
 
@@ -608,11 +578,12 @@ export default function ExtrasStep({
         </StyledView>
 
         <StyledTouchableOpacity className="p-2">
-          <Feather name="info" size={24} color="white" />
+          <MaterialIcons name="security" size={24} color="#10b981" />
         </StyledTouchableOpacity>
       </StyledView>
 
       <StyledScrollView className="flex-1 px-6">
+
         {/* Sección de Estadísticas */}
         <StyledView className="mt-6">
           <StyledText className="text-white/60 text-lg font-semibold mb-4">
@@ -722,7 +693,7 @@ export default function ExtrasStep({
             {t("extras", "Extras")}
           </StyledText>
 
-          {/* Subida de Imagen */}
+          {/* Subida de Imagen con Cifrado */}
           <StyledView className="flex-row mb-6">
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
               <Feather name="image" size={24} color="white" />
@@ -731,17 +702,30 @@ export default function ExtrasStep({
             <StyledView className="flex-1">
               <StyledTouchableOpacity
                 onPress={pickImage}
-                disabled={uploading}
+                disabled={uploading || !encryptionReady}
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
               >
-                <StyledText className="text-white/70">
-                  {uploading
-                    ? t("uploading", "Subiendo...")
-                    : trickData.photo_url
-                    ? t("imageUploaded", "Imagen subida")
-                    : t("imagesUpload", "Subir Imágenes")}
-                </StyledText>
-                <Feather name="upload" size={20} color="white" />
+                <StyledView className="flex-1 flex-row items-center">
+                  {uploading && uploadingType === 'photo' ? (
+                    <>
+                      <ActivityIndicator size="small" color="#10b981" />
+                      <StyledText className="text-white/70 ml-2">
+                        {t("security.encryptingImage", "Cifrando imagen...")}
+                      </StyledText>
+                    </>
+                  ) : (
+                    <>
+                      <StyledText className="text-white/70 flex-1">
+                        {trickData.encryptedFiles?.photo
+                          ? t("security.imageEncrypted", "Imagen cifrada ✓")
+                          : t("imagesUpload", "Subir Imágenes")}
+                      </StyledText>
+                      <StyledView className="flex-row items-center">
+                        <Feather name="upload" size={16} color="white" style={{ marginLeft: 4 }} />
+                      </StyledView>
+                    </>
+                  )}
+                </StyledView>
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
@@ -794,7 +778,7 @@ export default function ExtrasStep({
             </StyledView>
           </StyledView>
 
-          {/* Escritura de Script */}
+          {/* Escritura de Script con Cifrado */}
           <StyledView className="flex-row mb-2">
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
               <Feather name="edit" size={24} color="white" />
@@ -805,19 +789,46 @@ export default function ExtrasStep({
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
                 onPress={() => setScriptModalVisible(true)}
               >
-                <StyledText className="text-white/70">
-                  {scriptData.title
-                    ? scriptData.title
-                    : t("writeScript", "Escribir Script")}
-                </StyledText>
-                <MaterialCommunityIcons
-                  name="typewriter"
-                  size={20}
-                  color="white"
-                />
+                <StyledView className="flex-row items-center flex-1">
+                  <StyledText className="text-white/70 flex-1">
+                    {scriptData.title
+                      ? scriptData.title
+                      : t("writeScript", "Escribir Script")}
+                  </StyledText>
+                  <MaterialCommunityIcons
+                    name="typewriter"
+                    size={20}
+                    color="white"
+                  />
+                </StyledView>
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
+
+          {/* Notes Field with Encryption */}
+          {/* <StyledView className="flex-row mt-6 mb-4">
+            <StyledView className="w-12 h-19 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+              <Feather name="file-text" size={24} color="white" />
+            </StyledView>
+
+            <StyledView className="flex-1">
+              <StyledView className="flex-row items-center mb-2">
+                <StyledText className="text-white flex-1 ml-1">
+                  {t("notes", "Notas adicionales")}
+                </StyledText>
+              </StyledView>
+              <StyledTextInput
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[80px]"
+                placeholder={t("notesPlaceholder", "Notas privadas sobre el truco")}
+                placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                value={trickData.notes}
+                onChangeText={(text) => updateTrickData({ notes: text })}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </StyledView>
+          </StyledView> */}
         </StyledView>
 
         {/* Indicador de paso */}
@@ -828,9 +839,9 @@ export default function ExtrasStep({
         {/* Botón de Registro de Magia */}
         <StyledTouchableOpacity
           className={`w-full py-4 rounded-lg items-center justify-center flex-row mb-6 ${
-            isSubmitting ? "bg-white/10" : "bg-emerald-700"
+            isSubmitting || !encryptionReady ? "bg-white/10" : "bg-emerald-700"
           }`}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !encryptionReady}
           onPress={onNext}
         >
           <StyledText className="text-white font-semibold text-base">
@@ -838,19 +849,25 @@ export default function ExtrasStep({
               ? t("saving", "Guardando...")
               : t("registerMagic", "Registrar Magia")}
           </StyledText>
-          {isSubmitting && (
+          {isSubmitting ? (
             <Ionicons
               name="refresh"
               size={20}
               color="white"
               style={{ marginLeft: 8 }}
             />
+          ) : (
+            <MaterialIcons 
+              name="security" 
+              size={20} 
+              color="white" 
+              style={{ marginLeft: 8 }}
+            />
           )}
         </StyledTouchableOpacity>
       </StyledScrollView>
 
-      {/* Modales - Estos se moverán a componentes separados */}
-      {/* Por ahora, renderizando condicionalmente con marcadores de posición para futuros componentes */}
+      {/* Modales */}
       {techniquesModalVisible && (
         <TechniquesModal
           visible={techniquesModalVisible}
@@ -883,6 +900,7 @@ export default function ExtrasStep({
           userId={trickData.user_id}
         />
       )}
+
       {/* DateTimePicker nativo para duración */}
       {showDurationPicker && (
         <DateTimePicker

@@ -13,7 +13,12 @@ import {
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
-import { Feather, Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
+import {
+  Feather,
+  Ionicons,
+  FontAwesome5,
+  MaterialIcons,
+} from "@expo/vector-icons";
 import type { EncryptedMagicTrick } from "../../../types/encryptedMagicTrick";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../../lib/supabase";
@@ -21,7 +26,7 @@ import * as FileSystem from "expo-file-system";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 import { useEncryption } from "../../../hooks/useEncryption";
 import { FileEncryptionService } from "../../../utils/fileEncryption";
 
@@ -56,7 +61,9 @@ export default function EffectStepEncrypted({
 }: StepProps) {
   const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
-  const [uploadingType, setUploadingType] = useState<'effect' | 'secret' | null>(null);
+  const [uploadingType, setUploadingType] = useState<
+    "effect" | "secret" | null
+  >(null);
   const [saving, setSaving] = useState(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -67,7 +74,7 @@ export default function EffectStepEncrypted({
     keyPair,
     encryptForSelf,
     getPublicKey,
-    error: encryptionError
+    error: encryptionError,
   } = useEncryption();
 
   const fileEncryptionService = new FileEncryptionService();
@@ -75,24 +82,28 @@ export default function EffectStepEncrypted({
   // Verificar que el cifrado esté listo
   useEffect(() => {
     if (!encryptionReady && !encryptionError) {
-      console.log('Esperando inicialización del cifrado...')
+      console.log("Esperando inicialización del cifrado...");
     } else if (encryptionError) {
-      console.error('Error en el cifrado:', encryptionError)
+      console.error("Error en el cifrado:", encryptionError);
       Alert.alert(
-        t('security.error', 'Error de Seguridad'),
-        t('security.encryptionNotReady', 'El sistema de cifrado no está listo')
-      )
+        t("security.error", "Error de Seguridad"),
+        t("security.encryptionNotReady", "El sistema de cifrado no está listo")
+      );
     }
-  }, [encryptionReady, encryptionError, t])
+  }, [encryptionReady, encryptionError, t]);
 
   // Request permissions
   const requestMediaLibraryPermissions = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert(
           t("permissionRequired", "Permission Required"),
-          t("mediaLibraryPermission", "We need access to your media library to upload videos."),
+          t(
+            "mediaLibraryPermission",
+            "We need access to your media library to upload videos."
+          ),
           [{ text: t("ok", "OK") }]
         );
         return false;
@@ -115,7 +126,10 @@ export default function EffectStepEncrypted({
         });
 
         if (error) {
-          console.error(`Error incrementing usage count for tag ${tagId}:`, error);
+          console.error(
+            `Error incrementing usage count for tag ${tagId}:`,
+            error
+          );
         }
       }
     } catch (error) {
@@ -128,8 +142,11 @@ export default function EffectStepEncrypted({
     try {
       if (!encryptionReady || !keyPair) {
         Alert.alert(
-          t('security.error', 'Error de Seguridad'),
-          t('security.encryptionNotReady', 'El sistema de cifrado no está listo')
+          t("security.error", "Error de Seguridad"),
+          t(
+            "security.encryptionNotReady",
+            "El sistema de cifrado no está listo"
+          )
         );
         return;
       }
@@ -156,7 +173,10 @@ export default function EffectStepEncrypted({
             if (fileInfo.size > 50 * 1024 * 1024) {
               Alert.alert(
                 t("fileTooLarge", "File Too Large"),
-                t("fileSizeWarning", "The selected video is too large. Please select a smaller video or trim this one."),
+                t(
+                  "fileSizeWarning",
+                  "The selected video is too large. Please select a smaller video or trim this one."
+                ),
                 [{ text: t("ok", "OK") }]
               );
               return;
@@ -166,13 +186,16 @@ export default function EffectStepEncrypted({
           console.error("Error checking file size:", error);
         }
 
-        await encryptAndStoreVideo(uri, 'effect');
+        await encryptAndStoreVideo(uri, "effect");
       }
     } catch (error) {
       console.error("Error picking video:", error);
       Alert.alert(
         t("error", "Error"),
-        t("videoPickError", "There was an error selecting the video. Please try again."),
+        t(
+          "videoPickError",
+          "There was an error selecting the video. Please try again."
+        ),
         [{ text: t("ok", "OK") }]
       );
     }
@@ -183,8 +206,11 @@ export default function EffectStepEncrypted({
     try {
       if (!encryptionReady || !keyPair) {
         Alert.alert(
-          t('security.error', 'Error de Seguridad'),
-          t('security.encryptionNotReady', 'El sistema de cifrado no está listo')
+          t("security.error", "Error de Seguridad"),
+          t(
+            "security.encryptionNotReady",
+            "El sistema de cifrado no está listo"
+          )
         );
         return;
       }
@@ -211,7 +237,10 @@ export default function EffectStepEncrypted({
             if (fileInfo.size > 50 * 1024 * 1024) {
               Alert.alert(
                 t("fileTooLarge", "File Too Large"),
-                t("fileSizeWarning", "The selected video is too large. Please select a smaller video or trim this one."),
+                t(
+                  "fileSizeWarning",
+                  "The selected video is too large. Please select a smaller video or trim this one."
+                ),
                 [{ text: t("ok", "OK") }]
               );
               return;
@@ -221,20 +250,26 @@ export default function EffectStepEncrypted({
           console.error("Error checking file size:", error);
         }
 
-        await encryptAndStoreVideo(uri, 'secret');
+        await encryptAndStoreVideo(uri, "secret");
       }
     } catch (error) {
       console.error("Error picking video:", error);
       Alert.alert(
         t("error", "Error"),
-        t("videoPickError", "There was an error selecting the video. Please try again."),
+        t(
+          "videoPickError",
+          "There was an error selecting the video. Please try again."
+        ),
         [{ text: t("ok", "OK") }]
       );
     }
   };
 
   // Cifrar y almacenar video
-  const encryptAndStoreVideo = async (uri: string, type: 'effect' | 'secret') => {
+  const encryptAndStoreVideo = async (
+    uri: string,
+    type: "effect" | "secret"
+  ) => {
     if (!keyPair) return;
 
     try {
@@ -242,16 +277,18 @@ export default function EffectStepEncrypted({
       setUploadingType(type);
 
       // Obtener información del usuario
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error('Usuario no autenticado');
+        throw new Error("Usuario no autenticado");
       }
 
       // Cifrar y subir video
       const metadata = await fileEncryptionService.encryptAndUploadFile(
         uri,
         `${type}_video_${Date.now()}.mp4`,
-        'video/mp4',
+        "video/mp4",
         user.id,
         [user.id], // Solo el autor tiene acceso
         getPublicKey,
@@ -259,37 +296,45 @@ export default function EffectStepEncrypted({
       );
 
       // Actualizar los datos del truco con el ID del archivo cifrado
-      if (type === 'effect') {
-        updateTrickData({ 
+      if (type === "effect") {
+        updateTrickData({
           effect_video_url: metadata.fileId,
           encryptedFiles: {
             ...trickData.encryptedFiles,
-            effect_video: metadata.fileId
-          }
+            effect_video: metadata.fileId,
+          },
         });
       } else {
-        updateTrickData({ 
+        updateTrickData({
           secret_video_url: metadata.fileId,
           encryptedFiles: {
             ...trickData.encryptedFiles,
-            secret_video: metadata.fileId
-          }
+            secret_video: metadata.fileId,
+          },
         });
       }
 
       Alert.alert(
-        t('security.success', 'Éxito'),
-        t(type === 'effect' ? 'security.effectVideoEncrypted' : 'security.secretVideoEncrypted', 
-          `Video ${type === 'effect' ? 'del efecto' : 'del secreto'} cifrado y almacenado`),
-        [{ text: t('ok', 'OK') }]
+        t("security.success", "Éxito"),
+        t(
+          type === "effect"
+            ? "security.effectVideoEncrypted"
+            : "security.secretVideoEncrypted",
+          `Video ${
+            type === "effect" ? "del efecto" : "del secreto"
+          } cifrado y almacenado`
+        ),
+        [{ text: t("ok", "OK") }]
       );
-
     } catch (error) {
       console.error(`Error cifrando video ${type}:`, error);
       Alert.alert(
-        t('security.error', 'Error de Cifrado'),
-        t('security.videoEncryptionError', 'No se pudo cifrar el video. Inténtalo de nuevo.'),
-        [{ text: t('ok', 'OK') }]
+        t("security.error", "Error de Cifrado"),
+        t(
+          "security.videoEncryptionError",
+          "No se pudo cifrar el video. Inténtalo de nuevo."
+        ),
+        [{ text: t("ok", "OK") }]
       );
     } finally {
       setUploading(false);
@@ -305,9 +350,11 @@ export default function EffectStepEncrypted({
   };
 
   // Cifrar campos sensibles
-  const encryptAllSensitiveFields = async (data: EncryptedMagicTrick): Promise<EncryptedMagicTrick> => {
+  const encryptAllSensitiveFields = async (
+    data: EncryptedMagicTrick
+  ): Promise<EncryptedMagicTrick> => {
     if (!keyPair) {
-      throw new Error('Claves de cifrado no disponibles');
+      throw new Error("Claves de cifrado no disponibles");
     }
 
     const encryptedData = { ...data };
@@ -337,8 +384,8 @@ export default function EffectStepEncrypted({
       encryptedData.encryptedFields = encryptedFields;
       return encryptedData;
     } catch (error) {
-      console.error('Error cifrando campos del truco:', error);
-      throw new Error('Error al cifrar información del truco');
+      console.error("Error cifrando campos del truco:", error);
+      throw new Error("Error al cifrar información del truco");
     }
   };
 
@@ -350,7 +397,10 @@ export default function EffectStepEncrypted({
       if (!trickData.effect?.trim() || !trickData.secret?.trim()) {
         Alert.alert(
           t("validationError", "Error de Validación"),
-          t("requiredFieldsMissing", "Por favor complete todos los campos obligatorios."),
+          t(
+            "requiredFieldsMissing",
+            "Por favor complete todos los campos obligatorios."
+          ),
           [{ text: t("ok", "OK") }]
         );
         return;
@@ -359,13 +409,18 @@ export default function EffectStepEncrypted({
       if (!keyPair) {
         Alert.alert(
           t("security.encryptionRequired", "Cifrado Requerido"),
-          t("security.setupEncryptionFirst", "El sistema de cifrado no está configurado"),
+          t(
+            "security.setupEncryptionFirst",
+            "El sistema de cifrado no está configurado"
+          ),
           [{ text: t("ok", "OK") }]
         );
         return;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         Alert.alert(t("error"), t("userNotFound", "Usuario no encontrado"));
         return;
@@ -394,48 +449,58 @@ export default function EffectStepEncrypted({
 
       // Cifrar campos sensibles
       const encryptedTrickData = await encryptAllSensitiveFields(trickData);
-      
+
       // Generar ID único
       const trickId = uuidv4();
 
       // Usar RPC para crear el truco cifrado
-      const { data, error } = await supabase.rpc('create_encrypted_magic_trick', {
-        trick_id: trickId,
-        trick_data: {
-          user_id: user.id,
-          title: encryptedTrickData.title,
-          effect: encryptedTrickData.effect,
-          secret: encryptedTrickData.secret,
-          duration: encryptedTrickData.duration,
-          angles: encryptedTrickData.angles,
-          notes: encryptedTrickData.notes || "[ENCRYPTED]",
-          special_materials: encryptedTrickData.special_materials,
-          is_public: false,
-          status: "draft",
-          price: null,
-          photo_url: encryptedTrickData.photo_url,
-          effect_video_url: trickData.encryptedFiles?.effect_video || encryptedTrickData.effect_video_url,
-          secret_video_url: trickData.encryptedFiles?.secret_video || encryptedTrickData.secret_video_url,
-          views_count: 0,
-          likes_count: 0,
-          dislikes_count: 0,
-          version: 1,
-          parent_trick_id: null,
-          reset: encryptedTrickData.reset,
-          difficulty: encryptedTrickData.difficulty,
-          is_encrypted: true,
-        },
-        encryption_metadata: {
-          content_type: "magic_tricks",
-          user_id: user.id,
-          encrypted_fields: encryptedTrickData.encryptedFields,
-          encrypted_files: trickData.encryptedFiles || {},
+      const { data, error } = await supabase.rpc(
+        "create_encrypted_magic_trick",
+        {
+          trick_id: trickId,
+          trick_data: {
+            user_id: user.id,
+            title: encryptedTrickData.title,
+            effect: encryptedTrickData.effect,
+            secret: encryptedTrickData.secret,
+            duration: encryptedTrickData.duration,
+            angles: encryptedTrickData.angles,
+            notes: encryptedTrickData.notes || "[ENCRYPTED]",
+            special_materials: encryptedTrickData.special_materials,
+            is_public: false,
+            status: "draft",
+            price: null,
+            photo_url: encryptedTrickData.photo_url,
+            effect_video_url:
+              trickData.encryptedFiles?.effect_video ||
+              encryptedTrickData.effect_video_url,
+            secret_video_url:
+              trickData.encryptedFiles?.secret_video ||
+              encryptedTrickData.secret_video_url,
+            views_count: 0,
+            likes_count: 0,
+            dislikes_count: 0,
+            version: 1,
+            parent_trick_id: null,
+            reset: encryptedTrickData.reset,
+            difficulty: encryptedTrickData.difficulty,
+            is_encrypted: true,
+          },
+          encryption_metadata: {
+            content_type: "magic_tricks",
+            user_id: user.id,
+            encrypted_fields: encryptedTrickData.encryptedFields,
+            encrypted_files: trickData.encryptedFiles || {},
+          },
         }
-      });
+      );
 
       if (error) {
         console.error("Error creating trick:", error);
-        Alert.alert(t("error"), t("errorCreatingTrick", "Error creando el truco"));
+        Alert.alert(
+          t("error"),
+          t("errorCreatingTrick", "Error creando el truco")
+        );
         return;
       }
 
@@ -450,7 +515,7 @@ export default function EffectStepEncrypted({
 
       // Associate tags
       if (trickData.tags.length > 0) {
-        const tagInserts = trickData.tags.map(tagId => ({
+        const tagInserts = trickData.tags.map((tagId) => ({
           trick_id: trickId,
           tag_id: tagId,
           created_at: new Date().toISOString(),
@@ -462,7 +527,10 @@ export default function EffectStepEncrypted({
 
       Alert.alert(
         t("success", "Éxito"),
-        t("trickCreatedSuccessfully", "El truco ha sido creado y cifrado exitosamente"),
+        t(
+          "trickCreatedSuccessfully",
+          "El truco ha sido creado y cifrado exitosamente"
+        ),
         [{ text: t("ok", "OK") }]
       );
 
@@ -471,7 +539,9 @@ export default function EffectStepEncrypted({
       console.error("Error saving trick:", error);
       Alert.alert(
         t("error", "Error"),
-        error instanceof Error ? error.message : t("unexpectedError", "Ocurrió un error inesperado"),
+        error instanceof Error
+          ? error.message
+          : t("unexpectedError", "Ocurrió un error inesperado"),
         [{ text: t("ok", "OK") }]
       );
     } finally {
@@ -513,27 +583,14 @@ export default function EffectStepEncrypted({
       </StyledView>
 
       <StyledScrollView className="flex-1 px-6">
-        {/* Security Notice */}
-        <StyledView className="bg-emerald-500/20 rounded-lg p-4 mb-6 border border-emerald-500/30">
-          <StyledView className="flex-row items-center mb-2">
-            <MaterialIcons name="security" size={20} color="#10b981" />
-            <StyledText className="text-emerald-200 font-semibold ml-3">
-              {t("security.secretsProtected", "Secretos Protegidos")}
-            </StyledText>
-          </StyledView>
-          <StyledText className="text-emerald-200/80 text-sm">
-            {t("security.magicSecretsNotice", "El efecto y secreto de tu truco serán cifrados para proteger tu propiedad intelectual.")}
-          </StyledText>
-        </StyledView>
-
         {/* Effect Section */}
-        <StyledView className="mt-6 mb-6">
+        <StyledView className="mt-6">
           <StyledText className="text-white/60 text-lg font-semibold mb-4">
             {t("effect", "Efecto")}
           </StyledText>
 
           {/* Effect Video */}
-          <StyledView className="flex-row mb-4">
+          <StyledView className="flex-row mb-6">
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
               <Feather name="video" size={24} color="white" />
             </StyledView>
@@ -542,10 +599,10 @@ export default function EffectStepEncrypted({
               <StyledTouchableOpacity
                 onPress={pickEffectVideo}
                 disabled={uploading || !encryptionReady}
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
+                className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]"
               >
                 <StyledView className="flex-1 flex-row items-center">
-                  {uploading && uploadingType === 'effect' ? (
+                  {uploading && uploadingType === "effect" ? (
                     <>
                       <ActivityIndicator size="small" color="#10b981" />
                       <StyledText className="text-white/70 ml-2">
@@ -560,8 +617,12 @@ export default function EffectStepEncrypted({
                           : t("uploadEffectVideo", "Subir video del efecto*")}
                       </StyledText>
                       <StyledView className="flex-row items-center">
-                        <MaterialIcons name="security" size={16} color="#10b981" />
-                        <Feather name="upload" size={16} color="white" style={{ marginLeft: 4 }} />
+                        <Feather
+                          name="upload"
+                          size={16}
+                          color="white"
+                          style={{ marginLeft: 4 }}
+                        />
                       </StyledView>
                     </>
                   )}
@@ -571,28 +632,28 @@ export default function EffectStepEncrypted({
           </StyledView>
 
           {/* Effect Description */}
-          <StyledView className="flex-row mb-6">
-            <StyledView className="w-12 h-19 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-              <Feather name="star" size={24} color="white" />
-            </StyledView>
-
-            <StyledView className="flex-1">
-              <StyledView className="flex-row items-center mb-2">
-                <StyledText className="text-white flex-1 ml-1">
-                  {t("effectDescription", "Descripción del efecto")}
-                </StyledText>
-                <MaterialIcons name="security" size={16} color="#10b981" />
+          <StyledView className="mb-6">
+            <StyledView className="flex-row items-center">
+              <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="star" size={24} color="white" />
               </StyledView>
-              <StyledTextInput
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[80px]"
-                placeholder={t("effectShortDescription", "Descripción corta del efecto")}
-                placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                value={trickData.effect}
-                onChangeText={(text) => updateTrickData({ effect: text })}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
+
+              <StyledView className="flex-1">
+                <StyledView className="flex-row"></StyledView>
+                <StyledTextInput
+                  className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[80px]"
+                  placeholder={t(
+                    "effectShortDescription",
+                    "Descripción corta del efecto"
+                  )}
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  value={trickData.effect}
+                  onChangeText={(text) => updateTrickData({ effect: text })}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              </StyledView>
             </StyledView>
           </StyledView>
         </StyledView>
@@ -604,7 +665,8 @@ export default function EffectStepEncrypted({
           </StyledText>
 
           {/* Secret Video */}
-          <StyledView className="flex-row mb-4">
+
+          <StyledView className="flex-row mb-6">
             <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
               <Feather name="video" size={24} color="white" />
             </StyledView>
@@ -613,10 +675,10 @@ export default function EffectStepEncrypted({
               <StyledTouchableOpacity
                 onPress={pickSecretVideo}
                 disabled={uploading || !encryptionReady}
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
+                className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]"
               >
                 <StyledView className="flex-1 flex-row items-center">
-                  {uploading && uploadingType === 'secret' ? (
+                  {uploading && uploadingType === "secret" ? (
                     <>
                       <ActivityIndicator size="small" color="#10b981" />
                       <StyledText className="text-white/70 ml-2">
@@ -631,8 +693,12 @@ export default function EffectStepEncrypted({
                           : t("secretVideoUpload", "Subir video del secreto")}
                       </StyledText>
                       <StyledView className="flex-row items-center">
-                        <MaterialIcons name="security" size={16} color="#10b981" />
-                        <Feather name="upload" size={16} color="white" style={{ marginLeft: 4 }} />
+                        <Feather
+                          name="upload"
+                          size={16}
+                          color="white"
+                          style={{ marginLeft: 4 }}
+                        />
                       </StyledView>
                     </>
                   )}
@@ -642,28 +708,28 @@ export default function EffectStepEncrypted({
           </StyledView>
 
           {/* Secret Description */}
-          <StyledView className="flex-row mb-28">
-            <StyledView className="w-12 h-19 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-              <Feather name="lock" size={24} color="white" />
-            </StyledView>
-
-            <StyledView className="flex-1 ml-3">
-              <StyledView className="flex-row items-center mb-2">
-                <StyledText className="text-white flex-1 ml-1">
-                  {t("secretDescription", "Descripción del secreto")}
-                </StyledText>
-                <MaterialIcons name="security" size={16} color="#10b981" />
+          <StyledView className="mb-16">
+            <StyledView className="flex-row items-center">
+              <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="lock" size={24} color="white" />
               </StyledView>
-              <StyledTextInput
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[80px]"
-                placeholder={t("effectSecretDescription", "Descripción del secreto del efecto")}
-                placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                value={trickData.secret}
-                onChangeText={(text) => updateTrickData({ secret: text })}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
+
+              <StyledView className="flex-1 ml-3">
+                <StyledView className="flex-row"></StyledView>
+                <StyledTextInput
+                  className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[80px]"
+                  placeholder={t(
+                    "effectSecretDescription",
+                    "Descripción del secreto del efecto"
+                  )}
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  value={trickData.secret}
+                  onChangeText={(text) => updateTrickData({ secret: text })}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              </StyledView>
             </StyledView>
           </StyledView>
         </StyledView>
@@ -695,12 +761,18 @@ export default function EffectStepEncrypted({
         {/* Register Magic Button */}
         <StyledTouchableOpacity
           className={`w-full py-4 rounded-lg items-center justify-center flex-row mb-6 ${
-            saving || !trickData.effect.trim() || !trickData.secret.trim() || !encryptionReady
+            saving ||
+            !trickData.effect.trim() ||
+            !trickData.secret.trim() ||
+            !encryptionReady
               ? "bg-white/10"
               : "bg-emerald-700"
           }`}
           disabled={
-            saving || !trickData.effect.trim() || !trickData.secret.trim() || !encryptionReady
+            saving ||
+            !trickData.effect.trim() ||
+            !trickData.secret.trim() ||
+            !encryptionReady
           }
           onPress={handleRegisterMagic}
         >
@@ -717,10 +789,10 @@ export default function EffectStepEncrypted({
               style={{ marginLeft: 8 }}
             />
           ) : (
-            <MaterialIcons 
-              name="security" 
-              size={20} 
-              color="white" 
+            <MaterialIcons
+              name="security"
+              size={20}
+              color="white"
               style={{ marginLeft: 8 }}
             />
           )}

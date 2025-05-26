@@ -382,7 +382,7 @@ export default function TitleCategoryStepEncrypted({
     <StyledView className="flex-1">
       <StyledView className="flex-1" style={{ paddingTop: 15 }}>
         {/* Header */}
-        <StyledView className="flex-row items-center justify-between px-6">
+        <StyledView className="flex-row items-center justify-between px-6 mb-4">
           <StyledTouchableOpacity className="p-2" onPress={onCancel}>
             <Feather name="x" size={24} color="white" />
           </StyledTouchableOpacity>
@@ -401,19 +401,6 @@ export default function TitleCategoryStepEncrypted({
           </StyledTouchableOpacity>
         </StyledView>
 
-        {/* Aviso de cifrado */}
-        <StyledView className="mx-6 mt-4 bg-emerald-500/20 rounded-lg p-4 mb-4 border border-emerald-500/30">
-          <StyledView className="flex-row items-center mb-2">
-            <MaterialIcons name="security" size={20} color="#10b981" />
-            <StyledText className="text-emerald-200 font-semibold ml-3">
-              {t("security.protectedContent", "Contenido Protegido")}
-            </StyledText>
-          </StyledView>
-          <StyledText className="text-emerald-200/80 text-sm">
-            {t("security.magicEncryptionNotice", "Los secretos de tu magia serán cifrados de extremo a extremo para proteger tu conocimiento.")}
-          </StyledText>
-        </StyledView>
-
         {/* Form Fields */}
         <StyledView className="flex-1 px-6 mt-4">
           <StyledText className="text-white/60 text-lg font-semibold mb-4">
@@ -422,7 +409,7 @@ export default function TitleCategoryStepEncrypted({
 
           {/* Magic Title Field */}
           <StyledView className="mb-8">
-            <StyledView className="flex-row items-center mb-3">
+            <StyledView className="flex-row items-center">
               <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
                 <FontAwesome6 name="wand-magic-sparkles" size={18} color="white" />
               </StyledView>
