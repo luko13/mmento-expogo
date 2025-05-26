@@ -82,7 +82,6 @@ export default function EffectStepEncrypted({
   // Verificar que el cifrado esté listo
   useEffect(() => {
     if (!encryptionReady && !encryptionError) {
-      console.log("Esperando inicialización del cifrado...");
     } else if (encryptionError) {
       console.error("Error en el cifrado:", encryptionError);
       Alert.alert(

@@ -18,6 +18,15 @@ interface UserProfileProps {
   onCloseSearch?: () => void
 }
 
+// Cache de datos de usuario
+let userCache: {
+  userName: string
+  avatarUrl: string | null
+  timestamp: number
+} | null = null
+
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutos
+
 export default function UserProfile({ onProfilePress, isSearchVisible = false, onCloseSearch }: UserProfileProps) {
   const { t, i18n } = useTranslation()
   const [userName, setUserName] = useState("")
@@ -27,81 +36,86 @@ export default function UserProfile({ onProfilePress, isSearchVisible = false, o
   const buttonOpacity = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
-    // Set greeting based on current language
+    // Saludo dependiendo del idioma actual
     const currentLanguage = i18n.language || "en"
+    setGreeting(currentLanguage.startsWith("es") ? t("hola") : t("hello"))
+  }, [t, i18n.language])
 
-    if (currentLanguage.startsWith("es")) {
-      setGreeting(t("hola"))
-    } else {
-      setGreeting(t("hello"))
-    }
-
-    // Fetch user data
+  useEffect(() => {
     const getUserInfo = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      try {
+        // Verificar cache primero
+        if (userCache && Date.now() - userCache.timestamp < CACHE_DURATION) {
+          setUserName(userCache.userName)
+          setAvatarUrl(userCache.avatarUrl)
+          return
+        }
 
-      if (user) {
-        // Get user profile
-        const { data: userData, error: userError } = await supabase
+        // Obtener el usuario autenticado del localStorage/sessionStorage si está disponible
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        
+        if (authError || !user) {
+          console.error("Error getting auth user:", authError)
+          return
+        }
+
+        // Única consulta optimizada a la base de datos
+        const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("username, email")
+          .select("username, email, avatar_url")
           .eq("id", user.id)
           .single()
 
-        if (userData) {
-          setUserName(userData.username || userData.email?.split("@")[0] || "Usuario")
+        if (profileError) {
+          console.error("Error fetching user profile:", profileError)
+          // Usar email como fallback
+          const fallbackName = user.email?.split("@")[0] || "Usuario"
+          setUserName(fallbackName)
+          return
         }
 
-        if (userError) {
-          console.error("Error fetching user data:", userError)
+        const displayName = profile.username || profile.email?.split("@")[0] || "Usuario"
+        
+        // Actualizar estado
+        setUserName(displayName)
+        setAvatarUrl(profile.avatar_url)
+        
+        // Guardar en cache
+        userCache = {
+          userName: displayName,
+          avatarUrl: profile.avatar_url,
+          timestamp: Date.now()
         }
+      } catch (error) {
+        console.error("Unexpected error fetching user info:", error)
+        setUserName("Usuario")
       }
     }
 
     getUserInfo()
-  }, [t, i18n.language])
+  }, [])
 
   // Animar el botón cuando cambie isSearchVisible
   useEffect(() => {
-    if (isSearchVisible) {
-      Animated.timing(buttonOpacity, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start()
-    } else {
-      Animated.timing(buttonOpacity, {
-        toValue: 0,
-        duration: 150, // Fadeout más rápido
-        useNativeDriver: true,
-      }).start()
-    }
-  }, [isSearchVisible])
-
-  // Botón para ir a la pantalla de prueba de fuentes
-  const goToFontTest = () => {
-    router.push("/(app)/font-test")
-  }
+    Animated.timing(buttonOpacity, {
+      toValue: isSearchVisible ? 1 : 0,
+      duration: isSearchVisible ? 200 : 150,
+      useNativeDriver: true,
+    }).start()
+  }, [isSearchVisible, buttonOpacity])
 
   const handleClosePress = () => {
-    // Fadeout rápido al presionar
     Animated.timing(buttonOpacity, {
       toValue: 0,
-      duration: 50, // Velocidad del fadeout
+      duration: 50,
       useNativeDriver: true,
     }).start(() => {
-      // Llamar a onCloseSearch después del fadeout
-      if (onCloseSearch) {
-        onCloseSearch()
-      }
+      onCloseSearch?.()
     })
   }
 
   return (
     <StyledView className="flex-row items-center justify-between">
-      {/* User info section */}
       <StyledTouchableOpacity className="flex-row items-center mb-2 flex-1" onPress={onProfilePress}>
         <StyledView className="w-12 h-12 rounded-full overflow-hidden bg-emerald-600 justify-center items-center mr-3">
           {avatarUrl ? (
@@ -111,18 +125,16 @@ export default function UserProfile({ onProfilePress, isSearchVisible = false, o
           )}
         </StyledView>
 
-        {/* Usar RNText directamente para garantizar que se muestre correctamente */}
         <RNText style={{ color: "white", fontSize: 18, fontWeight: "bold" }}>
           {greeting}, {userName}
         </RNText>
       </StyledTouchableOpacity>
 
-      {/* Close search button - only visible when search is active */}
       {isSearchVisible && onCloseSearch && (
         <StyledAnimatedView
           style={{
             opacity: buttonOpacity,
-            transform: [{ scale: buttonOpacity }], // También escala para un efecto más suave
+            transform: [{ scale: buttonOpacity }],
           }}
         >
           <StyledTouchableOpacity 
@@ -138,11 +150,11 @@ export default function UserProfile({ onProfilePress, isSearchVisible = false, o
           </StyledTouchableOpacity>
         </StyledAnimatedView>
       )}
-
-      {/* Botón para ir a la pantalla de prueba de fuentes */}
-      {/* <StyledTouchableOpacity className="bg-emerald-700 py-2 px-4 rounded-lg mb-4 self-start" onPress={goToFontTest}>
-        <RNText style={{ color: "white" }}>Probar Fuentes</RNText>
-      </StyledTouchableOpacity> */}
     </StyledView>
   )
+}
+
+// Función para limpiar el cache cuando el usuario cierra sesión
+export const clearUserCache = () => {
+  userCache = null
 }

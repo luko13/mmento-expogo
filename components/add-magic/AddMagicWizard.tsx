@@ -523,7 +523,6 @@ export default function AddMagicWizardEncrypted({
         visible={showEncryptionSetup}
         onClose={() => setShowEncryptionSetup(false)}
         onSetupComplete={() => {
-          console.log('Cifrado configurado correctamente para trucos')
         }}
       />
     </>

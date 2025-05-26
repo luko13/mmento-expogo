@@ -12,17 +12,33 @@ export interface Category {
 
 // Type for trick
 export interface Trick {
-  id: string
-  title: string
-  effect: string
-  secret: string
-  difficulty: string
-  status: string
-  created_at: string
-  duration?: number | null
-  reset?: number | null
-  user_id: string
-  notes?: string
+  id: string;
+  user_id: string;
+  title: string;
+  effect: string;
+  secret: string;
+  duration: number | null;
+  angles: any;
+  notes: string;
+  special_materials: string[];
+  is_public: boolean;
+  status: string;
+  price: number | null;
+  photo_url: string | null;
+  effect_video_url: string | null;
+  secret_video_url: string | null;
+  views_count: number;
+  likes_count: number;
+  dislikes_count: number;
+  created_at?: string;
+  updated_at?: string;
+  version: number;
+  parent_trick_id: string | null;
+  reset: number | null;
+  difficulty: number | null;
+  
+  // Nuevo campo requerido
+  is_encrypted: boolean;
 }
 
 // Type for technique
@@ -41,6 +57,7 @@ export interface Technique {
   video_url?: string | null
   is_public: boolean
   price?: number | null
+  is_encrypted?: boolean
 }
 
 // Type for gimmick
@@ -63,6 +80,7 @@ export interface Gimmick {
   craft_video_url?: string | null
   is_public: boolean
   price?: number | null
+  is_encrypted?: boolean
 }
 
 // Get user categories
@@ -323,5 +341,73 @@ export async function getCategoryItemsCount(categoryId: string, userId: string):
   } catch (error) {
     console.error("Error counting category items:", error)
     return 0
+  }
+}
+
+// NEW OPTIMIZED FUNCTION - Get all user content in one go
+export async function getAllUserContent(userId: string) {
+  try {
+    // Execute all queries in parallel
+    const [categories, tricksResult, techniquesResult, gimmicksResult, sharedContentResult] = await Promise.all([
+      getUserCategories(userId),
+      
+      // Get all tricks with their categories and tags
+      supabase
+        .from("magic_tricks")
+        .select(`
+          *,
+          trick_categories(category_id),
+          trick_tags(tag_id)
+        `)
+        .eq("user_id", userId),
+      
+      // Get all techniques with their categories and tags
+      supabase
+        .from("techniques")
+        .select(`
+          *,
+          technique_categories!technique_categories_technique_id_fkey(category_id),
+          technique_tags(tag_id)
+        `)
+        .eq("user_id", userId),
+      
+      // Get all gimmicks with their categories
+      supabase
+        .from("gimmicks")
+        .select(`
+          *,
+          gimmick_categories!gimmick_categories_gimmick_id_fkey(category_id)
+        `)
+        .eq("user_id", userId),
+      
+      // Get shared content
+      supabase
+        .from("shared_content")
+        .select(`
+          *,
+          profiles!shared_content_owner_id_fkey (
+            id,
+            username,
+            avatar_url
+          )
+        `)
+        .eq("shared_with", userId)
+    ]);
+    return {
+      categories: categories || [],
+      tricks: tricksResult.data || [],
+      techniques: techniquesResult.data || [],
+      gimmicks: gimmicksResult.data || [],
+      sharedContent: sharedContentResult.data || []
+    };
+  } catch (error) {
+    console.error("Error fetching user content:", error);
+    return {
+      categories: [],
+      tricks: [],
+      techniques: [],
+      gimmicks: [],
+      sharedContent: []
+    };
   }
 }
