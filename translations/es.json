@@ -49,6 +49,7 @@
   "librariesCount": "{{count}} Bibliotecas",
   "myTricks": "Mis Trucos",
   "noTricks": "Aún no has añadido ningún truco.",
+  "noItems": "No hay elementos en esta categoría",
   "difficulty": {
     "beginner": "Principiante",
     "easy": "Fácil",

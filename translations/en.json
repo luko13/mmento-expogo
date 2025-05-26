@@ -202,5 +202,6 @@
     "invalidCategory": "Invalid category",
     "errorCreatingTag": "Error creating tag",
     "errorAddingTag": "Error adding tag"
-  }
+  },
+  "noItems": "No items in this category"
 }

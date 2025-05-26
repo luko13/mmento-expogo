@@ -1006,7 +1006,7 @@ export default function LibrariesSection({
 
     return (
       <StyledView className="mb-4">
-        <StyledView className="flex-row justify-between items-center bg-white/10 px-3 border border-white/20 rounded-lg mb-2">
+        <StyledView className="flex-row justify-between items-center py-0.5 bg-white/10 px-3 border border-white/20 rounded-lg mb-2">
           <StyledText className="text-white font-bold">{item.category.name}</StyledText>
           <StyledView className="flex-row items-center">
             <StyledText className="text-white mr-2">{filteredItems.length}</StyledText>
@@ -1036,7 +1036,7 @@ export default function LibrariesSection({
             />
           ))
         ) : (
-          <StyledView className="bg-white/5 p-3 rounded-lg">
+          <StyledView className="border-b border-white/20 p-3 rounded-lg">
             <StyledText className="text-white/50 text-center">
               {t("noItems", "No items in this category")}
             </StyledText>
@@ -1046,7 +1046,7 @@ export default function LibrariesSection({
     );
   }, [searchQuery, searchFilters, handleItemPress, t]);
 
-  // Renderizado
+  // Renderizado final
   return (
     <StyledView className="flex-1">
       {/* Header de libraries */}
