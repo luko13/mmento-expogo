@@ -519,15 +519,15 @@ export default function TitleCategoryStepEncrypted({
         </StyledView>
 
         {/* Bottom Section */}
-        <StyledView className="px-6" style={{ paddingBottom: insets.bottom + 20 }}>
+        <StyledView className="px-6" style={{ paddingBottom: insets.bottom + 12 }}>
           {/* Step indicator */}
-          <StyledText className="text-white/60 text-center text-sm mb-6">
+          <StyledText className="text-white/60 text-center text-sm mb-4">
             {t("navigation.stepIndicator", { current: currentStep, total: totalSteps })}
           </StyledText>
 
           {/* Next Button */}
           <StyledTouchableOpacity
-            className={`w-full h-12 rounded-xl items-center justify-center flex-row ${
+            className={`w-full py-4 rounded-lg items-center justify-center flex-row ${
               isFormValid && !isSubmitting
                 ? 'bg-emerald-700'
                 : 'bg-white/10'

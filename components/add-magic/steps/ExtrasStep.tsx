@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ import {
   MaterialCommunityIcons,
   MaterialIcons,
 } from "@expo/vector-icons";
-import type { EncryptedMagicTrick } from "../../../types/encryptedMagicTrick"
+import type { EncryptedMagicTrick } from "../../../types/encryptedMagicTrick";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../../lib/supabase";
 import * as FileSystem from "expo-file-system";
@@ -90,7 +90,7 @@ export default function ExtrasStepEncrypted({
 }: StepProps) {
   const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
-  const [uploadingType, setUploadingType] = useState<'photo' | null>(null);
+  const [uploadingType, setUploadingType] = useState<"photo" | null>(null);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -100,7 +100,7 @@ export default function ExtrasStepEncrypted({
     keyPair,
     encryptForSelf,
     getPublicKey,
-    error: encryptionError
+    error: encryptionError,
   } = useEncryption();
 
   const fileEncryptionService = new FileEncryptionService();
@@ -129,15 +129,15 @@ export default function ExtrasStepEncrypted({
   // Verificar que el cifrado esté listo
   useEffect(() => {
     if (!encryptionReady && !encryptionError) {
-      console.log('Esperando inicialización del cifrado...')
+      console.log("Esperando inicialización del cifrado...");
     } else if (encryptionError) {
-      console.error('Error en el cifrado:', encryptionError)
+      console.error("Error en el cifrado:", encryptionError);
       Alert.alert(
-        t('security.error', 'Error de Seguridad'),
-        t('security.encryptionNotReady', 'El sistema de cifrado no está listo')
-      )
+        t("security.error", "Error de Seguridad"),
+        t("security.encryptionNotReady", "El sistema de cifrado no está listo")
+      );
     }
-  }, [encryptionReady, encryptionError, t])
+  }, [encryptionReady, encryptionError, t]);
 
   // Opciones de selección de ángulos
   const angles = [
@@ -157,7 +157,7 @@ export default function ExtrasStepEncrypted({
   };
 
   // Mostrar selector de tiempo de duración
-  const openDurationPicker  = () => {
+  const openDurationPicker = () => {
     const currentDate = new Date();
     if (trickData.duration) {
       const minutes = Math.floor(trickData.duration / 60);
@@ -172,7 +172,7 @@ export default function ExtrasStepEncrypted({
   };
 
   // Mostrar selector de tiempo de reinicio
-  const openResetTimePicker  = () => {
+  const openResetTimePicker = () => {
     const currentDate = new Date();
     if (trickData.reset) {
       const minutes = Math.floor(trickData.reset / 60);
@@ -187,7 +187,10 @@ export default function ExtrasStepEncrypted({
   };
 
   // Manejar cambio de duración
-  const handleDurationChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+  const handleDurationChange = (
+    event: DateTimePickerEvent,
+    selectedDate?: Date
+  ) => {
     setShowDurationPicker(Platform.OS === "ios");
 
     if (selectedDate) {
@@ -199,7 +202,10 @@ export default function ExtrasStepEncrypted({
   };
 
   // Manejar cambio de tiempo de reinicio
-  const handleResetChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+  const handleResetChange = (
+    event: DateTimePickerEvent,
+    selectedDate?: Date
+  ) => {
     setShowResetPicker(Platform.OS === "ios");
 
     if (selectedDate) {
@@ -385,8 +391,11 @@ export default function ExtrasStepEncrypted({
     try {
       if (!encryptionReady || !keyPair) {
         Alert.alert(
-          t('security.error', 'Error de Seguridad'),
-          t('security.encryptionNotReady', 'El sistema de cifrado no está listo')
+          t("security.error", "Error de Seguridad"),
+          t(
+            "security.encryptionNotReady",
+            "El sistema de cifrado no está listo"
+          )
         );
         return;
       }
@@ -462,19 +471,21 @@ export default function ExtrasStepEncrypted({
 
     try {
       setUploading(true);
-      setUploadingType('photo');
+      setUploadingType("photo");
 
       // Obtener información del usuario
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error('Usuario no autenticado');
+        throw new Error("Usuario no autenticado");
       }
 
       // Cifrar y subir imagen
       const metadata = await fileEncryptionService.encryptAndUploadFile(
         uri,
         `trick_photo_${Date.now()}.jpg`,
-        'image/jpeg',
+        "image/jpeg",
         user.id,
         [user.id], // Solo el autor tiene acceso
         getPublicKey,
@@ -482,26 +493,28 @@ export default function ExtrasStepEncrypted({
       );
 
       // Actualizar los datos del truco con el ID del archivo cifrado
-      updateTrickData({ 
+      updateTrickData({
         photo_url: metadata.fileId,
         encryptedFiles: {
           ...trickData.encryptedFiles,
-          photo: metadata.fileId
-        }
+          photo: metadata.fileId,
+        },
       });
 
       Alert.alert(
-        t('security.success', 'Éxito'),
-        t('security.photoEncrypted', 'Foto cifrada y almacenada'),
-        [{ text: t('ok', 'OK') }]
+        t("security.success", "Éxito"),
+        t("security.photoEncrypted", "Foto cifrada y almacenada"),
+        [{ text: t("ok", "OK") }]
       );
-
     } catch (error) {
-      console.error('Error cifrando imagen:', error);
+      console.error("Error cifrando imagen:", error);
       Alert.alert(
-        t('security.error', 'Error de Cifrado'),
-        t('security.imageEncryptionError', 'No se pudo cifrar la imagen. Inténtalo de nuevo.'),
-        [{ text: t('ok', 'OK') }]
+        t("security.error", "Error de Cifrado"),
+        t(
+          "security.imageEncryptionError",
+          "No se pudo cifrar la imagen. Inténtalo de nuevo."
+        ),
+        [{ text: t("ok", "OK") }]
       );
     } finally {
       setUploading(false);
@@ -583,7 +596,6 @@ export default function ExtrasStepEncrypted({
       </StyledView>
 
       <StyledScrollView className="flex-1 px-6">
-
         {/* Sección de Estadísticas */}
         <StyledView className="mt-6">
           <StyledText className="text-white/60 text-lg font-semibold mb-4">
@@ -706,7 +718,7 @@ export default function ExtrasStepEncrypted({
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
               >
                 <StyledView className="flex-1 flex-row items-center">
-                  {uploading && uploadingType === 'photo' ? (
+                  {uploading && uploadingType === "photo" ? (
                     <>
                       <ActivityIndicator size="small" color="#10b981" />
                       <StyledText className="text-white/70 ml-2">
@@ -721,7 +733,12 @@ export default function ExtrasStepEncrypted({
                           : t("imagesUpload", "Subir Imágenes")}
                       </StyledText>
                       <StyledView className="flex-row items-center">
-                        <Feather name="upload" size={16} color="white" style={{ marginLeft: 4 }} />
+                        <Feather
+                          name="upload"
+                          size={16}
+                          color="white"
+                          style={{ marginLeft: 4 }}
+                        />
                       </StyledView>
                     </>
                   )}
@@ -830,7 +847,8 @@ export default function ExtrasStepEncrypted({
             </StyledView>
           </StyledView> */}
         </StyledView>
-
+      </StyledScrollView>
+      <StyledView className="justify-end px-6 pb-6">
         {/* Indicador de paso */}
         <StyledText className="text-center text-white/60 mb-4">
           {`${currentStep} de ${totalSteps}`}
@@ -857,16 +875,15 @@ export default function ExtrasStepEncrypted({
               style={{ marginLeft: 8 }}
             />
           ) : (
-            <MaterialIcons 
-              name="security" 
-              size={20} 
-              color="white" 
+            <MaterialIcons
+              name="security"
+              size={20}
+              color="white"
               style={{ marginLeft: 8 }}
             />
           )}
         </StyledTouchableOpacity>
-      </StyledScrollView>
-
+      </StyledView>
       {/* Modales */}
       {techniquesModalVisible && (
         <TechniquesModal

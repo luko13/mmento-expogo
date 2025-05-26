@@ -733,12 +733,12 @@ export default function EffectStepEncrypted({
             </StyledView>
           </StyledView>
         </StyledView>
-
+      </StyledScrollView>
+      <StyledView className="justify-end px-6 pb-6">
         {/* Step indicator */}
         <StyledText className="text-center text-white/60 mb-4">
           {`${currentStep} de ${totalSteps}`}
         </StyledText>
-
         {/* Statistics Button */}
         <StyledTouchableOpacity
           className="w-full py-4 rounded-lg items-center justify-center flex-row border border-[#2C6B5C] bg-transparent mb-4"
@@ -797,7 +797,7 @@ export default function EffectStepEncrypted({
             />
           )}
         </StyledTouchableOpacity>
-      </StyledScrollView>
+      </StyledView>
     </StyledView>
   );
 }
