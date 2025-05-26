@@ -1006,7 +1006,7 @@ export default function LibrariesSection({
 
     return (
       <StyledView className="mb-4">
-        <StyledView className="flex-row justify-between items-center py-0.5 bg-white/10 px-3 border border-white/20 rounded-lg mb-2">
+        <StyledView className="flex-row justify-between items-center bg-white/10 px-3 border border-white/20 rounded-lg mb-2">
           <StyledText className="text-white font-bold">{item.category.name}</StyledText>
           <StyledView className="flex-row items-center">
             <StyledText className="text-white mr-2">{filteredItems.length}</StyledText>
@@ -1078,6 +1078,7 @@ export default function LibrariesSection({
           renderItem={renderCategoryItem}
           keyExtractor={(item) => item.category.id}
           scrollEnabled={true}
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingBottom: NAVBAR_HEIGHT + BOTTOM_SPACING,
           }}

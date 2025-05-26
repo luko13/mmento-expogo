@@ -541,9 +541,6 @@ export default function TitleCategoryStepEncrypted({
             {/* Carrusel de Tags Sugeridos/Filtrados */}
             {filteredTags.length > 0 && (
               <StyledView className="mt-4">
-                <StyledText className="text-white/60 text-xs mb-2">
-                  {t("labels.suggestedTags")}
-                </StyledText>
                 <StyledView style={{ height: 44 }}>
                   <TagCarousel tagsArray={filteredTags} />
                 </StyledView>

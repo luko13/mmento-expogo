@@ -82,12 +82,6 @@ export default function ActionButtonsCarousel() {
       title: t("addGimmick"),
       onPress: () => console.log("Add Gimmick pressed"),
     },
-    {
-      id: "5",
-      icon: <FontAwesome name="file-text-o" size={36} color="white" />,
-      title: t("addScript"),
-      onPress: () => console.log("Add Script pressed"),
-    },
   ]
 
   // Creamos una lista extendida para el efecto de scrolling infinito
