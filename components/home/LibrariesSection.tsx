@@ -92,7 +92,7 @@ interface LibrariesSectionProps {
 const getItemIcon = (type: string) => {
   switch (type) {
     case "magic":
-      return <FontAwesome5 name="magic" size={20} color="white" />;
+      return <FontAwesome5 name="magic" size={20} color="white" style={{ transform: [{ scaleX: -1 }] }} />;
     case "gimmick":
       return <MaterialCommunityIcons name="toolbox" size={20} color="white" />;
     case "technique":
