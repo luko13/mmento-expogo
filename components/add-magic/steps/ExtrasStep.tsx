@@ -22,7 +22,7 @@ import {
   MaterialCommunityIcons,
   MaterialIcons,
 } from "@expo/vector-icons";
-import type { MagicTrick } from "../AddMagicWizard";
+import type { EncryptedMagicTrick } from "../../../types/encryptedMagicTrick"
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../../lib/supabase";
 import * as FileSystem from "expo-file-system";
@@ -63,8 +63,8 @@ interface ScriptData {
 }
 
 interface StepProps {
-  trickData: MagicTrick;
-  updateTrickData: (data: Partial<MagicTrick>) => void;
+  trickData: EncryptedMagicTrick;
+  updateTrickData: (data: Partial<EncryptedMagicTrick>) => void;
   onNext?: () => void;
   onCancel?: () => void;
   currentStep?: number;

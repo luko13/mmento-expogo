@@ -4,9 +4,9 @@ import { useState, useEffect, useMemo, useRef } from "react"
 import { View, Text, TextInput, TouchableOpacity, Alert, Dimensions, ScrollView } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { Feather, AntDesign, Ionicons, FontAwesome6 } from "@expo/vector-icons"
+import { Feather, AntDesign, Ionicons, FontAwesome6, MaterialIcons } from "@expo/vector-icons"
 import { supabase } from "../../../lib/supabase"
-import type { MagicTrick } from "../AddMagicWizard"
+import type { EncryptedMagicTrick } from "../../../types/encryptedMagicTrick"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import {
   getUserCategories,
@@ -22,8 +22,8 @@ const StyledTextInput = styled(TextInput)
 const StyledTouchableOpacity = styled(TouchableOpacity)
 
 interface StepProps {
-  trickData: MagicTrick
-  updateTrickData: (data: Partial<MagicTrick>) => void
+  trickData: EncryptedMagicTrick
+  updateTrickData: (data: Partial<EncryptedMagicTrick>) => void
   onNext?: () => void
   onCancel?: () => void
   currentStep?: number
@@ -41,12 +41,12 @@ interface Tag {
 
 const { width } = Dimensions.get('window')
 
-export default function TitleCategoryStep({ 
+export default function TitleCategoryStepEncrypted({ 
   trickData, 
   updateTrickData, 
   onNext, 
   onCancel,
-  currentStep = 0,
+  currentStep = 1,
   totalSteps = 3,
   isSubmitting = false,
   isNextButtonDisabled = false,
@@ -122,18 +122,15 @@ export default function TitleCategoryStep({
   // Validación general para el botón Next
   const isFormValid = titleValidation.isValid && categoryValidation.isValid
 
-  // Filtro para las tags basado en el texto de búsqueda
+  // Filtro para las tags
   useEffect(() => {
     if (newTag.trim() === '') {
-      // Si no hay texto, mostrar todas las tags disponibles (las que no están seleccionadas)
-      // ordenadas por frecuencia de uso (de mayor a menor)
       setFilteredTags(
         tags
           .filter(tag => !trickData.tags.includes(tag.id))
           .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
       );
     } else {
-      // Filtrar las tags por el texto ingresado y ordenarlas por frecuencia de uso
       const filtered = tags
         .filter(
           tag => 
@@ -227,7 +224,6 @@ export default function TitleCategoryStep({
   const fetchData = async () => {
     setLoading(true)
     try {
-      // Fetch categories
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -239,7 +235,6 @@ export default function TitleCategoryStep({
         const predefinedCats = await getPredefinedCategories()
         setPredefinedCategories(predefinedCats)
 
-        // Si hay una categoría seleccionada, obtener su nombre
         if (trickData.selectedCategoryId) {
           const category = [...userCats, ...predefinedCats].find(
             cat => cat.id === trickData.selectedCategoryId
@@ -250,11 +245,11 @@ export default function TitleCategoryStep({
         }
       }
 
-      // Obtener tags de la base de datos, incluyendo el contador de uso
+      // Obtener tags
       const { data: tagData, error: tagError } = await supabase
         .from("predefined_tags")
         .select("id, name, usage_count")
-        .order('usage_count', { ascending: false }) // Ordenar por uso, de mayor a menor
+        .order('usage_count', { ascending: false })
 
       if (tagData && !tagError) {
         setTags(tagData);
@@ -271,10 +266,9 @@ export default function TitleCategoryStep({
     }
   }
 
-  // Función para obtener el nombre de una categoría por su ID
+  // Función para obtener el nombre de una categoría
   const fetchCategoryName = async (categoryId: string) => {
     try {
-      // Primero buscar en las categorías ya cargadas
       let category = [...userCategories, ...predefinedCategories].find(
         cat => cat.id === categoryId
       )
@@ -284,8 +278,6 @@ export default function TitleCategoryStep({
         return
       }
 
-      // Si no se encuentra, buscar en la base de datos
-      // Primero en user_categories
       const { data: userCatData, error: userCatError } = await supabase
         .from("user_categories")
         .select("name")
@@ -297,7 +289,6 @@ export default function TitleCategoryStep({
         return
       }
 
-      // Luego en predefined_categories
       const { data: predefinedCatData, error: predefinedCatError } = await supabase
         .from("predefined_categories")
         .select("name")
@@ -309,7 +300,6 @@ export default function TitleCategoryStep({
         return
       }
 
-      // Si no se encuentra en ninguna tabla
       setSelectedCategoryName(t("forms.unknownCategory", "Unknown category"))
     } catch (error) {
       console.error("Error fetching category name:", error)
@@ -317,23 +307,20 @@ export default function TitleCategoryStep({
     }
   }
 
-  // Handler para el cambio de título
+  // Handlers
   const handleTitleChange = (text: string) => {
     updateTrickData({ title: text })
   }
 
-  // Handler para selección de categoría
   const selectCategory = (categoryId: string, categoryName: string) => {
-  updateTrickData({
-    selectedCategoryId: categoryId,
-    categories: trickData.categories,
-  });
-  
-  // Actualizar directamente el nombre sin necesidad de hacer una llamada a la BD
-  setSelectedCategoryName(categoryName);
-}
+    updateTrickData({
+      selectedCategoryId: categoryId,
+      categories: trickData.categories,
+    });
+    
+    setSelectedCategoryName(categoryName);
+  }
 
-  // Tag functionality
   const toggleTag = (tagId: string) => {
     const updatedTags = trickData.tags.includes(tagId)
       ? trickData.tags.filter((id) => id !== tagId)
@@ -357,7 +344,7 @@ export default function TitleCategoryStep({
           .from("predefined_tags")
           .insert({ 
             name: newTag.trim(),
-            usage_count: 0 // Inicializar con 0 usos
+            usage_count: 0
           })
           .select("id, name, usage_count")
           .single()
@@ -377,7 +364,6 @@ export default function TitleCategoryStep({
     }
   }
 
-  // Obtener el nombre de la categoría seleccionada para mostrar
   const getSelectedCategoryName = () => {
     if (!trickData.selectedCategoryId) {
       return t("forms.categoryPlaceholder", "Select category")
@@ -386,7 +372,6 @@ export default function TitleCategoryStep({
     return selectedCategoryName || t("forms.loadingCategory", "Loading category...")
   }
 
-  // Obtener tags seleccionadas como objetos
   const getSelectedTags = () => {
     return trickData.tags
       .map(tagId => tags.find(tag => tag.id === tagId))
@@ -412,15 +397,29 @@ export default function TitleCategoryStep({
           </StyledView>
           
           <StyledTouchableOpacity className="p-2">
-            <Feather name="help-circle" size={24} color="white" />
+            <MaterialIcons name="security" size={24} color="#10b981" />
           </StyledTouchableOpacity>
         </StyledView>
 
-        {/* Form Fields */}
-        <StyledView className="flex-1 px-6 mt-24">
-          <StyledText className="text-white/60 text-lg font-semibold mb-4">
-            {t("clasify", "Clasify")}
+        {/* Aviso de cifrado */}
+        <StyledView className="mx-6 mt-4 bg-emerald-500/20 rounded-lg p-4 mb-4 border border-emerald-500/30">
+          <StyledView className="flex-row items-center mb-2">
+            <MaterialIcons name="security" size={20} color="#10b981" />
+            <StyledText className="text-emerald-200 font-semibold ml-3">
+              {t("security.protectedContent", "Contenido Protegido")}
+            </StyledText>
+          </StyledView>
+          <StyledText className="text-emerald-200/80 text-sm">
+            {t("security.magicEncryptionNotice", "Los secretos de tu magia serán cifrados de extremo a extremo para proteger tu conocimiento.")}
           </StyledText>
+        </StyledView>
+
+        {/* Form Fields */}
+        <StyledView className="flex-1 px-6 mt-4">
+          <StyledText className="text-white/60 text-lg font-semibold mb-4">
+            {t("clasify", "Clasificar")}
+          </StyledText>
+
           {/* Magic Title Field */}
           <StyledView className="mb-8">
             <StyledView className="flex-row items-center mb-3">
@@ -464,11 +463,6 @@ export default function TitleCategoryStep({
                 <Feather name="chevron-down" size={20} color="white" />
               </StyledTouchableOpacity>
             </StyledView>
-            {/* {!categoryValidation.isValid && (
-              <StyledText className="text-red-400 text-xs ml-11 mt-1">
-                {categoryValidation.message}
-              </StyledText>
-            )} */}
           </StyledView>
 
           {/* Tag Field */}
@@ -525,14 +519,14 @@ export default function TitleCategoryStep({
 
           {/* Shield Icon */}
           <StyledView className="items-center mb-8">
-            <StyledView className="w-16 h-16 bg-[#5BB9A3]/40 rounded-full items-center justify-center">
-              <Feather name="shield" size={32} color="rgba(255, 255, 255, 0.3)" />
+            <StyledView className="w-16 h-16 bg-[#10b981]/40 rounded-full items-center justify-center">
+              <MaterialIcons name="security" size={32} color="#10b981" />
             </StyledView>
-            <StyledText className="text-[#5BB9A3]/40 text-xs mt-2 text-center">
-              {t("security.identitySafe")}
+            <StyledText className="text-[#10b981]/80 text-xs mt-2 text-center">
+              {t("security.magicSecretsSafe", "Tus secretos están protegidos")}
             </StyledText>
-            <StyledText className="text-[#5BB9A3]/40 text-xs text-center">
-              {t("security.endToEndEncrypted")}
+            <StyledText className="text-[#10b981]/80 text-xs text-center">
+              {t("security.endToEndEncrypted", "Cifrado de extremo a extremo")}
             </StyledText>
           </StyledView>
         </StyledView>
@@ -541,7 +535,7 @@ export default function TitleCategoryStep({
         <StyledView className="px-6" style={{ paddingBottom: insets.bottom + 20 }}>
           {/* Step indicator */}
           <StyledText className="text-white/60 text-center text-sm mb-6">
-            {t("navigation.stepIndicator", { current: 1, total: totalSteps })}
+            {t("navigation.stepIndicator", { current: currentStep, total: totalSteps })}
           </StyledText>
 
           {/* Next Button */}
@@ -571,7 +565,7 @@ export default function TitleCategoryStep({
                   {isLastStep ? t("actions.save") : t("actions.next")}
                 </StyledText>
                 {isLastStep ? (
-                  <Feather name="save" size={20} color="white" />
+                  <MaterialIcons name="security" size={20} color="white" />
                 ) : (
                   <Feather name="chevron-right" size={20} color="white" />
                 )}

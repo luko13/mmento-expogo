@@ -4,7 +4,7 @@ import { styled } from "nativewind"
 import { useRouter } from "expo-router"
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import AddMagicWizard from "../../../components/add-magic/AddMagicWizard"
+import AddMagicWizardEncrypted from "../../../components/add-magic/AddMagicWizard"
 
 const StyledView = styled(View)
 
@@ -38,7 +38,7 @@ export default function AddMagicScreen() {
       />
       
       {/* Wizard content */}
-      <AddMagicWizard onComplete={handleComplete} onCancel={handleCancel} />
+      <AddMagicWizardEncrypted onComplete={handleComplete} onCancel={handleCancel} />
     </StyledView>
   )
 }
