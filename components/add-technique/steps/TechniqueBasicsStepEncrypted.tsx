@@ -300,21 +300,22 @@ export default function TechniqueBasicsStepEncrypted({
             setSelectedCategoryName(category.name);
           }
         }
-      }
 
-      // Obtener tags de la base de datos
-      const { data: tagData, error: tagError } = await supabase
-        .from("predefined_tags")
-        .select("id, name, usage_count")
-        .order("usage_count", { ascending: false });
+        // Obtener tags de la base de datos
+        const { data: tagData, error: tagError } = await supabase
+          .from("predefined_tags")
+          .select("id, name, usage_count")
+          .eq("user_id", user.id)
+          .order("usage_count", { ascending: false });
 
-      if (tagData && !tagError) {
-        setTags(tagData);
-        setFilteredTags(
-          tagData
-            .filter((tag) => !techniqueData.tags.includes(tag.id))
-            .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
-        );
+        if (tagData && !tagError) {
+          setTags(tagData);
+          setFilteredTags(
+            tagData
+              .filter((tag) => !techniqueData.tags.includes(tag.id))
+              .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
+          );
+        }
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -399,6 +400,10 @@ export default function TechniqueBasicsStepEncrypted({
     if (!newTag.trim()) return;
 
     try {
+      // Obtener el usuario actual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const existingTag = tags.find(
         (tag) => tag.name.toLowerCase() === newTag.toLowerCase()
       );
@@ -411,6 +416,7 @@ export default function TechniqueBasicsStepEncrypted({
         const { data, error } = await supabase
           .from("predefined_tags")
           .insert({
+            user_id: user.id,
             name: newTag.trim(),
             usage_count: 0,
           })
