@@ -412,7 +412,7 @@ export default function LibrariesSection({
 
       // Process gimmicks
       allContent.gimmicks.forEach((gimmick: any) => {
-        // Check if gimmick belongs to this category
+        // Comprobar si "Gimmicks" pertenece a esta categoria
         const belongsToCategory = gimmick.gimmick_categories && 
           Array.isArray(gimmick.gimmick_categories) && 
           gimmick.gimmick_categories.some((gc: any) => gc.category_id === category.id);
@@ -449,7 +449,7 @@ export default function LibrariesSection({
         }
       });
 
-      // Process shared content
+      // Procesar contenido compartido
       allContent.sharedContent.forEach((shared: any) => {
         const isThisCategory = (itemId: string, itemType: string) => {
           switch (itemType) {
@@ -514,32 +514,25 @@ export default function LibrariesSection({
 
       return { category, items: categoryItems };
     });
-
-    // Debug log to check data
-    if (allContent?.techniques?.[0]) {
-    }
-    if (allContent?.gimmicks?.[0]) {
-    }
-
     return sections;
   }, [allContent]);
 
-  // Filter visible categories with memoization
+  // Filtrar categorias visibles con memorización
   const visibleCategories = useMemo(() => {
     if (!searchQuery && !searchFilters) return categorySections;
 
-    // If specific categories are selected in filters, only show those
+    // Si hay seleccionadas categorías, filtrar las categorias
     if (searchFilters?.categories.length) {
       return categorySections.filter(section =>
         searchFilters.categories.includes(section.category.id)
       );
     }
 
-    // If there's search or other filters, show ALL categories but filter their items
+    // Si hay filtros de busqueda, filtrar las categorias
     return categorySections;
   }, [categorySections, searchQuery, searchFilters]);
 
-  // Add new category
+  // Añadir nueva categoria
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
 
@@ -554,7 +547,7 @@ export default function LibrariesSection({
       );
 
       if (newCategory) {
-        // Update allContent to include new category
+        // Actualizar allContent para incluir la nueva categoria
         setAllContent({
           ...allContent,
           categories: [...allContent.categories, newCategory]
@@ -569,7 +562,7 @@ export default function LibrariesSection({
     }
   };
 
-  // Edit category
+  // Editar categoria
   const handleEditCategory = async () => {
     if (!editingCategory || !newCategoryName.trim()) return;
 
@@ -581,7 +574,7 @@ export default function LibrariesSection({
       );
 
       if (success) {
-        // Update allContent with edited category
+        // Actualizar allContent para incluir la categoria editada
         setAllContent({
           ...allContent,
           categories: allContent.categories.map((cat: Category) =>
@@ -605,13 +598,13 @@ export default function LibrariesSection({
     }
   };
 
-  // Delete category
+  // Borrar categoria
   const handleDeleteCategory = async (categoryId: string) => {
     try {
       const success = await deleteCategory(categoryId);
 
       if (success) {
-        // Update allContent to remove deleted category
+        // Actualizar allContent para eliminar la categoria
         setAllContent({
           ...allContent,
           categories: allContent.categories.filter((cat: Category) => cat.id !== categoryId)
@@ -630,7 +623,7 @@ export default function LibrariesSection({
     setEditCategoryModalVisible(true);
   };
 
-  // Fetch complete item data based on type
+  // Recuperacion de los datos dependiendo del tipo de item
   const fetchItemData = async (item: LibraryItem) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -672,7 +665,7 @@ export default function LibrariesSection({
             }
           }
 
-          // Handle encrypted files
+          // Manejo de archivos cifrados
           if (decryptedData.photo_encrypted && decryptedData.photo_url) {
             const photoUrl = await handleEncryptedFile(
               decryptedData.photo_url,
@@ -704,7 +697,7 @@ export default function LibrariesSection({
           }
         }
 
-        // Parse angles if needed
+        // Conversion de angulos (Solo si es necesario )
         if (decryptedData.angles && typeof decryptedData.angles === "string") {
           try {
             decryptedData.angles = JSON.parse(decryptedData.angles);
@@ -734,7 +727,7 @@ export default function LibrariesSection({
           owner_info: item.is_shared ? item.owner_id : null,
         };
 
-        // Get category name
+        // Nombre de la categoria
         const { data: categoryData } = await supabase
           .from("trick_categories")
           .select("category_id")
@@ -791,7 +784,7 @@ export default function LibrariesSection({
             }
           }
 
-          // Handle encrypted files
+          // Manejo de archivos cifrados
           if (decryptedData.image_encrypted && decryptedData.image_url) {
             const imageUrl = await handleEncryptedFile(
               decryptedData.image_url,
@@ -813,7 +806,7 @@ export default function LibrariesSection({
           }
         }
 
-        // Parse angles
+        // Manejo de angulos
         let angles = [];
         if (decryptedData.angles) {
           try {
@@ -843,7 +836,7 @@ export default function LibrariesSection({
           is_shared: item.is_shared,
         };
 
-        // Get category name
+        // Nombre de la categoría
         const { data: categoryData } = await supabase
           .from("technique_categories")
           .select("category_id")
@@ -900,7 +893,7 @@ export default function LibrariesSection({
             }
           }
 
-          // Handle encrypted files
+          // Manejo de archivos cifrados
           if (decryptedData.image_encrypted && decryptedData.image_url) {
             const imageUrl = await handleEncryptedFile(
               decryptedData.image_url,
@@ -932,7 +925,7 @@ export default function LibrariesSection({
           }
         }
 
-        // Parse angles
+        // Convertir angulos 
         let angles = [];
         if (decryptedData.angles) {
           try {
@@ -962,7 +955,7 @@ export default function LibrariesSection({
           is_shared: item.is_shared,
         };
 
-        // Get category name
+        // Nombre de la categoría
         const { data: categoryData } = await supabase
           .from("gimmick_categories")
           .select("category_id")
@@ -992,7 +985,7 @@ export default function LibrariesSection({
     }
   };
 
-  // Optimized callback for item press
+  // Optimizacion del callback al pulsar un item
   const handleItemPress = useCallback(async (item: LibraryItem) => {
     const itemData = await fetchItemData(item);
     if (itemData) {
@@ -1000,7 +993,7 @@ export default function LibrariesSection({
     }
   }, [decryptForSelf, keyPair]);
 
-  // Render category item with memoization
+  // Renderizado de categoria con memoria
   const renderCategoryItem = useCallback(({ item }: { item: CategorySection }) => {
     const filteredItems = item.items.filter(libraryItem => {
       const query = searchQuery.toLowerCase().trim();
@@ -1059,10 +1052,10 @@ export default function LibrariesSection({
     );
   }, [searchQuery, searchFilters, handleItemPress, t]);
 
-  // Render libraries section
+  // Renderizado
   return (
     <StyledView className="flex-1">
-      {/* Libraries Header */}
+      {/* Header de libraries */}
       <StyledView className="flex-row justify-between items-center mb-4">
         <StyledView className="flex-row items-center">
           <FontAwesome name="book" size={24} color="white" />
@@ -1079,13 +1072,13 @@ export default function LibrariesSection({
         </StyledTouchableOpacity>
       </StyledView>
 
-      {/* Loading indicator */}
+      {/* Indicador de carga */}
       {loading ? (
         <StyledView className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#10b981" />
         </StyledView>
       ) : (
-        /* Category Sections with optimized FlatList */
+        /* Secciones de categorías optimizadas con FlatList */
         <FlatList
           data={visibleCategories}
           renderItem={renderCategoryItem}
@@ -1094,13 +1087,13 @@ export default function LibrariesSection({
           contentContainerStyle={{
             paddingBottom: NAVBAR_HEIGHT + BOTTOM_SPACING,
           }}
-          // FlatList optimizations
+          // Optimizaciones de flatlist
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}
           windowSize={10}
           initialNumToRender={5}
           getItemLayout={(data, index) => ({
-            length: 100, // Estimated height of each category
+            length: 100, // Altura estimada de cada categoria
             offset: 100 * index,
             index,
           })}
