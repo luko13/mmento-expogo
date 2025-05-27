@@ -30,7 +30,7 @@ export default function AppLayout() {
       <Slot />
 
       {/* Bottom navigation bar que respeta las safe areas */}
-      {!isAddMagicRoute && !isAddTechniqueRoute && (
+      {!isAddMagicRoute && !isAddTechniqueRoute && !isAddQuickMagicRoute && (
         <StyledView
           className="absolute bottom-0 left-24 right-0 z-10"
           style={{

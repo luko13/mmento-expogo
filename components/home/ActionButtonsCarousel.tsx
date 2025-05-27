@@ -68,7 +68,7 @@ export default function ActionButtonsCarousel() {
       id: "2",
       icon: <FontAwesome name="star" size={36} color="white" />,
       title: t("quickMagic"),
-      onPress: () => console.log("Quick Magic pressed"),
+      onPress: () => router.push("/(app)/add-quick-magic"),
     },
     {
       id: "3",

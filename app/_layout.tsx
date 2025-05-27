@@ -17,6 +17,8 @@ export default function AuthLayout() {
   // Verificar si estamos en la ruta de add-magic
   const isAddMagicRoute = pathname.includes("/add-magic")
   const isAddTechniqueRoute = pathname.includes("/add-technique")
+  const isAddQuickMagicRoute = pathname.includes("/add-quick-magic")
+  const isAddGimmickRoute = pathname.includes("/add-gimmick")
   const isAuthRoute = pathname.includes("/auth")
 
   return (
@@ -24,7 +26,7 @@ export default function AuthLayout() {
       <I18nextProvider i18n={i18n}>
         <StyledView className="flex-1">
           {/* Background condicional en el layout principal */}
-          {isAddMagicRoute || isAddTechniqueRoute ? (
+          {isAddMagicRoute || isAddTechniqueRoute || isAddQuickMagicRoute ? (
             // Gradiente verde para add-magic que cubre TODA la pantalla
             <LinearGradient
               colors={['#15322C', '#15322C']}
