@@ -1,4 +1,4 @@
-// utils/fileEncryption.ts - Simplified version using TweetNaCl only
+// utils/fileEncryption.ts - Fixed version
 import { CryptoService } from './cryptoService';
 import { supabase } from '../lib/supabase';
 import * as FileSystem from 'expo-file-system';
@@ -13,14 +13,14 @@ export interface EncryptedFileMetadata {
     encryptedKey: string;
     nonce: string;
   }>;
-  fileNonce: string; // For the file encryption
+  fileNonce: string;
 }
 
 export class FileEncryptionService {
   private cryptoService = CryptoService.getInstance();
 
   /**
-   * Encrypts and uploads a file using simple secretbox
+   * Encrypts and uploads a file
    */
   async encryptAndUploadFile(
     fileUri: string,
@@ -32,26 +32,32 @@ export class FileEncryptionService {
     getPrivateKey: () => string
   ): Promise<EncryptedFileMetadata> {
     try {
-      // 1. Generate symmetric key
+      // 1. Verificar autenticación
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      // 2. Generate symmetric key
       const symmetricKey = await this.cryptoService.generateSymmetricKey();
       
-      // 2. Read and get file info
+      // 3. Read file info
       const fileInfo = await FileSystem.getInfoAsync(fileUri);
       if (!fileInfo.exists) {
         throw new Error('Archivo no encontrado');
       }
 
-      // 3. Read file data
+      // 4. Read file data as base64
       const fileData = await FileSystem.readAsStringAsync(fileUri, {
         encoding: FileSystem.EncodingType.Base64
       });
       
       const fileBuffer = this.base64ToUint8Array(fileData);
       
-      // 4. Encrypt file with symmetric key
+      // 5. Encrypt file with symmetric key
       const { encrypted, nonce } = await this.cryptoService.encryptFile(fileBuffer, symmetricKey);
 
-      // 5. Encrypt symmetric key for each recipient
+      // 6. Encrypt symmetric key for each recipient
       const privateKey = getPrivateKey();
       const encryptedKeys = [];
       
@@ -72,22 +78,34 @@ export class FileEncryptionService {
         }
       }
 
-      // 6. Upload encrypted file
+      // 7. Upload encrypted file - Using base64 for React Native compatibility
       const fileId = `encrypted_${Date.now()}_${authorUserId}`;
       const filePath = `encrypted_files/${fileId}`;
       
-      const { error: uploadError } = await supabase.storage
+      // Convert encrypted Uint8Array to base64 for upload
+      const encryptedBase64 = this.uint8ArrayToBase64(encrypted);
+      
+      // Convert base64 to ArrayBuffer for Supabase
+      const binaryString = atob(encryptedBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('encrypted_media')
-        .upload(filePath, encrypted, {
+        .upload(filePath, bytes.buffer, {
           contentType: 'application/octet-stream',
-          upsert: true
+          cacheControl: '3600',
+          upsert: false
         });
 
       if (uploadError) {
+        console.error('Error detallado de subida:', uploadError);
         throw new Error(`Error subiendo archivo: ${uploadError.message}`);
       }
 
-      // 7. Create metadata
+      // 8. Create metadata
       const fileSize = 'size' in fileInfo ? fileInfo.size : 0;
       const metadata: EncryptedFileMetadata = {
         fileId,
@@ -98,7 +116,7 @@ export class FileEncryptionService {
         fileNonce: this.uint8ArrayToBase64(nonce)
       };
 
-      // 8. Save metadata to database
+      // 9. Save metadata to database
       const { error: metadataError } = await supabase
         .from('encrypted_files')
         .insert({
@@ -108,14 +126,24 @@ export class FileEncryptionService {
           size: fileSize,
           author_id: authorUserId,
           file_nonce: metadata.fileNonce,
+          header: JSON.stringify({
+            version: '1.0',
+            algorithm: 'nacl-secretbox',
+            keyDerivation: 'nacl-box'
+          }),
+          chunks: 1, // Single chunk for now
           created_at: new Date().toISOString()
         });
 
       if (metadataError) {
+        // Si falla la metadata, eliminar el archivo subido
+        await supabase.storage
+          .from('encrypted_media')
+          .remove([filePath]);
         throw new Error(`Error guardando metadata: ${metadataError.message}`);
       }
 
-      // 9. Save encrypted keys
+      // 10. Save encrypted keys
       for (const keyData of encryptedKeys) {
         const { error: keyError } = await supabase
           .from('encrypted_file_keys')
@@ -153,6 +181,12 @@ export class FileEncryptionService {
     mimeType: string;
   }> {
     try {
+      // Verificar sesión
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Usuario no autenticado');
+      }
+
       // 1. Get file metadata
       const { data: fileMetadata, error: metadataError } = await supabase
         .from('encrypted_files')

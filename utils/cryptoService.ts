@@ -1,9 +1,15 @@
-// utils/cryptoService.ts - Fixed version with PRNG initialization
-import 'react-native-get-random-values';
-import * as SecureStore from 'expo-secure-store';
-import * as Crypto from 'expo-crypto';
-import nacl from 'tweetnacl';
-import { encodeBase64, decodeBase64, encodeUTF8, decodeUTF8 } from 'tweetnacl-util';
+// utils/cryptoService.ts
+import "react-native-get-random-values";
+import * as SecureStore from "expo-secure-store";
+import * as Crypto from "expo-crypto";
+import nacl from "tweetnacl";
+import {
+  encodeBase64,
+  decodeBase64,
+  encodeUTF8,
+  decodeUTF8,
+} from "tweetnacl-util";
+import { supabase } from "../lib/supabase";
 
 export interface EncryptedData {
   ciphertext: string;
@@ -36,7 +42,6 @@ export class CryptoService {
    */
   private initializePRNG(): void {
     try {
-      // Override nacl's random function with expo-crypto
       (nacl as any).setPRNG = (fn: (x: Uint8Array, n: number) => void) => {
         nacl.randomBytes = (n: number) => {
           const bytes = new Uint8Array(n);
@@ -45,52 +50,259 @@ export class CryptoService {
         };
       };
 
-      // Set custom PRNG using expo-crypto
       (nacl as any).setPRNG((x: Uint8Array, n: number) => {
         const randomBytes = Crypto.getRandomBytes(n);
         x.set(randomBytes);
       });
 
       this.isInitialized = true;
-      console.log('CryptoService PRNG initialized successfully');
     } catch (error) {
-      console.error('Error initializing PRNG:', error);
-      
-      // Fallback: try to use built-in crypto if available
+      console.error("Error initializing PRNG:", error);
+
       try {
-        if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+        if (typeof crypto !== "undefined" && crypto.getRandomValues) {
           (nacl as any).setPRNG((x: Uint8Array, n: number) => {
             crypto.getRandomValues(x);
           });
           this.isInitialized = true;
-          console.log('CryptoService PRNG initialized with fallback');
         } else {
-          throw new Error('No secure random number generator available');
+          throw new Error("No secure random number generator available");
         }
       } catch (fallbackError) {
-        console.error('Fallback PRNG initialization failed:', fallbackError);
+        console.error("Fallback PRNG initialization failed:", fallbackError);
       }
     }
   }
 
-  /**
-   * Ensure PRNG is initialized before any crypto operations
-   */
   private ensureInitialized(): void {
     if (!this.isInitialized) {
       this.initializePRNG();
     }
     if (!this.isInitialized) {
-      throw new Error('CryptoService not properly initialized - no PRNG available');
+      throw new Error(
+        "CryptoService not properly initialized - no PRNG available"
+      );
     }
   }
 
   /**
-   * Genera un nuevo par de claves para el usuario
+   * Derive encryption key from password using PBKDF2
    */
+  private async deriveKeyFromPassword(
+    password: string,
+    salt: Uint8Array
+  ): Promise<Uint8Array> {
+    this.ensureInitialized();
+
+    // Use nacl.hash as a simple KDF (in production, consider using a proper PBKDF2)
+    const passwordBytes = decodeUTF8(password);
+    const combined = new Uint8Array(passwordBytes.length + salt.length);
+    combined.set(passwordBytes);
+    combined.set(salt, passwordBytes.length);
+
+    // Hash multiple times for key stretching
+    let key = new Uint8Array(combined);
+    for (let i = 0; i < 10000; i++) {
+      key = new Uint8Array(nacl.hash(key));
+    }
+
+    return key.slice(0, 32); // Use first 32 bytes as key
+  }
+
+  /**
+   * Encrypt private key with password for cloud storage
+   */
+  async encryptPrivateKeyForCloud(
+    privateKey: string,
+    password: string
+  ): Promise<{ encryptedKey: string; salt: string; nonce: string }> {
+    this.ensureInitialized();
+
+    const salt = nacl.randomBytes(16);
+    const derivedKey = await this.deriveKeyFromPassword(password, salt);
+
+    const privateKeyBytes = decodeBase64(privateKey);
+    const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
+
+    const encrypted = nacl.secretbox(privateKeyBytes, nonce, derivedKey);
+
+    if (!encrypted) {
+      throw new Error("Failed to encrypt private key");
+    }
+
+    return {
+      encryptedKey: encodeBase64(encrypted),
+      salt: encodeBase64(salt),
+      nonce: encodeBase64(nonce),
+    };
+  }
+
+  /**
+   * Decrypt private key from cloud storage
+   */
+  async decryptPrivateKeyFromCloud(
+    encryptedData: { encryptedKey: string; salt: string; nonce: string },
+    password: string
+  ): Promise<string> {
+    this.ensureInitialized();
+
+    const salt = decodeBase64(encryptedData.salt);
+    const derivedKey = await this.deriveKeyFromPassword(password, salt);
+
+    const encrypted = decodeBase64(encryptedData.encryptedKey);
+    const nonce = decodeBase64(encryptedData.nonce);
+
+    const decrypted = nacl.secretbox.open(encrypted, nonce, derivedKey);
+
+    if (!decrypted) {
+      throw new Error("Failed to decrypt private key - invalid password");
+    }
+
+    return encodeBase64(decrypted);
+  }
+
+  /**
+   * Store encrypted private key in cloud
+   */
+  async storePrivateKeyInCloud(
+    privateKey: string,
+    userId: string,
+    password: string
+  ): Promise<void> {
+    const encryptedData = await this.encryptPrivateKeyForCloud(
+      privateKey,
+      password
+    );
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        encrypted_private_key: encryptedData.encryptedKey,
+        private_key_salt: encryptedData.salt,
+        private_key_nonce: encryptedData.nonce,
+        encryption_initialized_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+
+    if (error) {
+      throw new Error(`Failed to store encrypted key: ${error.message}`);
+    }
+  }
+
+  /**
+   * Retrieve and decrypt private key from cloud
+   */
+  async retrievePrivateKeyFromCloud(
+    userId: string,
+    password: string
+  ): Promise<string | null> {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("encrypted_private_key, private_key_salt, private_key_nonce")
+      .eq("id", userId)
+      .single();
+
+    if (error || !data?.encrypted_private_key) {
+      return null;
+    }
+
+    try {
+      return await this.decryptPrivateKeyFromCloud(
+        {
+          encryptedKey: data.encrypted_private_key,
+          salt: data.private_key_salt,
+          nonce: data.private_key_nonce,
+        },
+        password
+      );
+    } catch (error) {
+      console.error("Failed to decrypt private key:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Generate and store key pair with cloud backup
+   */
+  async generateKeyPairWithCloudBackup(
+    userId: string,
+    password: string
+  ): Promise<KeyPair> {
+    this.ensureInitialized();
+
+    const keyPair = nacl.box.keyPair();
+    const result = {
+      publicKey: encodeBase64(keyPair.publicKey),
+      privateKey: encodeBase64(keyPair.secretKey),
+    };
+
+    // Store locally
+    await this.storePrivateKey(result.privateKey, userId);
+
+    // Store encrypted in cloud
+    await this.storePrivateKeyInCloud(result.privateKey, userId, password);
+
+    return result;
+  }
+
+  /**
+   * Initialize keys from cloud if not present locally
+   */
+  async initializeFromCloud(
+    userId: string,
+    password: string
+  ): Promise<KeyPair | null> {
+    // Check local storage first
+    const localPrivateKey = await this.getPrivateKey(userId);
+    if (localPrivateKey) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("public_key")
+        .eq("id", userId)
+        .single();
+
+      if (data?.public_key) {
+        return {
+          publicKey: data.public_key,
+          privateKey: localPrivateKey,
+        };
+      }
+    }
+
+    // Try to retrieve from cloud
+    const cloudPrivateKey = await this.retrievePrivateKeyFromCloud(
+      userId,
+      password
+    );
+    if (!cloudPrivateKey) {
+      return null;
+    }
+
+    // Store locally for future use
+    await this.storePrivateKey(cloudPrivateKey, userId);
+
+    // Get public key
+    const { data } = await supabase
+      .from("profiles")
+      .select("public_key")
+      .eq("id", userId)
+      .single();
+
+    if (!data?.public_key) {
+      return null;
+    }
+
+    return {
+      publicKey: data.public_key,
+      privateKey: cloudPrivateKey,
+    };
+  }
+
+  // ... rest of the existing methods remain the same ...
+
   async generateKeyPair(): Promise<KeyPair> {
     this.ensureInitialized();
-    
+
     try {
       const keyPair = nacl.box.keyPair();
       return {
@@ -98,35 +310,29 @@ export class CryptoService {
         privateKey: encodeBase64(keyPair.secretKey),
       };
     } catch (error) {
-      console.error('Error generating key pair:', error);
-      throw new Error('Error al generar par de claves: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      console.error("Error generating key pair:", error);
+      throw new Error(
+        "Error al generar par de claves: " +
+          (error instanceof Error ? error.message : "Error desconocido")
+      );
     }
   }
 
-  /**
-   * Guarda la clave privada en SecureStore
-   */
   async storePrivateKey(privateKey: string, userId: string): Promise<void> {
     await SecureStore.setItemAsync(`privateKey_${userId}`, privateKey);
   }
 
-  /**
-   * Recupera la clave privada del usuario actual
-   */
   async getPrivateKey(userId: string): Promise<string | null> {
     return await SecureStore.getItemAsync(`privateKey_${userId}`);
   }
 
-  /**
-   * Cifra texto usando claves asimétricas (para mensajes, descripciones)
-   */
   async encryptText(
     plaintext: string,
     recipientPublicKey: string,
     senderPrivateKey: string
   ): Promise<EncryptedData> {
     this.ensureInitialized();
-    
+
     try {
       const message = decodeUTF8(plaintext);
       const nonce = nacl.randomBytes(nacl.box.nonceLength);
@@ -134,31 +340,31 @@ export class CryptoService {
       const privateKey = decodeBase64(senderPrivateKey);
 
       const encrypted = nacl.box(message, nonce, publicKey, privateKey);
-      
+
       if (!encrypted) {
-        throw new Error('Encryption failed');
+        throw new Error("Encryption failed");
       }
-      
+
       return {
         ciphertext: encodeBase64(encrypted),
         nonce: encodeBase64(nonce),
       };
     } catch (error) {
-      console.error('Error encrypting text:', error);
-      throw new Error('Error al cifrar texto: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      console.error("Error encrypting text:", error);
+      throw new Error(
+        "Error al cifrar texto: " +
+          (error instanceof Error ? error.message : "Error desconocido")
+      );
     }
   }
 
-  /**
-   * Descifra texto usando claves asimétricas
-   */
   async decryptText(
     encryptedData: EncryptedData,
     senderPublicKey: string,
     recipientPrivateKey: string
   ): Promise<string> {
     this.ensureInitialized();
-    
+
     try {
       const ciphertext = decodeBase64(encryptedData.ciphertext);
       const nonce = decodeBase64(encryptedData.nonce);
@@ -166,67 +372,64 @@ export class CryptoService {
       const privateKey = decodeBase64(recipientPrivateKey);
 
       const decrypted = nacl.box.open(ciphertext, nonce, publicKey, privateKey);
-      
+
       if (!decrypted) {
-        throw new Error('Decryption failed - invalid data or keys');
+        throw new Error("Decryption failed - invalid data or keys");
       }
 
       return encodeUTF8(decrypted);
     } catch (error) {
-      console.error('Error decrypting text:', error);
-      throw new Error('Error al descifrar texto: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      console.error("Error decrypting text:", error);
+      throw new Error(
+        "Error al descifrar texto: " +
+          (error instanceof Error ? error.message : "Error desconocido")
+      );
     }
   }
 
-  /**
-   * Genera una clave simétrica usando TweetNaCl (32 bytes)
-   */
   async generateSymmetricKey(): Promise<Uint8Array> {
     this.ensureInitialized();
     return nacl.randomBytes(32);
   }
 
-  /**
-   * Cifra una clave simétrica usando claves asimétricas
-   */
   async encryptSymmetricKey(
     symmetricKey: Uint8Array,
     recipientPublicKey: string,
     senderPrivateKey: string
   ): Promise<EncryptedData> {
     this.ensureInitialized();
-    
+
     try {
       const nonce = nacl.randomBytes(nacl.box.nonceLength);
       const publicKey = decodeBase64(recipientPublicKey);
       const privateKey = decodeBase64(senderPrivateKey);
 
       const encrypted = nacl.box(symmetricKey, nonce, publicKey, privateKey);
-      
+
       if (!encrypted) {
-        throw new Error('Symmetric key encryption failed');
+        throw new Error("Symmetric key encryption failed");
       }
-      
+
       return {
         ciphertext: encodeBase64(encrypted),
         nonce: encodeBase64(nonce),
       };
     } catch (error) {
-      console.error('Error encrypting symmetric key:', error);
-      throw new Error('Error al cifrar clave simétrica: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      console.error("Error encrypting symmetric key:", error);
+      throw new Error(
+        "Error al cifrar clave simétrica: " +
+          (error instanceof Error ? error.message : "Error desconocido")
+      );
     }
   }
 
-  /**
-   * Descifra una clave simétrica
-   */
   async decryptSymmetricKey(
     encryptedKey: EncryptedData,
     senderPublicKey: string,
     recipientPrivateKey: string
   ): Promise<Uint8Array> {
     this.ensureInitialized();
-    
+
     try {
       const ciphertext = decodeBase64(encryptedKey.ciphertext);
       const nonce = decodeBase64(encryptedKey.nonce);
@@ -234,132 +437,134 @@ export class CryptoService {
       const privateKey = decodeBase64(recipientPrivateKey);
 
       const decrypted = nacl.box.open(ciphertext, nonce, publicKey, privateKey);
-      
+
       if (!decrypted) {
-        throw new Error('Symmetric key decryption failed');
+        throw new Error("Symmetric key decryption failed");
       }
 
       return decrypted;
     } catch (error) {
-      console.error('Error decrypting symmetric key:', error);
-      throw new Error('Error al descifrar clave simétrica: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      console.error("Error decrypting symmetric key:", error);
+      throw new Error(
+        "Error al descifrar clave simétrica: " +
+          (error instanceof Error ? error.message : "Error desconocido")
+      );
     }
   }
 
-  /**
-   * Cifrado simple para archivos usando TweetNaCl secretbox
-   */
-  async encryptFile(data: Uint8Array, key: Uint8Array): Promise<{
+  async encryptFile(
+    data: Uint8Array,
+    key: Uint8Array
+  ): Promise<{
     encrypted: Uint8Array;
     nonce: Uint8Array;
   }> {
     this.ensureInitialized();
-    
+
     try {
       const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
       const encrypted = nacl.secretbox(data, nonce, key);
-      
+
       if (!encrypted) {
-        throw new Error('File encryption failed');
+        throw new Error("File encryption failed");
       }
-      
+
       return { encrypted, nonce };
     } catch (error) {
-      console.error('Error encrypting file:', error);
-      throw new Error('Error al cifrar archivo: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      console.error("Error encrypting file:", error);
+      throw new Error(
+        "Error al cifrar archivo: " +
+          (error instanceof Error ? error.message : "Error desconocido")
+      );
     }
   }
 
-  /**
-   * Descifrado simple para archivos
-   */
   async decryptFile(
     encrypted: Uint8Array,
     nonce: Uint8Array,
     key: Uint8Array
   ): Promise<Uint8Array> {
     this.ensureInitialized();
-    
+
     try {
       const decrypted = nacl.secretbox.open(encrypted, nonce, key);
-      
+
       if (!decrypted) {
-        throw new Error('File decryption failed');
+        throw new Error("File decryption failed");
       }
-      
+
       return decrypted;
     } catch (error) {
-      console.error('Error decrypting file:', error);
-      throw new Error('Error al descifrar archivo: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      console.error("Error decrypting file:", error);
+      throw new Error(
+        "Error al descifrar archivo: " +
+          (error instanceof Error ? error.message : "Error desconocido")
+      );
     }
   }
 
-  /**
-   * Cifrado simple para datos no sensibles usando TweetNaCl SecretBox
-   */
-  async encryptForSelf(plaintext: string, userPrivateKey: string): Promise<string> {
+  async encryptForSelf(
+    plaintext: string,
+    userPrivateKey: string
+  ): Promise<string> {
     this.ensureInitialized();
-    
+
     try {
-      // Derivar una clave de 32 bytes desde la clave privada usando hash
       const derivedKey = nacl.hash(decodeBase64(userPrivateKey)).slice(0, 32);
-      
-      // Convertir texto a bytes
       const message = decodeUTF8(plaintext);
-      
-      // Generar nonce aleatorio
       const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
-      
-      // Cifrar usando secretbox (XSalsa20-Poly1305)
       const encrypted = nacl.secretbox(message, nonce, derivedKey);
-      
+
       if (!encrypted) {
-        throw new Error('Self encryption failed');
+        throw new Error("Self encryption failed");
       }
-      
+
       return JSON.stringify({
         ciphertext: encodeBase64(encrypted),
         nonce: encodeBase64(nonce),
-        version: 'nacl_secretbox_v1'
+        version: "nacl_secretbox_v1",
       });
     } catch (error) {
-      console.error('Error en encryptForSelf:', error);
-      throw new Error('Error al cifrar datos personales: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      console.error("Error en encryptForSelf:", error);
+      throw new Error(
+        "Error al cifrar datos personales: " +
+          (error instanceof Error ? error.message : "Error desconocido")
+      );
     }
   }
 
-  /**
-   * Descifrado simple para datos propios usando TweetNaCl SecretBox
-   */
-  async decryptForSelf(encryptedData: string, userPrivateKey: string): Promise<string> {
+  async decryptForSelf(
+    encryptedData: string,
+    userPrivateKey: string
+  ): Promise<string> {
     this.ensureInitialized();
-    
+
     try {
       const parsedData = JSON.parse(encryptedData);
       const { ciphertext, nonce } = parsedData;
-      
+
       if (!ciphertext || !nonce) {
-        throw new Error('Invalid encrypted data format');
+        throw new Error("Invalid encrypted data format");
       }
-      
-      // Derivar la misma clave de 32 bytes
+
       const derivedKey = nacl.hash(decodeBase64(userPrivateKey)).slice(0, 32);
-      
-      // Descifrar usando secretbox
       const decrypted = nacl.secretbox.open(
         decodeBase64(ciphertext),
         decodeBase64(nonce),
         derivedKey
       );
-      
+
       if (!decrypted) {
-        throw new Error('Self decryption failed - invalid data or key');
+        throw new Error("Self decryption failed - invalid data or key");
       }
-      
+
       return encodeUTF8(decrypted);
     } catch (error) {
-      console.error('Error en decryptForSelf:', error);
-      throw new Error('Error al descifrar datos personales: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      console.error("Error en decryptForSelf:", error);
+      throw new Error(
+        "Error al descifrar datos personales: " +
+          (error instanceof Error ? error.message : "Error desconocido")
+      );
     }
   }
 }

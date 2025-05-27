@@ -1,5 +1,9 @@
+// utils/auth.ts
 import { supabase } from "../lib/supabase"
 import { getAuthToken, setAuthToken, removeAuthToken } from "./storage"
+import { AuthService } from "../services/authService"
+
+const authService = AuthService.getInstance();
 
 //* Vemos como esta el estado de la autenticación
 export const checkAuthStatus = async (): Promise<boolean> => {
@@ -19,69 +23,54 @@ export const checkAuthStatus = async (): Promise<boolean> => {
   return true
 }
 
-//* Funcion logeo
+//* Funcion logeo con cifrado automático
 export const signIn = async (email: string, password: string): Promise<boolean> => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
-  // no funciona el signin
-  if (error || !data.session) {
-    console.error("Error signing in: ", error)
-    return false
+  try {
+    const { user, session } = await authService.signIn(email, password);
+    
+    if (!session) {
+      console.error("No session returned");
+      return false;
+    }
+    
+    await setAuthToken(session.access_token);
+    return true;
+  } catch (error) {
+    console.error("Error signing in: ", error);
+    return false;
   }
-  // funciona el sign in
-  await setAuthToken(data.session.access_token) //Guardamos el token
-  return true
 }
 
-//* Funcion registro
+//* Funcion registro con cifrado automático
 export const signUp = async (email: string, password: string): Promise<boolean> => {
-  console.log("Iniciando signUp en auth.ts")
-  const { data, error } = await supabase.auth.signUp({ email, password })
-
-  if (error) {
-    console.error("Error de Supabase en signUp:", error)
-    return false
-  }
-
-  if (data.user) {
-    console.log("Registro exitoso en auth, creando entrada en tabla profiles")
-
-    // Crear entrada en la tabla profiles
-    const { error: profileError } = await supabase.from("profiles").insert({
-      id: data.user.id,
-      email: data.user.email,
-      username: data.user.email?.split("@")[0] || "user",
-      is_active: true,
-      is_verified: false,
-      subscription_type: "free",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-
-    if (profileError) {
-      console.error("Error al crear perfil:", profileError)
-      return false
+  try {
+    console.log("Iniciando signUp en auth.ts");
+    
+    const { user, session } = await authService.signUp(email, password);
+    
+    if (!user) {
+      console.log("No user returned from sign up");
+      return false;
     }
 
-    if (data.session) {
-      console.log("Sesión creada, guardando token")
-      await setAuthToken(data.session.access_token)
+    console.log("Registro exitoso, usuario y cifrado configurados");
+
+    if (session) {
+      console.log("Sesión creada, guardando token");
+      await setAuthToken(session.access_token);
     } else {
-      console.log("Esperando confirmación de email")
+      console.log("Esperando confirmación de email");
     }
 
-    return true
+    return true;
+  } catch (error) {
+    console.error("Error en registro:", error);
+    return false;
   }
-
-  console.log("Situación inesperada en el registro")
-  return false
 }
 
 //* Deslogueo
 export const signOut = async (): Promise<void> => {
-  await supabase.auth.signOut() //Cerramos sesión en supabase
-  await removeAuthToken() //Eliminamos el token
+  await authService.signOut();
+  await removeAuthToken();
 }
-

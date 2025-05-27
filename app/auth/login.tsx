@@ -1,3 +1,4 @@
+// app/auth/login.tsx - Enhanced with legacy user message
 "use client"
 
 import { useState, useEffect } from "react"
@@ -15,10 +16,11 @@ import {
 } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { router } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { signIn } from "../../utils/auth"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { Ionicons } from "@expo/vector-icons"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -30,15 +32,20 @@ const { width, height } = Dimensions.get("window")
 
 export default function Login() {
   const { t } = useTranslation()
+  const params = useLocalSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
-  const [isNavigating, setIsNavigating] = useState(false) // Estado para controlar la navegación
+  const [isNavigating, setIsNavigating] = useState(false)
+  const [showLegacyMessage, setShowLegacyMessage] = useState(false)
 
-  // Reset el estado de navegación al montar el componente
   useEffect(() => {
     setIsNavigating(false)
-  }, [])
+    // Check if redirected due to legacy user
+    if (params.legacy === 'true') {
+      setShowLegacyMessage(true)
+    }
+  }, [params])
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -51,16 +58,24 @@ export default function Login() {
       const success = await signIn(email, password)
 
       if (success) {
-        // Ocultar la pantalla antes de navegar
         setIsNavigating(true)
-        
-        // Guardar la sesión en AsyncStorage para mantener al usuario logueado
         await AsyncStorage.setItem("session", "true")
 
-        // Redirección a la homepage - usar replace en lugar de push
-        setTimeout(() => {
-          router.replace("/(app)/home")
-        }, 10) // Pequeño delay para asegurar que la UI se ha actualizado
+        // Show success message for legacy users
+        if (showLegacyMessage) {
+          Alert.alert(
+            t("encryptionEnabled", "Encryption Enabled"),
+            t("yourDataNowSynced", "Your encrypted data is now accessible from all your devices!"),
+            [{
+              text: "OK",
+              onPress: () => router.replace("/(app)/home")
+            }]
+          )
+        } else {
+          setTimeout(() => {
+            router.replace("/(app)/home")
+          }, 10)
+        }
       } else {
         Alert.alert(t("loginError"), t("incorrectCredentials"))
       }
@@ -75,20 +90,14 @@ export default function Login() {
   }
 
   const goToRegister = () => {
-    // Ocultar la pantalla actual antes de navegar
     setIsNavigating(true)
-    
-    // Pequeño delay para asegurar que la UI se ha actualizado
     setTimeout(() => {
       router.replace("/auth/register")
     }, 10)
   }
 
   const goToPasswordRecover = () => {
-    // Ocultar la pantalla actual antes de navegar
     setIsNavigating(true)
-    
-    // Pequeño delay para asegurar que la UI se ha actualizado
     setTimeout(() => {
       router.replace("/auth/password-recover")
     }, 10)
@@ -98,7 +107,6 @@ export default function Login() {
     Alert.alert(t("comingSoon"), t("socialLoginNotAvailable", { provider }))
   }
 
-  // Si estamos navegando, no mostramos ningún contenido
   if (isNavigating) {
     return <View style={{ flex: 1, backgroundColor: 'transparent' }} />
   }
@@ -114,6 +122,21 @@ export default function Login() {
           keyboardShouldPersistTaps="handled"
         >
           <StyledView className="flex-1 justify-center items-center px-6">
+            {/* Legacy User Message */}
+            {showLegacyMessage && (
+              <StyledView className="w-full bg-emerald-900/30 border border-emerald-500/50 rounded-xl p-4 mb-4">
+                <StyledView className="flex-row items-center mb-2">
+                  <Ionicons name="information-circle" size={20} color="#10b981" />
+                  <StyledText className="text-emerald-400 font-semibold ml-2">
+                    {t("actionRequired", "Action Required")}
+                  </StyledText>
+                </StyledView>
+                <StyledText className="text-white/90 text-sm">
+                  {t("legacyEncryptionMessage", "Please log in again to enable cross-device encryption sync. Your encrypted data will then be accessible from all your devices.")}
+                </StyledText>
+              </StyledView>
+            )}
+
             {/* Card Container */}
             <StyledView className="w-full bg-black/20 backdrop-blur-sm rounded-xl p-6 border border-emerald-100/50">
               <StyledText className="text-white text-xl font-semibold mb-6">
