@@ -61,7 +61,7 @@ const DEFAULT_COLORS = [
   "#a855f7",
 ];
 
-const screenWidth = Dimensions.get('window').width;
+const screenWidth = Dimensions.get("window").width;
 const CreateTagModal: React.FC<CreateTagModalProps> = ({
   visible,
   onClose,
@@ -74,21 +74,23 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
   return (
     <StyledModal visible={visible} transparent animationType="fade">
       <StyledBlurView
-        intensity={10}
+        intensity={5}
         tint="dark"
         className="flex-1 justify-center items-center"
       >
         <StyledView className="flex-1 justify-center items-center px-6">
           {/* Modal with blur effect border */}
-          <StyledView
-            className="overflow-hidden"
+          <StyledBlurView
+            className=" overflow-hidden"
+            intensity={60}
+            tint="default"
             style={{
-              width: screenWidth * 0.9, // 90% del ancho de pantalla
+              width: screenWidth * 0.9, // % del ancho de pantalla
               maxWidth: 400, // tope en píxeles
-              backgroundColor: "rgba(100, 110, 100, 0.7)",
+              backgroundColor: "rgba(255, 255, 255, 0.25)",
               borderRadius: 20,
               borderWidth: 1,
-              borderColor: "rgba(100, 200, 200, 0.3)",
+              borderColor: "rgba(200, 200, 200, 0.4)",
               shadowColor: "#000",
               shadowOffset: { width: 0, height: 10 },
               shadowOpacity: 0.5,
@@ -139,14 +141,19 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
             </StyledView>
 
             {/* Actions - No gap between buttons */}
-            <StyledView className="flex-row" style={{ height: 56 }}>
+            <StyledBlurView
+              className="flex-row overflow-hidden"
+              style={{ height: 56 }}
+              intensity={60}
+              tint="default"
+            >
               <StyledTouchableOpacity
                 className="flex-1 justify-center items-center"
                 style={{
-                  backgroundColor: "rgba(100, 110, 100, 0.7)",
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
                   borderTopWidth: 1,
                   borderLeftWidth: 0.5,
-                  borderColor: "rgba(255, 255, 255, 0.1)",
+                  borderColor: "rgba(200, 200, 200, 0.4)",
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 10 },
                   shadowOpacity: 0.5,
@@ -162,10 +169,10 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
               <StyledTouchableOpacity
                 className="flex-1 justify-center items-center"
                 style={{
-                  backgroundColor: "rgba(100, 110, 100, 0.7)",
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
                   borderTopWidth: 1,
                   borderLeftWidth: 0.5,
-                  borderColor: "rgba(255, 255, 255, 0.1)",
+                  borderColor: "rgba(200, 200, 200, 0.4)",
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 10 },
                   shadowOpacity: 0.5,
@@ -178,8 +185,8 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
                   {t("common.create", "Create")}
                 </StyledText>
               </StyledTouchableOpacity>
-            </StyledView>
-          </StyledView>
+            </StyledBlurView>
+          </StyledBlurView>
         </StyledView>
       </StyledBlurView>
     </StyledModal>

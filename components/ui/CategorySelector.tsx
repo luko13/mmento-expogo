@@ -56,21 +56,23 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
   return (
     <StyledModal visible={visible} transparent animationType="fade">
       <StyledBlurView
-        intensity={10}
+        intensity={5}
         tint="dark"
         className="flex-1 justify-center items-center"
       >
         <StyledView className="flex-1 justify-center items-center px-6">
           {/* Modal with blur effect border */}
-          <StyledView
+          <StyledBlurView
             className=" overflow-hidden"
+            intensity={60}
+            tint="default"
             style={{
-              width: screenWidth * 0.6, // % del ancho de pantalla
+              width: screenWidth * 0.9, // % del ancho de pantalla
               maxWidth: 400, // tope en píxeles
-              backgroundColor: "rgba(100, 110, 100, 0.7)",
+              backgroundColor: "rgba(255, 255, 255, 0.25)",
               borderRadius: 20,
               borderWidth: 1,
-              borderColor: "rgba(100, 200, 200, 0.3)",
+              borderColor: "rgba(200, 200, 200, 0.4)",
               shadowColor: "#000",
               shadowOffset: { width: 0, height: 10 },
               shadowOpacity: 0.5,
@@ -79,7 +81,7 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
             }}
           >
             {/* Content */}
-            <StyledView className="p-4 pb-0">
+            <StyledView className="px-4 py-7 pb-2">
               <StyledText className="text-white text-lg font-medium text-center">
                 {t("forms.create", "Create")} "{categoryName}"?
               </StyledText>
@@ -89,14 +91,19 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
             <StyledView className="h-4" />
 
             {/* Actions - No gap between buttons */}
-            <StyledView className="flex-row" style={{ height: 52 }}>
+            <StyledBlurView
+              className="flex-row overflow-hidden"
+              style={{ height: 52 }}
+              intensity={60}
+              tint="default"
+            >
               <StyledTouchableOpacity
                 className="flex-1 justify-center items-center"
                 style={{
-                  backgroundColor: "rgba(100, 110, 100, 0.7)",
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
                   borderTopWidth: 1,
                   borderRightWidth: 0.5,
-                  borderColor: "rgba(255, 255, 255, 0.1)",
+                  borderColor: "rgba(200, 200, 200, 0.4)",
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 10 },
                   shadowOpacity: 0.5,
@@ -112,10 +119,10 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
               <StyledTouchableOpacity
                 className="flex-1 justify-center items-center"
                 style={{
-                  backgroundColor: "rgba(100, 110, 100, 0.7)",
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
                   borderTopWidth: 1,
                   borderLeftWidth: 0.5,
-                  borderColor: "rgba(255, 255, 255, 0.1)",
+                  borderColor: "rgba(200, 200, 200, 0.4)",
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 10 },
                   shadowOpacity: 0.5,
@@ -128,8 +135,8 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
                   {t("common.create", "Create")}
                 </StyledText>
               </StyledTouchableOpacity>
-            </StyledView>
-          </StyledView>
+            </StyledBlurView>
+          </StyledBlurView>
         </StyledView>
       </StyledBlurView>
     </StyledModal>
