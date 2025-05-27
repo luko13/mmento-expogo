@@ -8,6 +8,7 @@ import { router } from "expo-router";
 import { useEffect, useState, useRef } from "react";
 import { checkSession } from "../utils/storage";
 import { supabase } from "../lib/supabase";
+import { CryptoService } from "../utils/cryptoService";
 import { getAllUserContent, getUserCategories } from "../utils/categoryService";
 
 const StyledView = styled(View);
@@ -60,12 +61,16 @@ const checkNeedsEncryptionMigration = async (): Promise<boolean> => {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("public_key, encrypted_private_key")
+      .select("public_key, encrypted_private_key, encryption_initialized_at")
       .eq("id", user.id)
       .single();
 
-    // Legacy user has public key but no encrypted private key
-    return !!(profile?.public_key && !profile.encrypted_private_key);
+    // Check if user has local private key stored
+    const hasLocalPrivateKey = await CryptoService.getInstance().getPrivateKey(user.id);
+
+    // Legacy user: has public key but no encrypted private key in cloud
+    // AND no local private key (hasn't generated keys yet)
+    return !!(profile?.public_key && !profile.encrypted_private_key && !hasLocalPrivateKey);
   } catch (error) {
     console.error("Error checking encryption status:", error);
     return false;
