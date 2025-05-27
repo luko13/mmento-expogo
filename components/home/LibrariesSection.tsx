@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, useMemo, useCallback, memo, useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Platform,
   ActivityIndicator,
   TextInput,
+  Animated,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -131,6 +132,135 @@ const LibraryItemRow = memo(({
         </StyledView>
       </StyledView>
     </StyledTouchableOpacity>
+  );
+});
+
+// Componente para manejar la animación de colapso/expansión
+const CollapsibleCategory = memo(({ 
+  section, 
+  onItemPress, 
+  onEditCategory,
+  onDeleteCategory,
+  searchQuery,
+  searchFilters,
+  t
+}: { 
+  section: CategorySection;
+  onItemPress: (item: LibraryItem) => void;
+  onEditCategory: (category: Category) => void;
+  onDeleteCategory: (categoryId: string) => void;
+  searchQuery: string;
+  searchFilters?: SearchFilters;
+  t: any;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const animatedHeight = useRef(new Animated.Value(1)).current;
+  const animatedRotation = useRef(new Animated.Value(1)).current;
+
+  const toggleExpanded = () => {
+    const toValue = isExpanded ? 0 : 1;
+    
+    Animated.parallel([
+      Animated.timing(animatedHeight, {
+        toValue,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+      Animated.timing(animatedRotation, {
+        toValue,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ]).start();
+    
+    setIsExpanded(!isExpanded);
+  };
+
+  const filteredItems = section.items.filter(libraryItem => {
+    const query = searchQuery.toLowerCase().trim();
+    const matchesText = query ? 
+      libraryItem.title.toLowerCase().includes(query) ||
+      (libraryItem.description && libraryItem.description.toLowerCase().includes(query)) : true;
+    
+    const matchesDifficulty = searchFilters?.difficulties.length ?
+      libraryItem.difficulty && searchFilters.difficulties.includes(String(libraryItem.difficulty)) : true;
+    
+    const matchesTags = searchFilters?.tags.length ?
+      libraryItem.tags && libraryItem.tags.some(tagId => searchFilters.tags.includes(tagId)) : true;
+
+    return matchesText && matchesDifficulty && matchesTags;
+  });
+
+  const rotateInterpolation = animatedRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '90deg']
+  });
+
+  return (
+    <StyledView className="mb-4">
+      <StyledTouchableOpacity 
+        className="flex-row justify-between items-center bg-white/10 px-3 border border-white/20 rounded-lg mb-2"
+        onPress={toggleExpanded}
+        activeOpacity={0.7}
+      >
+        <StyledView className="flex-row items-center flex-1">
+          <Animated.View style={{ transform: [{ rotate: rotateInterpolation }] }}>
+            <MaterialIcons name="chevron-right" size={20} color="white" />
+          </Animated.View>
+          <StyledText className="text-white font-bold ml-2">{section.category.name}</StyledText>
+        </StyledView>
+        <StyledView className="flex-row items-center">
+          <StyledText className="text-white mr-2">{filteredItems.length}</StyledText>
+          <StyledView className="flex-row">
+            <StyledTouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                onEditCategory(section.category);
+              }}
+              className="p-2"
+            >
+              <MaterialIcons name="edit" size={16} color="white" />
+            </StyledTouchableOpacity>
+            <StyledTouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                onDeleteCategory(section.category.id);
+              }}
+              className="p-2"
+            >
+              <Feather name="trash-2" size={16} color="white" />
+            </StyledTouchableOpacity>
+          </StyledView>
+        </StyledView>
+      </StyledTouchableOpacity>
+
+      <Animated.View
+        style={{
+          maxHeight: animatedHeight.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 1000], // Ajusta este valor según sea necesario
+          }),
+          opacity: animatedHeight,
+          overflow: 'hidden',
+        }}
+      >
+        {filteredItems.length > 0 ? (
+          filteredItems.map(libraryItem => (
+            <LibraryItemRow
+              key={`${libraryItem.type}-${libraryItem.id}`}
+              item={libraryItem}
+              onPress={onItemPress}
+            />
+          ))
+        ) : (
+          <StyledView className="border-b border-white/20 p-3 rounded-lg">
+            <StyledText className="text-white/50 text-center">
+              {t("noItems", "No items in this category")}
+            </StyledText>
+          </StyledView>
+        )}
+      </Animated.View>
+    </StyledView>
   );
 });
 
@@ -989,60 +1119,16 @@ export default function LibrariesSection({
 
   // Renderizado de categoria con memoria
   const renderCategoryItem = useCallback(({ item }: { item: CategorySection }) => {
-    const filteredItems = item.items.filter(libraryItem => {
-      const query = searchQuery.toLowerCase().trim();
-      const matchesText = query ? 
-        libraryItem.title.toLowerCase().includes(query) ||
-        (libraryItem.description && libraryItem.description.toLowerCase().includes(query)) : true;
-      
-      const matchesDifficulty = searchFilters?.difficulties.length ?
-        libraryItem.difficulty && searchFilters.difficulties.includes(String(libraryItem.difficulty)) : true;
-      
-      const matchesTags = searchFilters?.tags.length ?
-        libraryItem.tags && libraryItem.tags.some(tagId => searchFilters.tags.includes(tagId)) : true;
-
-      return matchesText && matchesDifficulty && matchesTags;
-    });
-
     return (
-      <StyledView className="mb-4">
-        <StyledView className="flex-row justify-between items-center bg-white/10 px-3 border border-white/20 rounded-lg mb-2">
-          <StyledText className="text-white font-bold">{item.category.name}</StyledText>
-          <StyledView className="flex-row items-center">
-            <StyledText className="text-white mr-2">{filteredItems.length}</StyledText>
-            <StyledView className="flex-row">
-              <StyledTouchableOpacity
-                onPress={() => openEditCategoryModal(item.category)}
-                className="p-2"
-              >
-                <MaterialIcons name="edit" size={16} color="white" />
-              </StyledTouchableOpacity>
-              <StyledTouchableOpacity
-                onPress={() => handleDeleteCategory(item.category.id)}
-                className="p-2"
-              >
-                <Feather name="trash-2" size={16} color="white" />
-              </StyledTouchableOpacity>
-            </StyledView>
-          </StyledView>
-        </StyledView>
-
-        {filteredItems.length > 0 ? (
-          filteredItems.map(libraryItem => (
-            <LibraryItemRow
-              key={`${libraryItem.type}-${libraryItem.id}`}
-              item={libraryItem}
-              onPress={handleItemPress}
-            />
-          ))
-        ) : (
-          <StyledView className="border-b border-white/20 p-3 rounded-lg">
-            <StyledText className="text-white/50 text-center">
-              {t("noItems", "No items in this category")}
-            </StyledText>
-          </StyledView>
-        )}
-      </StyledView>
+      <CollapsibleCategory
+        section={item}
+        onItemPress={handleItemPress}
+        onEditCategory={openEditCategoryModal}
+        onDeleteCategory={handleDeleteCategory}
+        searchQuery={searchQuery}
+        searchFilters={searchFilters}
+        t={t}
+      />
     );
   }, [searchQuery, searchFilters, handleItemPress, t]);
 
@@ -1087,11 +1173,6 @@ export default function LibrariesSection({
           maxToRenderPerBatch={10}
           windowSize={10}
           initialNumToRender={5}
-          getItemLayout={(data, index) => ({
-            length: 100, // Altura estimada de cada categoria
-            offset: 100 * index,
-            index,
-          })}
           ListEmptyComponent={
             <StyledView className="bg-white/5 p-6 rounded-lg items-center">
               <StyledText className="text-white/50 text-center text-lg mb-2">
