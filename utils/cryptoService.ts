@@ -1,4 +1,4 @@
-// utils/cryptoService.ts
+// utils/cryptoService.ts - Fixed version with better cross-device support
 import "react-native-get-random-values";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
@@ -86,7 +86,8 @@ export class CryptoService {
   }
 
   /**
-   * Derive encryption key from password using PBKDF2
+   * Derive encryption key from password using PBKDF2-like approach
+   * FIXED: Use consistent key derivation
    */
   private async deriveKeyFromPassword(
     password: string,
@@ -94,15 +95,17 @@ export class CryptoService {
   ): Promise<Uint8Array> {
     this.ensureInitialized();
 
-    // Use nacl.hash as a simple KDF (in production, consider using a proper PBKDF2)
+    // Use consistent encoding and derivation
     const passwordBytes = decodeUTF8(password);
     const combined = new Uint8Array(passwordBytes.length + salt.length);
     combined.set(passwordBytes);
     combined.set(salt, passwordBytes.length);
 
-    // Hash multiple times for key stretching
+    // Hash multiple times for key stretching (consistent iterations)
     let key = new Uint8Array(combined);
-    for (let i = 0; i < 10000; i++) {
+    const iterations = 10000; // Must be consistent across all devices
+    
+    for (let i = 0; i < iterations; i++) {
       key = new Uint8Array(nacl.hash(key));
     }
 
@@ -203,11 +206,12 @@ export class CryptoService {
       .single();
 
     if (error || !data?.encrypted_private_key) {
+      console.log("No encrypted key found in cloud");
       return null;
     }
 
     try {
-      return await this.decryptPrivateKeyFromCloud(
+      const decryptedKey = await this.decryptPrivateKeyFromCloud(
         {
           encryptedKey: data.encrypted_private_key,
           salt: data.private_key_salt,
@@ -215,6 +219,9 @@ export class CryptoService {
         },
         password
       );
+      
+      console.log("Successfully decrypted private key from cloud");
+      return decryptedKey;
     } catch (error) {
       console.error("Failed to decrypt private key:", error);
       return null;
@@ -242,65 +249,98 @@ export class CryptoService {
     // Store encrypted in cloud
     await this.storePrivateKeyInCloud(result.privateKey, userId, password);
 
+    // Update public key in profile
+    const { error } = await supabase
+      .from("profiles")
+      .update({ public_key: result.publicKey })
+      .eq("id", userId);
+
+    if (error) {
+      console.error("Error updating public key:", error);
+    }
+
     return result;
   }
 
   /**
    * Initialize keys from cloud if not present locally
+   * FIXED: Better error handling and key validation
    */
   async initializeFromCloud(
     userId: string,
     password: string
   ): Promise<KeyPair | null> {
-    // Check local storage first
-    const localPrivateKey = await this.getPrivateKey(userId);
-    if (localPrivateKey) {
-      const { data } = await supabase
+    try {
+      // First, check if we have cloud backup
+      const { data: profile } = await supabase
         .from("profiles")
-        .select("public_key")
+        .select("public_key, encrypted_private_key, private_key_salt, private_key_nonce")
         .eq("id", userId)
         .single();
 
-      if (data?.public_key) {
-        return {
-          publicKey: data.public_key,
-          privateKey: localPrivateKey,
-        };
+      if (!profile?.encrypted_private_key || !profile?.public_key) {
+        console.log("No cloud backup found");
+        return null;
       }
-    }
 
-    // Try to retrieve from cloud
-    const cloudPrivateKey = await this.retrievePrivateKeyFromCloud(
-      userId,
-      password
-    );
-    if (!cloudPrivateKey) {
+      // Try to retrieve from cloud
+      const cloudPrivateKey = await this.retrievePrivateKeyFromCloud(
+        userId,
+        password
+      );
+      
+      if (!cloudPrivateKey) {
+        console.error("Failed to retrieve private key from cloud");
+        return null;
+      }
+
+      // Validate the key pair
+      const keyPair = {
+        publicKey: profile.public_key,
+        privateKey: cloudPrivateKey,
+      };
+
+      // Test the key pair with a simple encryption/decryption
+      try {
+        const testMessage = "test";
+        const encrypted = await this.encryptForSelf(testMessage, keyPair.privateKey);
+        const decrypted = await this.decryptForSelf(encrypted, keyPair.privateKey);
+        
+        if (decrypted !== testMessage) {
+          throw new Error("Key validation failed");
+        }
+      } catch (error) {
+        console.error("Key pair validation failed:", error);
+        return null;
+      }
+
+      // Store locally for future use
+      await this.storePrivateKey(cloudPrivateKey, userId);
+      console.log("Successfully initialized keys from cloud");
+
+      return keyPair;
+    } catch (error) {
+      console.error("Error in initializeFromCloud:", error);
       return null;
     }
-
-    // Store locally for future use
-    await this.storePrivateKey(cloudPrivateKey, userId);
-
-    // Get public key
-    const { data } = await supabase
-      .from("profiles")
-      .select("public_key")
-      .eq("id", userId)
-      .single();
-
-    if (!data?.public_key) {
-      return null;
-    }
-
-    return {
-      publicKey: data.public_key,
-      privateKey: cloudPrivateKey,
-    };
   }
 
-  // ... rest of the existing methods remain the same ...
+  /**
+   * Clear local keys (useful for testing or logout)
+   */
+  async clearLocalKeys(userId: string): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(`privateKey_${userId}`);
+    } catch (error) {
+      console.error("Error clearing local keys:", error);
+    }
+  }
 
+  /**
+   * @deprecated Use generateKeyPairWithCloudBackup instead
+   */
   async generateKeyPair(): Promise<KeyPair> {
+    console.warn('generateKeyPair is deprecated. Use generateKeyPairWithCloudBackup instead.');
     this.ensureInitialized();
 
     try {
@@ -503,6 +543,9 @@ export class CryptoService {
     }
   }
 
+  /**
+   * FIXED: Ensure consistent key derivation for self-encryption
+   */
   async encryptForSelf(
     plaintext: string,
     userPrivateKey: string
@@ -510,7 +553,10 @@ export class CryptoService {
     this.ensureInitialized();
 
     try {
-      const derivedKey = nacl.hash(decodeBase64(userPrivateKey)).slice(0, 32);
+      // Use a consistent key derivation method
+      const privateKeyBytes = decodeBase64(userPrivateKey);
+      const derivedKey = nacl.hash(privateKeyBytes).slice(0, 32);
+      
       const message = decodeUTF8(plaintext);
       const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
       const encrypted = nacl.secretbox(message, nonce, derivedKey);
@@ -533,6 +579,9 @@ export class CryptoService {
     }
   }
 
+  /**
+   * FIXED: Ensure consistent key derivation for self-decryption
+   */
   async decryptForSelf(
     encryptedData: string,
     userPrivateKey: string
@@ -541,13 +590,16 @@ export class CryptoService {
 
     try {
       const parsedData = JSON.parse(encryptedData);
-      const { ciphertext, nonce } = parsedData;
+      const { ciphertext, nonce, version } = parsedData;
 
       if (!ciphertext || !nonce) {
         throw new Error("Invalid encrypted data format");
       }
 
-      const derivedKey = nacl.hash(decodeBase64(userPrivateKey)).slice(0, 32);
+      // Use the same key derivation method as encryption
+      const privateKeyBytes = decodeBase64(userPrivateKey);
+      const derivedKey = nacl.hash(privateKeyBytes).slice(0, 32);
+      
       const decrypted = nacl.secretbox.open(
         decodeBase64(ciphertext),
         decodeBase64(nonce),

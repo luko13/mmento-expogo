@@ -59,24 +59,11 @@ export const EncryptionSetup: React.FC<EncryptionSetupProps> = ({
   }, [visible, isReady, keyPair, encryptionError]);
 
   const handleGenerateKeys = async () => {
-    try {
-      setIsGenerating(true);
-      setSetupStep('generating');
-      
-      await generateKeys();
-      
-      setSetupStep('complete');
-    } catch (error) {
-      console.error('Error generando claves:', error);
-      setSetupStep('error');
-      Alert.alert(
-        t('security.error', 'Error de Seguridad'),
-        t('security.keyGenerationFailed', 'No se pudieron generar las claves de cifrado'),
-        [{ text: t('ok', 'OK') }]
-      );
-    } finally {
-      setIsGenerating(false);
-    }
+    Alert.alert(
+      t('security.info', 'Información'),
+      t('security.keysAlreadyGenerated', 'Las claves se generan automáticamente al iniciar sesión. Si no tienes claves, cierra sesión y vuelve a entrar.'),
+      [{ text: t('ok', 'OK'), onPress: onClose }]
+    );
   };
 
   const handleComplete = () => {

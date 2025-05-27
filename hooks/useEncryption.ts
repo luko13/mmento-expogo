@@ -7,7 +7,7 @@ export interface UseEncryptionReturn {
   isReady: boolean;
   keyPair: KeyPair | null;
   publicKeys: Map<string, string>;
-  generateKeys: () => Promise<void>;
+  generateKeys: (password: string) => Promise<void>;
   getPublicKey: (userId: string) => Promise<string | null>;
   encryptText: (text: string, recipientUserId: string) => Promise<string>;
   decryptText: (encryptedData: string, senderUserId: string) => Promise<string>;
@@ -25,17 +25,15 @@ export const useEncryption = (): UseEncryptionReturn => {
 
   const cryptoService = CryptoService.getInstance();
 
-  // Only initialize after user authentication
+  // Initialize from existing keys on component mount
   useEffect(() => {
     let mounted = true;
     
     const checkAuthAndInitialize = async () => {
       try {
-        // Check if user is authenticated first
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
-          // User not authenticated, don't initialize crypto
           if (mounted) {
             setIsReady(false);
             setError(null);
@@ -45,7 +43,7 @@ export const useEncryption = (): UseEncryptionReturn => {
 
         if (mounted) {
           setCurrentUserId(user.id);
-          await initializeEncryption(user.id);
+          await loadExistingKeys(user.id);
         }
       } catch (err) {
         if (mounted) {
@@ -64,7 +62,7 @@ export const useEncryption = (): UseEncryptionReturn => {
 
         if (event === 'SIGNED_IN' && session?.user) {
           setCurrentUserId(session.user.id);
-          await initializeEncryption(session.user.id);
+          await loadExistingKeys(session.user.id);
         } else if (event === 'SIGNED_OUT') {
           // Clear crypto state on logout
           setKeyPair(null);
@@ -82,7 +80,7 @@ export const useEncryption = (): UseEncryptionReturn => {
     };
   }, []);
 
-  const initializeEncryption = async (userId: string) => {
+  const loadExistingKeys = async (userId: string) => {
     try {
       setError(null);
 
@@ -102,43 +100,30 @@ export const useEncryption = (): UseEncryptionReturn => {
             publicKey: profile.public_key,
             privateKey: existingPrivateKey
           });
-        } else {
-          // Regenerate keypair if public key is missing
-          await generateKeys();
         }
       }
-      // Don't auto-generate keys - let user trigger this explicitly
 
       setIsReady(true);
     } catch (err) {
-      console.error('Error inicializando cifrado:', err);
+      console.error('Error loading existing keys:', err);
       setError(err instanceof Error ? err.message : 'Error desconocido');
     }
   };
 
-  const generateKeys = async () => {
+  const generateKeys = async (password: string) => {
     try {
       if (!currentUserId) {
         throw new Error('Usuario no autenticado');
       }
 
-      // Generate new keypair
-      const newKeyPair = await cryptoService.generateKeyPair();
-      
-      // Store private key securely
-      await cryptoService.storePrivateKey(newKeyPair.privateKey, currentUserId);
-      
-      // Send public key to server
-      const { error } = await supabase
-        .from('profiles')
-        .update({ public_key: newKeyPair.publicKey })
-        .eq('id', currentUserId);
-
-      if (error) {
-        throw new Error(`Error guardando clave pública: ${error.message}`);
-      }
+      // Always generate with cloud backup
+      const newKeyPair = await cryptoService.generateKeyPairWithCloudBackup(
+        currentUserId,
+        password
+      );
 
       setKeyPair(newKeyPair);
+      setIsReady(true);
     } catch (err) {
       console.error('Error generando claves:', err);
       setError(err instanceof Error ? err.message : 'Error generando claves');

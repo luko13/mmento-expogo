@@ -118,20 +118,14 @@ export default function QuickAddMagicForm({
   // Generate encryption keys if needed
   useEffect(() => {
     const checkEncryptionSetup = async () => {
-      if (encryptionReady && !keyPair && !encryptionError) {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          try {
-            await generateKeys()
-          } catch (error) {
-            console.error("Error generating keys automatically:", error)
-          }
-        }
+      if (encryptionReady && !keyPair) {
+        // Si no hay claves, mostrar el modal de configuración
+        setShowEncryptionSetup(true);
       }
     }
     
-    checkEncryptionSetup()
-  }, [encryptionReady, keyPair, encryptionError])
+    checkEncryptionSetup();
+  }, [encryptionReady, keyPair]);
 
   // Title validation
   const titleValidation = useMemo(() => {

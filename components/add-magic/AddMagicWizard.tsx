@@ -76,20 +76,14 @@ export default function AddMagicWizardEncrypted({
   // Generar claves automáticamente si no existen
   useEffect(() => {
     const checkEncryptionSetup = async () => {
-      if (encryptionReady && !keyPair && !encryptionError) {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          try {
-            await generateKeys()
-          } catch (error) {
-            console.error("Error generando claves automáticamente:", error)
-          }
-        }
+      if (encryptionReady && !keyPair) {
+        // Si no hay claves, mostrar el modal de configuración
+        setShowEncryptionSetup(true);
       }
     }
     
-    checkEncryptionSetup()
-  }, [encryptionReady, keyPair, encryptionError])
+    checkEncryptionSetup();
+  }, [encryptionReady, keyPair]);
 
   // Función para actualizar el contador de uso de las etiquetas
   const updateTagsUsageCount = async (tagIds: string[]) => {
