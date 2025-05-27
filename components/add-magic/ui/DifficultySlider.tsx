@@ -44,8 +44,8 @@ export default function DifficultySlider({
   // Calcular color dependiendo de la dificultad
   const getDifficultyColor = (value: number) => {
     if (value <= 3) return "#10b981" // green-500
-    if (value <= 7) return "#eab308" // yellow-500
-    return "#ef4444" // red-500
+    if (value <= 7) return "#10b981" // yellow-500
+    return "#10b981" // red-500
   }
   
   // Gestión del cambio de valor del slider

@@ -242,5 +242,8 @@
   "imagePickError": "Hubo un error al seleccionar la imagen. Por favor intenta de nuevo.",
   "videoPickError": "Hubo un error al seleccionar el video. Por favor intenta de nuevo.",
   "success": "Éxito",
-  "ok": "OK"
+  "ok": "OK",
+  "decryptingVideo": "Descifrando video...",
+  "loadingVideo": "Cargando video...",
+  "videoLoadError": "Error al cargar el video"
 }

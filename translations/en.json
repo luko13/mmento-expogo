@@ -203,5 +203,8 @@
     "errorCreatingTag": "Error creating tag",
     "errorAddingTag": "Error adding tag"
   },
-  "noItems": "No items in this category"
+  "noItems": "No items in this category",
+  "decryptingVideo": "Decrypting video...",
+  "loadingVideo": "Loading video...",
+  "videoLoadError": "Error loading video"
 }

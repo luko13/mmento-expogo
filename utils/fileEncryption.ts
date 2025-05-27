@@ -186,18 +186,18 @@ export class FileEncryptionService {
       if (!session) {
         throw new Error('Usuario no autenticado');
       }
-
+  
       // 1. Get file metadata
       const { data: fileMetadata, error: metadataError } = await supabase
         .from('encrypted_files')
         .select('*')
         .eq('file_id', fileId)
         .single();
-
+  
       if (metadataError || !fileMetadata) {
         throw new Error('Archivo no encontrado');
       }
-
+  
       // 2. Get encrypted key for user
       const { data: keyData, error: keyError } = await supabase
         .from('encrypted_file_keys')
@@ -205,17 +205,17 @@ export class FileEncryptionService {
         .eq('file_id', fileId)
         .eq('user_id', userId)
         .single();
-
+  
       if (keyError || !keyData) {
         throw new Error('No tienes acceso a este archivo');
       }
-
+  
       // 3. Get author's public key
       const authorPublicKey = await getPublicKey(fileMetadata.author_id);
       if (!authorPublicKey) {
         throw new Error('No se pudo obtener la clave del autor');
       }
-
+  
       // 4. Decrypt symmetric key
       const symmetricKey = await this.cryptoService.decryptSymmetricKey(
         {
@@ -225,18 +225,46 @@ export class FileEncryptionService {
         authorPublicKey,
         getPrivateKey()
       );
-
+  
       // 5. Download encrypted file
+      console.log(`📥 Descargando archivo cifrado: ${fileId}`);
+      
       const { data: encryptedFile, error: downloadError } = await supabase.storage
         .from('encrypted_media')
         .download(`encrypted_files/${fileId}`);
-
+      
       if (downloadError || !encryptedFile) {
-        throw new Error('Error descargando archivo');
+        console.error('Error descargando archivo:', downloadError);
+        throw new Error(`Error descargando archivo cifrado: ${downloadError?.message || 'Unknown error'}`);
       }
-
-      // 6. Decrypt file
-      const fileBuffer = new Uint8Array(await encryptedFile.arrayBuffer());
+  
+      // 6. Convertir a Uint8Array
+      let fileBuffer: Uint8Array;
+      
+      try {
+        // React Native + Supabase devuelve un Blob
+        if (encryptedFile && typeof encryptedFile === 'object') {
+          if ('arrayBuffer' in encryptedFile && typeof encryptedFile.arrayBuffer === 'function') {
+            fileBuffer = new Uint8Array(await encryptedFile.arrayBuffer());
+          } else if (encryptedFile instanceof ArrayBuffer) {
+            fileBuffer = new Uint8Array(encryptedFile);
+          } else if (encryptedFile instanceof Uint8Array) {
+            fileBuffer = encryptedFile;
+          } else {
+            // Manejar Blob sin arrayBuffer (React Native)
+            const response = new Response(encryptedFile as Blob);
+            const arrayBuffer = await response.arrayBuffer();
+            fileBuffer = new Uint8Array(arrayBuffer);
+          }
+        } else {
+          throw new Error('Formato de archivo no reconocido');
+        }
+      } catch (error) {
+        console.error('Error convirtiendo archivo:', error);
+        throw new Error('Error procesando archivo descargado');
+      }
+  
+      // 7. Decrypt file
       const fileNonce = this.base64ToUint8Array(fileMetadata.file_nonce);
       
       const decryptedFile = await this.cryptoService.decryptFile(
@@ -244,7 +272,9 @@ export class FileEncryptionService {
         fileNonce,
         symmetricKey
       );
-
+  
+      console.log('✅ Archivo descifrado exitosamente');
+  
       return {
         data: decryptedFile,
         fileName: fileMetadata.original_name,
