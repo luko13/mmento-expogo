@@ -695,8 +695,8 @@ useEffect(() => {
           renderItem={({ item }) => (
             <Image
               source={{ uri: item as string }}
-              style={{ width, height: height * 0.7 }}
-              resizeMode="cover"
+              style={{ width, height: height }}
+              resizeMode="contain"
             />
           )}
         />
