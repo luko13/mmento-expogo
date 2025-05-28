@@ -1,58 +1,59 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useMemo } from "react"
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  Alert, 
+import { useState, useEffect, useMemo } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
   ScrollView,
-  ActivityIndicator 
-} from "react-native"
-import { styled } from "nativewind"
-import { useTranslation } from "react-i18next"
-import { v4 as uuidv4 } from 'uuid'
-import { 
-  Feather, 
-  Ionicons, 
-  FontAwesome6, 
-  MaterialIcons 
-} from "@expo/vector-icons"
-import * as ImagePicker from "expo-image-picker"
-import * as FileSystem from "expo-file-system"
-import { LinearGradient } from 'expo-linear-gradient'
-import { useSafeAreaInsets } from "react-native-safe-area-context"
+  ActivityIndicator,
+} from "react-native";
+import { styled } from "nativewind";
+import { useTranslation } from "react-i18next";
+import { v4 as uuidv4 } from "uuid";
+import {
+  Feather,
+  Ionicons,
+  FontAwesome6,
+  MaterialIcons,
+} from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
+import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Import necessary hooks and services
-import { supabase } from "../../lib/supabase"
-import { useEncryption } from "../../hooks/useEncryption"
-import { FileEncryptionService } from "../../utils/fileEncryption"
-import CategorySelector from "../ui/CategorySelector"
-import { EncryptionSetup } from "../security/EncryptionSetup"
-import type { EncryptedMagicTrick } from "../../types/encryptedMagicTrick"
+import { supabase } from "../../lib/supabase";
+import { useEncryption } from "../../hooks/useEncryption";
+import { FileEncryptionService } from "../../utils/fileEncryption";
+import CategorySelector from "../ui/CategorySelector";
+import { EncryptionSetup } from "../security/EncryptionSetup";
+import type { EncryptedMagicTrick } from "../../types/encryptedMagicTrick";
+import CustomTooltip from "../ui/Tooltip";
 
-const StyledView = styled(View)
-const StyledText = styled(Text)
-const StyledTextInput = styled(TextInput)
-const StyledTouchableOpacity = styled(TouchableOpacity)
-const StyledScrollView = styled(ScrollView)
+const StyledView = styled(View);
+const StyledText = styled(Text);
+const StyledTextInput = styled(TextInput);
+const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledScrollView = styled(ScrollView);
 
 interface QuickAddMagicFormProps {
-  onComplete?: (trickId: string) => void
-  onCancel?: () => void
+  onComplete?: (trickId: string) => void;
+  onCancel?: () => void;
 }
 
 export default function QuickAddMagicForm({
   onComplete,
-  onCancel
+  onCancel,
 }: QuickAddMagicFormProps) {
-  const { t } = useTranslation()
-  const insets = useSafeAreaInsets()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showEncryptionSetup, setShowEncryptionSetup] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [userId, setUserId] = useState<string | undefined>()
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showEncryptionSetup, setShowEncryptionSetup] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [userId, setUserId] = useState<string | undefined>();
 
   // Encryption hooks
   const {
@@ -61,13 +62,15 @@ export default function QuickAddMagicForm({
     encryptForSelf,
     getPublicKey,
     generateKeys,
-    error: encryptionError
-  } = useEncryption()
+    error: encryptionError,
+  } = useEncryption();
 
-  const fileEncryptionService = new FileEncryptionService()
+  const fileEncryptionService = new FileEncryptionService();
 
   // Quick form data - only essential fields
-  const [quickTrickData, setQuickTrickData] = useState<Partial<EncryptedMagicTrick>>({
+  const [quickTrickData, setQuickTrickData] = useState<
+    Partial<EncryptedMagicTrick>
+  >({
     title: "",
     selectedCategoryId: null,
     effect: "",
@@ -93,27 +96,29 @@ export default function QuickAddMagicForm({
     is_public: false,
     status: "draft",
     price: null,
-  })
+  });
 
   // Get current date formatted
   const getCurrentDate = () => {
-    const now = new Date()
-    const day = now.getDate().toString().padStart(2, "0")
-    const month = (now.getMonth() + 1).toString().padStart(2, "0")
-    const year = now.getFullYear()
-    return `${day}/${month}/${year}`
-  }
+    const now = new Date();
+    const day = now.getDate().toString().padStart(2, "0");
+    const month = (now.getMonth() + 1).toString().padStart(2, "0");
+    const year = now.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
 
   // Get current user
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
-        setUserId(user.id)
+        setUserId(user.id);
       }
-    }
-    fetchUser()
-  }, [])
+    };
+    fetchUser();
+  }, []);
 
   // Generate encryption keys if needed
   useEffect(() => {
@@ -122,42 +127,45 @@ export default function QuickAddMagicForm({
         // Si no hay claves, mostrar el modal de configuración
         setShowEncryptionSetup(true);
       }
-    }
-    
+    };
+
     checkEncryptionSetup();
   }, [encryptionReady, keyPair]);
 
   // Title validation
   const titleValidation = useMemo(() => {
     if (!quickTrickData.title) {
-      return { isValid: false, message: "" }
+      return { isValid: false, message: "" };
     }
 
-    const trimmedTitle = quickTrickData.title.trim()
+    const trimmedTitle = quickTrickData.title.trim();
 
     if (trimmedTitle.length === 0) {
       return {
         isValid: false,
-        message: t("validation.titleRequired", "Title is required")
-      }
+        message: t("validation.titleRequired", "Title is required"),
+      };
     }
 
     if (trimmedTitle.length < 3) {
       return {
         isValid: false,
-        message: t("validation.titleTooShort", "Title must be at least 3 characters")
-      }
+        message: t(
+          "validation.titleTooShort",
+          "Title must be at least 3 characters"
+        ),
+      };
     }
 
     if (trimmedTitle.length > 100) {
       return {
         isValid: false,
-        message: t("validation.titleTooLong", "Title is too long")
-      }
+        message: t("validation.titleTooLong", "Title is too long"),
+      };
     }
 
-    return { isValid: true, message: "" }
-  }, [quickTrickData.title, t])
+    return { isValid: true, message: "" };
+  }, [quickTrickData.title, t]);
 
   // Form validation
   const isFormValid = useMemo(() => {
@@ -165,27 +173,35 @@ export default function QuickAddMagicForm({
       titleValidation.isValid &&
       quickTrickData.selectedCategoryId !== null &&
       quickTrickData.effect?.trim() !== ""
-    )
-  }, [titleValidation.isValid, quickTrickData.selectedCategoryId, quickTrickData.effect])
+    );
+  }, [
+    titleValidation.isValid,
+    quickTrickData.selectedCategoryId,
+    quickTrickData.effect,
+  ]);
 
   // Request permissions
   const requestMediaLibraryPermissions = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert(
           t("permissionRequired", "Permission Required"),
-          t("mediaLibraryPermission", "We need access to your media library to upload videos."),
+          t(
+            "mediaLibraryPermission",
+            "We need access to your media library to upload videos."
+          ),
           [{ text: t("ok", "OK") }]
-        )
-        return false
+        );
+        return false;
       }
-      return true
+      return true;
     } catch (error) {
-      console.error("Error requesting permissions:", error)
-      return false
+      console.error("Error requesting permissions:", error);
+      return false;
     }
-  }
+  };
 
   // Pick effect video
   const pickEffectVideo = async () => {
@@ -194,64 +210,69 @@ export default function QuickAddMagicForm({
         Alert.alert(
           t("security.error", "Security Error"),
           t("security.encryptionNotReady", "Encryption system is not ready")
-        )
-        return
+        );
+        return;
       }
 
-      const hasPermission = await requestMediaLibraryPermissions()
-      if (!hasPermission) return
+      const hasPermission = await requestMediaLibraryPermissions();
+      if (!hasPermission) return;
 
       const options: ImagePicker.ImagePickerOptions = {
         mediaTypes: ImagePicker.MediaTypeOptions.Videos,
         allowsEditing: true,
         quality: 0.5,
         videoMaxDuration: 60,
-      }
+      };
 
-      const result = await ImagePicker.launchImageLibraryAsync(options)
+      const result = await ImagePicker.launchImageLibraryAsync(options);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri
+        const uri = result.assets[0].uri;
 
         // Check file size
         try {
-          const fileInfo = await FileSystem.getInfoAsync(uri)
+          const fileInfo = await FileSystem.getInfoAsync(uri);
           if (fileInfo.exists && "size" in fileInfo) {
             if (fileInfo.size > 50 * 1024 * 1024) {
               Alert.alert(
                 t("fileTooLarge", "File Too Large"),
-                t("fileSizeWarning", "The selected video is too large. Please select a smaller video."),
+                t(
+                  "fileSizeWarning",
+                  "The selected video is too large. Please select a smaller video."
+                ),
                 [{ text: t("ok", "OK") }]
-              )
-              return
+              );
+              return;
             }
           }
         } catch (error) {
-          console.error("Error checking file size:", error)
+          console.error("Error checking file size:", error);
         }
 
-        await encryptAndStoreVideo(uri)
+        await encryptAndStoreVideo(uri);
       }
     } catch (error) {
-      console.error("Error picking video:", error)
+      console.error("Error picking video:", error);
       Alert.alert(
         t("error", "Error"),
         t("videoPickError", "There was an error selecting the video."),
         [{ text: t("ok", "OK") }]
-      )
+      );
     }
-  }
+  };
 
   // Encrypt and store video
   const encryptAndStoreVideo = async (uri: string) => {
-    if (!keyPair) return
+    if (!keyPair) return;
 
     try {
-      setUploading(true)
+      setUploading(true);
 
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error("User not authenticated")
+        throw new Error("User not authenticated");
       }
 
       const metadata = await fileEncryptionService.encryptAndUploadFile(
@@ -262,33 +283,36 @@ export default function QuickAddMagicForm({
         [user.id],
         getPublicKey,
         () => keyPair.privateKey
-      )
+      );
 
-      setQuickTrickData(prev => ({
+      setQuickTrickData((prev) => ({
         ...prev,
         effect_video_url: metadata.fileId,
         encryptedFiles: {
           ...prev.encryptedFiles,
           effect_video: metadata.fileId,
-        }
-      }))
+        },
+      }));
 
       Alert.alert(
         t("security.success", "Success"),
         t("security.effectVideoEncrypted", "Effect video encrypted and stored"),
         [{ text: t("ok", "OK") }]
-      )
+      );
     } catch (error) {
-      console.error("Error encrypting video:", error)
+      console.error("Error encrypting video:", error);
       Alert.alert(
         t("security.error", "Encryption Error"),
-        t("security.videoEncryptionError", "Could not encrypt video. Please try again."),
+        t(
+          "security.videoEncryptionError",
+          "Could not encrypt video. Please try again."
+        ),
         [{ text: t("ok", "OK") }]
-      )
+      );
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
-  }
+  };
 
   // Ensure user profile exists
   const ensureUserProfile = async (userId: string, email: string) => {
@@ -296,15 +320,15 @@ export default function QuickAddMagicForm({
       .from("profiles")
       .select("id")
       .eq("id", userId)
-      .single()
+      .single();
 
     if (profileError && profileError.code !== "PGRST116") {
-      console.error("Error checking profile:", profileError)
-      throw new Error("Error checking user profile")
+      console.error("Error checking profile:", profileError);
+      throw new Error("Error checking user profile");
     }
 
     if (!existingProfile) {
-      const username = email.split("@")[0]
+      const username = email.split("@")[0];
       const { error: insertError } = await supabase.from("profiles").insert({
         id: userId,
         email: email,
@@ -314,123 +338,144 @@ export default function QuickAddMagicForm({
         subscription_type: "free",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      })
+      });
 
       if (insertError) {
-        console.error("Error creating profile:", insertError)
-        throw new Error("Could not create user profile")
+        console.error("Error creating profile:", insertError);
+        throw new Error("Could not create user profile");
       }
     }
 
-    return userId
-  }
+    return userId;
+  };
 
   // Encrypt sensitive fields
-  const encryptAllSensitiveFields = async (data: Partial<EncryptedMagicTrick>): Promise<Partial<EncryptedMagicTrick>> => {
+  const encryptAllSensitiveFields = async (
+    data: Partial<EncryptedMagicTrick>
+  ): Promise<Partial<EncryptedMagicTrick>> => {
     if (!keyPair) {
-      throw new Error('Encryption keys not available')
+      throw new Error("Encryption keys not available");
     }
 
-    const encryptedData = { ...data }
-    const encryptedFields: any = {}
+    const encryptedData = { ...data };
+    const encryptedFields: any = {};
 
     try {
       // Encrypt title
       if (data.title?.trim()) {
-        encryptedFields.title = await encryptForSelf(data.title.trim())
-        encryptedData.title = "[ENCRYPTED]"
+        encryptedFields.title = await encryptForSelf(data.title.trim());
+        encryptedData.title = "[ENCRYPTED]";
       }
 
       // Encrypt effect
       if (data.effect?.trim()) {
-        encryptedFields.effect = await encryptForSelf(data.effect.trim())
-        encryptedData.effect = "[ENCRYPTED]"
+        encryptedFields.effect = await encryptForSelf(data.effect.trim());
+        encryptedData.effect = "[ENCRYPTED]";
       }
 
       // Quick form only has minimal secret
-      encryptedFields.secret = await encryptForSelf(t("quickMagic.defaultSecret", "Added via quick magic"))
-      encryptedData.secret = "[ENCRYPTED]"
+      encryptedFields.secret = await encryptForSelf(
+        t("quickMagic.defaultSecret", "Added via quick magic")
+      );
+      encryptedData.secret = "[ENCRYPTED]";
 
-      encryptedData.encryptedFields = encryptedFields
-      return encryptedData
+      encryptedData.encryptedFields = encryptedFields;
+      return encryptedData;
     } catch (error) {
-      console.error('Error encrypting trick fields:', error)
-      throw new Error('Error encrypting trick information')
+      console.error("Error encrypting trick fields:", error);
+      throw new Error("Error encrypting trick information");
     }
-  }
+  };
 
   // Submit the quick magic trick
   const handleSubmit = async () => {
     try {
-      setIsSubmitting(true)
+      setIsSubmitting(true);
 
       // Verify encryption
       if (!keyPair) {
         Alert.alert(
           t("security.encryptionRequired", "Encryption Required"),
-          t("security.setupEncryptionFirst", "Set up encryption before saving the trick"),
+          t(
+            "security.setupEncryptionFirst",
+            "Set up encryption before saving the trick"
+          ),
           [
             { text: t("actions.cancel", "Cancel"), style: "cancel" },
-            { text: t("security.setupNow", "Set Up"), onPress: () => setShowEncryptionSetup(true) }
+            {
+              text: t("security.setupNow", "Set Up"),
+              onPress: () => setShowEncryptionSetup(true),
+            },
           ]
-        )
-        return
+        );
+        return;
       }
 
       // Get user
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        Alert.alert(t("error"), t("userNotFound", "User not found"))
-        return
+        Alert.alert(t("error"), t("userNotFound", "User not found"));
+        return;
       }
 
-      const profileId = await ensureUserProfile(user.id, user.email || "")
-      
+      const profileId = await ensureUserProfile(user.id, user.email || "");
+
       // Encrypt sensitive fields
-      const encryptedTrickData = await encryptAllSensitiveFields(quickTrickData)
-      
+      const encryptedTrickData = await encryptAllSensitiveFields(
+        quickTrickData
+      );
+
       // Generate unique ID
-      const trickId = uuidv4()
+      const trickId = uuidv4();
 
       // Use RPC to create encrypted trick
-      const { data, error } = await supabase.rpc('create_encrypted_magic_trick', {
-        trick_id: trickId,
-        trick_data: {
-          user_id: profileId,
-          title: encryptedTrickData.title,
-          effect: encryptedTrickData.effect,
-          secret: encryptedTrickData.secret,
-          duration: null,
-          angles: [],
-          notes: "[ENCRYPTED]",
-          special_materials: [],
-          is_public: false,
-          status: "draft",
-          price: null,
-          photo_url: null,
-          effect_video_url: quickTrickData.encryptedFiles?.effect_video || null,
-          secret_video_url: null,
-          views_count: 0,
-          likes_count: 0,
-          dislikes_count: 0,
-          version: 1,
-          parent_trick_id: null,
-          reset: null,
-          difficulty: 5,
-          is_encrypted: true,
-        },
-        encryption_metadata: {
-          content_type: "magic_tricks",
-          user_id: profileId,
-          encrypted_fields: encryptedTrickData.encryptedFields,
-          encrypted_files: quickTrickData.encryptedFiles || {},
+      const { data, error } = await supabase.rpc(
+        "create_encrypted_magic_trick",
+        {
+          trick_id: trickId,
+          trick_data: {
+            user_id: profileId,
+            title: encryptedTrickData.title,
+            effect: encryptedTrickData.effect,
+            secret: encryptedTrickData.secret,
+            duration: null,
+            angles: [],
+            notes: "[ENCRYPTED]",
+            special_materials: [],
+            is_public: false,
+            status: "draft",
+            price: null,
+            photo_url: null,
+            effect_video_url:
+              quickTrickData.encryptedFiles?.effect_video || null,
+            secret_video_url: null,
+            views_count: 0,
+            likes_count: 0,
+            dislikes_count: 0,
+            version: 1,
+            parent_trick_id: null,
+            reset: null,
+            difficulty: 5,
+            is_encrypted: true,
+          },
+          encryption_metadata: {
+            content_type: "magic_tricks",
+            user_id: profileId,
+            encrypted_fields: encryptedTrickData.encryptedFields,
+            encrypted_files: quickTrickData.encryptedFiles || {},
+          },
         }
-      })
+      );
 
       if (error) {
-        console.error("Error creating trick:", error)
-        Alert.alert(t("error"), t("errorCreatingTrick", "Error creating trick"))
-        return
+        console.error("Error creating trick:", error);
+        Alert.alert(
+          t("error"),
+          t("errorCreatingTrick", "Error creating trick")
+        );
+        return;
       }
 
       // Associate category
@@ -439,29 +484,34 @@ export default function QuickAddMagicForm({
           trick_id: trickId,
           category_id: quickTrickData.selectedCategoryId,
           created_at: new Date().toISOString(),
-        })
+        });
       }
 
       // Success
       Alert.alert(
         t("success", "Success"),
-        t("quickMagic.createdSuccessfully", "Quick magic created successfully!"),
+        t(
+          "quickMagic.createdSuccessfully",
+          "Quick magic created successfully!"
+        ),
         [{ text: t("ok", "OK") }]
-      )
+      );
 
       if (onComplete) {
-        onComplete(trickId)
+        onComplete(trickId);
       }
     } catch (error) {
-      console.error("Error during save:", error)
+      console.error("Error during save:", error);
       Alert.alert(
-        t("error", "Error"), 
-        error instanceof Error ? error.message : t("unexpectedError", "An unexpected error occurred")
-      )
+        t("error", "Error"),
+        error instanceof Error
+          ? error.message
+          : t("unexpectedError", "An unexpected error occurred")
+      );
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <StyledView className="flex-1" style={{ paddingTop: 15 }}>
@@ -494,19 +544,27 @@ export default function QuickAddMagicForm({
         {/* Title Field */}
         <StyledView className="mb-6">
           <StyledView className="flex-row items-center">
-            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <FontAwesome6
-                name="wand-magic-sparkles"
-                size={18}
-                color="white"
-              />
-            </StyledView>
+            <CustomTooltip
+              text={t("tooltips.magicTitle")}
+              backgroundColor="rgba(91, 185, 163, 0.95)"
+              textColor="white"
+            >
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <FontAwesome6
+                  name="wand-magic-sparkles"
+                  size={18}
+                  color="white"
+                />
+              </StyledView>
+            </CustomTooltip>
             <StyledTextInput
               className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]"
               placeholder={t("forms.magicTitlePlaceholder")}
               placeholderTextColor="rgba(255, 255, 255, 0.5)"
               value={quickTrickData.title}
-              onChangeText={(text) => setQuickTrickData(prev => ({ ...prev, title: text }))}
+              onChangeText={(text) =>
+                setQuickTrickData((prev) => ({ ...prev, title: text }))
+              }
               maxLength={100}
               autoCapitalize="sentences"
               autoCorrect={false}
@@ -522,25 +580,45 @@ export default function QuickAddMagicForm({
 
         {/* Category Selector */}
         <CategorySelector
-          selectedCategories={quickTrickData.selectedCategoryId ? [quickTrickData.selectedCategoryId] : []}
-          onCategoriesChange={(categories) => setQuickTrickData(prev => ({ ...prev, selectedCategoryId: categories[0] || null }))}
+          selectedCategories={
+            quickTrickData.selectedCategoryId
+              ? [quickTrickData.selectedCategoryId]
+              : []
+          }
+          onCategoriesChange={(categories) =>
+            setQuickTrickData((prev) => ({
+              ...prev,
+              selectedCategoryId: categories[0] || null,
+            }))
+          }
           allowCreate={true}
           allowMultiple={false}
           placeholder={t("forms.categoryPlaceholder")}
           userId={userId}
           iconComponent={
-            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <Feather name="folder" size={24} color="white" />
-            </StyledView>
+            <CustomTooltip
+              text={t("tooltips.category")}
+              backgroundColor="rgba(91, 185, 163, 0.95)"
+              textColor="white"
+            >
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="folder" size={24} color="white" />
+              </StyledView>
+            </CustomTooltip>
           }
         />
 
         {/* Effect Video */}
         <StyledView className="flex-row mb-6">
-          <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-            <Feather name="video" size={24} color="white" />
-          </StyledView>
-
+          <CustomTooltip
+            text={t("tooltips.effectVideo")}
+            backgroundColor="rgba(91, 185, 163, 0.95)"
+            textColor="white"
+          >
+            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+              <Feather name="video" size={24} color="white" />
+            </StyledView>
+          </CustomTooltip>
           <StyledView className="flex-1">
             <StyledTouchableOpacity
               onPress={pickEffectVideo}
@@ -563,11 +641,7 @@ export default function QuickAddMagicForm({
                         : t("uploadEffectVideo", "Upload effect video")}
                     </StyledText>
                     <StyledView className="flex-row items-center">
-                      <Feather
-                        name="upload"
-                        size={16}
-                        color="white"
-                      />
+                      <Feather name="upload" size={16} color="white" />
                     </StyledView>
                   </>
                 )}
@@ -579,17 +653,27 @@ export default function QuickAddMagicForm({
         {/* Effect Description */}
         <StyledView className="mb-16">
           <StyledView className="flex-row items-center">
-            <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <Feather name="star" size={24} color="white" />
-            </StyledView>
-
+            <CustomTooltip
+              text={t("tooltips.effectDescription")}
+              backgroundColor="rgba(91, 185, 163, 0.95)"
+              textColor="white"
+            >
+              <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="star" size={24} color="white" />
+              </StyledView>
+            </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTextInput
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[80px]"
-                placeholder={t("effectShortDescription", "Short effect description")}
+                placeholder={t(
+                  "effectShortDescription",
+                  "Short effect description"
+                )}
                 placeholderTextColor="rgba(255, 255, 255, 0.5)"
                 value={quickTrickData.effect}
-                onChangeText={(text) => setQuickTrickData(prev => ({ ...prev, effect: text }))}
+                onChangeText={(text) =>
+                  setQuickTrickData((prev) => ({ ...prev, effect: text }))
+                }
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
@@ -620,7 +704,9 @@ export default function QuickAddMagicForm({
         {/* Submit Button */}
         <StyledTouchableOpacity
           className={`w-full py-4 rounded-lg items-center justify-center flex-row ${
-            isFormValid && !isSubmitting && encryptionReady ? "bg-emerald-700" : "bg-white/10"
+            isFormValid && !isSubmitting && encryptionReady
+              ? "bg-emerald-700"
+              : "bg-white/10"
           }`}
           disabled={!isFormValid || isSubmitting || !encryptionReady}
           onPress={handleSubmit}
@@ -634,7 +720,12 @@ export default function QuickAddMagicForm({
             </>
           ) : (
             <>
-              <Ionicons name="flash" size={20} color="white" style={{ marginRight: 8 }} />
+              <Ionicons
+                name="flash"
+                size={20}
+                color="white"
+                style={{ marginRight: 8 }}
+              />
               <StyledText className="text-white font-semibold text-base">
                 {t("quickMagic.save", "Save Quick Magic")}
               </StyledText>
@@ -650,5 +741,5 @@ export default function QuickAddMagicForm({
         onSetupComplete={() => {}}
       />
     </StyledView>
-  )
+  );
 }
