@@ -319,7 +319,7 @@ export default function CategoryModal({
                 {filteredUserCategories.length > 0 && (
                   <StyledView className="mb-6">
                     <StyledText className="text-emerald-300 text-base font-semibold mb-3">
-                      {t('categories.yourCategories', 'Your Categories')}
+                      {t('categorie.yourCategories', 'Your Categories')}
                     </StyledText>
                     <StyledView className="flex-row flex-wrap">
                       {filteredUserCategories.map((category) => (
@@ -343,7 +343,7 @@ export default function CategoryModal({
                 {filteredPredefinedCategories.length > 0 && (
                   <StyledView className="mb-6">
                     <StyledText className="text-blue-300 text-base font-semibold mb-3">
-                      {t('categories.suggestedCategories', 'Suggested Categories')}
+                      {t('categorie.suggestedCategories', 'Suggested Categories')}
                     </StyledText>
                     <StyledView className="flex-row flex-wrap">
                       {filteredPredefinedCategories.map((category) => (

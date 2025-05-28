@@ -178,7 +178,7 @@
     "selectCategory": "Select Category",
     "createCategory": "Create Category"
   },
-  "categories": {
+  "categorie": {
     "yourCategories": "Your Categories",
     "suggestedCategories": "Suggested Categories"
   },
@@ -202,6 +202,23 @@
     "invalidCategory": "Invalid category",
     "errorCreatingTag": "Error creating tag",
     "errorAddingTag": "Error adding tag"
+  },
+  "tooltips": {
+    "magicTitle": "Enter the title of your magic trick.",
+    "category": "Select a category for your magic trick.",
+    "tags": "Select or add tags to describe your magic trick",
+    "effectVideo": "Upload a video demonstrating the effect of your magic trick",
+    "effectDescription": "Describe the effect of your magic trick",
+    "secretVideo": "Upload a video explaining the secret of your magic trick",
+    "secretDescription": "Describe the secret of your magic trick",
+    "angle": "Select the angles from which your magic trick can be viewed",
+    "duration": "Enter the duration of your magic trick",
+    "reset": "Enter the reset time for your magic trick",
+    "difficulty": "Select the difficulty level of your magic trick",
+    "imageUpload": "Upload images for your magic trick",
+    "techniques": "Add techniques related to your magic trick",
+    "gimmicks": "Add gimmicks related to your magic trick",
+    "scripts": "Add scripts related to your magic trick"
   },
   "noItems": "No items in this category",
   "decryptingVideo": "Decrypting video...",

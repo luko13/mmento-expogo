@@ -33,6 +33,7 @@ import { useRouter } from "expo-router";
 import Slider from "@react-native-community/slider";
 import { useEncryption } from "../../../hooks/useEncryption";
 import { FileEncryptionService } from "../../../utils/fileEncryption";
+import CustomTooltip from "../../ui/Tooltip";
 
 // Importar modales
 import TechniquesModal from "../../../components/add-magic/ui/TechniquesModal";
@@ -564,10 +565,15 @@ export default function ExtrasStepEncrypted({
 
           {/* Selección de Ángulos */}
           <StyledView className="flex-row mb-6">
-            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <Feather name="tag" size={24} color="white" />
-            </StyledView>
-
+            <CustomTooltip
+              text={t("tooltips.angle")}
+              backgroundColor="rgba(91, 185, 163, 0.95)"
+              textColor="white"
+            >
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="tag" size={24} color="white" />
+              </StyledView>
+            </CustomTooltip>
             <StyledView className="flex-1">
               <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between">
                 {angles.map((angle) => (
@@ -598,10 +604,15 @@ export default function ExtrasStepEncrypted({
 
           {/* Tiempo de Duración */}
           <StyledView className="flex-row mb-6">
-            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <Feather name="clock" size={24} color="white" />
-            </StyledView>
-
+            <CustomTooltip
+              text={t("tooltips.duration")}
+              backgroundColor="rgba(91, 185, 163, 0.95)"
+              textColor="white"
+            >
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="clock" size={24} color="white" />
+              </StyledView>
+            </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
@@ -617,10 +628,15 @@ export default function ExtrasStepEncrypted({
 
           {/* Tiempo de Reinicio */}
           <StyledView className="flex-row mb-6">
-            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <Feather name="refresh-cw" size={24} color="white" />
-            </StyledView>
-
+            <CustomTooltip
+              text={t("tooltips.reset")}
+              backgroundColor="rgba(91, 185, 163, 0.95)"
+              textColor="white"
+            >
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="refresh-cw" size={24} color="white" />
+              </StyledView>
+            </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
@@ -636,14 +652,19 @@ export default function ExtrasStepEncrypted({
 
           {/* Deslizador de dificultad */}
           <StyledView className="flex-row mb-3">
-            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <MaterialIcons
-                name="signal-cellular-alt"
-                size={24}
-                color="white"
-              />
-            </StyledView>
-
+            <CustomTooltip
+              text={t("tooltips.difficulty")}
+              backgroundColor="rgba(91, 185, 163, 0.95)"
+              textColor="white"
+            >
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <MaterialIcons
+                  name="signal-cellular-alt"
+                  size={24}
+                  color="white"
+                />
+              </StyledView>
+            </CustomTooltip>
             <StyledView className="flex-1">
               <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg pb-3 border border-[#5bb9a3]">
                 {/* Componente DifficultySlider */}
@@ -667,10 +688,15 @@ export default function ExtrasStepEncrypted({
 
           {/* Subida de Imagen con Cifrado */}
           <StyledView className="flex-row mb-6">
-            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <Feather name="image" size={24} color="white" />
-            </StyledView>
-
+            <CustomTooltip
+              text={t("tooltips.imageUpload")}
+              backgroundColor="rgba(91, 185, 163, 0.95)"
+              textColor="white"
+            >
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="image" size={24} color="white" />
+              </StyledView>
+            </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
                 onPress={pickImage}
@@ -709,10 +735,15 @@ export default function ExtrasStepEncrypted({
 
           {/* Selección de Técnicas */}
           <StyledView className="flex-row mb-6">
-            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <Feather name="award" size={24} color="white" />
-            </StyledView>
-
+            <CustomTooltip
+              text={t("tooltips.techniques")}
+              backgroundColor="rgba(91, 185, 163, 0.95)"
+              textColor="white"
+            >
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="award" size={24} color="white" />
+              </StyledView>
+            </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
@@ -733,10 +764,15 @@ export default function ExtrasStepEncrypted({
 
           {/* Selección de Gimmicks */}
           <StyledView className="flex-row mb-6">
-            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <Feather name="box" size={24} color="white" />
-            </StyledView>
-
+            <CustomTooltip
+              text={t("tooltips.gimmicks")}
+              backgroundColor="rgba(91, 185, 163, 0.95)"
+              textColor="white"
+            >
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="box" size={24} color="white" />
+              </StyledView>
+            </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
@@ -757,10 +793,15 @@ export default function ExtrasStepEncrypted({
 
           {/* Escritura de Script con Cifrado */}
           <StyledView className="flex-row mb-2">
-            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <Feather name="edit" size={24} color="white" />
-            </StyledView>
-
+            <CustomTooltip
+              text={t("tooltips.script")}
+              backgroundColor="rgba(91, 185, 163, 0.95)"
+              textColor="white"
+            >
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="edit" size={24} color="white" />
+              </StyledView>
+            </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"

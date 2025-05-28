@@ -179,7 +179,7 @@
     "selectCategory": "Seleccionar Categoría",
     "createCategory": "Crear Categoría"
   },
-  "categories": {
+  "categorie": {
     "yourCategories": "Tus Categorías",
     "suggestedCategories": "Categorías Sugeridas"
   },
@@ -245,5 +245,22 @@
   "ok": "OK",
   "decryptingVideo": "Descifrando video...",
   "loadingVideo": "Cargando video...",
-  "videoLoadError": "Error al cargar el video"
+  "videoLoadError": "Error al cargar el video",
+  "tooltips": {
+    "magicTitle": "Introduce el título del truco.",
+    "category": "Selecciona una categoría para tu truco.",
+    "tags": "Selecciona o añade etiquetas para describir tu truco.",
+    "effectVideo": "Sube un video que demuestre el efecto de tu truco",
+    "effectDescription": "Describe el efecto de tu truco",
+    "secretVideo": "Sube un video que explique el secreto de tu truco",
+    "secretDescription": "Describe el secreto de tu truco",
+    "angle": "Selecciona los ángulos desde los cuales se puede ver tu truco",
+    "duration": "Introduce la duración de tu truco",
+    "reset": "Introduce el tiempo de reset para tu truco",
+    "difficulty": "Selecciona el nivel de dificultad de tu truco",
+    "imageUpload": "Sube imágenes para tu truco",
+    "techniques": "Añade técnicas relacionadas con tu truco",
+    "gimmicks": "Añade gimmicks relacionados con tu truco",
+    "scripts": "Añade guiones relacionados con tu truco"
+  }
 }

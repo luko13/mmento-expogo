@@ -29,6 +29,7 @@ import { useRouter } from "expo-router";
 import { v4 as uuidv4 } from "uuid";
 import { useEncryption } from "../../../hooks/useEncryption";
 import { FileEncryptionService } from "../../../utils/fileEncryption";
+import CustomTooltip from "../../ui/Tooltip";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -590,10 +591,15 @@ export default function EffectStepEncrypted({
 
           {/* Effect Video */}
           <StyledView className="flex-row mb-6">
-            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <Feather name="video" size={24} color="white" />
-            </StyledView>
-
+            <CustomTooltip
+              text={t("tooltips.effectVideo")}
+              backgroundColor="rgba(91, 185, 163, 0.95)"
+              textColor="white"
+            >
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="video" size={24} color="white" />
+              </StyledView>
+            </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
                 onPress={pickEffectVideo}
@@ -633,10 +639,15 @@ export default function EffectStepEncrypted({
           {/* Effect Description */}
           <StyledView className="mb-6">
             <StyledView className="flex-row items-center">
-              <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                <Feather name="star" size={24} color="white" />
-              </StyledView>
-
+              <CustomTooltip
+                text={t("tooltips.effectDescription")}
+                backgroundColor="rgba(91, 185, 163, 0.95)"
+                textColor="white"
+              >
+                <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                  <Feather name="star" size={24} color="white" />
+                </StyledView>
+              </CustomTooltip>
               <StyledView className="flex-1">
                 <StyledView className="flex-row"></StyledView>
                 <StyledTextInput
@@ -666,10 +677,15 @@ export default function EffectStepEncrypted({
           {/* Secret Video */}
 
           <StyledView className="flex-row mb-6">
-            <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-              <Feather name="video" size={24} color="white" />
-            </StyledView>
-
+            <CustomTooltip
+              text={t("tooltips.secretVideo")}
+              backgroundColor="rgba(91, 185, 163, 0.95)"
+              textColor="white"
+            >
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="video" size={24} color="white" />
+              </StyledView>
+            </CustomTooltip>
             <StyledView className="flex-1 ml-3">
               <StyledTouchableOpacity
                 onPress={pickSecretVideo}
@@ -709,10 +725,15 @@ export default function EffectStepEncrypted({
           {/* Secret Description */}
           <StyledView className="mb-16">
             <StyledView className="flex-row items-center">
-              <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                <Feather name="lock" size={24} color="white" />
-              </StyledView>
-
+              <CustomTooltip
+                text={t("tooltips.secretDescription")}
+                backgroundColor="rgba(91, 185, 163, 0.95)"
+                textColor="white"
+              >
+                <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                  <Feather name="lock" size={24} color="white" />
+                </StyledView>
+              </CustomTooltip>
               <StyledView className="flex-1 ml-3">
                 <StyledView className="flex-row"></StyledView>
                 <StyledTextInput
