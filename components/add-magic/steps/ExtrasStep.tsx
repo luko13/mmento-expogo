@@ -433,69 +433,85 @@ export default function ExtrasStepEncrypted({
     }
   };
 
-  // Cifrar y almacenar imagen
-  const encryptAndStoreImage = async (uri: string) => {
-    if (!keyPair) return;
+// Agregar useEffect para sincronizar los cambios
+useEffect(() => {
+  if (uploadedPhotos.length > 0) {
+    console.log("📸 Sincronizando fotos con trickData:", {
+      uploadedPhotos,
+      photos_count: uploadedPhotos.length
+    });
+    
+    updateTrickData({
+      encryptedFiles: {
+        ...trickData.encryptedFiles,
+        photos: uploadedPhotos,
+      },
+    });
 
-    try {
-      setUploading(true);
-      setUploadingType("photo");
-
-      // Obtener información del usuario
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error("Usuario no autenticado");
-      }
-
-      // Cifrar y subir imagen
-      const metadata = await fileEncryptionService.encryptAndUploadFile(
-        uri,
-        `trick_photo_${Date.now()}_${Math.random()
-          .toString(36)
-          .substr(2, 9)}.jpg`,
-        "image/jpeg",
-        user.id,
-        [user.id], // Solo el autor tiene acceso
-        getPublicKey,
-        () => keyPair.privateKey
-      );
-
-      // Actualizar el array de fotos cifradas
-      const currentPhotos = trickData.encryptedFiles?.photos || [];
-      const updatedPhotos = [...currentPhotos, metadata.fileId];
-      setUploadedPhotos(updatedPhotos);
-
-      // Actualizar los datos del truco con el array de fotos
+    // Si es la primera foto, también establecerla como photo_url principal
+    if (uploadedPhotos.length === 1 && !trickData.photo_url) {
       updateTrickData({
-        encryptedFiles: {
-          ...trickData.encryptedFiles,
-          photos: updatedPhotos,
-        },
+        photo_url: uploadedPhotos[0],
       });
-
-      // Si es la primera foto, también establecerla como photo_url principal
-      if (updatedPhotos.length === 1) {
-        updateTrickData({
-          photo_url: metadata.fileId,
-        });
-      }
-    } catch (error) {
-      console.error("Error cifrando imagen:", error);
-      Alert.alert(
-        t("security.error", "Error de Cifrado"),
-        t(
-          "security.imageEncryptionError",
-          "No se pudo cifrar la imagen. Inténtalo de nuevo."
-        ),
-        [{ text: t("ok", "OK") }]
-      );
-    } finally {
-      setUploading(false);
-      setUploadingType(null);
     }
-  };
+  }
+}, [uploadedPhotos]); // Se ejecuta cuando uploadedPhotos cambia
+
+// Modificar la función encryptAndStoreImage para que NO llame a updateTrickData
+const encryptAndStoreImage = async (uri: string) => {
+  if (!keyPair) return;
+
+  try {
+    setUploading(true);
+    setUploadingType("photo");
+
+    // Obtener información del usuario
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error("Usuario no autenticado");
+    }
+
+    // Cifrar y subir imagen
+    const metadata = await fileEncryptionService.encryptAndUploadFile(
+      uri,
+      `trick_photo_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}.jpg`,
+      "image/jpeg",
+      user.id,
+      [user.id], // Solo el autor tiene acceso
+      getPublicKey,
+      () => keyPair.privateKey
+    );
+
+    // Solo actualizar el estado local
+    setUploadedPhotos(prevPhotos => {
+      const newPhotos = [...prevPhotos, metadata.fileId];
+      console.log("📸 Foto agregada al array:", {
+        prevCount: prevPhotos.length,
+        newCount: newPhotos.length,
+        newPhotoId: metadata.fileId
+      });
+      return newPhotos;
+    });
+
+  } catch (error) {
+    console.error("Error cifrando imagen:", error);
+    Alert.alert(
+      t("security.error", "Error de Cifrado"),
+      t(
+        "security.imageEncryptionError",
+        "No se pudo cifrar la imagen. Inténtalo de nuevo."
+      ),
+      [{ text: t("ok", "OK") }]
+    );
+  } finally {
+    setUploading(false);
+    setUploadingType(null);
+  }
+};
 
   // Manejar datos de componentes modales
   const handleSaveTechniques = (techniqueIds: string[]) => {

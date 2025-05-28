@@ -43,7 +43,8 @@ import type { SearchFilters } from "./CompactSearchBar";
 import { EncryptedContentService } from "../../services/encryptedContentService";
 import { useEncryption } from "../../hooks/useEncryption";
 import { FileEncryptionService } from "../../utils/fileEncryption";
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from "expo-file-system";
+import { getTrickWithEncryptedPhotos } from "../../utils/trickHelpers";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -93,7 +94,14 @@ interface LibrariesSectionProps {
 const getItemIcon = (type: string) => {
   switch (type) {
     case "magic":
-      return <FontAwesome5 name="magic" size={20} color="white" style={{ transform: [{ scaleX: -1 }] }} />;
+      return (
+        <FontAwesome5
+          name="magic"
+          size={20}
+          color="white"
+          style={{ transform: [{ scaleX: -1 }] }}
+        />
+      );
     case "gimmick":
       return <MaterialCommunityIcons name="toolbox" size={20} color="white" />;
     case "technique":
@@ -106,178 +114,203 @@ const getItemIcon = (type: string) => {
 };
 
 // Componente memoizado para la fila de los item de la biblioteca (Trucos de magia, técnicas y gimmicks)
-const LibraryItemRow = memo(({ 
-  item, 
-  onPress 
-}: { 
-  item: LibraryItem; 
-  onPress: (item: LibraryItem) => void;
-}) => {
-  const { t } = useTranslation();
-  
-  return (
-    <StyledTouchableOpacity
-      className="flex-row justify-between items-center p-3 rounded-lg mb-1 border-b border-white/10"
-      onPress={() => onPress(item)}
-    >
-      <StyledView className="flex-row items-center flex-1">
-        {getItemIcon(item.type)}
-        <StyledText className="text-white ml-2 flex-1" numberOfLines={1}>
-          {item.title}
-        </StyledText>
-        <StyledView className="flex-row items-center">
-          {item.is_shared && (
-            <Feather name="users" size={14} color="#3b82f6" style={{ marginRight: 8 }} />
-          )}
-        </StyledView>
-      </StyledView>
-    </StyledTouchableOpacity>
-  );
-});
+const LibraryItemRow = memo(
+  ({
+    item,
+    onPress,
+  }: {
+    item: LibraryItem;
+    onPress: (item: LibraryItem) => void;
+  }) => {
+    const { t } = useTranslation();
 
-// Componente para manejar la animación de colapso/expansión
-const CollapsibleCategory = memo(({ 
-  section, 
-  onItemPress, 
-  onEditCategory,
-  onDeleteCategory,
-  searchQuery,
-  searchFilters,
-  t
-}: { 
-  section: CategorySection;
-  onItemPress: (item: LibraryItem) => void;
-  onEditCategory: (category: Category) => void;
-  onDeleteCategory: (categoryId: string) => void;
-  searchQuery: string;
-  searchFilters?: SearchFilters;
-  t: any;
-}) => {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const animatedHeight = useRef(new Animated.Value(1)).current;
-  const animatedRotation = useRef(new Animated.Value(1)).current;
-
-  const toggleExpanded = () => {
-    const toValue = isExpanded ? 0 : 1;
-    
-    Animated.parallel([
-      Animated.timing(animatedHeight, {
-        toValue,
-        duration: 300,
-        useNativeDriver: false,
-      }),
-      Animated.timing(animatedRotation, {
-        toValue,
-        duration: 300,
-        useNativeDriver: true,
-      })
-    ]).start();
-    
-    setIsExpanded(!isExpanded);
-  };
-
-  const filteredItems = section.items.filter(libraryItem => {
-    const query = searchQuery.toLowerCase().trim();
-    const matchesText = query ? 
-      libraryItem.title.toLowerCase().includes(query) ||
-      (libraryItem.description && libraryItem.description.toLowerCase().includes(query)) : true;
-    
-    const matchesDifficulty = searchFilters?.difficulties.length ?
-      libraryItem.difficulty && searchFilters.difficulties.includes(String(libraryItem.difficulty)) : true;
-    
-    const matchesTags = searchFilters?.tags.length ?
-      libraryItem.tags && libraryItem.tags.some(tagId => searchFilters.tags.includes(tagId)) : true;
-
-    return matchesText && matchesDifficulty && matchesTags;
-  });
-
-  const rotateInterpolation = animatedRotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '90deg']
-  });
-
-  return (
-    <StyledView className="mb-4">
-      <StyledTouchableOpacity 
-        className="flex-row justify-between items-center bg-white/10 px-3 border border-white/20 rounded-lg mb-2"
-        onPress={toggleExpanded}
-        activeOpacity={0.7}
+    return (
+      <StyledTouchableOpacity
+        className="flex-row justify-between items-center p-3 rounded-lg mb-1 border-b border-white/10"
+        onPress={() => onPress(item)}
       >
         <StyledView className="flex-row items-center flex-1">
-          <Animated.View style={{ transform: [{ rotate: rotateInterpolation }] }}>
-            <MaterialIcons name="chevron-right" size={20} color="white" />
-          </Animated.View>
-          <StyledText className="text-white font-bold ml-2">{section.category.name}</StyledText>
-        </StyledView>
-        <StyledView className="flex-row items-center">
-          <StyledText className="text-white mr-2">{filteredItems.length}</StyledText>
-          <StyledView className="flex-row">
-            <StyledTouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                onEditCategory(section.category);
-              }}
-              className="p-2"
-            >
-              <MaterialIcons name="edit" size={16} color="white" />
-            </StyledTouchableOpacity>
-            <StyledTouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                onDeleteCategory(section.category.id);
-              }}
-              className="p-2"
-            >
-              <Feather name="trash-2" size={16} color="white" />
-            </StyledTouchableOpacity>
+          {getItemIcon(item.type)}
+          <StyledText className="text-white ml-2 flex-1" numberOfLines={1}>
+            {item.title}
+          </StyledText>
+          <StyledView className="flex-row items-center">
+            {item.is_shared && (
+              <Feather
+                name="users"
+                size={14}
+                color="#3b82f6"
+                style={{ marginRight: 8 }}
+              />
+            )}
           </StyledView>
         </StyledView>
       </StyledTouchableOpacity>
+    );
+  }
+);
 
-      <Animated.View
-        style={{
-          maxHeight: animatedHeight.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, 1000], // Ajusta este valor según sea necesario
-          }),
-          opacity: animatedHeight,
-          overflow: 'hidden',
-        }}
-      >
-        {filteredItems.length > 0 ? (
-          filteredItems.map(libraryItem => (
-            <LibraryItemRow
-              key={`${libraryItem.type}-${libraryItem.id}`}
-              item={libraryItem}
-              onPress={onItemPress}
-            />
-          ))
-        ) : (
-          <StyledView className="border-b border-white/20 p-3 rounded-lg">
-            <StyledText className="text-white/50 text-center">
-              {t("noItems", "No items in this category")}
+// Componente para manejar la animación de colapso/expansión
+const CollapsibleCategory = memo(
+  ({
+    section,
+    onItemPress,
+    onEditCategory,
+    onDeleteCategory,
+    searchQuery,
+    searchFilters,
+    t,
+  }: {
+    section: CategorySection;
+    onItemPress: (item: LibraryItem) => void;
+    onEditCategory: (category: Category) => void;
+    onDeleteCategory: (categoryId: string) => void;
+    searchQuery: string;
+    searchFilters?: SearchFilters;
+    t: any;
+  }) => {
+    const [isExpanded, setIsExpanded] = useState(true);
+    const animatedHeight = useRef(new Animated.Value(1)).current;
+    const animatedRotation = useRef(new Animated.Value(1)).current;
+
+    const toggleExpanded = () => {
+      const toValue = isExpanded ? 0 : 1;
+
+      Animated.parallel([
+        Animated.timing(animatedHeight, {
+          toValue,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+        Animated.timing(animatedRotation, {
+          toValue,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      setIsExpanded(!isExpanded);
+    };
+
+    const filteredItems = section.items.filter((libraryItem) => {
+      const query = searchQuery.toLowerCase().trim();
+      const matchesText = query
+        ? libraryItem.title.toLowerCase().includes(query) ||
+          (libraryItem.description &&
+            libraryItem.description.toLowerCase().includes(query))
+        : true;
+
+      const matchesDifficulty = searchFilters?.difficulties.length
+        ? libraryItem.difficulty &&
+          searchFilters.difficulties.includes(String(libraryItem.difficulty))
+        : true;
+
+      const matchesTags = searchFilters?.tags.length
+        ? libraryItem.tags &&
+          libraryItem.tags.some((tagId) => searchFilters.tags.includes(tagId))
+        : true;
+
+      return matchesText && matchesDifficulty && matchesTags;
+    });
+
+    const rotateInterpolation = animatedRotation.interpolate({
+      inputRange: [0, 1],
+      outputRange: ["0deg", "90deg"],
+    });
+
+    return (
+      <StyledView className="mb-4">
+        <StyledTouchableOpacity
+          className="flex-row justify-between items-center bg-white/10 px-3 border border-white/20 rounded-lg mb-2"
+          onPress={toggleExpanded}
+          activeOpacity={0.7}
+        >
+          <StyledView className="flex-row items-center flex-1">
+            <Animated.View
+              style={{ transform: [{ rotate: rotateInterpolation }] }}
+            >
+              <MaterialIcons name="chevron-right" size={20} color="white" />
+            </Animated.View>
+            <StyledText className="text-white font-bold ml-2">
+              {section.category.name}
             </StyledText>
           </StyledView>
-        )}
-      </Animated.View>
-    </StyledView>
-  );
-});
+          <StyledView className="flex-row items-center">
+            <StyledText className="text-white mr-2">
+              {filteredItems.length}
+            </StyledText>
+            <StyledView className="flex-row">
+              <StyledTouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onEditCategory(section.category);
+                }}
+                className="p-2"
+              >
+                <MaterialIcons name="edit" size={16} color="white" />
+              </StyledTouchableOpacity>
+              <StyledTouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onDeleteCategory(section.category.id);
+                }}
+                className="p-2"
+              >
+                <Feather name="trash-2" size={16} color="white" />
+              </StyledTouchableOpacity>
+            </StyledView>
+          </StyledView>
+        </StyledTouchableOpacity>
+
+        <Animated.View
+          style={{
+            maxHeight: animatedHeight.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 1000], // Ajusta este valor según sea necesario
+            }),
+            opacity: animatedHeight,
+            overflow: "hidden",
+          }}
+        >
+          {filteredItems.length > 0 ? (
+            filteredItems.map((libraryItem) => (
+              <LibraryItemRow
+                key={`${libraryItem.type}-${libraryItem.id}`}
+                item={libraryItem}
+                onPress={onItemPress}
+              />
+            ))
+          ) : (
+            <StyledView className="border-b border-white/20 p-3 rounded-lg">
+              <StyledText className="text-white/50 text-center">
+                {t("noItems", "No items in this category")}
+              </StyledText>
+            </StyledView>
+          )}
+        </Animated.View>
+      </StyledView>
+    );
+  }
+);
 
 export default function LibrariesSection({
   searchQuery = "",
   searchFilters,
 }: LibrariesSectionProps) {
   const { t } = useTranslation();
-  const [isAddCategoryModalVisible, setAddCategoryModalVisible] = useState(false);
-  const [isEditCategoryModalVisible, setEditCategoryModalVisible] = useState(false);
+  const [isAddCategoryModalVisible, setAddCategoryModalVisible] =
+    useState(false);
+  const [isEditCategoryModalVisible, setEditCategoryModalVisible] =
+    useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryDescription, setNewCategoryDescription] = useState("");
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTrickData, setSelectedTrickData] = useState<any>(null);
   const [allContent, setAllContent] = useState<any>(null);
-  const [decryptingFiles, setDecryptingFiles] = useState<Set<string>>(new Set());
+  const [decryptingFiles, setDecryptingFiles] = useState<Set<string>>(
+    new Set()
+  );
 
   const { decryptForSelf, keyPair, getPublicKey } = useEncryption();
   const encryptedService = new EncryptedContentService();
@@ -291,8 +324,8 @@ export default function LibrariesSection({
     userId: string
   ): Promise<string | null> => {
     try {
-      setDecryptingFiles(prev => new Set(prev).add(fileId));
-      
+      setDecryptingFiles((prev) => new Set(prev).add(fileId));
+
       const result = await fileEncryptionService.downloadAndDecryptFile(
         fileId,
         userId,
@@ -300,15 +333,22 @@ export default function LibrariesSection({
         () => keyPair!.privateKey
       );
 
+      // Convertir Uint8Array a base64 sin usar Buffer
+      let binaryString = "";
+      const chunkSize = 8192;
+      for (let i = 0; i < result.data.length; i += chunkSize) {
+        const chunk = result.data.slice(i, i + chunkSize);
+        binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      const base64Data = btoa(binaryString);
+
       // Guardar temporalmente el archivo descifrado
       const tempUri = `${FileSystem.cacheDirectory}${fileId}_${fileName}`;
-      await FileSystem.writeAsStringAsync(
-        tempUri,
-        Buffer.from(result.data).toString('base64'),
-        { encoding: FileSystem.EncodingType.Base64 }
-      );
+      await FileSystem.writeAsStringAsync(tempUri, base64Data, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
 
-      setDecryptingFiles(prev => {
+      setDecryptingFiles((prev) => {
         const newSet = new Set(prev);
         newSet.delete(fileId);
         return newSet;
@@ -316,8 +356,8 @@ export default function LibrariesSection({
 
       return tempUri;
     } catch (error) {
-      console.error('Error descargando archivo cifrado:', error);
-      setDecryptingFiles(prev => {
+      console.error("Error descargando archivo cifrado:", error);
+      setDecryptingFiles((prev) => {
         const newSet = new Set(prev);
         newSet.delete(fileId);
         return newSet;
@@ -325,7 +365,6 @@ export default function LibrariesSection({
       return null;
     }
   };
-
   // Function to decrypt content in batches
   const decryptContentBatch = async (content: any, userId: string) => {
     if (!keyPair || !decryptForSelf) return;
@@ -336,16 +375,19 @@ export default function LibrariesSection({
     content.tricks.forEach((trick: any) => {
       if (trick.is_encrypted) {
         decryptPromises.push(
-          encryptedService.getOwnContent(
-            trick.id,
-            "magic_tricks",
-            decryptForSelf,
-            () => keyPair.privateKey
-          ).then(decrypted => {
-            if (decrypted) {
-              Object.assign(trick, decrypted);
-            }
-          }).catch(err => console.error('Error decrypting trick:', err))
+          encryptedService
+            .getOwnContent(
+              trick.id,
+              "magic_tricks",
+              decryptForSelf,
+              () => keyPair.privateKey
+            )
+            .then((decrypted) => {
+              if (decrypted) {
+                Object.assign(trick, decrypted);
+              }
+            })
+            .catch((err) => console.error("Error decrypting trick:", err))
         );
       }
     });
@@ -354,16 +396,19 @@ export default function LibrariesSection({
     content.techniques.forEach((technique: any) => {
       if (technique.is_encrypted) {
         decryptPromises.push(
-          encryptedService.getOwnContent(
-            technique.id,
-            "techniques",
-            decryptForSelf,
-            () => keyPair.privateKey
-          ).then(decrypted => {
-            if (decrypted) {
-              Object.assign(technique, decrypted);
-            }
-          }).catch(err => console.error('Error decrypting technique:', err))
+          encryptedService
+            .getOwnContent(
+              technique.id,
+              "techniques",
+              decryptForSelf,
+              () => keyPair.privateKey
+            )
+            .then((decrypted) => {
+              if (decrypted) {
+                Object.assign(technique, decrypted);
+              }
+            })
+            .catch((err) => console.error("Error decrypting technique:", err))
         );
       }
     });
@@ -372,16 +417,19 @@ export default function LibrariesSection({
     content.gimmicks.forEach((gimmick: any) => {
       if (gimmick.is_encrypted) {
         decryptPromises.push(
-          encryptedService.getOwnContent(
-            gimmick.id,
-            "gimmicks",
-            decryptForSelf,
-            () => keyPair.privateKey
-          ).then(decrypted => {
-            if (decrypted) {
-              Object.assign(gimmick, decrypted);
-            }
-          }).catch(err => console.error('Error decrypting gimmick:', err))
+          encryptedService
+            .getOwnContent(
+              gimmick.id,
+              "gimmicks",
+              decryptForSelf,
+              () => keyPair.privateKey
+            )
+            .then((decrypted) => {
+              if (decrypted) {
+                Object.assign(gimmick, decrypted);
+              }
+            })
+            .catch((err) => console.error("Error decrypting gimmick:", err))
         );
       }
     });
@@ -390,39 +438,46 @@ export default function LibrariesSection({
     for (const shared of content.sharedContent) {
       let contentTable;
       switch (shared.content_type) {
-        case 'magic_tricks':
+        case "magic_tricks":
           contentTable = content.tricks;
           break;
-        case 'techniques':
+        case "techniques":
           contentTable = content.techniques;
           break;
-        case 'gimmicks':
+        case "gimmicks":
           contentTable = content.gimmicks;
           break;
         default:
           continue;
       }
 
-      const originalContent = contentTable?.find((item: any) => item.id === shared.content_id);
+      const originalContent = contentTable?.find(
+        (item: any) => item.id === shared.content_id
+      );
       if (originalContent && originalContent.is_encrypted) {
         decryptPromises.push(
-          encryptedService.getSharedContent(
-            shared.content_id,
-            shared.content_type,
-            userId,
-            decryptForSelf
-          ).then(decrypted => {
-            if (decrypted) {
-              Object.assign(originalContent, decrypted);
-            }
-          }).catch(err => console.error('Error decrypting shared content:', err))
+          encryptedService
+            .getSharedContent(
+              shared.content_id,
+              shared.content_type,
+              userId,
+              decryptForSelf
+            )
+            .then((decrypted) => {
+              if (decrypted) {
+                Object.assign(originalContent, decrypted);
+              }
+            })
+            .catch((err) =>
+              console.error("Error decrypting shared content:", err)
+            )
         );
       }
     }
 
     // Execute all decrypt promises in parallel
     await Promise.all(decryptPromises);
-    
+
     // Force re-render with decrypted data
     setAllContent({ ...content });
   };
@@ -432,7 +487,9 @@ export default function LibrariesSection({
     const loadAllData = async () => {
       try {
         setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) return;
 
         // Test queries to check if data exists
@@ -440,7 +497,7 @@ export default function LibrariesSection({
           .from("techniques")
           .select("count")
           .eq("user_id", user.id);
-        
+
         const { data: gimmickTest } = await supabase
           .from("gimmicks")
           .select("count")
@@ -467,177 +524,218 @@ export default function LibrariesSection({
   const categorySections = useMemo(() => {
     if (!allContent) return [];
 
-    const sections: CategorySection[] = allContent.categories.map((category: Category) => {
-      const categoryItems: LibraryItem[] = [];
+    const sections: CategorySection[] = allContent.categories.map(
+      (category: Category) => {
+        const categoryItems: LibraryItem[] = [];
 
-      // Process tricks
-      allContent.tricks.forEach((trick: any) => {
-        // Check if trick belongs to this category
-        const belongsToCategory = trick.trick_categories && 
-          Array.isArray(trick.trick_categories) && 
-          trick.trick_categories.some((tc: any) => tc.category_id === category.id);
-        
-        if (belongsToCategory) {
-          categoryItems.push({
-            id: trick.id,
-            title: trick.title,
-            type: "magic" as const,
-            difficulty: trick.difficulty,
-            status: trick.status,
-            created_at: trick.created_at,
-            duration: trick.duration,
-            category_id: category.id,
-            tags: trick.trick_tags?.map((tt: any) => tt.tag_id) || [],
-            reset: trick.reset,
-            notes: trick.notes,
-            is_encrypted: trick.is_encrypted,
-            owner_id: trick.user_id,
-          });
-        }
-      });
+        // Process tricks
+        allContent.tricks.forEach((trick: any) => {
+          // Check if trick belongs to this category
+          const belongsToCategory =
+            trick.trick_categories &&
+            Array.isArray(trick.trick_categories) &&
+            trick.trick_categories.some(
+              (tc: any) => tc.category_id === category.id
+            );
 
-      // Process techniques
-      allContent.techniques.forEach((technique: any) => {
-        // Check if technique belongs to this category
-        const belongsToCategory = technique.technique_categories && 
-          Array.isArray(technique.technique_categories) && 
-          technique.technique_categories.some((tc: any) => tc.category_id === category.id);
-        
-        if (belongsToCategory) {
-          let angles = [];
-          if (technique.angles) {
-            try {
-              angles = typeof technique.angles === "string" 
-                ? JSON.parse(technique.angles) 
-                : technique.angles;
-            } catch {
-              angles = [];
-            }
-          }
-
-          categoryItems.push({
-            id: technique.id,
-            title: technique.name,
-            type: "technique" as const,
-            difficulty: technique.difficulty,
-            status: technique.status,
-            created_at: technique.created_at,
-            category_id: category.id,
-            tags: technique.technique_tags?.map((tt: any) => tt.tag_id) || [],
-            description: technique.description,
-            notes: technique.notes,
-            angles: angles,
-            special_materials: technique.special_materials,
-            is_encrypted: technique.is_encrypted,
-            owner_id: technique.user_id,
-          });
-        }
-      });
-
-      // Process gimmicks
-      allContent.gimmicks.forEach((gimmick: any) => {
-        // Comprobar si "Gimmicks" pertenece a esta categoria
-        const belongsToCategory = gimmick.gimmick_categories && 
-          Array.isArray(gimmick.gimmick_categories) && 
-          gimmick.gimmick_categories.some((gc: any) => gc.category_id === category.id);
-        
-        if (belongsToCategory) {
-          let angles = [];
-          if (gimmick.angles) {
-            try {
-              angles = typeof gimmick.angles === "string" 
-                ? JSON.parse(gimmick.angles) 
-                : gimmick.angles;
-            } catch {
-              angles = [];
-            }
-          }
-
-          categoryItems.push({
-            id: gimmick.id,
-            title: gimmick.name,
-            type: "gimmick" as const,
-            difficulty: gimmick.difficulty,
-            status: gimmick.status,
-            created_at: gimmick.created_at,
-            category_id: category.id,
-            tags: [],
-            description: gimmick.description,
-            notes: gimmick.notes,
-            angles: angles,
-            special_materials: gimmick.special_materials,
-            reset: gimmick.reset_time,
-            is_encrypted: gimmick.is_encrypted,
-            owner_id: gimmick.user_id,
-          });
-        }
-      });
-
-      // Procesar contenido compartido
-      allContent.sharedContent.forEach((shared: any) => {
-        const isThisCategory = (itemId: string, itemType: string) => {
-          switch (itemType) {
-            case 'magic_tricks':
-              const trick = allContent.tricks.find((t: any) => t.id === itemId);
-              return trick && trick.trick_categories && 
-                Array.isArray(trick.trick_categories) && 
-                trick.trick_categories.some((tc: any) => tc.category_id === category.id);
-            case 'techniques':
-              const technique = allContent.techniques.find((t: any) => t.id === itemId);
-              return technique && technique.technique_categories && 
-                Array.isArray(technique.technique_categories) && 
-                technique.technique_categories.some((tc: any) => tc.category_id === category.id);
-            case 'gimmicks':
-              const gimmick = allContent.gimmicks.find((g: any) => g.id === itemId);
-              return gimmick && gimmick.gimmick_categories && 
-                Array.isArray(gimmick.gimmick_categories) && 
-                gimmick.gimmick_categories.some((gc: any) => gc.category_id === category.id);
-            default:
-              return false;
-          }
-        };
-
-        if (isThisCategory(shared.content_id, shared.content_type)) {
-          let originalContent;
-          let itemType: LibraryItem['type'];
-          
-          switch (shared.content_type) {
-            case 'magic_tricks':
-              originalContent = allContent.tricks.find((t: any) => t.id === shared.content_id);
-              itemType = "magic";
-              break;
-            case 'techniques':
-              originalContent = allContent.techniques.find((t: any) => t.id === shared.content_id);
-              itemType = "technique";
-              break;
-            case 'gimmicks':
-              originalContent = allContent.gimmicks.find((g: any) => g.id === shared.content_id);
-              itemType = "gimmick";
-              break;
-          }
-
-          if (originalContent) {
+          if (belongsToCategory) {
             categoryItems.push({
-              id: originalContent.id,
-              title: shared.content_type === 'magic_tricks' 
-                ? originalContent.title 
-                : originalContent.name,
-              type: itemType!,
-              difficulty: originalContent.difficulty,
-              status: originalContent.status,
-              created_at: originalContent.created_at,
+              id: trick.id,
+              title: trick.title,
+              type: "magic" as const,
+              difficulty: trick.difficulty,
+              status: trick.status,
+              created_at: trick.created_at,
+              duration: trick.duration,
               category_id: category.id,
-              tags: [],
-              is_encrypted: originalContent.is_encrypted,
-              is_shared: true,
-              owner_id: shared.owner_id,
+              tags: trick.trick_tags?.map((tt: any) => tt.tag_id) || [],
+              reset: trick.reset,
+              notes: trick.notes,
+              is_encrypted: trick.is_encrypted,
+              owner_id: trick.user_id,
             });
           }
-        }
-      });
+        });
 
-      return { category, items: categoryItems };
-    });
+        // Process techniques
+        allContent.techniques.forEach((technique: any) => {
+          // Check if technique belongs to this category
+          const belongsToCategory =
+            technique.technique_categories &&
+            Array.isArray(technique.technique_categories) &&
+            technique.technique_categories.some(
+              (tc: any) => tc.category_id === category.id
+            );
+
+          if (belongsToCategory) {
+            let angles = [];
+            if (technique.angles) {
+              try {
+                angles =
+                  typeof technique.angles === "string"
+                    ? JSON.parse(technique.angles)
+                    : technique.angles;
+              } catch {
+                angles = [];
+              }
+            }
+
+            categoryItems.push({
+              id: technique.id,
+              title: technique.name,
+              type: "technique" as const,
+              difficulty: technique.difficulty,
+              status: technique.status,
+              created_at: technique.created_at,
+              category_id: category.id,
+              tags: technique.technique_tags?.map((tt: any) => tt.tag_id) || [],
+              description: technique.description,
+              notes: technique.notes,
+              angles: angles,
+              special_materials: technique.special_materials,
+              is_encrypted: technique.is_encrypted,
+              owner_id: technique.user_id,
+            });
+          }
+        });
+
+        // Process gimmicks
+        allContent.gimmicks.forEach((gimmick: any) => {
+          // Comprobar si "Gimmicks" pertenece a esta categoria
+          const belongsToCategory =
+            gimmick.gimmick_categories &&
+            Array.isArray(gimmick.gimmick_categories) &&
+            gimmick.gimmick_categories.some(
+              (gc: any) => gc.category_id === category.id
+            );
+
+          if (belongsToCategory) {
+            let angles = [];
+            if (gimmick.angles) {
+              try {
+                angles =
+                  typeof gimmick.angles === "string"
+                    ? JSON.parse(gimmick.angles)
+                    : gimmick.angles;
+              } catch {
+                angles = [];
+              }
+            }
+
+            categoryItems.push({
+              id: gimmick.id,
+              title: gimmick.name,
+              type: "gimmick" as const,
+              difficulty: gimmick.difficulty,
+              status: gimmick.status,
+              created_at: gimmick.created_at,
+              category_id: category.id,
+              tags: [],
+              description: gimmick.description,
+              notes: gimmick.notes,
+              angles: angles,
+              special_materials: gimmick.special_materials,
+              reset: gimmick.reset_time,
+              is_encrypted: gimmick.is_encrypted,
+              owner_id: gimmick.user_id,
+            });
+          }
+        });
+
+        // Procesar contenido compartido
+        allContent.sharedContent.forEach((shared: any) => {
+          const isThisCategory = (itemId: string, itemType: string) => {
+            switch (itemType) {
+              case "magic_tricks":
+                const trick = allContent.tricks.find(
+                  (t: any) => t.id === itemId
+                );
+                return (
+                  trick &&
+                  trick.trick_categories &&
+                  Array.isArray(trick.trick_categories) &&
+                  trick.trick_categories.some(
+                    (tc: any) => tc.category_id === category.id
+                  )
+                );
+              case "techniques":
+                const technique = allContent.techniques.find(
+                  (t: any) => t.id === itemId
+                );
+                return (
+                  technique &&
+                  technique.technique_categories &&
+                  Array.isArray(technique.technique_categories) &&
+                  technique.technique_categories.some(
+                    (tc: any) => tc.category_id === category.id
+                  )
+                );
+              case "gimmicks":
+                const gimmick = allContent.gimmicks.find(
+                  (g: any) => g.id === itemId
+                );
+                return (
+                  gimmick &&
+                  gimmick.gimmick_categories &&
+                  Array.isArray(gimmick.gimmick_categories) &&
+                  gimmick.gimmick_categories.some(
+                    (gc: any) => gc.category_id === category.id
+                  )
+                );
+              default:
+                return false;
+            }
+          };
+
+          if (isThisCategory(shared.content_id, shared.content_type)) {
+            let originalContent;
+            let itemType: LibraryItem["type"];
+
+            switch (shared.content_type) {
+              case "magic_tricks":
+                originalContent = allContent.tricks.find(
+                  (t: any) => t.id === shared.content_id
+                );
+                itemType = "magic";
+                break;
+              case "techniques":
+                originalContent = allContent.techniques.find(
+                  (t: any) => t.id === shared.content_id
+                );
+                itemType = "technique";
+                break;
+              case "gimmicks":
+                originalContent = allContent.gimmicks.find(
+                  (g: any) => g.id === shared.content_id
+                );
+                itemType = "gimmick";
+                break;
+            }
+
+            if (originalContent) {
+              categoryItems.push({
+                id: originalContent.id,
+                title:
+                  shared.content_type === "magic_tricks"
+                    ? originalContent.title
+                    : originalContent.name,
+                type: itemType!,
+                difficulty: originalContent.difficulty,
+                status: originalContent.status,
+                created_at: originalContent.created_at,
+                category_id: category.id,
+                tags: [],
+                is_encrypted: originalContent.is_encrypted,
+                is_shared: true,
+                owner_id: shared.owner_id,
+              });
+            }
+          }
+        });
+
+        return { category, items: categoryItems };
+      }
+    );
     return sections;
   }, [allContent]);
 
@@ -647,7 +745,7 @@ export default function LibrariesSection({
 
     // Si hay seleccionadas categorías, filtrar las categorias
     if (searchFilters?.categories.length) {
-      return categorySections.filter(section =>
+      return categorySections.filter((section) =>
         searchFilters.categories.includes(section.category.id)
       );
     }
@@ -661,7 +759,9 @@ export default function LibrariesSection({
     if (!newCategoryName.trim()) return;
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const newCategory = await createCategory(
@@ -674,7 +774,7 @@ export default function LibrariesSection({
         // Actualizar allContent para incluir la nueva categoria
         setAllContent({
           ...allContent,
-          categories: [...allContent.categories, newCategory]
+          categories: [...allContent.categories, newCategory],
         });
       }
 
@@ -709,7 +809,7 @@ export default function LibrariesSection({
                   description: newCategoryDescription.trim() || undefined,
                 }
               : cat
-          )
+          ),
         });
       }
 
@@ -731,7 +831,9 @@ export default function LibrariesSection({
         // Actualizar allContent para eliminar la categoria
         setAllContent({
           ...allContent,
-          categories: allContent.categories.filter((cat: Category) => cat.id !== categoryId)
+          categories: allContent.categories.filter(
+            (cat: Category) => cat.id !== categoryId
+          ),
         });
       }
     } catch (error) {
@@ -750,18 +852,17 @@ export default function LibrariesSection({
   // Recuperacion de los datos dependiendo del tipo de item
   const fetchItemData = async (item: LibraryItem) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return null;
 
       if (item.type === "magic") {
-        const { data, error } = await supabase
-          .from("magic_tricks")
-          .select("*")
-          .eq("id", item.id)
-          .single();
+        // Usar la función helper en lugar de la consulta directa
+        const data = await getTrickWithEncryptedPhotos(item.id);
 
-        if (error) {
-          console.error("Error fetching trick data:", error);
+        if (!data) {
+          console.error("Error fetching trick data");
           return null;
         }
 
@@ -775,7 +876,7 @@ export default function LibrariesSection({
               decryptForSelf
             );
             if (decrypted) {
-              decryptedData = decrypted as any;
+              decryptedData = { ...decrypted, photos: data.photos } as any;
             }
           } else {
             const decrypted = await encryptedService.getOwnContent(
@@ -785,7 +886,7 @@ export default function LibrariesSection({
               () => keyPair.privateKey
             );
             if (decrypted) {
-              decryptedData = decrypted as any;
+              decryptedData = { ...decrypted, photos: data.photos } as any;
             }
           }
 
@@ -793,28 +894,34 @@ export default function LibrariesSection({
           if (decryptedData.photo_encrypted && decryptedData.photo_url) {
             const photoUrl = await handleEncryptedFile(
               decryptedData.photo_url,
-              'photo.jpg',
-              'image/jpeg',
+              "photo.jpg",
+              "image/jpeg",
               user.id
             );
             if (photoUrl) decryptedData.photo_url = photoUrl;
           }
 
-          if (decryptedData.effect_video_encrypted && decryptedData.effect_video_url) {
+          if (
+            decryptedData.effect_video_encrypted &&
+            decryptedData.effect_video_url
+          ) {
             const videoUrl = await handleEncryptedFile(
               decryptedData.effect_video_url,
-              'effect_video.mp4',
-              'video/mp4',
+              "effect_video.mp4",
+              "video/mp4",
               user.id
             );
             if (videoUrl) decryptedData.effect_video_url = videoUrl;
           }
 
-          if (decryptedData.secret_video_encrypted && decryptedData.secret_video_url) {
+          if (
+            decryptedData.secret_video_encrypted &&
+            decryptedData.secret_video_url
+          ) {
             const videoUrl = await handleEncryptedFile(
               decryptedData.secret_video_url,
-              'secret_video.mp4',
-              'video/mp4',
+              "secret_video.mp4",
+              "video/mp4",
               user.id
             );
             if (videoUrl) decryptedData.secret_video_url = videoUrl;
@@ -841,11 +948,14 @@ export default function LibrariesSection({
           effect_video_url: decryptedData.effect_video_url,
           secret_video_url: decryptedData.secret_video_url,
           photo_url: decryptedData.photo_url,
+          photos: decryptedData.photos || [], // AGREGAR ESTA LÍNEA
           script: decryptedData.script || "",
           angles: decryptedData.angles,
           duration: decryptedData.duration || 0,
           reset: decryptedData.reset || 0,
-          difficulty: decryptedData.difficulty ? Number.parseInt(decryptedData.difficulty) : 0,
+          difficulty: decryptedData.difficulty
+            ? Number.parseInt(decryptedData.difficulty)
+            : 0,
           is_encrypted: data.is_encrypted,
           is_shared: item.is_shared,
           owner_info: item.is_shared ? item.owner_id : null,
@@ -912,8 +1022,8 @@ export default function LibrariesSection({
           if (decryptedData.image_encrypted && decryptedData.image_url) {
             const imageUrl = await handleEncryptedFile(
               decryptedData.image_url,
-              'image.jpg',
-              'image/jpeg',
+              "image.jpg",
+              "image/jpeg",
               user.id
             );
             if (imageUrl) decryptedData.image_url = imageUrl;
@@ -922,8 +1032,8 @@ export default function LibrariesSection({
           if (decryptedData.video_encrypted && decryptedData.video_url) {
             const videoUrl = await handleEncryptedFile(
               decryptedData.video_url,
-              'video.mp4',
-              'video/mp4',
+              "video.mp4",
+              "video/mp4",
               user.id
             );
             if (videoUrl) decryptedData.video_url = videoUrl;
@@ -934,9 +1044,10 @@ export default function LibrariesSection({
         let angles = [];
         if (decryptedData.angles) {
           try {
-            angles = typeof decryptedData.angles === "string"
-              ? JSON.parse(decryptedData.angles)
-              : decryptedData.angles;
+            angles =
+              typeof decryptedData.angles === "string"
+                ? JSON.parse(decryptedData.angles)
+                : decryptedData.angles;
           } catch {
             angles = [];
           }
@@ -1021,8 +1132,8 @@ export default function LibrariesSection({
           if (decryptedData.image_encrypted && decryptedData.image_url) {
             const imageUrl = await handleEncryptedFile(
               decryptedData.image_url,
-              'image.jpg',
-              'image/jpeg',
+              "image.jpg",
+              "image/jpeg",
               user.id
             );
             if (imageUrl) decryptedData.image_url = imageUrl;
@@ -1031,31 +1142,35 @@ export default function LibrariesSection({
           if (decryptedData.video_encrypted && decryptedData.video_url) {
             const videoUrl = await handleEncryptedFile(
               decryptedData.video_url,
-              'video.mp4',
-              'video/mp4',
+              "video.mp4",
+              "video/mp4",
               user.id
             );
             if (videoUrl) decryptedData.video_url = videoUrl;
           }
 
-          if (decryptedData.craft_video_encrypted && decryptedData.craft_video_url) {
+          if (
+            decryptedData.craft_video_encrypted &&
+            decryptedData.craft_video_url
+          ) {
             const videoUrl = await handleEncryptedFile(
               decryptedData.craft_video_url,
-              'craft_video.mp4',
-              'video/mp4',
+              "craft_video.mp4",
+              "video/mp4",
               user.id
             );
             if (videoUrl) decryptedData.craft_video_url = videoUrl;
           }
         }
 
-        // Convertir angulos 
+        // Convertir angulos
         let angles = [];
         if (decryptedData.angles) {
           try {
-            angles = typeof decryptedData.angles === "string"
-              ? JSON.parse(decryptedData.angles)
-              : decryptedData.angles;
+            angles =
+              typeof decryptedData.angles === "string"
+                ? JSON.parse(decryptedData.angles)
+                : decryptedData.angles;
           } catch {
             angles = [];
           }
@@ -1110,27 +1225,33 @@ export default function LibrariesSection({
   };
 
   // Optimizacion del callback al pulsar un item
-  const handleItemPress = useCallback(async (item: LibraryItem) => {
-    const itemData = await fetchItemData(item);
-    if (itemData) {
-      setSelectedTrickData(itemData);
-    }
-  }, [decryptForSelf, keyPair]);
+  const handleItemPress = useCallback(
+    async (item: LibraryItem) => {
+      const itemData = await fetchItemData(item);
+      if (itemData) {
+        setSelectedTrickData(itemData);
+      }
+    },
+    [decryptForSelf, keyPair]
+  );
 
   // Renderizado de categoria con memoria
-  const renderCategoryItem = useCallback(({ item }: { item: CategorySection }) => {
-    return (
-      <CollapsibleCategory
-        section={item}
-        onItemPress={handleItemPress}
-        onEditCategory={openEditCategoryModal}
-        onDeleteCategory={handleDeleteCategory}
-        searchQuery={searchQuery}
-        searchFilters={searchFilters}
-        t={t}
-      />
-    );
-  }, [searchQuery, searchFilters, handleItemPress, t]);
+  const renderCategoryItem = useCallback(
+    ({ item }: { item: CategorySection }) => {
+      return (
+        <CollapsibleCategory
+          section={item}
+          onItemPress={handleItemPress}
+          onEditCategory={openEditCategoryModal}
+          onDeleteCategory={handleDeleteCategory}
+          searchQuery={searchQuery}
+          searchFilters={searchFilters}
+          t={t}
+        />
+      );
+    },
+    [searchQuery, searchFilters, handleItemPress, t]
+  );
 
   // Renderizado final
   return (
