@@ -27,8 +27,7 @@ export const getTrickWithEncryptedPhotos = async (trickId: string) => {
       if (!encryptedError && encryptedData?.encrypted_files?.photos) {
         // Agregar el array de fotos al objeto trick
         trick.photos = encryptedData.encrypted_files.photos;
-        console.log(`📸 Truco ${trickId} tiene ${trick.photos.length} fotos cifradas`);
-      }
+}
     }
 
     return trick;

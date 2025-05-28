@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "react"
 import { View, Text, TouchableOpacity, FlatList, Dimensions } from "react-native"
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
-import { AntDesign, FontAwesome, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
+import { AntDesign, FontAwesome, Ionicons, MaterialCommunityIcons, MaterialIcons, Feather } from "@expo/vector-icons"
 import { BlurView } from "expo-blur"
 import { useRouter } from "expo-router"
 
@@ -60,25 +60,25 @@ export default function ActionButtonsCarousel() {
   const buttons = [
     {
       id: "1",
-      icon: <AntDesign name="plus" size={36} color="white" />,
+      icon: <FontAwesome name="magic" size={36} color="white" />,
       title: t("addMagic"),
       onPress: () => router.push("/(app)/add-magic"),
     },
     {
       id: "2",
-      icon: <FontAwesome name="star" size={36} color="white" />,
+      icon: <Ionicons name="flash-outline" size={36} color="white" />,
       title: t("quickMagic"),
       onPress: () => router.push("/(app)/add-quick-magic"),
     },
     {
       id: "3",
-      icon: <Ionicons name="flash" size={36} color="white" />,
+      icon: <MaterialIcons name="animation" size={36} color="white" />,
       title: t("addTechnique"),
       onPress: () => router.push("/(app)/add-technique"),
     },
     {
       id: "4",
-      icon: <MaterialCommunityIcons name="wrench" size={36} color="white" />,
+      icon: <Feather name="box" size={36} color="white" />,
       title: t("addGimmick"),
       onPress: () => console.log("Add Gimmick pressed"),
     },

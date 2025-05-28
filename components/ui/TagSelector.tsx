@@ -14,7 +14,7 @@ import { Feather } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../../lib/supabase";
 import { BlurView } from "expo-blur";
-import ColorWheelPicker from "./ColorWheelPicker";
+import ColorPicker from "./ColorPicker";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -46,21 +46,6 @@ interface CreateTagModalProps {
   tagName: string;
 }
 
-const DEFAULT_COLORS = [
-  "#5bb9a3",
-  "#10b981",
-  "#3b82f6",
-  "#8b5cf6",
-  "#f59e0b",
-  "#ef4444",
-  "#ec4899",
-  "#6366f1",
-  "#06b6d4",
-  "#14b8a6",
-  "#84cc16",
-  "#a855f7",
-];
-
 const screenWidth = Dimensions.get("window").width;
 const CreateTagModal: React.FC<CreateTagModalProps> = ({
   visible,
@@ -69,7 +54,13 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
   tagName,
 }) => {
   const { t } = useTranslation();
-  const [selectedColor, setSelectedColor] = useState("#5bb9a3");
+  const [selectedColor, setSelectedColor] = useState("#4CAF50");
+  const [editableTagName, setEditableTagName] = useState(tagName);
+  const [isEditingName, setIsEditingName] = useState(false);
+
+  React.useEffect(() => {
+    setEditableTagName(tagName);
+  }, [tagName]);
 
   return (
     <StyledModal visible={visible} transparent animationType="fade">
@@ -78,7 +69,7 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
         tint="dark"
         className="flex-1 justify-center items-center"
       >
-        <StyledView className="flex-1 justify-center items-center px-6">
+        <StyledView className="flex-1 justify-center items-center px-3 py-6">
           {/* Modal with blur effect border */}
           <StyledBlurView
             className=" overflow-hidden"
@@ -100,43 +91,57 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
           >
             {/* Content */}
             <StyledView className="p-6">
-              <StyledText className="text-white text-lg font-medium text-center mb-6">
-                {t("forms.create", "Create")} "{tagName}"?
-              </StyledText>
-
-              {/* Color Picker Section */}
-              <StyledView className="mb-6">
-                <StyledText className="text-white/60 text-sm mb-4 text-center">
-                  {t("forms.selectColor", "Select color")}
+              {/* Header with editable tag pill */}
+              <StyledView className="flex-row items-center justify-center mb-6">
+                <StyledText className="text-white text-lg font-medium mr-3">
+                  {t("forms.create", "Create")}
                 </StyledText>
 
-                {/* Color Wheel Picker - Properly centered */}
-                <StyledView className="items-center justify-center">
-                  <ColorWheelPicker
-                    size={180}
-                    onColorChange={setSelectedColor}
-                    initialColor={selectedColor}
-                  />
-                </StyledView>
-
-                {/* Preview */}
-                <StyledView className="items-center mt-4">
-                  <StyledView
-                    className="px-4 py-2 rounded-full"
-                    style={{
-                      backgroundColor: selectedColor + "20",
-                      borderColor: selectedColor,
-                      borderWidth: 1,
-                    }}
-                  >
+                {/* Editable Tag Pill */}
+                <StyledTouchableOpacity
+                  onPress={() => setIsEditingName(true)}
+                  className="px-4 py-2 rounded-full"
+                  style={{
+                    backgroundColor: selectedColor + "30",
+                    borderColor: selectedColor,
+                    borderWidth: 1,
+                  }}
+                >
+                  {isEditingName ? (
+                    <StyledTextInput
+                      value={editableTagName}
+                      onChangeText={setEditableTagName}
+                      onBlur={() => setIsEditingName(false)}
+                      autoFocus
+                      style={{
+                        color: selectedColor,
+                        fontWeight: "500",
+                        minWidth: 80,
+                        textAlign: "center",
+                      }}
+                      className="text-base"
+                    />
+                  ) : (
                     <StyledText
                       style={{ color: selectedColor }}
                       className="font-medium"
                     >
-                      {tagName}
+                      {editableTagName}
                     </StyledText>
-                  </StyledView>
-                </StyledView>
+                  )}
+                </StyledTouchableOpacity>
+              </StyledView>
+
+              {/* Color Picker Section */}
+              <StyledView className="mb-6 -m-3">
+                <StyledText className="text-white/60 text-sm mb-4">
+                  {t("forms.selectColor", "Select a color")}
+                </StyledText>
+
+                <ColorPicker
+                  selectedColor={selectedColor}
+                  onColorSelect={setSelectedColor}
+                />
               </StyledView>
             </StyledView>
 
@@ -179,7 +184,7 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
                   shadowRadius: 20,
                   elevation: 10,
                 }}
-                onPress={() => onConfirm(tagName, selectedColor)}
+                onPress={() => onConfirm(editableTagName, selectedColor)}
               >
                 <StyledText className="text-white/60 text-base font-medium">
                   {t("common.create", "Create")}

@@ -227,9 +227,7 @@ export class FileEncryptionService {
       );
   
       // 5. Download encrypted file
-      console.log(`📥 Descargando archivo cifrado: ${fileId}`);
-      
-      const { data: encryptedFile, error: downloadError } = await supabase.storage
+const { data: encryptedFile, error: downloadError } = await supabase.storage
         .from('encrypted_media')
         .download(`encrypted_files/${fileId}`);
       
@@ -272,10 +270,7 @@ export class FileEncryptionService {
         fileNonce,
         symmetricKey
       );
-  
-      console.log('✅ Archivo descifrado exitosamente');
-  
-      return {
+return {
         data: decryptedFile,
         fileName: fileMetadata.original_name,
         mimeType: fileMetadata.mime_type

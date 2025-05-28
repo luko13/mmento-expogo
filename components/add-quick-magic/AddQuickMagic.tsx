@@ -684,15 +684,21 @@ export default function QuickAddMagicForm({
 
         {/* Shield Icon */}
         <StyledView className="items-center mb-8">
-          <StyledView className="w-16 h-16 bg-[#10b981]/40 rounded-full items-center justify-center">
-            <MaterialIcons name="security" size={32} color="#10b981" />
+          <StyledView className="mb-2">
+            <Feather name="shield" size={32} color="#10b9813b" />
           </StyledView>
-          <StyledText className="text-[#10b981]/80 text-xs mt-2 text-center">
-            {t("security.magicSecretsSafe", "Your secrets are protected")}
-          </StyledText>
-          <StyledText className="text-[#10b981]/80 text-xs text-center">
-            {t("security.endToEndEncrypted", "End-to-end encrypted")}
-          </StyledText>
+          <StyledText className="text-[#10b981]/40 text-xs mt-2 text-center">
+                {t(
+                  "security.magicSecretsSafe",
+                  "Tus secretos están protegidos"
+                )}
+              </StyledText>
+              <StyledText className="text-[#10b981]/40 text-xs text-center">
+                {t(
+                  "security.endToEndEncrypted",
+                  "Cifrado de extremo a extremo"
+                )}
+              </StyledText>
         </StyledView>
       </StyledScrollView>
 

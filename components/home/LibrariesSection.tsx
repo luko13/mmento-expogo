@@ -24,6 +24,7 @@ import {
   Feather,
   FontAwesome5,
   Ionicons,
+  Entypo,
 } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { supabase } from "../../lib/supabase";
@@ -95,7 +96,7 @@ const getItemIcon = (type: string) => {
   switch (type) {
     case "magic":
       return (
-        <FontAwesome5
+        <FontAwesome
           name="magic"
           size={20}
           color="white"
@@ -103,13 +104,20 @@ const getItemIcon = (type: string) => {
         />
       );
     case "gimmick":
-      return <MaterialCommunityIcons name="toolbox" size={20} color="white" />;
+      return <Feather name="box" size={20} color="white" />;
     case "technique":
-      return <Ionicons name="flash" size={20} color="white" />;
+      return <MaterialIcons name="animation" size={20} color="white" />;
     case "script":
       return <FontAwesome name="file-text-o" size={20} color="white" />;
     default:
-      return <FontAwesome5 name="magic" size={20} color="white" />;
+      return (
+        <FontAwesome
+        name="magic"
+        size={20}
+        color="white"
+        style={{ transform: [{ scaleX: -1 }] }}
+        />
+      );
   }
 };
 
@@ -169,9 +177,9 @@ const CollapsibleCategory = memo(
     searchFilters?: SearchFilters;
     t: any;
   }) => {
-    const [isExpanded, setIsExpanded] = useState(true);
-    const animatedHeight = useRef(new Animated.Value(1)).current;
-    const animatedRotation = useRef(new Animated.Value(1)).current;
+    const [isExpanded, setIsExpanded] = useState(false);
+    const animatedHeight = useRef(new Animated.Value(0)).current;
+    const animatedRotation = useRef(new Animated.Value(0)).current;
 
     const toggleExpanded = () => {
       const toValue = isExpanded ? 0 : 1;
@@ -1259,7 +1267,7 @@ export default function LibrariesSection({
       {/* Header de libraries */}
       <StyledView className="flex-row justify-between items-center mb-2">
         <StyledView className="flex-row items-center">
-          <FontAwesome name="book" size={24} color="white" />
+          <Feather name="book" size={24} color="white" />
           <StyledText className="text-white text-xl ml-2">
             {t("librariesCount", { count: allContent?.categories.length || 0 })}
           </StyledText>

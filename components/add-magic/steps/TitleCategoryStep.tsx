@@ -162,7 +162,7 @@ export default function TitleCategoryStepEncrypted({
             </StyledText>
           </StyledView>
 
-          <StyledTouchableOpacity className="p-2">
+          <StyledTouchableOpacity className="p-2 opacity-0">
             <MaterialIcons name="security" size={24} color="#10b981" />
           </StyledTouchableOpacity>
         </StyledView>
@@ -267,16 +267,17 @@ export default function TitleCategoryStepEncrypted({
 
             {/* Shield Icon - Separado pero dentro del contenedor flexible */}
             <StyledView className="items-center py-6">
-              <StyledView className="w-16 h-16 bg-[#10b981]/40 rounded-full items-center justify-center">
-                <MaterialIcons name="security" size={32} color="#10b981" />
+              <StyledView className="mb-2">
+                <Feather name="shield" size={32} color="#10b9813b" />
               </StyledView>
-              <StyledText className="text-[#10b981]/80 text-xs mt-2 text-center">
+
+              <StyledText className="text-[#10b981]/40 text-xs mt-2 text-center">
                 {t(
                   "security.magicSecretsSafe",
                   "Tus secretos están protegidos"
                 )}
               </StyledText>
-              <StyledText className="text-[#10b981]/80 text-xs text-center">
+              <StyledText className="text-[#10b981]/40 text-xs text-center">
                 {t(
                   "security.endToEndEncrypted",
                   "Cifrado de extremo a extremo"
@@ -324,7 +325,7 @@ export default function TitleCategoryStepEncrypted({
                   {isLastStep ? t("actions.save") : t("actions.next")}
                 </StyledText>
                 {isLastStep ? (
-                  <MaterialIcons name="security" size={20} color="white" />
+                  <Feather name="shield" size={20} color="white" />
                 ) : (
                   <Feather name="chevron-right" size={20} color="white" />
                 )}

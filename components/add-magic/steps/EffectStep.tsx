@@ -18,6 +18,7 @@ import {
   Ionicons,
   FontAwesome5,
   MaterialIcons,
+  MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import type { EncryptedMagicTrick } from "../../../types/encryptedMagicTrick";
 import * as ImagePicker from "expo-image-picker";
@@ -577,7 +578,7 @@ export default function EffectStepEncrypted({
           </StyledText>
         </StyledView>
 
-        <StyledTouchableOpacity className="p-2">
+        <StyledTouchableOpacity className="p-2 opacity-0">
           <MaterialIcons name="security" size={24} color="#10b981" />
         </StyledTouchableOpacity>
       </StyledView>
@@ -645,7 +646,7 @@ export default function EffectStepEncrypted({
                 textColor="white"
               >
                 <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                  <Feather name="star" size={24} color="white" />
+                  <MaterialCommunityIcons name="creation" size={24} color="white" />
                 </StyledView>
               </CustomTooltip>
               <StyledView className="flex-1">

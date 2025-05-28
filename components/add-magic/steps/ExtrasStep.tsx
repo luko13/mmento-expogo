@@ -22,6 +22,7 @@ import {
   Ionicons,
   MaterialCommunityIcons,
   MaterialIcons,
+  EvilIcons
 } from "@expo/vector-icons";
 import type { EncryptedMagicTrick } from "../../../types/encryptedMagicTrick";
 import * as ImagePicker from "expo-image-picker";
@@ -433,85 +434,84 @@ export default function ExtrasStepEncrypted({
     }
   };
 
-// Agregar useEffect para sincronizar los cambios
-useEffect(() => {
-  if (uploadedPhotos.length > 0) {
-    console.log("📸 Sincronizando fotos con trickData:", {
-      uploadedPhotos,
-      photos_count: uploadedPhotos.length
-    });
-    
-    updateTrickData({
-      encryptedFiles: {
-        ...trickData.encryptedFiles,
-        photos: uploadedPhotos,
-      },
-    });
+  // Agregar useEffect para sincronizar los cambios
+  useEffect(() => {
+    if (uploadedPhotos.length > 0) {
+      console.log("📸 Sincronizando fotos con trickData:", {
+        uploadedPhotos,
+        photos_count: uploadedPhotos.length,
+      });
 
-    // Si es la primera foto, también establecerla como photo_url principal
-    if (uploadedPhotos.length === 1 && !trickData.photo_url) {
       updateTrickData({
-        photo_url: uploadedPhotos[0],
+        encryptedFiles: {
+          ...trickData.encryptedFiles,
+          photos: uploadedPhotos,
+        },
       });
+
+      // Si es la primera foto, también establecerla como photo_url principal
+      if (uploadedPhotos.length === 1 && !trickData.photo_url) {
+        updateTrickData({
+          photo_url: uploadedPhotos[0],
+        });
+      }
     }
-  }
-}, [uploadedPhotos]); // Se ejecuta cuando uploadedPhotos cambia
+  }, [uploadedPhotos]); // Se ejecuta cuando uploadedPhotos cambia
 
-// Modificar la función encryptAndStoreImage para que NO llame a updateTrickData
-const encryptAndStoreImage = async (uri: string) => {
-  if (!keyPair) return;
+  // Modificar la función encryptAndStoreImage para que NO llame a updateTrickData
+  const encryptAndStoreImage = async (uri: string) => {
+    if (!keyPair) return;
 
-  try {
-    setUploading(true);
-    setUploadingType("photo");
+    try {
+      setUploading(true);
+      setUploadingType("photo");
 
-    // Obtener información del usuario
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      throw new Error("Usuario no autenticado");
-    }
+      // Obtener información del usuario
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("Usuario no autenticado");
+      }
 
-    // Cifrar y subir imagen
-    const metadata = await fileEncryptionService.encryptAndUploadFile(
-      uri,
-      `trick_photo_${Date.now()}_${Math.random()
-        .toString(36)
-        .substr(2, 9)}.jpg`,
-      "image/jpeg",
-      user.id,
-      [user.id], // Solo el autor tiene acceso
-      getPublicKey,
-      () => keyPair.privateKey
-    );
+      // Cifrar y subir imagen
+      const metadata = await fileEncryptionService.encryptAndUploadFile(
+        uri,
+        `trick_photo_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}.jpg`,
+        "image/jpeg",
+        user.id,
+        [user.id], // Solo el autor tiene acceso
+        getPublicKey,
+        () => keyPair.privateKey
+      );
 
-    // Solo actualizar el estado local
-    setUploadedPhotos(prevPhotos => {
-      const newPhotos = [...prevPhotos, metadata.fileId];
-      console.log("📸 Foto agregada al array:", {
-        prevCount: prevPhotos.length,
-        newCount: newPhotos.length,
-        newPhotoId: metadata.fileId
+      // Solo actualizar el estado local
+      setUploadedPhotos((prevPhotos) => {
+        const newPhotos = [...prevPhotos, metadata.fileId];
+        console.log("📸 Foto agregada al array:", {
+          prevCount: prevPhotos.length,
+          newCount: newPhotos.length,
+          newPhotoId: metadata.fileId,
+        });
+        return newPhotos;
       });
-      return newPhotos;
-    });
-
-  } catch (error) {
-    console.error("Error cifrando imagen:", error);
-    Alert.alert(
-      t("security.error", "Error de Cifrado"),
-      t(
-        "security.imageEncryptionError",
-        "No se pudo cifrar la imagen. Inténtalo de nuevo."
-      ),
-      [{ text: t("ok", "OK") }]
-    );
-  } finally {
-    setUploading(false);
-    setUploadingType(null);
-  }
-};
+    } catch (error) {
+      console.error("Error cifrando imagen:", error);
+      Alert.alert(
+        t("security.error", "Error de Cifrado"),
+        t(
+          "security.imageEncryptionError",
+          "No se pudo cifrar la imagen. Inténtalo de nuevo."
+        ),
+        [{ text: t("ok", "OK") }]
+      );
+    } finally {
+      setUploading(false);
+      setUploadingType(null);
+    }
+  };
 
   // Manejar datos de componentes modales
   const handleSaveTechniques = (techniqueIds: string[]) => {
@@ -588,15 +588,14 @@ const encryptAndStoreImage = async (uri: string) => {
             {t("statistics", "Estadísticas")}
           </StyledText>
         </StyledView>
-
-        <StyledTouchableOpacity className="p-2">
-          <MaterialIcons name="security" size={24} color="#10b981" />
-        </StyledTouchableOpacity>
+        <StyledView className="p-2 opacity-0">
+          <Feather name="chevron-left" size={24} color="white" />
+        </StyledView>
       </StyledView>
 
       <StyledScrollView className="flex-1 px-6">
         {/* Sección de Estadísticas */}
-        <StyledView className="mt-6">
+        <StyledView className="mt-3">
           <StyledText className="text-white/60 text-lg font-semibold mb-4">
             {t("statistics", "Estadísticas")}
           </StyledText>
@@ -608,12 +607,12 @@ const encryptAndStoreImage = async (uri: string) => {
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                <Feather name="tag" size={24} color="white" />
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <MaterialCommunityIcons name="angle-acute" size={32} color="white" />
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
-              <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between">
+              <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#5bb9a3] flex-row items-center justify-between">
                 {angles.map((angle) => (
                   <StyledTouchableOpacity
                     key={angle.value}
@@ -647,13 +646,13 @@ const encryptAndStoreImage = async (uri: string) => {
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
                 <Feather name="clock" size={24} color="white" />
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#5bb9a3] flex-row items-center justify-between"
                 onPress={openDurationPicker}
               >
                 <StyledText className="text-white/70">
@@ -671,13 +670,13 @@ const encryptAndStoreImage = async (uri: string) => {
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
                 <Feather name="refresh-cw" size={24} color="white" />
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#5bb9a3] flex-row items-center justify-between"
                 onPress={openResetTimePicker}
               >
                 <StyledText className="text-white/70">
@@ -695,10 +694,10 @@ const encryptAndStoreImage = async (uri: string) => {
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                <MaterialIcons
-                  name="signal-cellular-alt"
-                  size={24}
+              <StyledView className="w-[48px] h-[70px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather
+                  name="bar-chart"
+                  size={28}
                   color="white"
                 />
               </StyledView>
@@ -731,15 +730,15 @@ const encryptAndStoreImage = async (uri: string) => {
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                <Feather name="image" size={24} color="white" />
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="image" size={28} color="white" />
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
                 onPress={pickImage}
                 disabled={uploading || !encryptionReady}
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[15px] border border-[#5bb9a3] flex-row items-center justify-between"
               >
                 <StyledView className="flex-1 flex-row items-center">
                   {uploading && uploadingType === "photo" ? (
@@ -781,13 +780,13 @@ const encryptAndStoreImage = async (uri: string) => {
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                <Feather name="award" size={24} color="white" />
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <MaterialIcons name="animation" size={30} color="white" />
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13px] border border-[#5bb9a3] flex-row items-center justify-between"
                 onPress={() => setTechniquesModalVisible(true)}
               >
                 <StyledText className="text-white/70">
@@ -810,13 +809,13 @@ const encryptAndStoreImage = async (uri: string) => {
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                <Feather name="box" size={24} color="white" />
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <Feather name="box" size={28} color="white" />
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13px] border border-[#5bb9a3] flex-row items-center justify-between"
                 onPress={() => setGimmicksModalVisible(true)}
               >
                 <StyledText className="text-white/70">
@@ -839,13 +838,13 @@ const encryptAndStoreImage = async (uri: string) => {
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                <Feather name="edit" size={24} color="white" />
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <MaterialCommunityIcons name="text-box-outline" size={28} color="white" />
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] flex-row items-center justify-between"
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#5bb9a3] flex-row items-center justify-between"
                 onPress={() => setScriptModalVisible(true)}
               >
                 <StyledView className="flex-row items-center flex-1">
@@ -854,40 +853,10 @@ const encryptAndStoreImage = async (uri: string) => {
                       ? scriptData.title
                       : t("writeScript", "Escribir Script")}
                   </StyledText>
-                  <MaterialCommunityIcons
-                    name="typewriter"
-                    size={20}
-                    color="white"
-                  />
                 </StyledView>
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
-
-          {/* Notes Field with Encryption */}
-          {/* <StyledView className="flex-row mt-6 mb-4">
-            <StyledView className="w-12 h-19 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-              <Feather name="file-text" size={24} color="white" />
-            </StyledView>
-
-            <StyledView className="flex-1">
-              <StyledView className="flex-row items-center mb-2">
-                <StyledText className="text-white flex-1 ml-1">
-                  {t("notes", "Notas adicionales")}
-                </StyledText>
-              </StyledView>
-              <StyledTextInput
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[80px]"
-                placeholder={t("notesPlaceholder", "Notas privadas sobre el truco")}
-                placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                value={trickData.notes}
-                onChangeText={(text) => updateTrickData({ notes: text })}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-            </StyledView>
-          </StyledView> */}
         </StyledView>
       </StyledScrollView>
       <StyledView className="justify-end px-6 pb-6">
@@ -909,21 +878,6 @@ const encryptAndStoreImage = async (uri: string) => {
               ? t("saving", "Guardando...")
               : t("registerMagic", "Registrar Magia")}
           </StyledText>
-          {isSubmitting ? (
-            <Ionicons
-              name="refresh"
-              size={20}
-              color="white"
-              style={{ marginLeft: 8 }}
-            />
-          ) : (
-            <MaterialIcons
-              name="security"
-              size={20}
-              color="white"
-              style={{ marginLeft: 8 }}
-            />
-          )}
         </StyledTouchableOpacity>
       </StyledView>
       {/* Modales */}

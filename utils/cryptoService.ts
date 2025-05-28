@@ -206,8 +206,7 @@ export class CryptoService {
       .single();
 
     if (error || !data?.encrypted_private_key) {
-      console.log("No encrypted key found in cloud");
-      return null;
+return null;
     }
 
     try {
@@ -219,9 +218,7 @@ export class CryptoService {
         },
         password
       );
-      
-      console.log("Successfully decrypted private key from cloud");
-      return decryptedKey;
+return decryptedKey;
     } catch (error) {
       console.error("Failed to decrypt private key:", error);
       return null;
@@ -279,8 +276,7 @@ export class CryptoService {
         .single();
 
       if (!profile?.encrypted_private_key || !profile?.public_key) {
-        console.log("No cloud backup found");
-        return null;
+return null;
       }
 
       // Try to retrieve from cloud
@@ -316,9 +312,7 @@ export class CryptoService {
 
       // Store locally for future use
       await this.storePrivateKey(cloudPrivateKey, userId);
-      console.log("Successfully initialized keys from cloud");
-
-      return keyPair;
+return keyPair;
     } catch (error) {
       console.error("Error in initializeFromCloud:", error);
       return null;
