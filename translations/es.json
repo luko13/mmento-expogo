@@ -261,6 +261,8 @@
     "imageUpload": "Sube imágenes para tu truco",
     "techniques": "Añade técnicas relacionadas con tu truco",
     "gimmicks": "Añade gimmicks relacionados con tu truco",
-    "scripts": "Añade guiones relacionados con tu truco"
+    "scripts": "Añade guiones relacionados con tu truco",
+    "security.photosEncrypted": "{{count}} fotos cifradas ✓",
+    "imageSizeWarning": "Una o más imágenes son demasiado grandes. El límite es 10MB por imagen."
   }
 }

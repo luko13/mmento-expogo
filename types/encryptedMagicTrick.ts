@@ -52,6 +52,7 @@ export interface EncryptedMagicTrick {
   }
   encryptedFiles: {
     photo?: string
+    photos?: string[]
     effect_video?: string
     secret_video?: string
   }

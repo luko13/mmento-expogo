@@ -223,5 +223,7 @@
   "noItems": "No items in this category",
   "decryptingVideo": "Decrypting video...",
   "loadingVideo": "Loading video...",
-  "videoLoadError": "Error loading video"
+  "videoLoadError": "Error loading video",
+  "security.photosEncrypted": "Photos are encrypted and securely stored.",
+  "imageSizeWarning": "Image size should not exceed 10MB."
 }

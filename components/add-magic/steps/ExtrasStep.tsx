@@ -95,6 +95,7 @@ export default function ExtrasStepEncrypted({
   const [uploadingType, setUploadingType] = useState<"photo" | null>(null);
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
 
   // Hooks de cifrado
   const {
@@ -186,7 +187,10 @@ export default function ExtrasStepEncrypted({
   useEffect(() => {
     fetchTechniques();
     fetchGimmicks();
-
+    // Inicializar fotos cargadas
+    if (trickData.encryptedFiles?.photos) {
+      setUploadedPhotos(trickData.encryptedFiles.photos);
+    }
     // Inicializar elementos seleccionados si los datos del truco los tienen
     if (trickData.techniqueIds && trickData.techniqueIds.length > 0) {
       fetchSelectedTechniques(trickData.techniqueIds);
@@ -377,41 +381,44 @@ export default function ExtrasStepEncrypted({
       }
 
       const options: ImagePicker.ImagePickerOptions = {
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
+        mediaTypes: ["images"],
+        allowsEditing: false, // False para no recortar
+        allowsMultipleSelection: true, // Permitir selección múltiple
         quality: 0.7,
-        aspect: [4, 3] as [number, number],
       };
 
       const result = await ImagePicker.launchImageLibraryAsync(options);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
+        // Procesar múltiples imágenes
+        for (const asset of result.assets) {
+          const uri = asset.uri;
 
-        // Verificar tamaño del archivo
-        try {
-          const fileInfo = await FileSystem.getInfoAsync(uri);
+          // Verificar tamaño del archivo
+          try {
+            const fileInfo = await FileSystem.getInfoAsync(uri);
 
-          // Verificar si el archivo existe y tiene tamaño
-          if (fileInfo.exists && "size" in fileInfo) {
-            // Si el archivo es más grande que 10MB, mostrar advertencia
-            if (fileInfo.size > 10 * 1024 * 1024) {
-              Alert.alert(
-                t("fileTooLarge", "Archivo Demasiado Grande"),
-                t(
-                  "imageSizeWarning",
-                  "La imagen seleccionada es demasiado grande. Por favor selecciona una imagen más pequeña."
-                ),
-                [{ text: t("ok", "OK") }]
-              );
-              return;
+            // Verificar si el archivo existe y tiene tamaño
+            if (fileInfo.exists && "size" in fileInfo) {
+              // Si el archivo es más grande que 10MB, mostrar advertencia
+              if (fileInfo.size > 10 * 1024 * 1024) {
+                Alert.alert(
+                  t("fileTooLarge", "Archivo Demasiado Grande"),
+                  t(
+                    "imageSizeWarning",
+                    "Una o más imágenes son demasiado grandes. El límite es 10MB por imagen."
+                  ),
+                  [{ text: t("ok", "OK") }]
+                );
+                continue; // Saltar esta imagen y continuar con las demás
+              }
             }
+          } catch (error) {
+            console.error("Error al verificar tamaño del archivo:", error);
           }
-        } catch (error) {
-          console.error("Error al verificar tamaño del archivo:", error);
-        }
 
-        await encryptAndStoreImage(uri);
+          await encryptAndStoreImage(uri);
+        }
       }
     } catch (error) {
       console.error("Error al seleccionar imagen:", error);
@@ -419,7 +426,7 @@ export default function ExtrasStepEncrypted({
         t("error", "Error"),
         t(
           "imagePickError",
-          "Hubo un error al seleccionar la imagen. Por favor intenta de nuevo."
+          "Hubo un error al seleccionar las imágenes. Por favor intenta de nuevo."
         ),
         [{ text: t("ok", "OK") }]
       );
@@ -445,7 +452,9 @@ export default function ExtrasStepEncrypted({
       // Cifrar y subir imagen
       const metadata = await fileEncryptionService.encryptAndUploadFile(
         uri,
-        `trick_photo_${Date.now()}.jpg`,
+        `trick_photo_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}.jpg`,
         "image/jpeg",
         user.id,
         [user.id], // Solo el autor tiene acceso
@@ -453,20 +462,25 @@ export default function ExtrasStepEncrypted({
         () => keyPair.privateKey
       );
 
-      // Actualizar los datos del truco con el ID del archivo cifrado
+      // Actualizar el array de fotos cifradas
+      const currentPhotos = trickData.encryptedFiles?.photos || [];
+      const updatedPhotos = [...currentPhotos, metadata.fileId];
+      setUploadedPhotos(updatedPhotos);
+
+      // Actualizar los datos del truco con el array de fotos
       updateTrickData({
-        photo_url: metadata.fileId,
         encryptedFiles: {
           ...trickData.encryptedFiles,
-          photo: metadata.fileId,
+          photos: updatedPhotos,
         },
       });
 
-      Alert.alert(
-        t("security.success", "Éxito"),
-        t("security.photoEncrypted", "Foto cifrada y almacenada"),
-        [{ text: t("ok", "OK") }]
-      );
+      // Si es la primera foto, también establecerla como photo_url principal
+      if (updatedPhotos.length === 1) {
+        updateTrickData({
+          photo_url: metadata.fileId,
+        });
+      }
     } catch (error) {
       console.error("Error cifrando imagen:", error);
       Alert.alert(
@@ -498,37 +512,37 @@ export default function ExtrasStepEncrypted({
 
   // Formatear tiempo de duración para mostrar
   const formatDuration = (durationInSeconds: number | null) => {
-  if (!durationInSeconds)
-    return t("setDurationTime", "Establecer tiempo de duración");
+    if (!durationInSeconds)
+      return t("setDurationTime", "Establecer tiempo de duración");
 
-  const minutes = Math.floor(durationInSeconds / 60);
-  const seconds = durationInSeconds % 60;
-  
-  if (minutes === 0) {
-    return `${seconds} s`;
-  } else if (seconds === 0) {
-    return `${minutes} min`;
-  } else {
-    return `${minutes} min ${seconds} s`;
-  }
-};
+    const minutes = Math.floor(durationInSeconds / 60);
+    const seconds = durationInSeconds % 60;
+
+    if (minutes === 0) {
+      return `${seconds} s`;
+    } else if (seconds === 0) {
+      return `${minutes} min`;
+    } else {
+      return `${minutes} min ${seconds} s`;
+    }
+  };
 
   // Formatear tiempo de reinicio para mostrar
   const formatReset = (resetInSeconds: number | null) => {
-  if (!resetInSeconds)
-    return t("setResetTime", "Establecer tiempo de reinicio");
+    if (!resetInSeconds)
+      return t("setResetTime", "Establecer tiempo de reinicio");
 
-  const minutes = Math.floor(resetInSeconds / 60);
-  const seconds = resetInSeconds % 60;
-  
-  if (minutes === 0) {
-    return `${seconds} s`;
-  } else if (seconds === 0) {
-    return `${minutes} min`;
-  } else {
-    return `${minutes} min ${seconds} s`;
-  }
-};
+    const minutes = Math.floor(resetInSeconds / 60);
+    const seconds = resetInSeconds % 60;
+
+    if (minutes === 0) {
+      return `${seconds} s`;
+    } else if (seconds === 0) {
+      return `${minutes} min`;
+    } else {
+      return `${minutes} min ${seconds} s`;
+    }
+  };
 
   return (
     <StyledView className="flex-1">
@@ -722,8 +736,11 @@ export default function ExtrasStepEncrypted({
                   ) : (
                     <>
                       <StyledText className="text-white/70 flex-1">
-                        {trickData.encryptedFiles?.photo
-                          ? t("security.imageEncrypted", "Imagen cifrada ✓")
+                        {uploadedPhotos.length > 0
+                          ? t(
+                              "security.photosEncrypted",
+                              `${uploadedPhotos.length} fotos cifradas ✓`
+                            )
                           : t("imagesUpload", "Subir Imágenes")}
                       </StyledText>
                       <StyledView className="flex-row items-center">
