@@ -39,6 +39,7 @@ import TechniquesModal from "../../../components/add-magic/ui/TechniquesModal";
 import GimmicksModal from "../../../components/add-magic/ui/GimmicksModal";
 import ScriptModal from "../../../components/add-magic/ui/ScriptModal";
 import DifficultySlider from "../../../components/add-magic/ui/DifficultySlider";
+import TimePickerModal from "../ui/TimePickerModal";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -113,8 +114,6 @@ export default function ExtrasStepEncrypted({
   // Estados para los selectores de tiempo
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [showResetPicker, setShowResetPicker] = useState(false);
-  const [durationDate, setDurationDate] = useState(new Date());
-  const [resetDate, setResetDate] = useState(new Date());
 
   // Estados para datos
   const [techniques, setTechniques] = useState<Technique[]>([]);
@@ -157,62 +156,24 @@ export default function ExtrasStepEncrypted({
 
   // Mostrar selector de tiempo de duración
   const openDurationPicker = () => {
-    const currentDate = new Date();
-    if (trickData.duration) {
-      const minutes = Math.floor(trickData.duration / 60);
-      const seconds = trickData.duration % 60;
-      currentDate.setHours(0, minutes, seconds, 0);
-    } else {
-      currentDate.setHours(0, 0, 0, 0);
-    }
-
-    setDurationDate(currentDate);
     setShowDurationPicker(true);
   };
 
   // Mostrar selector de tiempo de reinicio
   const openResetTimePicker = () => {
-    const currentDate = new Date();
-    if (trickData.reset) {
-      const minutes = Math.floor(trickData.reset / 60);
-      const seconds = trickData.reset % 60;
-      currentDate.setHours(0, minutes, seconds, 0);
-    } else {
-      currentDate.setHours(0, 0, 0, 0);
-    }
-
-    setResetDate(currentDate);
     setShowResetPicker(true);
   };
 
   // Manejar cambio de duración
-  const handleDurationChange = (
-    event: DateTimePickerEvent,
-    selectedDate?: Date
-  ) => {
-    setShowDurationPicker(Platform.OS === "ios");
-
-    if (selectedDate) {
-      const minutes = selectedDate.getMinutes();
-      const seconds = selectedDate.getSeconds();
-      const totalSeconds = minutes * 60 + seconds;
-      updateTrickData({ duration: totalSeconds });
-    }
+  const handleDurationChange = (totalSeconds: number) => {
+    updateTrickData({ duration: totalSeconds });
+    setShowDurationPicker(false);
   };
 
   // Manejar cambio de tiempo de reinicio
-  const handleResetChange = (
-    event: DateTimePickerEvent,
-    selectedDate?: Date
-  ) => {
-    setShowResetPicker(Platform.OS === "ios");
-
-    if (selectedDate) {
-      const minutes = selectedDate.getMinutes();
-      const seconds = selectedDate.getSeconds();
-      const totalSeconds = minutes * 60 + seconds;
-      updateTrickData({ reset: totalSeconds });
-    }
+  const handleResetChange = (totalSeconds: number) => {
+    updateTrickData({ reset: totalSeconds });
+    setShowDurationPicker(false);
   };
 
   // Manejar cambio de dificultad
@@ -919,25 +880,29 @@ export default function ExtrasStepEncrypted({
 
       {/* DateTimePicker nativo para duración */}
       {showDurationPicker && (
-        <DateTimePicker
-          value={durationDate}
-          mode="time"
-          is24Hour={true}
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={handleDurationChange}
-          minuteInterval={1}
+        <TimePickerModal
+          visible={showDurationPicker}
+          onClose={() => setShowDurationPicker(false)}
+          onConfirm={handleDurationChange}
+          initialMinutes={
+            trickData.duration ? Math.floor(trickData.duration / 60) : 0
+          }
+          initialSeconds={trickData.duration ? trickData.duration % 60 : 0}
+          title={t("setDurationTime", "Set Duration Time")}
         />
       )}
 
       {/* DateTimePicker nativo para reinicio */}
       {showResetPicker && (
-        <DateTimePicker
-          value={resetDate}
-          mode="time"
-          is24Hour={true}
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={handleResetChange}
-          minuteInterval={1}
+        <TimePickerModal
+          visible={showResetPicker}
+          onClose={() => setShowResetPicker(false)}
+          onConfirm={handleResetChange}
+          initialMinutes={
+            trickData.reset ? Math.floor(trickData.reset / 60) : 0
+          }
+          initialSeconds={trickData.reset ? trickData.reset % 60 : 0}
+          title={t("setResetTime", "Set Reset Time")}
         />
       )}
     </StyledView>
