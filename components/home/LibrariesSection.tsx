@@ -46,7 +46,7 @@ import { useEncryption } from "../../hooks/useEncryption";
 import { FileEncryptionService } from "../../utils/fileEncryption";
 import * as FileSystem from "expo-file-system";
 import { getTrickWithEncryptedPhotos } from "../../utils/trickHelpers";
-import DeleteModal from "../ui/DeleteModa";
+import DeleteModal from "../ui/DeleteModal";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -838,7 +838,7 @@ export default function LibrariesSection({
 
   // Borrar categoria
   const handleDeleteCategory = async (categoryId: string) => {
-    
+    console.log
     const category = allContent?.categories.find(
       (cat: Category) => cat.id === categoryId
     );

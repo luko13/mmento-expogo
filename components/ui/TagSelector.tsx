@@ -58,6 +58,32 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
   const [editableTagName, setEditableTagName] = useState(tagName);
   const [isEditingName, setIsEditingName] = useState(false);
 
+  const COLOR_MAPPINGS: { [key: string]: string } = {
+    // Verde
+    "#4CAF50": "#C8E6C9", // medio -> claro
+    "#1B5E20": "#C8E6C9", // oscuro -> claro
+
+    // Azul
+    "#2196F3": "#BBDEFB", // medio -> claro
+    "#0D47A1": "#BBDEFB", // oscuro -> claro
+
+    // Naranja
+    "#FF9800": "#FFE0B2", // medio -> claro
+    "#E65100": "#FFE0B2", // oscuro -> claro
+
+    // Morado
+    "#9C27B0": "#E1BEE7", // medio -> claro
+    "#4A148C": "#E1BEE7", // oscuro -> claro
+
+    // Rojo
+    "#F44336": "#FFCDD2", // medio -> claro
+    "#B71C1C": "#FFCDD2", // oscuro -> claro
+
+    // Grises
+    "#9E9E9E": "#F5F5F5", // gris medio -> gris claro
+    "#424242": "#F5F5F5", // gris oscuro -> gris claro
+  };
+
   React.useEffect(() => {
     setEditableTagName(tagName);
   }, [tagName]);
@@ -103,7 +129,7 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
                   className="px-4 py-2 rounded-full"
                   style={{
                     backgroundColor: selectedColor + "30",
-                    borderColor: selectedColor,
+                    borderColor: COLOR_MAPPINGS[selectedColor] || selectedColor,
                     borderWidth: 1,
                   }}
                 >
@@ -114,7 +140,7 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
                       onBlur={() => setIsEditingName(false)}
                       autoFocus
                       style={{
-                        color: selectedColor,
+                        color: COLOR_MAPPINGS[selectedColor] || selectedColor,
                         fontWeight: "500",
                         minWidth: 80,
                         textAlign: "center",
@@ -123,7 +149,9 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
                     />
                   ) : (
                     <StyledText
-                      style={{ color: selectedColor }}
+                      style={{
+                        color: COLOR_MAPPINGS[selectedColor] || selectedColor,
+                      }}
                       className="font-medium"
                     >
                       {editableTagName}
@@ -328,7 +356,31 @@ export default function TagSelector({
       .map((tagId) => tags.find((tag) => tag.id === tagId))
       .filter((tag) => tag !== undefined) as Tag[];
   };
+  const COLOR_MAPPINGS: { [key: string]: string } = {
+    // Verde
+    "#4CAF50": "#C8E6C9", // medio -> claro
+    "#1B5E20": "#C8E6C9", // oscuro -> claro
 
+    // Azul
+    "#2196F3": "#BBDEFB", // medio -> claro
+    "#0D47A1": "#BBDEFB", // oscuro -> claro
+
+    // Naranja
+    "#FF9800": "#FFE0B2", // medio -> claro
+    "#E65100": "#FFE0B2", // oscuro -> claro
+
+    // Morado
+    "#9C27B0": "#E1BEE7", // medio -> claro
+    "#4A148C": "#E1BEE7", // oscuro -> claro
+
+    // Rojo
+    "#F44336": "#FFCDD2", // medio -> claro
+    "#B71C1C": "#FFCDD2", // oscuro -> claro
+    
+    // Grises
+    "#9E9E9E": "#F5F5F5", // gris medio -> gris claro
+    "#424242": "#F5F5F5", // gris oscuro -> gris claro
+  };
   const TagCarousel = ({
     tagsArray,
     isSelected = false,
@@ -353,6 +405,7 @@ export default function TagSelector({
       >
         {tagsArray.map((tag, index) => {
           const tagColor = tag.color || "#5bb9a3";
+          const lightColor = COLOR_MAPPINGS[tagColor] || tagColor;
 
           return (
             <TouchableOpacity
@@ -363,7 +416,7 @@ export default function TagSelector({
                   ? tagColor + "30" // 30 for selected (more opaque)
                   : tagColor + "15", // 15 for unselected (more transparent)
                 borderWidth: 1,
-                borderColor: isSelected ? tagColor : tagColor + "60", // 60 for a more subtle border when not selected
+                borderColor: isSelected ? lightColor : tagColor + "60",
                 borderRadius: 20,
                 paddingHorizontal: 16,
                 paddingVertical: 8,
@@ -377,7 +430,7 @@ export default function TagSelector({
             >
               <Text
                 style={{
-                  color: isSelected ? tagColor : tagColor + "DD", // DD for slightly transparent text when not selected
+                  color: isSelected ? lightColor : tagColor + "DD", // DD for slightly transparent text when not selected
                   fontSize: 14,
                   textAlign: "center",
                   fontWeight: isSelected ? "500" : "400",
