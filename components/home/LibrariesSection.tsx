@@ -46,6 +46,7 @@ import { useEncryption } from "../../hooks/useEncryption";
 import { FileEncryptionService } from "../../utils/fileEncryption";
 import * as FileSystem from "expo-file-system";
 import { getTrickWithEncryptedPhotos } from "../../utils/trickHelpers";
+import DeleteModal from "../ui/DeleteModa";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -112,10 +113,10 @@ const getItemIcon = (type: string) => {
     default:
       return (
         <FontAwesome
-        name="magic"
-        size={20}
-        color="white"
-        style={{ transform: [{ scaleX: -1 }] }}
+          name="magic"
+          size={20}
+          color="white"
+          style={{ transform: [{ scaleX: -1 }] }}
         />
       );
   }
@@ -323,6 +324,11 @@ export default function LibrariesSection({
   const { decryptForSelf, keyPair, getPublicKey } = useEncryption();
   const encryptedService = new EncryptedContentService();
   const fileEncryptionService = new FileEncryptionService();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   // Helper function to handle encrypted files
   const handleEncryptedFile = async (
@@ -832,23 +838,36 @@ export default function LibrariesSection({
 
   // Borrar categoria
   const handleDeleteCategory = async (categoryId: string) => {
+    const category = allContent?.categories.find(
+      (cat: Category) => cat.id === categoryId
+    );
+    if (category) {
+      setCategoryToDelete({ id: category.id, name: category.name });
+      setShowDeleteModal(true);
+    }
+  };
+  // Funcion de confirmacion de borrado de categoría
+  const confirmDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+
     try {
-      const success = await deleteCategory(categoryId);
+      const success = await deleteCategory(categoryToDelete.id);
 
       if (success) {
-        // Actualizar allContent para eliminar la categoria
         setAllContent({
           ...allContent,
           categories: allContent.categories.filter(
-            (cat: Category) => cat.id !== categoryId
+            (cat: Category) => cat.id !== categoryToDelete.id
           ),
         });
       }
     } catch (error) {
       console.error("Error deleting category:", error);
+    } finally {
+      setShowDeleteModal(false);
+      setCategoryToDelete(null);
     }
   };
-
   // Open edit category modal
   const openEditCategoryModal = (category: Category) => {
     setEditingCategory(category);
@@ -1478,6 +1497,17 @@ export default function LibrariesSection({
           </SafeAreaProvider>
         </Modal>
       )}
+      {/* Delete Category Modal */}
+      <DeleteModal
+        visible={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setCategoryToDelete(null);
+        }}
+        onConfirm={confirmDeleteCategory}
+        itemName={categoryToDelete?.name}
+        itemType={t("category", "category")}
+      />
     </StyledView>
   );
 }

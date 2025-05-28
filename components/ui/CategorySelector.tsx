@@ -44,6 +44,7 @@ interface CreateCategoryModalProps {
   onConfirm: (name: string) => void;
   categoryName: string;
 }
+
 const screenWidth = Dimensions.get("window").width;
 const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
   visible,
@@ -52,6 +53,12 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
   categoryName,
 }) => {
   const { t } = useTranslation();
+  const [editableCategoryName, setEditableCategoryName] = useState(categoryName);
+  const [isEditingName, setIsEditingName] = useState(false);
+
+  React.useEffect(() => {
+    setEditableCategoryName(categoryName);
+  }, [categoryName]);
 
   return (
     <StyledModal visible={visible} transparent animationType="fade">
@@ -81,19 +88,53 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
             }}
           >
             {/* Content */}
-            <StyledView className="px-4 py-7 pb-2">
-              <StyledText className="text-white text-lg font-medium text-center">
-                {t("forms.create", "Create")} "{categoryName}"?
-              </StyledText>
+            <StyledView className="p-6">
+              {/* Header with editable category pill */}
+              <StyledView className="flex-row items-center justify-center mb-4">
+                <StyledText className="text-white text-lg font-medium mr-3">
+                  {t("forms.create", "Create")}
+                </StyledText>
+                
+                {/* Editable Category Pill */}
+                <StyledTouchableOpacity
+                  onPress={() => setIsEditingName(true)}
+                  className="px-4 py-2 rounded-lg"
+                  style={{
+                    backgroundColor: "rgba(104, 104, 104, 0.027)",
+                    borderColor: "rgba(255, 255, 255, 0.568)",
+                    borderWidth: 1,
+                  }}
+                >
+                  {isEditingName ? (
+                    <StyledTextInput
+                      value={editableCategoryName}
+                      onChangeText={setEditableCategoryName}
+                      onBlur={() => setIsEditingName(false)}
+                      autoFocus
+                      style={{ 
+                        color: "#ffffff",
+                        fontWeight: "500",
+                        minWidth: 80,
+                        textAlign: "center"
+                      }}
+                      className="text-base"
+                    />
+                  ) : (
+                    <StyledText
+                      style={{ color: "#ffffff" }}
+                      className="font-medium"
+                    >
+                      {editableCategoryName}
+                    </StyledText>
+                  )}
+                </StyledTouchableOpacity>
+              </StyledView>
             </StyledView>
-
-            {/* Spacer */}
-            <StyledView className="h-4" />
 
             {/* Actions - No gap between buttons */}
             <StyledBlurView
               className="flex-row overflow-hidden"
-              style={{ height: 52 }}
+              style={{ height: 56 }}
               intensity={60}
               tint="default"
             >
@@ -102,7 +143,7 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
                 style={{
                   backgroundColor: "rgba(255, 255, 255, 0.1)",
                   borderTopWidth: 1,
-                  borderRightWidth: 0.5,
+                  borderLeftWidth: 0.5,
                   borderColor: "rgba(200, 200, 200, 0.4)",
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 10 },
@@ -129,7 +170,7 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
                   shadowRadius: 20,
                   elevation: 10,
                 }}
-                onPress={() => onConfirm(categoryName)}
+                onPress={() => onConfirm(editableCategoryName)}
               >
                 <StyledText className="text-white/60 text-base font-medium">
                   {t("common.create", "Create")}
