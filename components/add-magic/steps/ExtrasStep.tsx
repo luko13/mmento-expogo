@@ -498,29 +498,37 @@ export default function ExtrasStepEncrypted({
 
   // Formatear tiempo de duración para mostrar
   const formatDuration = (durationInSeconds: number | null) => {
-    if (!durationInSeconds)
-      return t("setDurationTime", "Establecer tiempo de duración");
+  if (!durationInSeconds)
+    return t("setDurationTime", "Establecer tiempo de duración");
 
-    const minutes = Math.floor(durationInSeconds / 60);
-    const seconds = durationInSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")} ${t(
-      "minutes",
-      "minutos"
-    )}`;
-  };
+  const minutes = Math.floor(durationInSeconds / 60);
+  const seconds = durationInSeconds % 60;
+  
+  if (minutes === 0) {
+    return `${seconds} s`;
+  } else if (seconds === 0) {
+    return `${minutes} min`;
+  } else {
+    return `${minutes} min ${seconds} s`;
+  }
+};
 
   // Formatear tiempo de reinicio para mostrar
   const formatReset = (resetInSeconds: number | null) => {
-    if (!resetInSeconds)
-      return t("setResetTime", "Establecer tiempo de reinicio");
+  if (!resetInSeconds)
+    return t("setResetTime", "Establecer tiempo de reinicio");
 
-    const minutes = Math.floor(resetInSeconds / 60);
-    const seconds = resetInSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")} ${t(
-      "minutes",
-      "minutos"
-    )}`;
-  };
+  const minutes = Math.floor(resetInSeconds / 60);
+  const seconds = resetInSeconds % 60;
+  
+  if (minutes === 0) {
+    return `${seconds} s`;
+  } else if (seconds === 0) {
+    return `${minutes} min`;
+  } else {
+    return `${minutes} min ${seconds} s`;
+  }
+};
 
   return (
     <StyledView className="flex-1">
