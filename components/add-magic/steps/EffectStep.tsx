@@ -601,7 +601,7 @@ export default function EffectStepEncrypted({
                 <Feather name="video" size={24} color="white" />
               </StyledView>
             </CustomTooltip>
-            <StyledView className="flex-1">
+            <StyledView className="flex-1 ">
               <StyledTouchableOpacity
                 onPress={pickEffectVideo}
                 disabled={uploading || !encryptionReady}
@@ -649,7 +649,7 @@ export default function EffectStepEncrypted({
                   <MaterialCommunityIcons name="creation" size={24} color="white" />
                 </StyledView>
               </CustomTooltip>
-              <StyledView className="flex-1">
+              <StyledView className="flex-1 ">
                 <StyledView className="flex-row"></StyledView>
                 <StyledTextInput
                   className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[80px]"
@@ -687,7 +687,7 @@ export default function EffectStepEncrypted({
                 <Feather name="video" size={24} color="white" />
               </StyledView>
             </CustomTooltip>
-            <StyledView className="flex-1 ml-3">
+            <StyledView className="flex-1 ">
               <StyledTouchableOpacity
                 onPress={pickSecretVideo}
                 disabled={uploading || !encryptionReady}
@@ -735,7 +735,7 @@ export default function EffectStepEncrypted({
                   <Feather name="lock" size={24} color="white" />
                 </StyledView>
               </CustomTooltip>
-              <StyledView className="flex-1 ml-3">
+              <StyledView className="flex-1 ">
                 <StyledView className="flex-row"></StyledView>
                 <StyledTextInput
                   className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[80px]"

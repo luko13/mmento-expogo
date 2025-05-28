@@ -60,8 +60,8 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
             intensity={60}
             tint="default"
             style={{
-              width: screenWidth * 0.85,
-              maxWidth: 350,
+              width: screenWidth * 0.9,
+              maxWidth: 400,
               backgroundColor: "rgba(255, 255, 255, 0.25)",
               borderRadius: 20,
               borderWidth: 1,
@@ -75,7 +75,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
           >
             {/* Content */}
             <StyledView className="px-6 py-5">
-              <StyledText className="text-white/90 text-base text-center">
+              <StyledText className="text-white/90 text-2xl font-light text-center">
                 {getDeleteMessage().split('<')[0]}
                 {itemName && itemType && (
                   <>
@@ -109,7 +109,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
                 }}
                 onPress={onClose}
               >
-                <StyledText className="text-white/60 text-base font-medium">
+                <StyledText className="text-white/60 text-base font-light">
                   {t("common.cancel", "Cancel")}
                 </StyledText>
               </StyledTouchableOpacity>
@@ -124,7 +124,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
                 }}
                 onPress={onConfirm}
               >
-                <StyledText className="text-red-400 text-base font-medium">
+                <StyledText className="text-red-500 text-base font-medium">
                   {t("common.delete", "Delete")}
                 </StyledText>
               </StyledTouchableOpacity>

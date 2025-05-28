@@ -93,7 +93,7 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
             <StyledView className="p-6">
               {/* Header with editable tag pill */}
               <StyledView className="flex-row items-center justify-center mb-6">
-                <StyledText className="text-white text-lg font-medium mr-3">
+                <StyledText className="text-white text-2xl font-light mr-3">
                   {t("forms.create", "Create")}
                 </StyledText>
 
@@ -167,7 +167,7 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
                 }}
                 onPress={onClose}
               >
-                <StyledText className="text-white/60 text-base font-medium">
+                <StyledText className="text-white/60 text-base font-light">
                   {t("common.cancel", "Cancel")}
                 </StyledText>
               </StyledTouchableOpacity>
@@ -186,7 +186,7 @@ const CreateTagModal: React.FC<CreateTagModalProps> = ({
                 }}
                 onPress={() => onConfirm(editableTagName, selectedColor)}
               >
-                <StyledText className="text-white/60 text-base font-medium">
+                <StyledText className="text-white text-base font-medium">
                   {t("common.create", "Create")}
                 </StyledText>
               </StyledTouchableOpacity>

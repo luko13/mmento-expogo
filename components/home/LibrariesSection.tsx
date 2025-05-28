@@ -838,6 +838,7 @@ export default function LibrariesSection({
 
   // Borrar categoria
   const handleDeleteCategory = async (categoryId: string) => {
+    
     const category = allContent?.categories.find(
       (cat: Category) => cat.id === categoryId
     );

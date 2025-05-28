@@ -88,10 +88,10 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
             }}
           >
             {/* Content */}
-            <StyledView className="p-6">
+            <StyledView className="pt-6 pb-1 px-6 ">
               {/* Header with editable category pill */}
               <StyledView className="flex-row items-center justify-center mb-4">
-                <StyledText className="text-white text-lg font-medium mr-3">
+                <StyledText className="text-white text-2xl font-light mr-3">
                   {t("forms.create", "Create")}
                 </StyledText>
                 
@@ -131,7 +131,7 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
               </StyledView>
             </StyledView>
 
-            {/* Actions - No gap between buttons */}
+            {/* Actions */}
             <StyledBlurView
               className="flex-row overflow-hidden"
               style={{ height: 56 }}
@@ -153,7 +153,7 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
                 }}
                 onPress={onClose}
               >
-                <StyledText className="text-white/60 text-base font-medium">
+                <StyledText className="text-white/60 text-base font-light">
                   {t("common.cancel", "Cancel")}
                 </StyledText>
               </StyledTouchableOpacity>
@@ -172,7 +172,7 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
                 }}
                 onPress={() => onConfirm(editableCategoryName)}
               >
-                <StyledText className="text-white/60 text-base font-medium">
+                <StyledText className="text-white text-base font-medium">
                   {t("common.create", "Create")}
                 </StyledText>
               </StyledTouchableOpacity>
