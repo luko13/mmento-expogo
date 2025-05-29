@@ -80,7 +80,6 @@ export default function ActionButtonsCarousel() {
       id: "4",
       icon: <Feather name="box" size={36} color="white" />,
       title: t("addGimmick"),
-      onPress: () => console.log("Add Gimmick pressed"),
     },
   ]
 

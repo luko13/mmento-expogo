@@ -32,6 +32,8 @@ import CategorySelector from "../ui/CategorySelector";
 import { EncryptionSetup } from "../security/EncryptionSetup";
 import type { EncryptedMagicTrick } from "../../types/encryptedMagicTrick";
 import CustomTooltip from "../ui/Tooltip";
+import SuccessCreationModal from "../ui/SuccessCreationModal";
+import { useRouter } from "expo-router";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -48,12 +50,15 @@ export default function QuickAddMagicForm({
   onComplete,
   onCancel,
 }: QuickAddMagicFormProps) {
+  const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEncryptionSetup, setShowEncryptionSetup] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [userId, setUserId] = useState<string | undefined>();
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [createdItemId, setCreatedItemId] = useState<string | null>(null);
 
   // Encryption hooks
   const {
@@ -488,18 +493,8 @@ export default function QuickAddMagicForm({
       }
 
       // Success
-      Alert.alert(
-        t("success", "Success"),
-        t(
-          "quickMagic.createdSuccessfully",
-          "Quick magic created successfully!"
-        ),
-        [{ text: t("ok", "OK") }]
-      );
-
-      if (onComplete) {
-        onComplete(trickId);
-      }
+      setCreatedItemId(trickId);
+      setShowSuccessModal(true);
     } catch (error) {
       console.error("Error during save:", error);
       Alert.alert(
@@ -512,7 +507,104 @@ export default function QuickAddMagicForm({
       setIsSubmitting(false);
     }
   };
+  // Modal handlers
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    if (onComplete && createdItemId) {
+      onComplete(createdItemId);
+    }
+  };
 
+  const handleViewItem = async () => {
+    setShowSuccessModal(false);
+    if (createdItemId) {
+      try {
+        const { data: trickData } = await supabase
+          .from("magic_tricks")
+          .select(
+            `
+          *,
+          trick_categories!inner(category_id)
+        `
+          )
+          .eq("id", createdItemId)
+          .single();
+
+        if (trickData) {
+          let categoryName = "Unknown";
+          if (trickData.trick_categories?.[0]?.category_id) {
+            const { data: categoryData } = await supabase
+              .from("user_categories")
+              .select("name")
+              .eq("id", trickData.trick_categories[0].category_id)
+              .single();
+
+            if (categoryData) categoryName = categoryData.name;
+          }
+
+          const navigationData = {
+            id: trickData.id,
+            title: trickData.title,
+            category: categoryName,
+            effect: trickData.effect || "",
+            secret: trickData.secret || "",
+            effect_video_url: trickData.effect_video_url,
+            secret_video_url: trickData.secret_video_url,
+            photo_url: trickData.photo_url,
+            photos: [],
+            script: "",
+            angles: trickData.angles || [],
+            duration: trickData.duration || 0,
+            reset: trickData.reset || 0,
+            difficulty: trickData.difficulty || 0,
+            is_encrypted: trickData.is_encrypted,
+            notes: trickData.notes,
+          };
+
+          router.push({
+            pathname: "/trick/[id]",
+            params: {
+              id: createdItemId,
+              trick: JSON.stringify(navigationData),
+            },
+          });
+        }
+      } catch (error) {
+        console.error("Error loading trick:", error);
+      }
+    }
+  };
+
+  const handleAddAnother = () => {
+    setShowSuccessModal(false);
+    // Reset form data
+    setQuickTrickData({
+      title: "",
+      selectedCategoryId: null,
+      effect: "",
+      effect_video_url: null,
+      isEncryptionEnabled: true,
+      encryptedFields: {},
+      encryptedFiles: {},
+      categories: [],
+      tags: [],
+      angles: [],
+      duration: null,
+      reset: null,
+      difficulty: 5,
+      secret: "",
+      secret_video_url: null,
+      special_materials: [],
+      notes: "",
+      script: "",
+      photo_url: null,
+      techniqueIds: [],
+      gimmickIds: [],
+      is_public: false,
+      status: "draft",
+      price: null,
+    });
+  };
   return (
     <StyledView className="flex-1" style={{ paddingTop: 15 }}>
       {/* Header */}
@@ -688,17 +780,11 @@ export default function QuickAddMagicForm({
             <Feather name="shield" size={32} color="#10b9813b" />
           </StyledView>
           <StyledText className="text-[#10b981]/40 text-xs mt-2 text-center">
-                {t(
-                  "security.magicSecretsSafe",
-                  "Tus secretos están protegidos"
-                )}
-              </StyledText>
-              <StyledText className="text-[#10b981]/40 text-xs text-center">
-                {t(
-                  "security.endToEndEncrypted",
-                  "Cifrado de extremo a extremo"
-                )}
-              </StyledText>
+            {t("security.magicSecretsSafe", "Tus secretos están protegidos")}
+          </StyledText>
+          <StyledText className="text-[#10b981]/40 text-xs text-center">
+            {t("security.endToEndEncrypted", "Cifrado de extremo a extremo")}
+          </StyledText>
         </StyledView>
       </StyledScrollView>
 
@@ -745,6 +831,15 @@ export default function QuickAddMagicForm({
         visible={showEncryptionSetup}
         onClose={() => setShowEncryptionSetup(false)}
         onSetupComplete={() => {}}
+      />
+      {/* Success Modal */}
+      <SuccessCreationModal
+        visible={showSuccessModal}
+        onClose={handleCloseSuccessModal}
+        onViewItem={handleViewItem}
+        onAddAnother={handleAddAnother}
+        itemName={quickTrickData.title || t("common.trick", "Trick")}
+        itemType="trick"
       />
     </StyledView>
   );

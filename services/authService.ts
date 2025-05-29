@@ -15,7 +15,7 @@ export class AuthService {
 
   async signUp(email: string, password: string, username?: string) {
     try {
-      console.log('AuthService: Starting sign up');
+      
       
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -28,7 +28,7 @@ export class AuthService {
       if (authError) throw authError;
       if (!authData.user) throw new Error('No user data returned');
 
-      console.log('AuthService: User created, generating encryption keys');
+      
 
       // Generar claves usando la contraseña del login
       const keyPair = await this.cryptoService.generateKeyPairWithCloudBackup(
@@ -36,7 +36,7 @@ export class AuthService {
         password
       );
 
-      console.log('AuthService: Keys generated successfully');
+      
 
       return { user: authData.user, session: authData.session };
     } catch (error) {
@@ -47,7 +47,7 @@ export class AuthService {
 
   async signIn(email: string, password: string) {
     try {
-      console.log('AuthService: Starting sign in');
+      
       
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
@@ -57,7 +57,7 @@ export class AuthService {
       if (authError) throw authError;
       if (!authData.user || !authData.session) throw new Error('Invalid credentials');
 
-      console.log('AuthService: User authenticated, initializing encryption');
+      
 
       // Intentar recuperar claves de la nube
       const keyPair = await this.cryptoService.initializeFromCloud(
@@ -66,13 +66,13 @@ export class AuthService {
       );
 
       if (!keyPair) {
-        console.log('AuthService: No cloud backup found, generating new keys');
+        
         await this.cryptoService.generateKeyPairWithCloudBackup(
           authData.user.id,
           password
         );
       } else {
-        console.log('AuthService: Encryption initialized from cloud');
+        
       }
 
       return { user: authData.user, session: authData.session };

@@ -50,6 +50,7 @@ import DeleteModal from "../ui/DeleteModal";
 import CantDeleteModal from "../ui/CantDeleteModal";
 import CategoryActionsModal from "../ui/CategoryActionsModal";
 import CategoryModal from "../ui/CategoryModal";
+import { useRouter } from "expo-router";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -300,6 +301,7 @@ export default function LibrariesSection({
   searchQuery = "",
   searchFilters,
 }: LibrariesSectionProps) {
+  const router = useRouter();
   const { t } = useTranslation();
   const [isAddCategoryModalVisible, setAddCategoryModalVisible] =
     useState(false);
@@ -1266,10 +1268,17 @@ export default function LibrariesSection({
     async (item: LibraryItem) => {
       const itemData = await fetchItemData(item);
       if (itemData) {
-        setSelectedTrickData(itemData);
+        // Navegar a la ruta dinámica con los datos serializados
+        router.push({
+          pathname: "/trick/[id]",
+          params: {
+            id: itemData.id,
+            trick: JSON.stringify(itemData),
+          },
+        });
       }
     },
-    [decryptForSelf, keyPair]
+    [decryptForSelf, keyPair, router]
   );
 
   // Renderizado de categoria con memoria

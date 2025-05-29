@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Alert } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useRouter } from 'expo-router';
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "../../lib/supabase";
 import { useEncryption } from "../../hooks/useEncryption";
@@ -16,20 +17,27 @@ import {
 import TitleCategoryStepEncrypted from "./steps/TitleCategoryStep";
 import EffectStepEncrypted from "./steps/EffectStep";
 import ExtrasStepEncrypted from "./steps/ExtrasStep";
+import SuccessCreationModal from "../ui/SuccessCreationModal";
 
 interface AddMagicWizardEncryptedProps {
   onComplete?: (trickId: string) => void;
   onCancel?: () => void;
+  onViewItem?: (trickId: string) => void;
 }
 
 export default function AddMagicWizardEncrypted({
   onComplete,
   onCancel,
+  onViewItem,
 }: AddMagicWizardEncryptedProps) {
   const { t } = useTranslation();
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEncryptionSetup, setShowEncryptionSetup] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [createdItemId, setCreatedItemId] = useState<string | null>(null);
+  const [savedPhotos, setSavedPhotos] = useState<string[]>([]);
 
   // Hook de cifrado
   const {
@@ -352,6 +360,7 @@ export default function AddMagicWizardEncrypted({
       ) {
         // Guardar el array completo de fotos
         encryptedFileIds.photos = trickData.encryptedFiles.photos;
+        setSavedPhotos(trickData.encryptedFiles.photos); // Guardar para usar después
 
         // También establecer la primera foto como principal
         encryptedFileIds.photo = trickData.encryptedFiles.photos[0];
@@ -529,18 +538,8 @@ export default function AddMagicWizardEncrypted({
       }
 
       // Éxito
-      Alert.alert(
-        t("success", "Éxito"),
-        t(
-          "trickCreatedSuccessfully",
-          "El truco ha sido creado y cifrado exitosamente"
-        ),
-        [{ text: t("ok", "OK") }]
-      );
-
-      if (onComplete) {
-        onComplete(trickId);
-      }
+      setCreatedItemId(trickId);
+      setShowSuccessModal(true);
     } catch (error) {
       console.error("Error durante el guardado:", error);
       Alert.alert(
@@ -552,6 +551,114 @@ export default function AddMagicWizardEncrypted({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Modal handlers
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    if (onComplete && createdItemId) {
+      onComplete(createdItemId);
+    }
+  };
+
+  const handleViewItem = async () => {
+    setShowSuccessModal(false);
+    if (createdItemId) {
+      try {
+        // Obtener los datos del truco creado con información de categorías
+        const { data: trickData } = await supabase
+          .from('magic_tricks')
+          .select(`
+            *,
+            trick_categories!inner(category_id)
+          `)
+          .eq('id', createdItemId)
+          .single();
+          
+        if (trickData) {
+          // Obtener el nombre de la categoría
+          let categoryName = "Unknown";
+          if (trickData.trick_categories && trickData.trick_categories.length > 0) {
+            const { data: categoryData } = await supabase
+              .from('user_categories')
+              .select('name')
+              .eq('id', trickData.trick_categories[0].category_id)
+              .single();
+            
+            if (categoryData) {
+              categoryName = categoryData.name;
+            }
+          }
+          
+          // Preparar datos para la navegación
+          const navigationData = {
+            id: trickData.id,
+            title: trickData.title,
+            category: categoryName,
+            effect: trickData.effect || "",
+            secret: trickData.secret || "",
+            effect_video_url: trickData.effect_video_url,
+            secret_video_url: trickData.secret_video_url,
+            photo_url: trickData.photo_url,
+            photos: savedPhotos || [],  // Usar las fotos cifradas guardadas
+            script: trickData.script || "",
+            angles: trickData.angles || [],
+            duration: trickData.duration || 0,
+            reset: trickData.reset || 0,
+            difficulty: trickData.difficulty || 0,
+            is_encrypted: trickData.is_encrypted,
+            notes: trickData.notes
+          };
+          
+          // Navegar a la página del truco
+          router.push({
+            pathname: '/trick/[id]',
+            params: { 
+              id: createdItemId,
+              trick: JSON.stringify(navigationData)
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error loading trick data:", error);
+        // Si falla, llamar al callback original si existe
+        if (onViewItem) {
+          onViewItem(createdItemId);
+        }
+      }
+    }
+  };
+
+  const handleAddAnother = () => {
+    setShowSuccessModal(false);
+    // Reset form data
+    setTrickData({
+      title: "",
+      categories: [],
+      tags: [],
+      selectedCategoryId: null,
+      effect: "",
+      effect_video_url: null,
+      angles: [],
+      duration: null,
+      reset: null,
+      difficulty: 5,
+      secret: "",
+      secret_video_url: null,
+      special_materials: [],
+      notes: "",
+      script: "",
+      photo_url: null,
+      techniqueIds: [],
+      gimmickIds: [],
+      is_public: false,
+      status: "draft",
+      price: null,
+      isEncryptionEnabled: true,
+      encryptedFields: {},
+      encryptedFiles: {},
+    });
+    setCurrentStep(0);
   };
 
   // Renderizar el componente del paso actual
@@ -576,6 +683,16 @@ export default function AddMagicWizardEncrypted({
         visible={showEncryptionSetup}
         onClose={() => setShowEncryptionSetup(false)}
         onSetupComplete={() => {}}
+      />
+
+      {/* Success Modal */}
+      <SuccessCreationModal
+        visible={showSuccessModal}
+        onClose={handleCloseSuccessModal}
+        onViewItem={handleViewItem}
+        onAddAnother={handleAddAnother}
+        itemName={trickData.title || t("common.trick", "Trick")}
+        itemType="trick"
       />
     </>
   );

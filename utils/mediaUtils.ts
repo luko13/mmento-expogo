@@ -296,7 +296,6 @@ export const uploadFileToStorage = async (
       
       // Verificar tamaño después de comprimir
       const compressedInfo = await getFileInfo(uri);
-      console.log(`Imagen comprimida: ${fileInfo.size.toFixed(2)}MB -> ${compressedInfo.size.toFixed(2)}MB`);
     }
     
     // Elegir el método de subida adecuado

@@ -84,7 +84,6 @@ export default function Tricks() {
   const renderTrickItem = ({ item }: { item: Trick }) => (
     <StyledTouchableOpacity
       className="bg-white/10 p-4 rounded-lg mb-3"
-      onPress={() => console.log("Navigate to trick details", item.id)}
     >
       <StyledText className="text-white font-bold">{item.title}</StyledText>
       <StyledText className="text-white/70">{t(`difficulty.${item.difficulty}`, item.difficulty)}</StyledText>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from 'expo-router';
 import type React from "react";
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
@@ -58,7 +59,7 @@ interface TrickViewScreenProps {
     is_encrypted?: boolean;
     user_id?: string;
   };
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
@@ -67,12 +68,22 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [currentSection, setCurrentSection] = useState<StageType>("effect");
   const scrollViewRef = useRef<ScrollView>(null);
   const [isEffectPlaying, setIsEffectPlaying] = useState(true);
   const [isSecretPlaying, setIsSecretPlaying] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
   const [overlayOpacity] = useState(new Animated.Value(0));
+  
+  // Función para cerrar 
+  const handleClose = () => {
+    if (onClose) {
+      router.push("/(app)/home");
+    } else {
+      router.push("/(app)/home");
+    }
+  };
 
   // Estados para videos descifrados
   const [effectVideoUrl, setEffectVideoUrl] = useState<string | null>(null);
@@ -112,14 +123,14 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   // Usar las fotos proporcionadas o crear un array con la foto principal si existe
   const photos = trick.photos || (trick.photo_url ? [trick.photo_url] : []);
 
-  // TEMPORAL: Para probar con múltiples fotos
-  // Descomentar estas líneas para simular 3 fotos
-  // const photos = trick.photo_url ? [
-  //   trick.photo_url,
-  //   trick.photo_url,
-  //   trick.photo_url
-  // ] : []
-// Crear tags de ejemplo si no existen
+  console.log("📱 Fotos iniciales del trick:", {
+    photos_array: trick.photos,
+    photo_url: trick.photo_url,
+    photos_length: photos.length,
+    photos_content: photos,
+  });
+
+  // Crear tags de ejemplo si no existen
   const tags = trick.tags || [
     { id: "1", name: "Card Magic" },
     { id: "2", name: "Sleight of Hand" },
@@ -321,7 +332,13 @@ useEffect(() => {
       }
       
       // LOG 1: Ver qué fotos llegan
-// Si no está cifrado, usar fotos originales
+      console.log("🔍 INICIO loadPhotos - fotos recibidas:", {
+        photos_from_props: trick.photos,
+        photos_array_length: photos.length,
+        is_encrypted: trick.is_encrypted
+      });
+      
+      // Si no está cifrado, usar fotos originales
       if (!trick.is_encrypted) {
         setDecryptedPhotos(photos);
         photosLoadedRef.current = true;
@@ -355,19 +372,33 @@ useEffect(() => {
       }
 
       // LOG 2: Ver qué devuelve el servicio
-const processedPhotos: string[] = [];
+      console.log("🔍 Contenido descifrado COMPLETO:", {
+        has_encrypted_files: !!decryptedContent.encrypted_files,
+        encrypted_files: decryptedContent.encrypted_files,
+        photos_in_decrypted: decryptedContent.photos,
+        photos_count: decryptedContent.photos?.length || 0
+      });
+
+      const processedPhotos: string[] = [];
 
       // OPCIÓN 1: Buscar en las fotos que vienen del prop
       if (trick.photos && Array.isArray(trick.photos) && trick.photos.length > 0) {
-const photoPromises = trick.photos.map(async (photoId: string, index: number) => {
-try {
+        console.log(`📸 Procesando ${trick.photos.length} fotos desde props`);
+        
+        const photoPromises = trick.photos.map(async (photoId: string, index: number) => {
+          console.log(`📸 Descifrando foto ${index + 1}: ${photoId}`);
+          
+          try {
             const decryptedPhoto = await fileEncryption.downloadAndDecryptFile(
               photoId,
               user.id,
               getPublicKey,
               () => keyPair.privateKey
             );
-// Convertir a base64 en chunks
+            
+            console.log(`✅ Foto ${index + 1} descifrada, tamaño: ${decryptedPhoto.data.length}`);
+            
+            // Convertir a base64 en chunks
             let binaryString = '';
             const chunkSize = 8192;
             for (let j = 0; j < decryptedPhoto.data.length; j += chunkSize) {
@@ -392,21 +423,27 @@ try {
           .map(result => result.dataUri);
         
         processedPhotos.push(...orderedPhotos);
-}
+        
+        console.log(`✅ Total fotos procesadas: ${processedPhotos.length} de ${trick.photos.length}`);
+      }
       // OPCIÓN 2: Si no hay fotos en props, buscar en encrypted_files (código existente)
       else if (decryptedContent.encrypted_files?.photos && Array.isArray(decryptedContent.encrypted_files.photos)) {
-// ... código existente ...
+        console.log(`📸 Procesando ${decryptedContent.encrypted_files.photos.length} fotos desde encrypted_files`);
+        // ... código existente ...
       }
       // OPCIÓN 3: Foto única
       else if (decryptedContent.photo_url && decryptedContent.photo_url.startsWith('encrypted_')) {
-// ... código existente ...
+        console.log("📸 Procesando foto única cifrada");
+        // ... código existente ...
       }
 
       // Actualizar el estado con las fotos procesadas
       if (processedPhotos.length > 0) {
-setDecryptedPhotos(processedPhotos);
+        console.log("✅ Estableciendo fotos descifradas:", processedPhotos.length);
+        setDecryptedPhotos(processedPhotos);
       } else {
-setDecryptedPhotos(photos);
+        console.log("⚠️ No se procesaron fotos, usando originales");
+        setDecryptedPhotos(photos);
       }
       
       photosLoadedRef.current = true;
@@ -631,6 +668,14 @@ setDecryptedPhotos(photos);
         ? decryptedPhotos
         : photos;
 
+    console.log("🖼️ renderPhotoGallery:", {
+      is_encrypted: trick.is_encrypted,
+      decryptedPhotos_length: decryptedPhotos.length,
+      photos_length: photos.length,
+      photosToDisplay_length: photosToDisplay.length,
+      first_photo_preview: photosToDisplay[0]?.substring(0, 100),
+    });
+
     if (photosToDisplay.length === 0) {
       return (
         <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
@@ -740,7 +785,7 @@ setDecryptedPhotos(photos);
       >
         <TopNavigationBar
           title={trick.title}
-          onBackPress={onClose}
+          onBackPress={handleClose}
           onLikePress={handleLikePress}
           onEditPress={handleEditPress}
           isLiked={isLiked}

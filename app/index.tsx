@@ -43,7 +43,7 @@ const precacheHomeData = async () => {
 
     await Promise.all(promises);
 
-    console.log("Datos de la homepage precargados con éxito");
+    
     return true;
   } catch (error) {
     console.error("Error al precargar datos de la homepage:", error);

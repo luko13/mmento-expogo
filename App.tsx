@@ -24,7 +24,7 @@ export default function App() {
   useEffect(() => {
     async function loadFonts() {
       try {
-        console.log("Starting font loading...")
+        
         setFontInfo((prev) => [...prev, "Starting font loading..."])
 
         // Method 1: Load fonts directly from assets
@@ -33,7 +33,7 @@ export default function App() {
             "Outfit-Regular": require("./assets/fonts/Outfit-Regular.ttf"),
             "Outfit-Bold": require("./assets/fonts/Outfit-Bold.ttf"),
           })
-          console.log("Fonts loaded from local assets")
+          
           setFontInfo((prev) => [...prev, "✓ Fonts loaded from local assets"])
         } catch (error) {
           console.error("Error loading fonts from assets:", error)
@@ -49,7 +49,7 @@ export default function App() {
               "Outfit-Regular": Outfit.Outfit_400Regular,
               "Outfit-Bold": Outfit.Outfit_700Bold,
             })
-            console.log("Fonts loaded from @expo-google-fonts")
+            
             setFontInfo((prev) => [...prev, "✓ Fonts loaded from @expo-google-fonts"])
           } catch (error) {
             console.error("Error loading fonts from @expo-google-fonts:", error)
@@ -63,7 +63,7 @@ export default function App() {
 
         // Verify fonts are available
         const fontNames = await Font.getLoadedFonts()
-        console.log("Available fonts:", fontNames)
+        
         setFontInfo((prev) => [...prev, `Available fonts: ${fontNames.join(", ")}`])
 
         setFontsLoaded(true)

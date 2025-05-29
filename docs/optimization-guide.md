@@ -575,7 +575,7 @@ export class PerformanceMonitor {
 
     // Log en desarrollo
     if (__DEV__) {
-      console.log(`⏱️ ${name}: ${duration}ms`);
+      
     }
   }
 

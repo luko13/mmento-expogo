@@ -31,6 +31,7 @@ import { v4 as uuidv4 } from "uuid";
 import { useEncryption } from "../../../hooks/useEncryption";
 import { FileEncryptionService } from "../../../utils/fileEncryption";
 import CustomTooltip from "../../ui/Tooltip";
+import SuccessCreationModal from "../../ui/SuccessCreationModal";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -43,6 +44,7 @@ interface StepProps {
   updateTrickData: (data: Partial<EncryptedMagicTrick>) => void;
   onNext?: () => void;
   onCancel?: () => void;
+  onViewItem?: (trickId: string) => void;
   currentStep?: number;
   totalSteps?: number;
   isSubmitting?: boolean;
@@ -55,6 +57,7 @@ export default function EffectStepEncrypted({
   updateTrickData,
   onNext,
   onCancel,
+  onViewItem,
   currentStep = 2,
   totalSteps = 3,
   isSubmitting = false,
@@ -67,6 +70,9 @@ export default function EffectStepEncrypted({
     "effect" | "secret" | null
   >(null);
   const [saving, setSaving] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [createdItemId, setCreatedItemId] = useState<string | null>(null);
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -526,16 +532,8 @@ export default function EffectStepEncrypted({
         await updateTagsUsageCount(trickData.tags);
       }
 
-      Alert.alert(
-        t("success", "Éxito"),
-        t(
-          "trickCreatedSuccessfully",
-          "El truco ha sido creado y cifrado exitosamente"
-        ),
-        [{ text: t("ok", "OK") }]
-      );
-
-      router.replace("/(app)/home");
+      setCreatedItemId(trickId);
+      setShowSuccessModal(true);
     } catch (error) {
       console.error("Error saving trick:", error);
       Alert.alert(
@@ -548,6 +546,80 @@ export default function EffectStepEncrypted({
     } finally {
       setSaving(false);
     }
+  };
+
+  // Modal handlers
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    router.replace("/(app)/home");
+  };
+
+  const handleViewItem = async () => {
+    setShowSuccessModal(false);
+    if (createdItemId) {
+      try {
+        // Obtener datos del truco
+        const { data: trickData } = await supabase
+          .from('magic_tricks')
+          .select(`
+            *,
+            trick_categories!inner(category_id)
+          `)
+          .eq('id', createdItemId)
+          .single();
+          
+        if (trickData) {
+          // Obtener nombre de categoría
+          let categoryName = "Unknown";
+          if (trickData.trick_categories?.[0]?.category_id) {
+            const { data: categoryData } = await supabase
+              .from('user_categories')
+              .select('name')
+              .eq('id', trickData.trick_categories[0].category_id)
+              .single();
+            
+            if (categoryData) categoryName = categoryData.name;
+          }
+          
+          // Preparar datos para navegación
+          const navigationData = {
+            id: trickData.id,
+            title: trickData.title,
+            category: categoryName,
+            effect: trickData.effect || "",
+            secret: trickData.secret || "",
+            effect_video_url: trickData.effect_video_url,
+            secret_video_url: trickData.secret_video_url,
+            photo_url: trickData.photo_url,
+            photos: trickData.encryptedFiles?.photos || [],
+            script: "",
+            angles: trickData.angles || [],
+            duration: trickData.duration || 0,
+            reset: trickData.reset || 0,
+            difficulty: trickData.difficulty || 0,
+            is_encrypted: trickData.is_encrypted,
+            notes: trickData.notes
+          };
+          
+          // Navegar a página del truco
+          router.push({
+            pathname: '/trick/[id]',
+            params: { 
+              id: createdItemId,
+              trick: JSON.stringify(navigationData)
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error loading trick:", error);
+        if (onViewItem) onViewItem(createdItemId);
+      }
+    }
+  };
+
+  const handleAddAnother = () => {
+    setShowSuccessModal(false);
+    router.replace("/(app)/add-magic");
   };
 
   return (
@@ -646,7 +718,11 @@ export default function EffectStepEncrypted({
                 textColor="white"
               >
                 <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                  <MaterialCommunityIcons name="creation" size={24} color="white" />
+                  <MaterialCommunityIcons
+                    name="creation"
+                    size={24}
+                    color="white"
+                  />
                 </StyledView>
               </CustomTooltip>
               <StyledView className="flex-1 ">
@@ -819,6 +895,15 @@ export default function EffectStepEncrypted({
           )}
         </StyledTouchableOpacity>
       </StyledView>
+      {/* Success Modal */}
+      <SuccessCreationModal
+        visible={showSuccessModal}
+        onClose={handleCloseSuccessModal}
+        onViewItem={handleViewItem}
+        onAddAnother={handleAddAnother}
+        itemName={trickData.title || t("common.trick", "Trick")}
+        itemType="trick"
+      />
     </StyledView>
   );
 }

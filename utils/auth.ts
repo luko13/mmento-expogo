@@ -44,22 +44,22 @@ export const signIn = async (email: string, password: string): Promise<boolean> 
 //* Funcion registro con cifrado automático
 export const signUp = async (email: string, password: string): Promise<boolean> => {
   try {
-    console.log("Iniciando signUp en auth.ts");
+    
     
     const { user, session } = await authService.signUp(email, password);
     
     if (!user) {
-      console.log("No user returned from sign up");
+      
       return false;
     }
 
-    console.log("Registro exitoso, usuario y cifrado configurados");
+    
 
     if (session) {
-      console.log("Sesión creada, guardando token");
+      
       await setAuthToken(session.access_token);
     } else {
-      console.log("Esperando confirmación de email");
+      
     }
 
     return true;
