@@ -838,7 +838,6 @@ export default function LibrariesSection({
 
   // Borrar categoria
   const handleDeleteCategory = async (categoryId: string) => {
-    console.log
     const category = allContent?.categories.find(
       (cat: Category) => cat.id === categoryId
     );
@@ -1278,7 +1277,7 @@ export default function LibrariesSection({
         />
       );
     },
-    [searchQuery, searchFilters, handleItemPress, t]
+    [searchQuery, searchFilters, handleItemPress, openEditCategoryModal, handleDeleteCategory, t]
   );
 
   // Renderizado final
