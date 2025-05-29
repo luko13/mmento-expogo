@@ -10,6 +10,7 @@ import { checkSession } from "../utils/storage";
 import { supabase } from "../lib/supabase";
 import { CryptoService } from "../utils/cryptoService";
 import { getAllUserContent, getUserCategories } from "../utils/categoryService";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -43,7 +44,6 @@ const precacheHomeData = async () => {
 
     await Promise.all(promises);
 
-    
     return true;
   } catch (error) {
     console.error("Error al precargar datos de la homepage:", error);
@@ -66,11 +66,17 @@ const checkNeedsEncryptionMigration = async (): Promise<boolean> => {
       .single();
 
     // Check if user has local private key stored
-    const hasLocalPrivateKey = await CryptoService.getInstance().getPrivateKey(user.id);
+    const hasLocalPrivateKey = await CryptoService.getInstance().getPrivateKey(
+      user.id
+    );
 
     // Legacy user: has public key but no encrypted private key in cloud
     // AND no local private key (hasn't generated keys yet)
-    return !!(profile?.public_key && !profile.encrypted_private_key && !hasLocalPrivateKey);
+    return !!(
+      profile?.public_key &&
+      !profile.encrypted_private_key &&
+      !hasLocalPrivateKey
+    );
   } catch (error) {
     console.error("Error checking encryption status:", error);
     return false;
@@ -146,30 +152,32 @@ export default function Home() {
   }
 
   return (
-    <TouchableOpacity onPress={handlePress} style={{ flex: 1 }}>
-      <Image
-        source={require("../assets/Index.png")}
-        style={{
-          width: width,
-          height: height,
-          position: "absolute",
-        }}
-        resizeMode="cover"
-      />
-      <StyledView className="flex-1 items-center justify-center">
-        {isAuthenticated && precacheStarted && !precacheCompleted && (
-          <StyledView
-            className="absolute top-10 right-10 bg-black/20 rounded-full p-2"
-            style={{ opacity: 0.6 }}
-          >
-            {/* Indicador de carga silencioso */}
-          </StyledView>
-        )}
+    <SafeAreaView  style={{ flex: 1 }}> 
+      <TouchableOpacity onPress={handlePress} style={{ flex: 1 }}>
+        <Image
+          source={require("../assets/Index.png")}
+          style={{
+            width: width,
+            height: height,
+            position: "absolute",
+          }}
+          resizeMode="cover"
+        />
+        <StyledView className="flex-1 items-center justify-center">
+          {isAuthenticated && precacheStarted && !precacheCompleted && (
+            <StyledView
+              className="absolute top-10 right-10 bg-black/20 rounded-full p-2"
+              style={{ opacity: 0.6 }}
+            >
+              {/* Indicador de carga silencioso */}
+            </StyledView>
+          )}
 
-        <StyledText className="text-lg text-white/60 absolute bottom-8">
-          {t("tapAnywhere")}
-        </StyledText>
-      </StyledView>
-    </TouchableOpacity>
+          <StyledText className="text-lg text-white/60 absolute bottom-8">
+            {t("tapAnywhere")}
+          </StyledText>
+        </StyledView>
+      </TouchableOpacity>
+    </SafeAreaView>
   );
 }

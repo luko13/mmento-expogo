@@ -15,7 +15,7 @@ import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import UserProfile from "../../../components/home/UserProfile";
 import ActionButtonsCarousel from "../../../components/home/ActionButtonsCarousel";
 import LibrariesSection from "../../../components/home/LibrariesSection";
@@ -365,7 +365,8 @@ export default function Home() {
   });
 
   return (
-    <StyledView className="flex-1" {...panResponder.panHandlers}>
+    <SafeAreaView style={{ flex: 1 }}>
+      <StyledView className="flex-1" {...panResponder.panHandlers}>
       {/* Background image que viene del layout padre */}
 
       {/* Container principal con padding para las safe areas */}
@@ -473,5 +474,6 @@ export default function Home() {
         </StyledAnimatedView>
       </StyledView>
     </StyledView>
+    </SafeAreaView>
   );
 }
