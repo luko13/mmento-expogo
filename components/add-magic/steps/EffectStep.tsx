@@ -368,24 +368,33 @@ export default function EffectStepEncrypted({
     const encryptedFields: any = {};
 
     try {
+      // Solo cifrar si el campo tiene contenido
       if (data.title?.trim()) {
         encryptedFields.title = await encryptForSelf(data.title.trim());
         encryptedData.title = "[ENCRYPTED]";
+      } else {
+        encryptedData.title = ""; // Valor vacío en lugar de [ENCRYPTED]
       }
 
       if (data.effect?.trim()) {
         encryptedFields.effect = await encryptForSelf(data.effect.trim());
         encryptedData.effect = "[ENCRYPTED]";
+      } else {
+        encryptedData.effect = "";
       }
 
       if (data.secret?.trim()) {
         encryptedFields.secret = await encryptForSelf(data.secret.trim());
         encryptedData.secret = "[ENCRYPTED]";
+      } else {
+        encryptedData.secret = "";
       }
 
       if (data.notes?.trim()) {
         encryptedFields.notes = await encryptForSelf(data.notes.trim());
         encryptedData.notes = "[ENCRYPTED]";
+      } else {
+        encryptedData.notes = "";
       }
 
       encryptedData.encryptedFields = encryptedFields;
@@ -400,18 +409,6 @@ export default function EffectStepEncrypted({
   const handleRegisterMagic = async () => {
     try {
       setSaving(true);
-
-      if (!trickData.effect?.trim() || !trickData.secret?.trim()) {
-        Alert.alert(
-          t("validationError", "Error de Validación"),
-          t(
-            "requiredFieldsMissing",
-            "Por favor complete todos los campos obligatorios."
-          ),
-          [{ text: t("ok", "OK") }]
-        );
-        return;
-      }
 
       if (!keyPair) {
         Alert.alert(
@@ -560,27 +557,29 @@ export default function EffectStepEncrypted({
       try {
         // Obtener datos del truco
         const { data: trickData } = await supabase
-          .from('magic_tricks')
-          .select(`
+          .from("magic_tricks")
+          .select(
+            `
             *,
             trick_categories!inner(category_id)
-          `)
-          .eq('id', createdItemId)
+          `
+          )
+          .eq("id", createdItemId)
           .single();
-          
+
         if (trickData) {
           // Obtener nombre de categoría
           let categoryName = "Unknown";
           if (trickData.trick_categories?.[0]?.category_id) {
             const { data: categoryData } = await supabase
-              .from('user_categories')
-              .select('name')
-              .eq('id', trickData.trick_categories[0].category_id)
+              .from("user_categories")
+              .select("name")
+              .eq("id", trickData.trick_categories[0].category_id)
               .single();
-            
+
             if (categoryData) categoryName = categoryData.name;
           }
-          
+
           // Preparar datos para navegación
           const navigationData = {
             id: trickData.id,
@@ -598,16 +597,16 @@ export default function EffectStepEncrypted({
             reset: trickData.reset || 0,
             difficulty: trickData.difficulty || 0,
             is_encrypted: trickData.is_encrypted,
-            notes: trickData.notes
+            notes: trickData.notes,
           };
-          
+
           // Navegar a página del truco
           router.push({
-            pathname: '/trick/[id]',
-            params: { 
+            pathname: "/trick/[id]",
+            params: {
               id: createdItemId,
-              trick: JSON.stringify(navigationData)
-            }
+              trick: JSON.stringify(navigationData),
+            },
           });
         }
       } catch (error) {
@@ -669,7 +668,7 @@ export default function EffectStepEncrypted({
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <Feather name="video" size={24} color="white" />
               </StyledView>
             </CustomTooltip>
@@ -677,7 +676,7 @@ export default function EffectStepEncrypted({
               <StyledTouchableOpacity
                 onPress={pickEffectVideo}
                 disabled={uploading || !encryptionReady}
-                className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]"
+                className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40"
               >
                 <StyledView className="flex-1 flex-row items-center">
                   {uploading && uploadingType === "effect" ? (
@@ -717,7 +716,7 @@ export default function EffectStepEncrypted({
                 backgroundColor="rgba(91, 185, 163, 0.95)"
                 textColor="white"
               >
-                <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                   <MaterialCommunityIcons
                     name="creation"
                     size={24}
@@ -728,7 +727,7 @@ export default function EffectStepEncrypted({
               <StyledView className="flex-1 ">
                 <StyledView className="flex-row"></StyledView>
                 <StyledTextInput
-                  className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[80px]"
+                  className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[80px]"
                   placeholder={t(
                     "effectShortDescription",
                     "Descripción corta del efecto"
@@ -759,7 +758,7 @@ export default function EffectStepEncrypted({
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <Feather name="video" size={24} color="white" />
               </StyledView>
             </CustomTooltip>
@@ -767,7 +766,7 @@ export default function EffectStepEncrypted({
               <StyledTouchableOpacity
                 onPress={pickSecretVideo}
                 disabled={uploading || !encryptionReady}
-                className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]"
+                className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40"
               >
                 <StyledView className="flex-1 flex-row items-center">
                   {uploading && uploadingType === "secret" ? (
@@ -807,14 +806,14 @@ export default function EffectStepEncrypted({
                 backgroundColor="rgba(91, 185, 163, 0.95)"
                 textColor="white"
               >
-                <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                   <Feather name="lock" size={24} color="white" />
                 </StyledView>
               </CustomTooltip>
               <StyledView className="flex-1 ">
                 <StyledView className="flex-row"></StyledView>
                 <StyledTextInput
-                  className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3] min-h-[80px]"
+                  className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[80px]"
                   placeholder={t(
                     "effectSecretDescription",
                     "Descripción del secreto del efecto"
@@ -858,19 +857,9 @@ export default function EffectStepEncrypted({
         {/* Register Magic Button */}
         <StyledTouchableOpacity
           className={`w-full py-4 rounded-lg items-center justify-center flex-row mb-6 ${
-            saving ||
-            !trickData.effect.trim() ||
-            !trickData.secret.trim() ||
-            !encryptionReady
-              ? "bg-white/10"
-              : "bg-emerald-700"
+            saving || !encryptionReady ? "bg-white/10" : "bg-emerald-700"
           }`}
-          disabled={
-            saving ||
-            !trickData.effect.trim() ||
-            !trickData.secret.trim() ||
-            !encryptionReady
-          }
+          disabled={saving || !encryptionReady}
           onPress={handleRegisterMagic}
         >
           <StyledText className="text-white font-semibold text-base">
@@ -878,21 +867,6 @@ export default function EffectStepEncrypted({
               ? t("saving", "Guardando...")
               : t("registerMagic", "Registrar Magia")}
           </StyledText>
-          {saving ? (
-            <Ionicons
-              name="refresh"
-              size={20}
-              color="white"
-              style={{ marginLeft: 8 }}
-            />
-          ) : (
-            <MaterialIcons
-              name="security"
-              size={20}
-              color="white"
-              style={{ marginLeft: 8 }}
-            />
-          )}
         </StyledTouchableOpacity>
       </StyledView>
       {/* Success Modal */}

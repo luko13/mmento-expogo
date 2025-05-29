@@ -133,61 +133,7 @@ export default function AddMagicWizardEncrypted({
     isValid: boolean;
     errorMessage?: string;
   } => {
-    switch (currentStep) {
-      case 0: // Título y categorización
-        if (!trickData.title?.trim()) {
-          return {
-            isValid: false,
-            errorMessage: t("titleRequired", "El título es obligatorio"),
-          };
-        }
-        if (trickData.title.trim().length < 3) {
-          return {
-            isValid: false,
-            errorMessage: t(
-              "titleTooShort",
-              "El título debe tener al menos 3 caracteres"
-            ),
-          };
-        }
-        if (!trickData.selectedCategoryId) {
-          return {
-            isValid: false,
-            errorMessage: t(
-              "categoryRequired",
-              "Por favor selecciona una categoría"
-            ),
-          };
-        }
-        return { isValid: true };
-
-      case 1: // Efecto y secreto
-        if (!trickData.effect?.trim()) {
-          return {
-            isValid: false,
-            errorMessage: t(
-              "effectRequired",
-              "La descripción del efecto es obligatoria"
-            ),
-          };
-        }
-        if (!trickData.secret?.trim()) {
-          return {
-            isValid: false,
-            errorMessage: t(
-              "secretRequired",
-              "La descripción del secreto es obligatoria"
-            ),
-          };
-        }
-        return { isValid: true };
-
-      case 2: // Extras (opcional)
-        return { isValid: true };
-
-      default:
-        return { isValid: true };
-    }
+    return {isValid: true }; //Siempre devuelve true, ya no hay campos obligatorios.
   };
 
   const isNextButtonDisabled = useMemo(() => {
@@ -269,48 +215,53 @@ export default function AddMagicWizardEncrypted({
   };
 
   // Cifrar todos los campos sensibles
-  const encryptAllSensitiveFields = async (
-    data: EncryptedMagicTrick
-  ): Promise<EncryptedMagicTrick> => {
-    if (!keyPair) {
-      throw new Error("Claves de cifrado no disponibles");
+const encryptAllSensitiveFields = async (
+  data: EncryptedMagicTrick
+): Promise<EncryptedMagicTrick> => {
+  if (!keyPair) {
+    throw new Error("Claves de cifrado no disponibles");
+  }
+
+  const encryptedData = { ...data };
+  const encryptedFields: any = {};
+
+  try {
+    // Solo cifrar si el campo tiene contenido
+    if (data.title?.trim()) {
+      encryptedFields.title = await encryptForSelf(data.title.trim());
+      encryptedData.title = "[ENCRYPTED]";
+    } else {
+      encryptedData.title = ""; // Valor vacío en lugar de [ENCRYPTED]
     }
 
-    const encryptedData = { ...data };
-    const encryptedFields: any = {};
-
-    try {
-      // Cifrar título
-      if (data.title?.trim()) {
-        encryptedFields.title = await encryptForSelf(data.title.trim());
-        encryptedData.title = "[ENCRYPTED]";
-      }
-
-      // Cifrar efecto
-      if (data.effect?.trim()) {
-        encryptedFields.effect = await encryptForSelf(data.effect.trim());
-        encryptedData.effect = "[ENCRYPTED]";
-      }
-
-      // Cifrar secreto
-      if (data.secret?.trim()) {
-        encryptedFields.secret = await encryptForSelf(data.secret.trim());
-        encryptedData.secret = "[ENCRYPTED]";
-      }
-
-      // Cifrar notas
-      if (data.notes?.trim()) {
-        encryptedFields.notes = await encryptForSelf(data.notes.trim());
-        encryptedData.notes = "[ENCRYPTED]";
-      }
-
-      encryptedData.encryptedFields = encryptedFields;
-      return encryptedData;
-    } catch (error) {
-      console.error("Error cifrando campos del truco:", error);
-      throw new Error("Error al cifrar información del truco");
+    if (data.effect?.trim()) {
+      encryptedFields.effect = await encryptForSelf(data.effect.trim());
+      encryptedData.effect = "[ENCRYPTED]";
+    } else {
+      encryptedData.effect = "";
     }
-  };
+
+    if (data.secret?.trim()) {
+      encryptedFields.secret = await encryptForSelf(data.secret.trim());
+      encryptedData.secret = "[ENCRYPTED]";
+    } else {
+      encryptedData.secret = "";
+    }
+
+    if (data.notes?.trim()) {
+      encryptedFields.notes = await encryptForSelf(data.notes.trim());
+      encryptedData.notes = "[ENCRYPTED]";
+    } else {
+      encryptedData.notes = "";
+    }
+
+    encryptedData.encryptedFields = encryptedFields;
+    return encryptedData;
+  } catch (error) {
+    console.error("Error cifrando campos del truco:", error);
+    throw new Error("Error al cifrar información del truco");
+  }
+};
 
   // Enviar el truco cifrado a la base de datos
   const handleSubmit = async () => {
