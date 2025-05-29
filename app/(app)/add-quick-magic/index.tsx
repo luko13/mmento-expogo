@@ -24,11 +24,10 @@ export default function QuickAddMagicScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <StyledView className="flex-1">
-        {/* StatusBar configuration */}
-        <StatusBar barStyle="light-content" backgroundColor="#15322C" />
-
+    <StyledView className="flex-1">
+      {/* StatusBar configuration */}
+      <StatusBar barStyle="light-content" backgroundColor="#15322C" />
+      <SafeAreaView style={{ flex: 1 }}>
         {/* Full screen gradient background */}
         <LinearGradient
           colors={["#15322C", "#15322C"]}
@@ -46,7 +45,7 @@ export default function QuickAddMagicScreen() {
           onComplete={handleComplete}
           onCancel={handleCancel}
         />
-      </StyledView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </StyledView>
   );
 }
