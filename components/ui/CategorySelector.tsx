@@ -20,6 +20,7 @@ import {
   createCategory,
   type Category,
 } from "../../utils/categoryService";
+import CategoryModal from "../ui/CategoryModal";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -37,152 +38,6 @@ interface CategorySelectorProps {
   iconComponent?: React.ReactNode;
   userId?: string;
 }
-
-interface CreateCategoryModalProps {
-  visible: boolean;
-  onClose: () => void;
-  onConfirm: (name: string) => void;
-  categoryName: string;
-}
-
-const screenWidth = Dimensions.get("window").width;
-const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
-  visible,
-  onClose,
-  onConfirm,
-  categoryName,
-}) => {
-  const { t } = useTranslation();
-  const [editableCategoryName, setEditableCategoryName] = useState(categoryName);
-  const [isEditingName, setIsEditingName] = useState(false);
-
-  React.useEffect(() => {
-    setEditableCategoryName(categoryName);
-  }, [categoryName]);
-
-  return (
-    <StyledModal visible={visible} transparent animationType="fade">
-      <StyledBlurView
-        intensity={5}
-        tint="dark"
-        className="flex-1 justify-center items-center"
-      >
-        <StyledView className="flex-1 justify-center items-center px-6">
-          {/* Modal with blur effect border */}
-          <StyledBlurView
-            className=" overflow-hidden"
-            intensity={60}
-            tint="default"
-            style={{
-              width: screenWidth * 0.9, // % del ancho de pantalla
-              maxWidth: 400, // tope en píxeles
-              backgroundColor: "rgba(255, 255, 255, 0.25)",
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: "rgba(200, 200, 200, 0.4)",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: 0.5,
-              shadowRadius: 20,
-              elevation: 10,
-            }}
-          >
-            {/* Content */}
-            <StyledView className="pt-6 pb-1 px-6 ">
-              {/* Header with editable category pill */}
-              <StyledView className="flex-row items-center justify-center mb-4">
-                <StyledText className="text-white text-2xl font-light mr-3">
-                  {t("forms.create", "Create")}
-                </StyledText>
-                
-                {/* Editable Category Pill */}
-                <StyledTouchableOpacity
-                  onPress={() => setIsEditingName(true)}
-                  className="px-4 py-2 rounded-lg"
-                  style={{
-                    backgroundColor: "rgba(104, 104, 104, 0.027)",
-                    borderColor: "rgba(255, 255, 255, 0.568)",
-                    borderWidth: 1,
-                  }}
-                >
-                  {isEditingName ? (
-                    <StyledTextInput
-                      value={editableCategoryName}
-                      onChangeText={setEditableCategoryName}
-                      onBlur={() => setIsEditingName(false)}
-                      autoFocus
-                      style={{ 
-                        color: "#ffffff",
-                        fontWeight: "500",
-                        minWidth: 80,
-                        textAlign: "center"
-                      }}
-                      className="text-base"
-                    />
-                  ) : (
-                    <StyledText
-                      style={{ color: "#ffffff" }}
-                      className="font-medium"
-                    >
-                      {editableCategoryName}
-                    </StyledText>
-                  )}
-                </StyledTouchableOpacity>
-              </StyledView>
-            </StyledView>
-
-            {/* Actions */}
-            <StyledBlurView
-              className="flex-row overflow-hidden"
-              style={{ height: 56 }}
-              intensity={60}
-              tint="default"
-            >
-              <StyledTouchableOpacity
-                className="flex-1 justify-center items-center"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                  borderTopWidth: 1,
-                  borderLeftWidth: 0.5,
-                  borderColor: "rgba(200, 200, 200, 0.4)",
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 10 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 20,
-                  elevation: 10,
-                }}
-                onPress={onClose}
-              >
-                <StyledText className="text-white/60 text-base font-light">
-                  {t("common.cancel", "Cancel")}
-                </StyledText>
-              </StyledTouchableOpacity>
-              <StyledTouchableOpacity
-                className="flex-1 justify-center items-center"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                  borderTopWidth: 1,
-                  borderLeftWidth: 0.5,
-                  borderColor: "rgba(200, 200, 200, 0.4)",
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 10 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 20,
-                  elevation: 10,
-                }}
-                onPress={() => onConfirm(editableCategoryName)}
-              >
-                <StyledText className="text-white text-base font-medium">
-                  {t("common.create", "Create")}
-                </StyledText>
-              </StyledTouchableOpacity>
-            </StyledBlurView>
-          </StyledBlurView>
-        </StyledView>
-      </StyledBlurView>
-    </StyledModal>
-  );
-};
 
 export default function CategorySelector({
   selectedCategories,
@@ -280,11 +135,11 @@ export default function CategorySelector({
     }
   };
 
-  const createNewCategory = async (name: string) => {
+  const createNewCategory = async (name: string, description?: string) => {
     if (!userId) return;
 
     try {
-      const newCat = await createCategory(userId, name);
+      const newCat = await createCategory(userId, name, description);
       if (newCat) {
         setUserCategories((prev) => [...prev, newCat]);
         toggleCategory(newCat.id);
@@ -428,14 +283,15 @@ export default function CategorySelector({
       </StyledView>
 
       {/* Create Category Modal */}
-      <CreateCategoryModal
+      <CategoryModal
         visible={showCreateModal}
         onClose={() => {
           setShowCreateModal(false);
           setNewCategory("");
         }}
         onConfirm={createNewCategory}
-        categoryName={categoryToCreate}
+        initialName={categoryToCreate}
+        mode="create"
       />
     </>
   );

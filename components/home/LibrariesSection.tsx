@@ -47,6 +47,9 @@ import { FileEncryptionService } from "../../utils/fileEncryption";
 import * as FileSystem from "expo-file-system";
 import { getTrickWithEncryptedPhotos } from "../../utils/trickHelpers";
 import DeleteModal from "../ui/DeleteModal";
+import CantDeleteModal from "../ui/CantDeleteModal";
+import CategoryActionsModal from "../ui/CategoryActionsModal";
+import CategoryModal from "../ui/CategoryModal";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -166,6 +169,7 @@ const CollapsibleCategory = memo(
     onItemPress,
     onEditCategory,
     onDeleteCategory,
+    onMoreOptions,
     searchQuery,
     searchFilters,
     t,
@@ -174,6 +178,7 @@ const CollapsibleCategory = memo(
     onItemPress: (item: LibraryItem) => void;
     onEditCategory: (category: Category) => void;
     onDeleteCategory: (categoryId: string) => void;
+    onMoreOptions: (category: Category) => void;
     searchQuery: string;
     searchFilters?: SearchFilters;
     t: any;
@@ -248,26 +253,15 @@ const CollapsibleCategory = memo(
             <StyledText className="text-white mr-2">
               {filteredItems.length}
             </StyledText>
-            <StyledView className="flex-row">
-              <StyledTouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onEditCategory(section.category);
-                }}
-                className="p-2"
-              >
-                <MaterialIcons name="edit" size={16} color="white" />
-              </StyledTouchableOpacity>
-              <StyledTouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onDeleteCategory(section.category.id);
-                }}
-                className="p-2"
-              >
-                <Feather name="trash-2" size={16} color="white" />
-              </StyledTouchableOpacity>
-            </StyledView>
+            <StyledTouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                onMoreOptions(section.category);
+              }}
+              className="p-2"
+            >
+              <Entypo name="dots-three-horizontal" size={16} color="white" />
+            </StyledTouchableOpacity>
           </StyledView>
         </StyledTouchableOpacity>
 
@@ -312,7 +306,6 @@ export default function LibrariesSection({
   const [isEditCategoryModalVisible, setEditCategoryModalVisible] =
     useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [newCategoryDescription, setNewCategoryDescription] = useState("");
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTrickData, setSelectedTrickData] = useState<any>(null);
@@ -329,6 +322,11 @@ export default function LibrariesSection({
     id: string;
     name: string;
   } | null>(null);
+  const [showCantDeleteModal, setShowCantDeleteModal] = useState(false);
+  const [categoryItemCount, setCategoryItemCount] = useState(0);
+  const [showActionsModal, setShowActionsModal] = useState(false);
+  const [selectedCategoryForActions, setSelectedCategoryForActions] =
+    useState<Category | null>(null);
 
   // Helper function to handle encrypted files
   const handleEncryptedFile = async (
@@ -778,14 +776,9 @@ export default function LibrariesSection({
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      const newCategory = await createCategory(
-        user.id,
-        newCategoryName.trim(),
-        newCategoryDescription.trim() || undefined
-      );
+      const newCategory = await createCategory(user.id, newCategoryName.trim());
 
       if (newCategory) {
-        // Actualizar allContent para incluir la nueva categoria
         setAllContent({
           ...allContent,
           categories: [...allContent.categories, newCategory],
@@ -793,7 +786,6 @@ export default function LibrariesSection({
       }
 
       setNewCategoryName("");
-      setNewCategoryDescription("");
       setAddCategoryModalVisible(false);
     } catch (error) {
       console.error("Error adding category:", error);
@@ -807,12 +799,10 @@ export default function LibrariesSection({
     try {
       const success = await updateCategory(
         editingCategory.id,
-        newCategoryName.trim(),
-        newCategoryDescription.trim() || undefined
+        newCategoryName.trim()
       );
 
       if (success) {
-        // Actualizar allContent para incluir la categoria editada
         setAllContent({
           ...allContent,
           categories: allContent.categories.map((cat: Category) =>
@@ -820,7 +810,6 @@ export default function LibrariesSection({
               ? {
                   ...cat,
                   name: newCategoryName.trim(),
-                  description: newCategoryDescription.trim() || undefined,
                 }
               : cat
           ),
@@ -829,7 +818,6 @@ export default function LibrariesSection({
 
       setEditingCategory(null);
       setNewCategoryName("");
-      setNewCategoryDescription("");
       setEditCategoryModalVisible(false);
     } catch (error) {
       console.error("Error updating category:", error);
@@ -841,11 +829,29 @@ export default function LibrariesSection({
     const category = allContent?.categories.find(
       (cat: Category) => cat.id === categoryId
     );
+
     if (category) {
+      // Verificar si la categoría tiene items
+      const categorySection = categorySections.find(
+        (section) => section.category.id === categoryId
+      );
+
+      const itemCount = categorySection?.items.length || 0;
+
+      if (itemCount > 0) {
+        // La categoría no está vacía, mostrar modal informativo
+        setCategoryToDelete({ id: category.id, name: category.name });
+        setCategoryItemCount(itemCount);
+        setShowCantDeleteModal(true);
+        return;
+      }
+
+      // La categoría está vacía, proceder con la confirmación de borrado
       setCategoryToDelete({ id: category.id, name: category.name });
       setShowDeleteModal(true);
     }
   };
+
   // Funcion de confirmacion de borrado de categoría
   const confirmDeleteCategory = async () => {
     if (!categoryToDelete) return;
@@ -868,11 +874,11 @@ export default function LibrariesSection({
       setCategoryToDelete(null);
     }
   };
+
   // Open edit category modal
   const openEditCategoryModal = (category: Category) => {
     setEditingCategory(category);
     setNewCategoryName(category.name);
-    setNewCategoryDescription(category.description || "");
     setEditCategoryModalVisible(true);
   };
 
@@ -1250,7 +1256,11 @@ export default function LibrariesSection({
       return null;
     }
   };
-
+  //Modal de opciones
+  const handleMoreOptions = (category: Category) => {
+    setSelectedCategoryForActions(category);
+    setShowActionsModal(true);
+  };
   // Optimizacion del callback al pulsar un item
   const handleItemPress = useCallback(
     async (item: LibraryItem) => {
@@ -1271,13 +1281,22 @@ export default function LibrariesSection({
           onItemPress={handleItemPress}
           onEditCategory={openEditCategoryModal}
           onDeleteCategory={handleDeleteCategory}
+          onMoreOptions={handleMoreOptions}
           searchQuery={searchQuery}
           searchFilters={searchFilters}
           t={t}
         />
       );
     },
-    [searchQuery, searchFilters, handleItemPress, openEditCategoryModal, handleDeleteCategory, t]
+    [
+      searchQuery,
+      searchFilters,
+      handleItemPress,
+      openEditCategoryModal,
+      handleDeleteCategory,
+      handleMoreOptions,
+      t,
+    ]
   );
 
   // Renderizado final
@@ -1350,142 +1369,33 @@ export default function LibrariesSection({
           }
         />
       )}
-
-      {/* Add Category Modal */}
-      <Modal
-        visible={isAddCategoryModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAddCategoryModalVisible(false)}
-      >
-        <StyledView className="flex-1 justify-center items-center bg-black/50">
-          <StyledView className="bg-gray-800 p-6 rounded-xl w-4/5">
-            <StyledText className="text-white text-xl font-bold mb-4">
-              {t("addCategory")}
-            </StyledText>
-
-            <StyledView className="bg-gray-700 rounded-lg mb-4">
-              <BlurView intensity={20} tint="dark">
-                <StyledTextInput
-                  className="text-white p-3"
-                  placeholder={t("categoryName")}
-                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                  value={newCategoryName}
-                  onChangeText={setNewCategoryName}
-                />
-              </BlurView>
-            </StyledView>
-
-            <StyledView className="bg-gray-700 rounded-lg mb-4">
-              <BlurView intensity={20} tint="dark">
-                <StyledTextInput
-                  className="text-white p-3"
-                  placeholder={t("description", "Description (optional)")}
-                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                  value={newCategoryDescription}
-                  onChangeText={setNewCategoryDescription}
-                  multiline
-                  numberOfLines={3}
-                />
-              </BlurView>
-            </StyledView>
-
-            <StyledView className="flex-row justify-end">
-              <StyledTouchableOpacity
-                className="bg-gray-600 px-4 py-2 rounded-lg mr-2"
-                onPress={() => {
-                  setNewCategoryName("");
-                  setNewCategoryDescription("");
-                  setAddCategoryModalVisible(false);
-                }}
-              >
-                <StyledText className="text-white">{t("cancel")}</StyledText>
-              </StyledTouchableOpacity>
-
-              <StyledTouchableOpacity
-                className="bg-emerald-700 px-4 py-2 rounded-lg"
-                onPress={handleAddCategory}
-                disabled={!newCategoryName.trim()}
-              >
-                <StyledText className="text-white">{t("add")}</StyledText>
-              </StyledTouchableOpacity>
-            </StyledView>
-          </StyledView>
-        </StyledView>
-      </Modal>
-
-      {/* Edit Category Modal */}
-      <Modal
-        visible={isEditCategoryModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setEditCategoryModalVisible(false)}
-      >
-        <StyledView className="flex-1 justify-center items-center bg-black/50">
-          <StyledView className="bg-gray-800 p-6 rounded-xl w-4/5">
-            <StyledText className="text-white text-xl font-bold mb-4">
-              {t("editCategory", "Edit Category")}
-            </StyledText>
-
-            <StyledView className="bg-gray-700 rounded-lg mb-4">
-              <BlurView intensity={20} tint="dark">
-                <StyledTextInput
-                  className="text-white p-3"
-                  placeholder={t("categoryName")}
-                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                  value={newCategoryName}
-                  onChangeText={setNewCategoryName}
-                />
-              </BlurView>
-            </StyledView>
-
-            <StyledView className="bg-gray-700 rounded-lg mb-4">
-              <BlurView intensity={20} tint="dark">
-                <StyledTextInput
-                  className="text-white p-3"
-                  placeholder={t("description", "Description (optional)")}
-                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                  value={newCategoryDescription}
-                  onChangeText={setNewCategoryDescription}
-                  multiline
-                  numberOfLines={3}
-                />
-              </BlurView>
-            </StyledView>
-
-            <StyledView className="flex-row justify-end">
-              <StyledTouchableOpacity
-                className="bg-gray-600 px-4 py-2 rounded-lg mr-2"
-                onPress={() => {
-                  setEditingCategory(null);
-                  setNewCategoryName("");
-                  setNewCategoryDescription("");
-                  setEditCategoryModalVisible(false);
-                }}
-              >
-                <StyledText className="text-white">{t("cancel")}</StyledText>
-              </StyledTouchableOpacity>
-
-              <StyledTouchableOpacity
-                className="bg-emerald-700 px-4 py-2 rounded-lg"
-                onPress={handleEditCategory}
-                disabled={!newCategoryName.trim()}
-              >
-                <StyledText className="text-white">
-                  {t("save", "Save")}
-                </StyledText>
-              </StyledTouchableOpacity>
-            </StyledView>
-          </StyledView>
-        </StyledView>
-      </Modal>
+      {/* Category Modal for Add/Edit */}
+      <CategoryModal
+        visible={isAddCategoryModalVisible || isEditCategoryModalVisible}
+        onClose={() => {
+          setAddCategoryModalVisible(false);
+          setEditCategoryModalVisible(false);
+          setEditingCategory(null);
+          setNewCategoryName("");
+        }}
+        onConfirm={(name) => {
+          setNewCategoryName(name);
+          if (editingCategory) {
+            handleEditCategory();
+          } else {
+            handleAddCategory();
+          }
+        }}
+        initialName={editingCategory ? editingCategory.name : newCategoryName}
+        mode={editingCategory ? "edit" : "create"}
+      />
 
       {/* Trick View Modal */}
       {selectedTrickData && (
         <Modal
           visible={!!selectedTrickData}
           transparent={false}
-          animationType="slide"
+          animationType="fade"
           onRequestClose={() => setSelectedTrickData(null)}
           presentationStyle="fullScreen"
         >
@@ -1497,6 +1407,25 @@ export default function LibrariesSection({
           </SafeAreaProvider>
         </Modal>
       )}
+      {/* Category Actions Modal */}
+      <CategoryActionsModal
+        visible={showActionsModal}
+        onClose={() => {
+          setShowActionsModal(false);
+          setSelectedCategoryForActions(null);
+        }}
+        onEdit={() => {
+          if (selectedCategoryForActions) {
+            openEditCategoryModal(selectedCategoryForActions);
+          }
+        }}
+        onDelete={() => {
+          if (selectedCategoryForActions) {
+            handleDeleteCategory(selectedCategoryForActions.id);
+          }
+        }}
+        categoryName={selectedCategoryForActions?.name}
+      />
       {/* Delete Category Modal */}
       <DeleteModal
         visible={showDeleteModal}
@@ -1507,6 +1436,17 @@ export default function LibrariesSection({
         onConfirm={confirmDeleteCategory}
         itemName={categoryToDelete?.name}
         itemType={t("category", "category")}
+      />
+      {/* Category Not Empty Modal */}
+      <CantDeleteModal
+        visible={showCantDeleteModal}
+        onClose={() => {
+          setShowCantDeleteModal(false);
+          setCategoryToDelete(null);
+          setCategoryItemCount(0);
+        }}
+        categoryName={categoryToDelete?.name}
+        itemCount={categoryItemCount}
       />
     </StyledView>
   );

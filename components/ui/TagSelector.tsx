@@ -14,7 +14,7 @@ import { Feather } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../../lib/supabase";
 import { BlurView } from "expo-blur";
-import ColorPicker from "./ColorPicker";
+import TagModal from "../ui/TagModal";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -38,193 +38,6 @@ interface TagSelectorProps {
   iconComponent?: React.ReactNode;
   userId?: string;
 }
-
-interface CreateTagModalProps {
-  visible: boolean;
-  onClose: () => void;
-  onConfirm: (name: string, color: string) => void;
-  tagName: string;
-}
-
-const screenWidth = Dimensions.get("window").width;
-const CreateTagModal: React.FC<CreateTagModalProps> = ({
-  visible,
-  onClose,
-  onConfirm,
-  tagName,
-}) => {
-  const { t } = useTranslation();
-  const [selectedColor, setSelectedColor] = useState("#4CAF50");
-  const [editableTagName, setEditableTagName] = useState(tagName);
-  const [isEditingName, setIsEditingName] = useState(false);
-
-  const COLOR_MAPPINGS: { [key: string]: string } = {
-    // Verde
-    "#4CAF50": "#C8E6C9", // medio -> claro
-    "#1B5E20": "#C8E6C9", // oscuro -> claro
-
-    // Azul
-    "#2196F3": "#BBDEFB", // medio -> claro
-    "#0D47A1": "#BBDEFB", // oscuro -> claro
-
-    // Naranja
-    "#FF9800": "#FFE0B2", // medio -> claro
-    "#E65100": "#FFE0B2", // oscuro -> claro
-
-    // Morado
-    "#9C27B0": "#E1BEE7", // medio -> claro
-    "#4A148C": "#E1BEE7", // oscuro -> claro
-
-    // Rojo
-    "#F44336": "#FFCDD2", // medio -> claro
-    "#B71C1C": "#FFCDD2", // oscuro -> claro
-
-    // Grises
-    "#9E9E9E": "#F5F5F5", // gris medio -> gris claro
-    "#424242": "#F5F5F5", // gris oscuro -> gris claro
-  };
-
-  React.useEffect(() => {
-    setEditableTagName(tagName);
-  }, [tagName]);
-
-  return (
-    <StyledModal visible={visible} transparent animationType="fade">
-      <StyledBlurView
-        intensity={5}
-        tint="dark"
-        className="flex-1 justify-center items-center"
-      >
-        <StyledView className="flex-1 justify-center items-center px-3 py-6">
-          {/* Modal with blur effect border */}
-          <StyledBlurView
-            className=" overflow-hidden"
-            intensity={60}
-            tint="default"
-            style={{
-              width: screenWidth * 0.9, // % del ancho de pantalla
-              maxWidth: 400, // tope en píxeles
-              backgroundColor: "rgba(255, 255, 255, 0.25)",
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: "rgba(200, 200, 200, 0.4)",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: 0.5,
-              shadowRadius: 20,
-              elevation: 10,
-            }}
-          >
-            {/* Content */}
-            <StyledView className="p-6">
-              {/* Header with editable tag pill */}
-              <StyledView className="flex-row items-center justify-center mb-6">
-                <StyledText className="text-white text-2xl font-light mr-3">
-                  {t("forms.create", "Create")}
-                </StyledText>
-
-                {/* Editable Tag Pill */}
-                <StyledTouchableOpacity
-                  onPress={() => setIsEditingName(true)}
-                  className="px-4 py-2 rounded-full"
-                  style={{
-                    backgroundColor: selectedColor + "30",
-                    borderColor: COLOR_MAPPINGS[selectedColor] || selectedColor,
-                    borderWidth: 1,
-                  }}
-                >
-                  {isEditingName ? (
-                    <StyledTextInput
-                      value={editableTagName}
-                      onChangeText={setEditableTagName}
-                      onBlur={() => setIsEditingName(false)}
-                      autoFocus
-                      style={{
-                        color: COLOR_MAPPINGS[selectedColor] || selectedColor,
-                        fontWeight: "500",
-                        minWidth: 80,
-                        textAlign: "center",
-                      }}
-                      className="text-base"
-                    />
-                  ) : (
-                    <StyledText
-                      style={{
-                        color: COLOR_MAPPINGS[selectedColor] || selectedColor,
-                      }}
-                      className="font-medium"
-                    >
-                      {editableTagName}
-                    </StyledText>
-                  )}
-                </StyledTouchableOpacity>
-              </StyledView>
-
-              {/* Color Picker Section */}
-              <StyledView className="mb-6 -m-3">
-                <StyledText className="text-white/60 text-sm mb-4">
-                  {t("forms.selectColor", "Select a color")}
-                </StyledText>
-
-                <ColorPicker
-                  selectedColor={selectedColor}
-                  onColorSelect={setSelectedColor}
-                />
-              </StyledView>
-            </StyledView>
-
-            {/* Actions - No gap between buttons */}
-            <StyledBlurView
-              className="flex-row overflow-hidden"
-              style={{ height: 56 }}
-              intensity={60}
-              tint="default"
-            >
-              <StyledTouchableOpacity
-                className="flex-1 justify-center items-center"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                  borderTopWidth: 1,
-                  borderLeftWidth: 0.5,
-                  borderColor: "rgba(200, 200, 200, 0.4)",
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 10 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 20,
-                  elevation: 10,
-                }}
-                onPress={onClose}
-              >
-                <StyledText className="text-white/60 text-base font-light">
-                  {t("common.cancel", "Cancel")}
-                </StyledText>
-              </StyledTouchableOpacity>
-              <StyledTouchableOpacity
-                className="flex-1 justify-center items-center"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                  borderTopWidth: 1,
-                  borderLeftWidth: 0.5,
-                  borderColor: "rgba(200, 200, 200, 0.4)",
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 10 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 20,
-                  elevation: 10,
-                }}
-                onPress={() => onConfirm(editableTagName, selectedColor)}
-              >
-                <StyledText className="text-white text-base font-medium">
-                  {t("common.create", "Create")}
-                </StyledText>
-              </StyledTouchableOpacity>
-            </StyledBlurView>
-          </StyledBlurView>
-        </StyledView>
-      </StyledBlurView>
-    </StyledModal>
-  );
-};
 
 export default function TagSelector({
   selectedTags,
@@ -356,6 +169,7 @@ export default function TagSelector({
       .map((tagId) => tags.find((tag) => tag.id === tagId))
       .filter((tag) => tag !== undefined) as Tag[];
   };
+
   const COLOR_MAPPINGS: { [key: string]: string } = {
     // Verde
     "#4CAF50": "#C8E6C9", // medio -> claro
@@ -381,6 +195,7 @@ export default function TagSelector({
     "#9E9E9E": "#F5F5F5", // gris medio -> gris claro
     "#424242": "#F5F5F5", // gris oscuro -> gris claro
   };
+
   const TagCarousel = ({
     tagsArray,
     isSelected = false,
@@ -504,14 +319,15 @@ export default function TagSelector({
       </StyledView>
 
       {/* Create Tag Modal */}
-      <CreateTagModal
+      <TagModal
         visible={showCreateModal}
         onClose={() => {
           setShowCreateModal(false);
           setNewTag("");
         }}
         onConfirm={createTag}
-        tagName={tagToCreate}
+        initialName={tagToCreate}
+        mode="create"
       />
     </>
   );
