@@ -18,6 +18,7 @@ import TitleCategoryStepEncrypted from "./steps/TitleCategoryStep";
 import EffectStepEncrypted from "./steps/EffectStep";
 import ExtrasStepEncrypted from "./steps/ExtrasStep";
 import SuccessCreationModal from "../ui/SuccessCreationModal";
+import { CryptoService } from "../../utils/cryptoService";
 
 interface AddMagicWizardEncryptedProps {
   onComplete?: (trickId: string) => void;
@@ -233,6 +234,8 @@ export default function AddMagicWizardEncrypted({
     try {
       // Solo cifrar si el campo tiene contenido
       if (data.title?.trim()) {
+        console.log("🔄 Antes de encryptForSelf, keyPair:", keyPair);
+        console.log("✅ CryptoService inicializado.");
         encryptedFields.title = await encryptForSelf(data.title.trim());
         encryptedData.title = "[ENCRYPTED]";
       } else {
@@ -310,14 +313,18 @@ export default function AddMagicWizardEncrypted({
       const encryptedFileIds: { [key: string]: any } = {};
 
       // Prepare all files for batch upload
-      const allFiles: Array<{ uri: string; fileName: string; mimeType: string }> = [];
-      
+      const allFiles: Array<{
+        uri: string;
+        fileName: string;
+        mimeType: string;
+      }> = [];
+
       // Add effect video if exists
       if (trickData.localFiles?.effectVideo) {
         allFiles.push({
           uri: trickData.localFiles.effectVideo,
           fileName: `effect_video_${Date.now()}.mp4`,
-          mimeType: 'video/mp4'
+          mimeType: "video/mp4",
         });
       }
 
@@ -326,55 +333,63 @@ export default function AddMagicWizardEncrypted({
         allFiles.push({
           uri: trickData.localFiles.secretVideo,
           fileName: `secret_video_${Date.now()}.mp4`,
-          mimeType: 'video/mp4'
+          mimeType: "video/mp4",
         });
       }
 
       // Add photos if exist
-      if (trickData.localFiles?.photos && trickData.localFiles.photos.length > 0) {
+      if (
+        trickData.localFiles?.photos &&
+        trickData.localFiles.photos.length > 0
+      ) {
         trickData.localFiles.photos.forEach((photoUri, index) => {
           allFiles.push({
             uri: photoUri,
             fileName: `trick_photo_${Date.now()}_${index}.jpg`,
-            mimeType: 'image/jpeg'
+            mimeType: "image/jpeg",
           });
         });
       }
 
       // Upload all files with optimized batch processing
       if (allFiles.length > 0) {
-        console.log(`📤 Uploading ${allFiles.length} files with optimized batch processing...`);
-        
+        console.log(
+          `📤 Uploading ${allFiles.length} files with optimized batch processing...`
+        );
+
         try {
-          const uploadMetadata = await fileEncryptionService.batchEncryptAndUploadFilesOptimized(
-            allFiles,
-            profileId,
-            [profileId],
-            getPublicKey,
-            () => keyPair.privateKey,
-            (progress, fileName) => {
-              console.log(`📊 Upload progress: ${progress.toFixed(0)}% - ${fileName}`);
-            }
-          );
+          const uploadMetadata =
+            await fileEncryptionService.batchEncryptAndUploadFilesOptimized(
+              allFiles,
+              profileId,
+              [profileId],
+              getPublicKey,
+              () => keyPair.privateKey,
+              (progress, fileName) => {
+                console.log(
+                  `📊 Upload progress: ${progress.toFixed(0)}% - ${fileName}`
+                );
+              }
+            );
 
           // Process upload results
           const photoIds: string[] = [];
-          
+
           uploadMetadata.forEach((metadata, index) => {
             const originalFile = allFiles[index];
-            
+
             // Check if it's an archive
-            if (metadata.mimeType === 'application/x-magicbook-archive') {
+            if (metadata.mimeType === "application/x-magicbook-archive") {
               // Archive containing multiple photos
               photoIds.push(`archive:${metadata.fileId}`);
-            } else if (originalFile.mimeType.includes('video')) {
+            } else if (originalFile.mimeType.includes("video")) {
               // Video file
-              if (originalFile.fileName.includes('effect_video')) {
+              if (originalFile.fileName.includes("effect_video")) {
                 encryptedFileIds.effect_video = metadata.fileId;
-              } else if (originalFile.fileName.includes('secret_video')) {
+              } else if (originalFile.fileName.includes("secret_video")) {
                 encryptedFileIds.secret_video = metadata.fileId;
               }
-            } else if (originalFile.mimeType.includes('image')) {
+            } else if (originalFile.mimeType.includes("image")) {
               // Individual photo
               photoIds.push(metadata.fileId);
             }
@@ -386,7 +401,6 @@ export default function AddMagicWizardEncrypted({
             encryptedFileIds.photo = photoIds[0]; // First photo as main
             setSavedPhotos(photoIds);
           }
-
         } catch (error) {
           console.error("Error in batch file upload:", error);
           throw new Error("Error al subir archivos");

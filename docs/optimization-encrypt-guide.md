@@ -38,7 +38,7 @@ typescriptclass HybridCrypto {
       this.nativeCrypto = new NativeCrypto();
     } catch {
       // Fallback a WASM
-      const sodium = await import('libsodium-wrappers-sumo');
+      const sodium = await import('libsodium-wrappers-sumo-sumo');
       await sodium.ready;
       this.sodium = sodium;
     }

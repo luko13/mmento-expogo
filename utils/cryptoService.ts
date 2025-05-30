@@ -45,11 +45,13 @@ export class CryptoService {
     try {
       // Initialize PRNG for TweetNaCl (fallback)
       this.initializePRNG();
-      
+
       // Initialize hybrid crypto
       await hybridCrypto.initialize();
-      console.log(`🔐 Crypto initialized: ${hybridCrypto.getImplementationName()}`);
-      
+      console.log(
+        `🔐 Crypto initialized: ${hybridCrypto.getImplementationName()}`
+      );
+
       this.isInitialized = true;
     } catch (error) {
       console.error("Error initializing crypto:", error);
@@ -131,7 +133,10 @@ export class CryptoService {
     const derivedKey = await this.deriveKeyFromPassword(password, salt);
 
     const privateKeyBytes = decodeBase64(privateKey);
-    const { encrypted, nonce } = await hybridCrypto.encrypt(privateKeyBytes, derivedKey);
+    const { encrypted, nonce } = await hybridCrypto.encrypt(
+      privateKeyBytes,
+      derivedKey
+    );
 
     return {
       encryptedKey: encodeBase64(encrypted),
@@ -543,7 +548,10 @@ export class CryptoService {
       const derivedKey = nacl.hash(privateKeyBytes).slice(0, 32);
 
       const message = decodeUTF8(plaintext);
-      const { encrypted, nonce } = await hybridCrypto.encrypt(message, derivedKey);
+      const { encrypted, nonce } = await hybridCrypto.encrypt(
+        message,
+        derivedKey
+      );
 
       return JSON.stringify({
         ciphertext: encodeBase64(encrypted),
@@ -567,32 +575,47 @@ export class CryptoService {
     userPrivateKey: string
   ): Promise<string> {
     await hybridCrypto.initialize();
-
+    console.log("🔐 decryptForSelf, encryptedData:", encryptedData);
+    console.log("🔑 decryptForSelf, privateKey:", userPrivateKey);
+    let parsed;
     try {
-      const parsedData = JSON.parse(encryptedData);
-      const { ciphertext, nonce, version } = parsedData;
-
-      if (!ciphertext || !nonce) {
-        throw new Error("Invalid encrypted data format");
-      }
-
-      // Use the same key derivation method as encryption
-      const privateKeyBytes = decodeBase64(userPrivateKey);
-      const derivedKey = nacl.hash(privateKeyBytes).slice(0, 32);
-
-      const decrypted = await hybridCrypto.decrypt(
-        decodeBase64(ciphertext),
-        derivedKey,
-        decodeBase64(nonce)
-      );
-
-      return encodeUTF8(decrypted);
-    } catch (error) {
-      console.error("Error en decryptForSelf:", error);
-      throw new Error(
-        "Error al descifrar datos personales: " +
-          (error instanceof Error ? error.message : "Error desconocido")
-      );
+      parsed =
+        typeof encryptedData === "string"
+          ? JSON.parse(encryptedData)
+          : encryptedData;
+    } catch (e) {
+      console.error("❌ parsing encryptedData fallido:", e);
+      throw e;
     }
+    const { ciphertext, nonce, version } = parsed;
+    console.log(
+      `ℹ️ versión ${version}, ciphertext length:`,
+      ciphertext?.length,
+      "nonce length:",
+      nonce?.length
+    );
+
+    if (!ciphertext || !nonce) {
+      throw new Error("Invalid encrypted data format");
+    }
+
+    // Use the same key derivation method as encryption
+    const privateKeyBytes = decodeBase64(userPrivateKey);
+    const derivedKey = nacl.hash(privateKeyBytes).slice(0, 32);
+
+    const decrypted = await hybridCrypto.decrypt(
+      decodeBase64(ciphertext),
+      derivedKey,
+      decodeBase64(nonce)
+    );
+
+    return encodeUTF8(decrypted);
+  }
+  catch(error: any) {
+    console.error("Error en decryptForSelf:", error);
+    throw new Error(
+      "Error al descifrar datos personales: " +
+        (error instanceof Error ? error.message : "Error desconocido")
+    );
   }
 }
