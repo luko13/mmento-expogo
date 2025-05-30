@@ -366,9 +366,9 @@ export default function AddMagicWizardEncrypted({
               getPublicKey,
               () => keyPair.privateKey,
               (progress, fileName) => {
-                console.log(
-                  `📊 Upload progress: ${progress.toFixed(0)}% - ${fileName}`
-                );
+                if (trickData.uploadProgressCallback) {
+                  trickData.uploadProgressCallback(progress, fileName);
+                }
               }
             );
 

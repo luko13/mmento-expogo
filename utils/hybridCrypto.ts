@@ -92,7 +92,6 @@ export class HybridCrypto {
     try {
       // Importamos todo el módulo y esperamos a que esté listo
       const mod = await import("libsodium-wrappers-sumo");
-      console.log("🔍 libsodium-wrappers-sumo importado (raw):", mod);
 
       await mod.ready;
 

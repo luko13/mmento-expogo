@@ -8,6 +8,7 @@ export interface EncryptedMagicTrick {
   categories: any[];
   tags: string[];
   selectedCategoryId: string | null;
+  uploadProgressCallback?: (progress: number, fileName: string) => void;
   
   // Contenido del efecto
   effect: string;

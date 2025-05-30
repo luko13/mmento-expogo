@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import {
@@ -14,6 +14,7 @@ import {
   Modal,
   ActivityIndicator,
   Image,
+  Animated,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -50,6 +51,7 @@ const StyledTextInput = styled(TextInput);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledScrollView = styled(ScrollView);
 const StyledImage = styled(Image);
+const StyledModal = styled(Modal);
 
 // Definir interfaces para técnica y gimmick
 interface Technique {
@@ -82,6 +84,131 @@ interface StepProps {
   isLastStep?: boolean;
 }
 
+// Componente de Modal de Progreso
+const UploadProgressModal = ({ 
+  visible, 
+  progress, 
+  currentFile, 
+  elapsedTime,
+  totalFiles,
+  processedFiles 
+}: { 
+  visible: boolean; 
+  progress: number; 
+  currentFile: string;
+  elapsedTime: number;
+  totalFiles: number;
+  processedFiles: number;
+}) => {
+  const { t } = useTranslation();
+  const progressAnimation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(progressAnimation, {
+      toValue: progress,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [progress]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const progressWidth = progressAnimation.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+  });
+
+  return (
+    <StyledModal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+    >
+      <StyledView className="flex-1 justify-center items-center bg-black/80">
+        <StyledView className="bg-[#1a3a32] rounded-2xl p-6 mx-6 w-full max-w-sm">
+          {/* Header */}
+          <StyledView className="items-center mb-6">
+            <StyledView className="w-16 h-16 bg-emerald-500/20 rounded-full items-center justify-center mb-4">
+              <MaterialIcons name="cloud-upload" size={32} color="#10b981" />
+            </StyledView>
+            <StyledText className="text-white text-lg font-semibold mb-2">
+              {t("uploadingFiles", "Subiendo archivos")}
+            </StyledText>
+            <StyledText className="text-white/60 text-sm text-center">
+              {t("encryptingAndUploading", "Cifrando y subiendo tus archivos de forma segura")}
+            </StyledText>
+          </StyledView>
+
+          {/* Progress Info */}
+          <StyledView className="mb-4">
+            <StyledView className="flex-row justify-between mb-2">
+              <StyledText className="text-white/80 text-sm">
+                {t("file", "Archivo")} {processedFiles}/{totalFiles}
+              </StyledText>
+              <StyledText className="text-emerald-400 text-sm font-medium">
+                {progress.toFixed(0)}%
+              </StyledText>
+            </StyledView>
+
+            {/* Progress Bar */}
+            <StyledView className="h-2 bg-white/10 rounded-full overflow-hidden mb-3">
+              <Animated.View
+                style={{
+                  height: '100%',
+                  width: progressWidth,
+                  backgroundColor: '#10b981',
+                  borderRadius: 4,
+                }}
+              />
+            </StyledView>
+
+            {/* Current File */}
+            <StyledView className="bg-black/20 rounded-lg px-3 py-2 mb-3">
+              <StyledText className="text-white/50 text-xs mb-1">
+                {t("processing", "Procesando")}:
+              </StyledText>
+              <StyledText className="text-white/80 text-sm" numberOfLines={1}>
+                {currentFile || t("preparingFiles", "Preparando archivos...")}
+              </StyledText>
+            </StyledView>
+
+            {/* Timer */}
+            <StyledView className="flex-row items-center justify-center">
+              <Feather name="clock" size={16} color="rgba(255,255,255,0.6)" />
+              <StyledText className="text-white/60 text-sm ml-2">
+                {t("elapsedTime", "Tiempo transcurrido")}: {formatTime(elapsedTime)}
+              </StyledText>
+            </StyledView>
+          </StyledView>
+
+          {/* Estimated Time (opcional) */}
+          {progress > 10 && (
+            <StyledView className="border-t border-white/10 pt-4">
+              <StyledText className="text-white/40 text-xs text-center">
+                {t("estimatedRemaining", "Tiempo estimado restante")}: {
+                  formatTime(Math.round((elapsedTime / progress) * (100 - progress)))
+                }
+              </StyledText>
+            </StyledView>
+          )}
+
+          {/* Security Note */}
+          <StyledView className="flex-row items-center justify-center mt-4">
+            <Feather name="shield" size={12} color="rgba(16, 185, 129, 0.6)" />
+            <StyledText className="text-emerald-500/60 text-xs ml-1">
+              {t("endToEndEncrypted", "Cifrado de extremo a extremo")}
+            </StyledText>
+          </StyledView>
+        </StyledView>
+      </StyledView>
+    </StyledModal>
+  );
+};
+
 export default function ExtrasStepEncrypted({
   trickData,
   updateTrickData,
@@ -99,6 +226,15 @@ export default function ExtrasStepEncrypted({
   
   // Estados para archivos locales
   const [localPhotos, setLocalPhotos] = useState<string[]>([]);
+
+  // Estados para el progreso de carga
+  const [showUploadProgress, setShowUploadProgress] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [currentUploadFile, setCurrentUploadFile] = useState("");
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [totalFiles, setTotalFiles] = useState(0);
+  const [processedFiles, setProcessedFiles] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Hooks de cifrado
   const {
@@ -141,6 +277,66 @@ export default function ExtrasStepEncrypted({
       );
     }
   }, [encryptionReady, encryptionError, t]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+
+  // Función para manejar el progreso de carga
+  const handleUploadProgress = (progress: number, fileName: string) => {
+    setUploadProgress(progress);
+    setCurrentUploadFile(fileName);
+    
+    // Actualizar archivos procesados
+    const processed = Math.floor((progress / 100) * totalFiles);
+    setProcessedFiles(processed);
+  };
+
+  // Iniciar el timer cuando comienza la carga
+  const startUploadTimer = () => {
+    setElapsedTime(0);
+    timerRef.current = setInterval(() => {
+      setElapsedTime(prev => prev + 1);
+    }, 1000);
+  };
+
+  // Detener el timer
+  const stopUploadTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  // Modificar el handler onNext para mostrar el progreso
+  const handleNext = async () => {
+    if (onNext) {
+      // Calcular total de archivos
+      const photoCount = localPhotos.length;
+      const videoCount = (trickData.localFiles?.effectVideo ? 1 : 0) + 
+                        (trickData.localFiles?.secretVideo ? 1 : 0);
+      const total = photoCount + videoCount;
+      
+      if (total > 0) {
+        setTotalFiles(total);
+        setProcessedFiles(0);
+        setShowUploadProgress(true);
+        startUploadTimer();
+      }
+      
+      try {
+        await onNext();
+      } finally {
+        setShowUploadProgress(false);
+        stopUploadTimer();
+      }
+    }
+  };
 
   // Opciones de selección de ángulos
   const angles = [
@@ -531,6 +727,16 @@ export default function ExtrasStepEncrypted({
     }
   };
 
+  // Actualizar el contexto padre con el callback de progreso
+  useEffect(() => {
+    // Si el padre (AddMagicWizard) necesita el callback de progreso
+    if (updateTrickData) {
+      updateTrickData({
+        uploadProgressCallback: handleUploadProgress
+      } as any);
+    }
+  }, []);
+
   return (
     <StyledView className="flex-1">
       {/* Gradiente de fondo */}
@@ -860,7 +1066,7 @@ export default function ExtrasStepEncrypted({
             isSubmitting || !encryptionReady ? "bg-white/10" : "bg-emerald-700"
           }`}
           disabled={isSubmitting || !encryptionReady}
-          onPress={onNext}
+          onPress={handleNext}
         >
           <StyledText className="text-white font-semibold text-base">
             {isSubmitting
@@ -869,6 +1075,17 @@ export default function ExtrasStepEncrypted({
           </StyledText>
         </StyledTouchableOpacity>
       </StyledView>
+      
+      {/* Modal de Progreso de Carga */}
+      <UploadProgressModal
+        visible={showUploadProgress}
+        progress={uploadProgress}
+        currentFile={currentUploadFile}
+        elapsedTime={elapsedTime}
+        totalFiles={totalFiles}
+        processedFiles={processedFiles}
+      />
+
       {/* Modales */}
       {techniquesModalVisible && (
         <TechniquesModal
