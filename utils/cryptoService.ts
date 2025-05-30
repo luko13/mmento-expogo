@@ -1,4 +1,4 @@
-// utils/cryptoService.ts - Fixed version with better cross-device support
+// utils/cryptoService.ts
 import "react-native-get-random-values";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";

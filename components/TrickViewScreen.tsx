@@ -668,14 +668,6 @@ useEffect(() => {
         ? decryptedPhotos
         : photos;
 
-    console.log("🖼️ renderPhotoGallery:", {
-      is_encrypted: trick.is_encrypted,
-      decryptedPhotos_length: decryptedPhotos.length,
-      photos_length: photos.length,
-      photosToDisplay_length: photosToDisplay.length,
-      first_photo_preview: photosToDisplay[0]?.substring(0, 100),
-    });
-
     if (photosToDisplay.length === 0) {
       return (
         <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">

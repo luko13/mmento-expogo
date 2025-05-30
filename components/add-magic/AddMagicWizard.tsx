@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Alert } from "react-native";
 import { useTranslation } from "react-i18next";
-import { useRouter } from 'expo-router';
+import { useRouter } from "expo-router";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "../../lib/supabase";
 import { useEncryption } from "../../hooks/useEncryption";
@@ -77,6 +77,11 @@ export default function AddMagicWizardEncrypted({
     isEncryptionEnabled: true,
     encryptedFields: {},
     encryptedFiles: {},
+    localFiles: {
+      effectVideo: null,
+      secretVideo: null,
+      photos: [],
+    },
   });
 
   // Actualizar datos del truco
@@ -133,7 +138,7 @@ export default function AddMagicWizardEncrypted({
     isValid: boolean;
     errorMessage?: string;
   } => {
-    return {isValid: true }; //Siempre devuelve true, ya no hay campos obligatorios.
+    return { isValid: true }; //Siempre devuelve true, ya no hay campos obligatorios.
   };
 
   const isNextButtonDisabled = useMemo(() => {
@@ -215,53 +220,53 @@ export default function AddMagicWizardEncrypted({
   };
 
   // Cifrar todos los campos sensibles
-const encryptAllSensitiveFields = async (
-  data: EncryptedMagicTrick
-): Promise<EncryptedMagicTrick> => {
-  if (!keyPair) {
-    throw new Error("Claves de cifrado no disponibles");
-  }
-
-  const encryptedData = { ...data };
-  const encryptedFields: any = {};
-
-  try {
-    // Solo cifrar si el campo tiene contenido
-    if (data.title?.trim()) {
-      encryptedFields.title = await encryptForSelf(data.title.trim());
-      encryptedData.title = "[ENCRYPTED]";
-    } else {
-      encryptedData.title = ""; // Valor vacío en lugar de [ENCRYPTED]
+  const encryptAllSensitiveFields = async (
+    data: EncryptedMagicTrick
+  ): Promise<EncryptedMagicTrick> => {
+    if (!keyPair) {
+      throw new Error("Claves de cifrado no disponibles");
     }
 
-    if (data.effect?.trim()) {
-      encryptedFields.effect = await encryptForSelf(data.effect.trim());
-      encryptedData.effect = "[ENCRYPTED]";
-    } else {
-      encryptedData.effect = "";
-    }
+    const encryptedData = { ...data };
+    const encryptedFields: any = {};
 
-    if (data.secret?.trim()) {
-      encryptedFields.secret = await encryptForSelf(data.secret.trim());
-      encryptedData.secret = "[ENCRYPTED]";
-    } else {
-      encryptedData.secret = "";
-    }
+    try {
+      // Solo cifrar si el campo tiene contenido
+      if (data.title?.trim()) {
+        encryptedFields.title = await encryptForSelf(data.title.trim());
+        encryptedData.title = "[ENCRYPTED]";
+      } else {
+        encryptedData.title = ""; // Valor vacío en lugar de [ENCRYPTED]
+      }
 
-    if (data.notes?.trim()) {
-      encryptedFields.notes = await encryptForSelf(data.notes.trim());
-      encryptedData.notes = "[ENCRYPTED]";
-    } else {
-      encryptedData.notes = "";
-    }
+      if (data.effect?.trim()) {
+        encryptedFields.effect = await encryptForSelf(data.effect.trim());
+        encryptedData.effect = "[ENCRYPTED]";
+      } else {
+        encryptedData.effect = "";
+      }
 
-    encryptedData.encryptedFields = encryptedFields;
-    return encryptedData;
-  } catch (error) {
-    console.error("Error cifrando campos del truco:", error);
-    throw new Error("Error al cifrar información del truco");
-  }
-};
+      if (data.secret?.trim()) {
+        encryptedFields.secret = await encryptForSelf(data.secret.trim());
+        encryptedData.secret = "[ENCRYPTED]";
+      } else {
+        encryptedData.secret = "";
+      }
+
+      if (data.notes?.trim()) {
+        encryptedFields.notes = await encryptForSelf(data.notes.trim());
+        encryptedData.notes = "[ENCRYPTED]";
+      } else {
+        encryptedData.notes = "";
+      }
+
+      encryptedData.encryptedFields = encryptedFields;
+      return encryptedData;
+    } catch (error) {
+      console.error("Error cifrando campos del truco:", error);
+      throw new Error("Error al cifrar información del truco");
+    }
+  };
 
   // Enviar el truco cifrado a la base de datos
   const handleSubmit = async () => {
@@ -304,51 +309,76 @@ const encryptAllSensitiveFields = async (
       // Preparar archivos cifrados
       const encryptedFileIds: { [key: string]: any } = {};
 
-      // IMPORTANTE: Guardar el array de fotos
-      if (
-        trickData.encryptedFiles?.photos &&
-        trickData.encryptedFiles.photos.length > 0
-      ) {
-        // Guardar el array completo de fotos
-        encryptedFileIds.photos = trickData.encryptedFiles.photos;
-        setSavedPhotos(trickData.encryptedFiles.photos); // Guardar para usar después
-
-        // También establecer la primera foto como principal
-        encryptedFileIds.photo = trickData.encryptedFiles.photos[0];
+      // Subir video del efecto si existe
+      if (trickData.localFiles?.effectVideo) {
+        try {
+          const metadata = await fileEncryptionService.encryptAndUploadFile(
+            trickData.localFiles.effectVideo,
+            `effect_video_${Date.now()}.mp4`,
+            "video/mp4",
+            profileId,
+            [profileId],
+            getPublicKey,
+            () => keyPair.privateKey
+          );
+          encryptedFileIds.effect_video = metadata.fileId;
+        } catch (error) {
+          console.error("Error uploading effect video:", error);
+          throw new Error("Error al subir video del efecto");
+        }
       }
 
-      // Cifrar video del efecto si existe
-      if (
-        trickData.effect_video_url &&
-        trickData.effect_video_url.startsWith("file://")
-      ) {
-        const metadata = await fileEncryptionService.encryptAndUploadFile(
-          trickData.effect_video_url,
-          `effect_video_${Date.now()}.mp4`,
-          "video/mp4",
-          profileId,
-          [profileId],
-          getPublicKey,
-          () => keyPair.privateKey
-        );
-        encryptedFileIds.effect_video = metadata.fileId;
+      // Subir video del secreto si existe
+      if (trickData.localFiles?.secretVideo) {
+        try {
+          const metadata = await fileEncryptionService.encryptAndUploadFile(
+            trickData.localFiles.secretVideo,
+            `secret_video_${Date.now()}.mp4`,
+            "video/mp4",
+            profileId,
+            [profileId],
+            getPublicKey,
+            () => keyPair.privateKey
+          );
+          encryptedFileIds.secret_video = metadata.fileId;
+        } catch (error) {
+          console.error("Error uploading secret video:", error);
+          throw new Error("Error al subir video del secreto");
+        }
       }
 
-      // Cifrar video del secreto si existe
+      // Subir fotos si existen
       if (
-        trickData.secret_video_url &&
-        trickData.secret_video_url.startsWith("file://")
+        trickData.localFiles?.photos &&
+        trickData.localFiles.photos.length > 0
       ) {
-        const metadata = await fileEncryptionService.encryptAndUploadFile(
-          trickData.secret_video_url,
-          `secret_video_${Date.now()}.mp4`,
-          "video/mp4",
-          profileId,
-          [profileId],
-          getPublicKey,
-          () => keyPair.privateKey
-        );
-        encryptedFileIds.secret_video = metadata.fileId;
+        const photoIds: string[] = [];
+
+        for (const photoUri of trickData.localFiles.photos) {
+          try {
+            const metadata = await fileEncryptionService.encryptAndUploadFile(
+              photoUri,
+              `trick_photo_${Date.now()}_${Math.random()
+                .toString(36)
+                .substr(2, 9)}.jpg`,
+              "image/jpeg",
+              profileId,
+              [profileId],
+              getPublicKey,
+              () => keyPair.privateKey
+            );
+            photoIds.push(metadata.fileId);
+          } catch (error) {
+            console.error("Error uploading photo:", error);
+            // Continuar con las demás fotos
+          }
+        }
+
+        if (photoIds.length > 0) {
+          encryptedFileIds.photos = photoIds;
+          encryptedFileIds.photo = photoIds[0]; // Primera foto como principal
+          setSavedPhotos(photoIds); // Guardar para usar después
+        }
       }
 
       // Generar ID único
@@ -518,29 +548,34 @@ const encryptAllSensitiveFields = async (
       try {
         // Obtener los datos del truco creado con información de categorías
         const { data: trickData } = await supabase
-          .from('magic_tricks')
-          .select(`
+          .from("magic_tricks")
+          .select(
+            `
             *,
             trick_categories!inner(category_id)
-          `)
-          .eq('id', createdItemId)
+          `
+          )
+          .eq("id", createdItemId)
           .single();
-          
+
         if (trickData) {
           // Obtener el nombre de la categoría
           let categoryName = "Unknown";
-          if (trickData.trick_categories && trickData.trick_categories.length > 0) {
+          if (
+            trickData.trick_categories &&
+            trickData.trick_categories.length > 0
+          ) {
             const { data: categoryData } = await supabase
-              .from('user_categories')
-              .select('name')
-              .eq('id', trickData.trick_categories[0].category_id)
+              .from("user_categories")
+              .select("name")
+              .eq("id", trickData.trick_categories[0].category_id)
               .single();
-            
+
             if (categoryData) {
               categoryName = categoryData.name;
             }
           }
-          
+
           // Preparar datos para la navegación
           const navigationData = {
             id: trickData.id,
@@ -551,23 +586,23 @@ const encryptAllSensitiveFields = async (
             effect_video_url: trickData.effect_video_url,
             secret_video_url: trickData.secret_video_url,
             photo_url: trickData.photo_url,
-            photos: savedPhotos || [],  // Usar las fotos cifradas guardadas
+            photos: savedPhotos || [], // Usar las fotos cifradas guardadas
             script: trickData.script || "",
             angles: trickData.angles || [],
             duration: trickData.duration || 0,
             reset: trickData.reset || 0,
             difficulty: trickData.difficulty || 0,
             is_encrypted: trickData.is_encrypted,
-            notes: trickData.notes
+            notes: trickData.notes,
           };
-          
+
           // Navegar a la página del truco
           router.push({
-            pathname: '/trick/[id]',
-            params: { 
+            pathname: "/trick/[id]",
+            params: {
               id: createdItemId,
-              trick: JSON.stringify(navigationData)
-            }
+              trick: JSON.stringify(navigationData),
+            },
           });
         }
       } catch (error) {
@@ -608,6 +643,11 @@ const encryptAllSensitiveFields = async (
       isEncryptionEnabled: true,
       encryptedFields: {},
       encryptedFiles: {},
+      localFiles: {
+        effectVideo: null,
+        secretVideo: null,
+        photos: [],
+      },
     });
     setCurrentStep(0);
   };

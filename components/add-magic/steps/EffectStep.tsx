@@ -65,13 +65,13 @@ export default function EffectStepEncrypted({
   isLastStep = false,
 }: StepProps) {
   const { t } = useTranslation();
-  const [uploading, setUploading] = useState(false);
-  const [uploadingType, setUploadingType] = useState<
-    "effect" | "secret" | null
-  >(null);
   const [saving, setSaving] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdItemId, setCreatedItemId] = useState<string | null>(null);
+  
+  // Estados para archivos locales
+  const [localEffectVideo, setLocalEffectVideo] = useState<string | null>(null);
+  const [localSecretVideo, setLocalSecretVideo] = useState<string | null>(null);
 
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -98,6 +98,16 @@ export default function EffectStepEncrypted({
       );
     }
   }, [encryptionReady, encryptionError, t]);
+
+  // Inicializar archivos locales desde trickData si existen
+  useEffect(() => {
+    if (trickData.localFiles?.effectVideo) {
+      setLocalEffectVideo(trickData.localFiles.effectVideo);
+    }
+    if (trickData.localFiles?.secretVideo) {
+      setLocalSecretVideo(trickData.localFiles.secretVideo);
+    }
+  }, []);
 
   // Request permissions
   const requestMediaLibraryPermissions = async () => {
@@ -144,7 +154,7 @@ export default function EffectStepEncrypted({
     }
   };
 
-  // Pick effect video
+  // Pick effect video (solo guardar localmente)
   const pickEffectVideo = async () => {
     try {
       if (!encryptionReady || !keyPair) {
@@ -162,7 +172,7 @@ export default function EffectStepEncrypted({
       if (!hasPermission) return;
 
       const options: ImagePicker.ImagePickerOptions = {
-        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        mediaTypes: ["videos"],
         allowsEditing: true,
         quality: 0.5,
         videoMaxDuration: 60,
@@ -193,7 +203,14 @@ export default function EffectStepEncrypted({
           console.error("Error checking file size:", error);
         }
 
-        await encryptAndStoreVideo(uri, "effect");
+        // Guardar localmente
+        setLocalEffectVideo(uri);
+        updateTrickData({
+          localFiles: {
+            ...trickData.localFiles,
+            effectVideo: uri
+          }
+        });
       }
     } catch (error) {
       console.error("Error picking video:", error);
@@ -208,7 +225,7 @@ export default function EffectStepEncrypted({
     }
   };
 
-  // Pick secret video
+  // Pick secret video (solo guardar localmente)
   const pickSecretVideo = async () => {
     try {
       if (!encryptionReady || !keyPair) {
@@ -226,7 +243,7 @@ export default function EffectStepEncrypted({
       if (!hasPermission) return;
 
       const options: ImagePicker.ImagePickerOptions = {
-        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        mediaTypes: ["videos"],
         allowsEditing: true,
         quality: 0.5,
         videoMaxDuration: 60,
@@ -257,7 +274,14 @@ export default function EffectStepEncrypted({
           console.error("Error checking file size:", error);
         }
 
-        await encryptAndStoreVideo(uri, "secret");
+        // Guardar localmente
+        setLocalSecretVideo(uri);
+        updateTrickData({
+          localFiles: {
+            ...trickData.localFiles,
+            secretVideo: uri
+          }
+        });
       }
     } catch (error) {
       console.error("Error picking video:", error);
@@ -272,87 +296,78 @@ export default function EffectStepEncrypted({
     }
   };
 
-  // Cifrar y almacenar video
-  const encryptAndStoreVideo = async (
-    uri: string,
-    type: "effect" | "secret"
-  ) => {
-    if (!keyPair) return;
-
-    try {
-      setUploading(true);
-      setUploadingType(type);
-
-      // Obtener información del usuario
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error("Usuario no autenticado");
+  // Eliminar video del efecto
+  const removeEffectVideo = () => {
+    setLocalEffectVideo(null);
+    updateTrickData({
+      localFiles: {
+        ...trickData.localFiles,
+        effectVideo: null
       }
+    });
+  };
 
-      // Cifrar y subir video
-      const metadata = await fileEncryptionService.encryptAndUploadFile(
-        uri,
-        `${type}_video_${Date.now()}.mp4`,
-        "video/mp4",
-        user.id,
-        [user.id], // Solo el autor tiene acceso
-        getPublicKey,
-        () => keyPair.privateKey
-      );
-
-      // Actualizar los datos del truco con el ID del archivo cifrado
-      if (type === "effect") {
-        updateTrickData({
-          effect_video_url: metadata.fileId,
-          encryptedFiles: {
-            ...trickData.encryptedFiles,
-            effect_video: metadata.fileId,
-          },
-        });
-      } else {
-        updateTrickData({
-          secret_video_url: metadata.fileId,
-          encryptedFiles: {
-            ...trickData.encryptedFiles,
-            secret_video: metadata.fileId,
-          },
-        });
+  // Eliminar video del secreto
+  const removeSecretVideo = () => {
+    setLocalSecretVideo(null);
+    updateTrickData({
+      localFiles: {
+        ...trickData.localFiles,
+        secretVideo: null
       }
-
-      Alert.alert(
-        t("security.success", "Éxito"),
-        t(
-          type === "effect"
-            ? "security.effectVideoEncrypted"
-            : "security.secretVideoEncrypted",
-          `Video ${
-            type === "effect" ? "del efecto" : "del secreto"
-          } cifrado y almacenado`
-        ),
-        [{ text: t("ok", "OK") }]
-      );
-    } catch (error) {
-      console.error(`Error cifrando video ${type}:`, error);
-      Alert.alert(
-        t("security.error", "Error de Cifrado"),
-        t(
-          "security.videoEncryptionError",
-          "No se pudo cifrar el video. Inténtalo de nuevo."
-        ),
-        [{ text: t("ok", "OK") }]
-      );
-    } finally {
-      setUploading(false);
-      setUploadingType(null);
-    }
+    });
   };
 
   // Navigate to extras step
   const goToExtrasStep = () => {
     if (onNext) {
       onNext();
+    }
+  };
+
+  // Cifrar y subir todos los archivos
+  const uploadAllFiles = async () => {
+    if (!keyPair) return {};
+
+    const uploadedFiles: any = {};
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Usuario no autenticado");
+
+    try {
+      // Subir video del efecto si existe
+      if (localEffectVideo) {
+        const metadata = await fileEncryptionService.encryptAndUploadFile(
+          localEffectVideo,
+          `effect_video_${Date.now()}.mp4`,
+          "video/mp4",
+          user.id,
+          [user.id],
+          getPublicKey,
+          () => keyPair.privateKey
+        );
+        uploadedFiles.effect_video = metadata.fileId;
+      }
+
+      // Subir video del secreto si existe
+      if (localSecretVideo) {
+        const metadata = await fileEncryptionService.encryptAndUploadFile(
+          localSecretVideo,
+          `secret_video_${Date.now()}.mp4`,
+          "video/mp4",
+          user.id,
+          [user.id],
+          getPublicKey,
+          () => keyPair.privateKey
+        );
+        uploadedFiles.secret_video = metadata.fileId;
+      }
+
+      return uploadedFiles;
+    } catch (error) {
+      console.error("Error uploading files:", error);
+      throw error;
     }
   };
 
@@ -373,7 +388,7 @@ export default function EffectStepEncrypted({
         encryptedFields.title = await encryptForSelf(data.title.trim());
         encryptedData.title = "[ENCRYPTED]";
       } else {
-        encryptedData.title = ""; // Valor vacío en lugar de [ENCRYPTED]
+        encryptedData.title = "";
       }
 
       if (data.effect?.trim()) {
@@ -451,6 +466,9 @@ export default function EffectStepEncrypted({
         });
       }
 
+      // Subir todos los archivos
+      const uploadedFiles = await uploadAllFiles();
+
       // Cifrar campos sensibles
       const encryptedTrickData = await encryptAllSensitiveFields(trickData);
 
@@ -475,12 +493,8 @@ export default function EffectStepEncrypted({
             status: "draft",
             price: null,
             photo_url: encryptedTrickData.photo_url,
-            effect_video_url:
-              trickData.encryptedFiles?.effect_video ||
-              encryptedTrickData.effect_video_url,
-            secret_video_url:
-              trickData.encryptedFiles?.secret_video ||
-              encryptedTrickData.secret_video_url,
+            effect_video_url: uploadedFiles.effect_video || null,
+            secret_video_url: uploadedFiles.secret_video || null,
             views_count: 0,
             likes_count: 0,
             dislikes_count: 0,
@@ -494,7 +508,7 @@ export default function EffectStepEncrypted({
             content_type: "magic_tricks",
             user_id: user.id,
             encrypted_fields: encryptedTrickData.encryptedFields,
-            encrypted_files: trickData.encryptedFiles || {},
+            encrypted_files: uploadedFiles,
           },
         }
       );
@@ -674,35 +688,24 @@ export default function EffectStepEncrypted({
             </CustomTooltip>
             <StyledView className="flex-1 ">
               <StyledTouchableOpacity
-                onPress={pickEffectVideo}
-                disabled={uploading || !encryptionReady}
+                onPress={localEffectVideo ? removeEffectVideo : pickEffectVideo}
+                disabled={!encryptionReady}
                 className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40"
               >
                 <StyledView className="flex-1 flex-row items-center">
-                  {uploading && uploadingType === "effect" ? (
-                    <>
-                      <ActivityIndicator size="small" color="#10b981" />
-                      <StyledText className="text-white/70 ml-2">
-                        {t("security.encryptingVideo", "Cifrando video...")}
-                      </StyledText>
-                    </>
-                  ) : (
-                    <>
-                      <StyledText className="text-white/70 flex-1">
-                        {trickData.encryptedFiles?.effect_video
-                          ? t("security.videoEncrypted", "Video cifrado ✓")
-                          : t("uploadEffectVideo", "Subir video del efecto*")}
-                      </StyledText>
-                      <StyledView className="flex-row items-center">
-                        <Feather
-                          name="upload"
-                          size={16}
-                          color="white"
-                          style={{ marginLeft: 4 }}
-                        />
-                      </StyledView>
-                    </>
-                  )}
+                  <StyledText className="text-white/70 flex-1">
+                    {localEffectVideo
+                      ? t("effectVideoSelected", "Video del efecto seleccionado")
+                      : t("uploadEffectVideo", "Subir video del efecto*")}
+                  </StyledText>
+                  <StyledView className="flex-row items-center">
+                    <Feather
+                      name={localEffectVideo ? "x" : "upload"}
+                      size={16}
+                      color={localEffectVideo ? "#ef4444" : "white"}
+                      style={{ marginLeft: 4 }}
+                    />
+                  </StyledView>
                 </StyledView>
               </StyledTouchableOpacity>
             </StyledView>
@@ -751,7 +754,6 @@ export default function EffectStepEncrypted({
           </StyledText>
 
           {/* Secret Video */}
-
           <StyledView className="flex-row mb-6">
             <CustomTooltip
               text={t("tooltips.secretVideo")}
@@ -764,35 +766,24 @@ export default function EffectStepEncrypted({
             </CustomTooltip>
             <StyledView className="flex-1 ">
               <StyledTouchableOpacity
-                onPress={pickSecretVideo}
-                disabled={uploading || !encryptionReady}
+                onPress={localSecretVideo ? removeSecretVideo : pickSecretVideo}
+                disabled={!encryptionReady}
                 className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40"
               >
                 <StyledView className="flex-1 flex-row items-center">
-                  {uploading && uploadingType === "secret" ? (
-                    <>
-                      <ActivityIndicator size="small" color="#10b981" />
-                      <StyledText className="text-white/70 ml-2">
-                        {t("security.encryptingVideo", "Cifrando video...")}
-                      </StyledText>
-                    </>
-                  ) : (
-                    <>
-                      <StyledText className="text-white/70 flex-1">
-                        {trickData.encryptedFiles?.secret_video
-                          ? t("security.videoEncrypted", "Video cifrado ✓")
-                          : t("secretVideoUpload", "Subir video del secreto")}
-                      </StyledText>
-                      <StyledView className="flex-row items-center">
-                        <Feather
-                          name="upload"
-                          size={16}
-                          color="white"
-                          style={{ marginLeft: 4 }}
-                        />
-                      </StyledView>
-                    </>
-                  )}
+                  <StyledText className="text-white/70 flex-1">
+                    {localSecretVideo
+                      ? t("secretVideoSelected", "Video del secreto seleccionado")
+                      : t("secretVideoUpload", "Subir video del secreto")}
+                  </StyledText>
+                  <StyledView className="flex-row items-center">
+                    <Feather
+                      name={localSecretVideo ? "x" : "upload"}
+                      size={16}
+                      color={localSecretVideo ? "#ef4444" : "white"}
+                      style={{ marginLeft: 4 }}
+                    />
+                  </StyledView>
                 </StyledView>
               </StyledTouchableOpacity>
             </StyledView>

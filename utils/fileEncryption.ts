@@ -1,4 +1,4 @@
-// utils/fileEncryption.ts - Fixed version
+// utils/fileEncryption.ts
 import { CryptoService } from './cryptoService';
 import { supabase } from '../lib/supabase';
 import * as FileSystem from 'expo-file-system';

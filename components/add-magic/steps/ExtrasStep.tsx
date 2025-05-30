@@ -13,6 +13,7 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -48,6 +49,7 @@ const StyledText = styled(Text);
 const StyledTextInput = styled(TextInput);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledScrollView = styled(ScrollView);
+const StyledImage = styled(Image);
 
 // Definir interfaces para técnica y gimmick
 interface Technique {
@@ -92,11 +94,11 @@ export default function ExtrasStepEncrypted({
   isLastStep = true,
 }: StepProps) {
   const { t } = useTranslation();
-  const [uploading, setUploading] = useState(false);
-  const [uploadingType, setUploadingType] = useState<"photo" | null>(null);
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
+  
+  // Estados para archivos locales
+  const [localPhotos, setLocalPhotos] = useState<string[]>([]);
 
   // Hooks de cifrado
   const {
@@ -176,7 +178,7 @@ export default function ExtrasStepEncrypted({
   // Manejar cambio de tiempo de reinicio
   const handleResetChange = (totalSeconds: number) => {
     updateTrickData({ reset: totalSeconds });
-    setShowDurationPicker(false);
+    setShowResetPicker(false);
   };
 
   // Manejar cambio de dificultad
@@ -188,10 +190,12 @@ export default function ExtrasStepEncrypted({
   useEffect(() => {
     fetchTechniques();
     fetchGimmicks();
-    // Inicializar fotos cargadas
-    if (trickData.encryptedFiles?.photos) {
-      setUploadedPhotos(trickData.encryptedFiles.photos);
+    
+    // Inicializar fotos locales desde trickData si existen
+    if (trickData.localFiles?.photos) {
+      setLocalPhotos(trickData.localFiles.photos);
     }
+    
     // Inicializar elementos seleccionados si los datos del truco los tienen
     if (trickData.techniqueIds && trickData.techniqueIds.length > 0) {
       fetchSelectedTechniques(trickData.techniqueIds);
@@ -352,7 +356,7 @@ export default function ExtrasStepEncrypted({
     }
   };
 
-  // Seleccionar imagen para el truco con cifrado
+  // Seleccionar imagen para el truco (solo guardar localmente)
   const pickImage = async () => {
     try {
       if (!encryptionReady || !keyPair) {
@@ -383,14 +387,16 @@ export default function ExtrasStepEncrypted({
 
       const options: ImagePicker.ImagePickerOptions = {
         mediaTypes: ["images"],
-        allowsEditing: false, // False para no recortar
-        allowsMultipleSelection: true, // Permitir selección múltiple
+        allowsEditing: false,
+        allowsMultipleSelection: true,
         quality: 0.7,
       };
 
       const result = await ImagePicker.launchImageLibraryAsync(options);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
+        const newPhotos: string[] = [];
+        
         // Procesar múltiples imágenes
         for (const asset of result.assets) {
           const uri = asset.uri;
@@ -399,9 +405,7 @@ export default function ExtrasStepEncrypted({
           try {
             const fileInfo = await FileSystem.getInfoAsync(uri);
 
-            // Verificar si el archivo existe y tiene tamaño
             if (fileInfo.exists && "size" in fileInfo) {
-              // Si el archivo es más grande que 10MB, mostrar advertencia
               if (fileInfo.size > 10 * 1024 * 1024) {
                 Alert.alert(
                   t("fileTooLarge", "Archivo Demasiado Grande"),
@@ -411,15 +415,25 @@ export default function ExtrasStepEncrypted({
                   ),
                   [{ text: t("ok", "OK") }]
                 );
-                continue; // Saltar esta imagen y continuar con las demás
+                continue;
               }
             }
           } catch (error) {
             console.error("Error al verificar tamaño del archivo:", error);
           }
 
-          await encryptAndStoreImage(uri);
+          newPhotos.push(uri);
         }
+
+        // Actualizar estado local y trickData
+        const updatedPhotos = [...localPhotos, ...newPhotos];
+        setLocalPhotos(updatedPhotos);
+        updateTrickData({
+          localFiles: {
+            ...trickData.localFiles,
+            photos: updatedPhotos
+          }
+        });
       }
     } catch (error) {
       console.error("Error al seleccionar imagen:", error);
@@ -434,83 +448,40 @@ export default function ExtrasStepEncrypted({
     }
   };
 
-  // Agregar useEffect para sincronizar los cambios
-  useEffect(() => {
-    if (uploadedPhotos.length > 0) {
-      console.log("📸 Sincronizando fotos con trickData:", {
-        uploadedPhotos,
-        photos_count: uploadedPhotos.length,
-      });
-
-      updateTrickData({
-        encryptedFiles: {
-          ...trickData.encryptedFiles,
-          photos: uploadedPhotos,
-        },
-      });
-
-      // Si es la primera foto, también establecerla como photo_url principal
-      if (uploadedPhotos.length === 1 && !trickData.photo_url) {
-        updateTrickData({
-          photo_url: uploadedPhotos[0],
-        });
+  // Eliminar foto
+  const removePhoto = (index: number) => {
+    const updatedPhotos = localPhotos.filter((_, i) => i !== index);
+    setLocalPhotos(updatedPhotos);
+    updateTrickData({
+      localFiles: {
+        ...trickData.localFiles,
+        photos: updatedPhotos
       }
-    }
-  }, [uploadedPhotos]); // Se ejecuta cuando uploadedPhotos cambia
+    });
+  };
 
-  // Modificar la función encryptAndStoreImage para que NO llame a updateTrickData
-  const encryptAndStoreImage = async (uri: string) => {
-    if (!keyPair) return;
-
-    try {
-      setUploading(true);
-      setUploadingType("photo");
-
-      // Obtener información del usuario
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error("Usuario no autenticado");
-      }
-
-      // Cifrar y subir imagen
-      const metadata = await fileEncryptionService.encryptAndUploadFile(
-        uri,
-        `trick_photo_${Date.now()}_${Math.random()
-          .toString(36)
-          .substr(2, 9)}.jpg`,
-        "image/jpeg",
-        user.id,
-        [user.id], // Solo el autor tiene acceso
-        getPublicKey,
-        () => keyPair.privateKey
-      );
-
-      // Solo actualizar el estado local
-      setUploadedPhotos((prevPhotos) => {
-        const newPhotos = [...prevPhotos, metadata.fileId];
-        console.log("📸 Foto agregada al array:", {
-          prevCount: prevPhotos.length,
-          newCount: newPhotos.length,
-          newPhotoId: metadata.fileId,
-        });
-        return newPhotos;
-      });
-    } catch (error) {
-      console.error("Error cifrando imagen:", error);
-      Alert.alert(
-        t("security.error", "Error de Cifrado"),
-        t(
-          "security.imageEncryptionError",
-          "No se pudo cifrar la imagen. Inténtalo de nuevo."
-        ),
-        [{ text: t("ok", "OK") }]
-      );
-    } finally {
-      setUploading(false);
-      setUploadingType(null);
-    }
+  // Eliminar todas las fotos
+  const removeAllPhotos = () => {
+    Alert.alert(
+      t("confirmDelete", "Confirmar eliminación"),
+      t("deleteAllPhotosConfirm", "¿Estás seguro de que quieres eliminar todas las fotos?"),
+      [
+        { text: t("cancel", "Cancelar"), style: "cancel" },
+        {
+          text: t("delete", "Eliminar"),
+          style: "destructive",
+          onPress: () => {
+            setLocalPhotos([]);
+            updateTrickData({
+              localFiles: {
+                ...trickData.localFiles,
+                photos: []
+              }
+            });
+          }
+        }
+      ]
+    );
   };
 
   // Manejar datos de componentes modales
@@ -723,7 +694,7 @@ export default function ExtrasStepEncrypted({
             {t("extras", "Extras")}
           </StyledText>
 
-          {/* Subida de Imagen con Cifrado */}
+          {/* Subida de Imagen con selección local */}
           <StyledView className="flex-row mb-6">
             <CustomTooltip
               text={t("tooltips.imageUpload")}
@@ -736,42 +707,60 @@ export default function ExtrasStepEncrypted({
             </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
-                onPress={pickImage}
-                disabled={uploading || !encryptionReady}
+                onPress={localPhotos.length > 0 ? removeAllPhotos : pickImage}
+                disabled={!encryptionReady}
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[15px] border border-[#5bb9a3] flex-row items-center justify-between"
               >
                 <StyledView className="flex-1 flex-row items-center">
-                  {uploading && uploadingType === "photo" ? (
-                    <>
-                      <ActivityIndicator size="small" color="#10b981" />
-                      <StyledText className="text-white/70 ml-2">
-                        {t("security.encryptingImage", "Cifrando imagen...")}
-                      </StyledText>
-                    </>
-                  ) : (
-                    <>
-                      <StyledText className="text-white/70 flex-1">
-                        {uploadedPhotos.length > 0
-                          ? t(
-                              "security.photosEncrypted",
-                              `${uploadedPhotos.length} fotos cifradas ✓`
-                            )
-                          : t("imagesUpload", "Subir Imágenes")}
-                      </StyledText>
-                      <StyledView className="flex-row items-center">
-                        <Feather
-                          name="upload"
-                          size={16}
-                          color="white"
-                          style={{ marginLeft: 4 }}
-                        />
-                      </StyledView>
-                    </>
-                  )}
+                  <StyledText className="text-white/70 flex-1">
+                    {localPhotos.length > 0
+                      ? t("photosSelected", `${localPhotos.length} fotos seleccionadas`)
+                      : t("imagesUpload", "Subir Imágenes")}
+                  </StyledText>
+                  <StyledView className="flex-row items-center">
+                    <Feather
+                      name={localPhotos.length > 0 ? "x" : "upload"}
+                      size={16}
+                      color={localPhotos.length > 0 ? "#ef4444" : "white"}
+                      style={{ marginLeft: 4 }}
+                    />
+                  </StyledView>
                 </StyledView>
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
+
+          {/* Preview de fotos en pills */}
+          {localPhotos.length > 0 && (
+            <StyledView className="mb-6 -mt-3">
+              <StyledScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                className="flex-row"
+              >
+                {localPhotos.map((photoUri, index) => (
+                  <StyledView 
+                    key={index} 
+                    className="mr-2 bg-white/5 border border-emerald-500/20 rounded-full flex-row items-center px-2 py-1"
+                  >
+                    <StyledImage
+                      source={{ uri: photoUri }}
+                      className="w-6 h-6 rounded-full mr-2"
+                    />
+                    <StyledText className="text-white/50 text-xs mr-2" numberOfLines={1}>
+                      {`IMG_${(index + 1).toString().padStart(3, '0')}.jpg`}
+                    </StyledText>
+                    <StyledTouchableOpacity
+                      onPress={() => removePhoto(index)}
+                      className="p-1"
+                    >
+                      <Feather name="x" size={12} color="rgba(255,255,255,0.5)" />
+                    </StyledTouchableOpacity>
+                  </StyledView>
+                ))}
+              </StyledScrollView>
+            </StyledView>
+          )}
 
           {/* Selección de Técnicas */}
           <StyledView className="flex-row mb-6">
