@@ -400,7 +400,7 @@ export default function LibrariesSection({
     // Helper function to safely decrypt content
     const safeDecrypt = async (
       item: any,
-      contentType: string,
+      contentType:  'magic_tricks' | 'techniques' | 'gimmicks',
       isShared: boolean = false
     ) => {
       try {
