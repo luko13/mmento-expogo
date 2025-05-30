@@ -251,7 +251,6 @@ typescriptclass PerformanceOptimizer {
       
       // Ajustar estrategia si es lento
       if (duration > 1000 && operation === 'encrypt') {
-        console.log(`⚡ Switching to streaming for ${operation}`);
         return this.retryWithStreaming(fn, args);
       }
       

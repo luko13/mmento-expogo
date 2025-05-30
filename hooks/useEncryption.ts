@@ -1,7 +1,8 @@
-// hooks/useEncryption.ts - Fixed version
+// hooks/useEncryption.ts 
 import { useState, useEffect, useCallback } from 'react';
 import { CryptoService, type KeyPair } from '../utils/cryptoService';
 import { supabase } from '../lib/supabase';
+import { keyCache } from '../utils/smartKeyCache';
 
 export interface UseEncryptionReturn {
   isReady: boolean;
@@ -13,6 +14,8 @@ export interface UseEncryptionReturn {
   decryptText: (encryptedData: string, senderUserId: string) => Promise<string>;
   encryptForSelf: (text: string) => Promise<string>;
   decryptForSelf: (encryptedData: string) => Promise<string>;
+  refreshKeys: (password: string) => Promise<void>;
+  hasDecryptionErrors: boolean;
   error: string | null;
 }
 
@@ -22,6 +25,7 @@ export const useEncryption = (): UseEncryptionReturn => {
   const [publicKeys, setPublicKeys] = useState<Map<string, string>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [hasDecryptionErrors, setHasDecryptionErrors] = useState(false);
 
   const cryptoService = CryptoService.getInstance();
 
@@ -31,6 +35,9 @@ export const useEncryption = (): UseEncryptionReturn => {
     
     const checkAuthAndInitialize = async () => {
       try {
+        // Warm up cache on app start
+        await keyCache.warmUp();
+        
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
@@ -70,6 +77,9 @@ export const useEncryption = (): UseEncryptionReturn => {
           setIsReady(false);
           setCurrentUserId(null);
           setError(null);
+          setHasDecryptionErrors(false);
+          // Clear key cache on logout
+          await keyCache.clear();
         }
       }
     );
@@ -116,6 +126,9 @@ export const useEncryption = (): UseEncryptionReturn => {
         throw new Error('Usuario no autenticado');
       }
 
+      // Log cache stats before generation
+      console.log('📊 Cache stats before key generation:', keyCache.getStats());
+
       // Always generate with cloud backup
       const newKeyPair = await cryptoService.generateKeyPairWithCloudBackup(
         currentUserId,
@@ -124,9 +137,43 @@ export const useEncryption = (): UseEncryptionReturn => {
 
       setKeyPair(newKeyPair);
       setIsReady(true);
+      setHasDecryptionErrors(false);
     } catch (err) {
       console.error('Error generando claves:', err);
       setError(err instanceof Error ? err.message : 'Error generando claves');
+      throw err;
+    }
+  };
+
+  const refreshKeys = async (password: string) => {
+    try {
+      if (!currentUserId) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      console.log('🔄 Refreshing encryption keys...');
+      
+      // Clear current keys
+      setKeyPair(null);
+      setIsReady(false);
+      setHasDecryptionErrors(false);
+      
+      // Clear key cache
+      await keyCache.clear();
+      
+      // Regenerate keys
+      const newKeyPair = await cryptoService.generateKeyPairWithCloudBackup(
+        currentUserId,
+        password
+      );
+
+      setKeyPair(newKeyPair);
+      setIsReady(true);
+      
+      console.log('✅ Keys refreshed successfully');
+    } catch (err) {
+      console.error('Error refreshing keys:', err);
+      setError(err instanceof Error ? err.message : 'Error refreshing keys');
       throw err;
     }
   };
@@ -223,7 +270,13 @@ export const useEncryption = (): UseEncryptionReturn => {
       throw new Error('Claves no inicializadas');
     }
 
-    return await cryptoService.decryptForSelf(encryptedData, keyPair.privateKey);
+    try {
+      return await cryptoService.decryptForSelf(encryptedData, keyPair.privateKey);
+    } catch (err) {
+      // Mark decryption error
+      setHasDecryptionErrors(true);
+      throw err;
+    }
   }, [keyPair]);
 
   return {
@@ -236,6 +289,8 @@ export const useEncryption = (): UseEncryptionReturn => {
     decryptText,
     encryptForSelf,
     decryptForSelf,
+    refreshKeys,
+    hasDecryptionErrors,
     error
   };
 };

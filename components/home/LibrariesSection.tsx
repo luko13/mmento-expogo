@@ -84,6 +84,7 @@ interface LibraryItem {
   is_encrypted?: boolean;
   is_shared?: boolean;
   owner_id?: string;
+  decryption_error?: boolean;
 }
 
 interface CategorySection {
@@ -153,6 +154,14 @@ const LibraryItemRow = memo(
                 name="users"
                 size={14}
                 color="#3b82f6"
+                style={{ marginRight: 8 }}
+              />
+            )}
+            {item.decryption_error && (
+              <Ionicons
+                name="warning"
+                size={14}
+                color="#ef4444"
                 style={{ marginRight: 8 }}
               />
             )}
@@ -315,8 +324,9 @@ export default function LibrariesSection({
   const [decryptingFiles, setDecryptingFiles] = useState<Set<string>>(
     new Set()
   );
+  const [showKeyRefreshBanner, setShowKeyRefreshBanner] = useState(false);
 
-  const { decryptForSelf, keyPair, getPublicKey } = useEncryption();
+  const { decryptForSelf, keyPair, getPublicKey, refreshKeys } = useEncryption();
   const encryptedService = new EncryptedContentService();
   const fileEncryptionService = new FileEncryptionService();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -379,72 +389,72 @@ export default function LibrariesSection({
       return null;
     }
   };
-  // Function to decrypt content in batches
+
+  // Function to decrypt content in batches with error recovery
   const decryptContentBatch = async (content: any, userId: string) => {
     if (!keyPair || !decryptForSelf) return;
 
     const decryptPromises = [];
+    let decryptionErrors = 0;
 
-    // Prepare decrypt promises for encrypted tricks
+    // Helper function to safely decrypt content
+    const safeDecrypt = async (
+      item: any,
+      contentType: string,
+      isShared: boolean = false
+    ) => {
+      try {
+        let decrypted;
+        
+        if (isShared) {
+          decrypted = await encryptedService.getSharedContent(
+            item.id,
+            contentType,
+            userId,
+            decryptForSelf
+          );
+        } else {
+          decrypted = await encryptedService.getOwnContent(
+            item.id,
+            contentType,
+            decryptForSelf,
+            () => keyPair.privateKey
+          );
+        }
+        
+        if (decrypted) {
+          Object.assign(item, decrypted);
+          item.decryption_error = false;
+        }
+      } catch (err) {
+        decryptionErrors++;
+        console.error(`Error decrypting ${contentType} ${item.id}:`, err);
+        
+        // Mark item as having decryption error
+        item.decryption_error = true;
+        item.title = item.title || `[Encrypted ${contentType}]`;
+        item.name = item.name || `[Encrypted ${contentType}]`;
+      }
+    };
+
+    // Decrypt tricks
     content.tricks.forEach((trick: any) => {
       if (trick.is_encrypted) {
-        decryptPromises.push(
-          encryptedService
-            .getOwnContent(
-              trick.id,
-              "magic_tricks",
-              decryptForSelf,
-              () => keyPair.privateKey
-            )
-            .then((decrypted) => {
-              if (decrypted) {
-                Object.assign(trick, decrypted);
-              }
-            })
-            .catch((err) => console.error("Error decrypting trick:", err))
-        );
+        decryptPromises.push(safeDecrypt(trick, 'magic_tricks'));
       }
     });
 
-    // Prepare decrypt promises for encrypted techniques
+    // Decrypt techniques
     content.techniques.forEach((technique: any) => {
       if (technique.is_encrypted) {
-        decryptPromises.push(
-          encryptedService
-            .getOwnContent(
-              technique.id,
-              "techniques",
-              decryptForSelf,
-              () => keyPair.privateKey
-            )
-            .then((decrypted) => {
-              if (decrypted) {
-                Object.assign(technique, decrypted);
-              }
-            })
-            .catch((err) => console.error("Error decrypting technique:", err))
-        );
+        decryptPromises.push(safeDecrypt(technique, 'techniques'));
       }
     });
 
-    // Prepare decrypt promises for encrypted gimmicks
+    // Decrypt gimmicks
     content.gimmicks.forEach((gimmick: any) => {
       if (gimmick.is_encrypted) {
-        decryptPromises.push(
-          encryptedService
-            .getOwnContent(
-              gimmick.id,
-              "gimmicks",
-              decryptForSelf,
-              () => keyPair.privateKey
-            )
-            .then((decrypted) => {
-              if (decrypted) {
-                Object.assign(gimmick, decrypted);
-              }
-            })
-            .catch((err) => console.error("Error decrypting gimmick:", err))
-        );
+        decryptPromises.push(safeDecrypt(gimmick, 'gimmicks'));
       }
     });
 
@@ -468,31 +478,24 @@ export default function LibrariesSection({
       const originalContent = contentTable?.find(
         (item: any) => item.id === shared.content_id
       );
+      
       if (originalContent && originalContent.is_encrypted) {
         decryptPromises.push(
-          encryptedService
-            .getSharedContent(
-              shared.content_id,
-              shared.content_type,
-              userId,
-              decryptForSelf
-            )
-            .then((decrypted) => {
-              if (decrypted) {
-                Object.assign(originalContent, decrypted);
-              }
-            })
-            .catch((err) =>
-              console.error("Error decrypting shared content:", err)
-            )
+          safeDecrypt(originalContent, shared.content_type, true)
         );
       }
     }
 
-    // Execute all decrypt promises in parallel
+    // Execute all decrypt promises
     await Promise.all(decryptPromises);
 
-    // Force re-render with decrypted data
+    // If too many errors, likely wrong key - prompt user
+    if (decryptionErrors > 5) {
+      console.warn(`⚠️ Multiple decryption failures (${decryptionErrors}). Keys may be outdated.`);
+      setShowKeyRefreshBanner(true);
+    }
+
+    // Force re-render
     setAllContent({ ...content });
   };
 
@@ -567,6 +570,7 @@ export default function LibrariesSection({
               notes: trick.notes,
               is_encrypted: trick.is_encrypted,
               owner_id: trick.user_id,
+              decryption_error: trick.decryption_error,
             });
           }
         });
@@ -609,6 +613,7 @@ export default function LibrariesSection({
               special_materials: technique.special_materials,
               is_encrypted: technique.is_encrypted,
               owner_id: technique.user_id,
+              decryption_error: technique.decryption_error,
             });
           }
         });
@@ -652,6 +657,7 @@ export default function LibrariesSection({
               reset: gimmick.reset_time,
               is_encrypted: gimmick.is_encrypted,
               owner_id: gimmick.user_id,
+              decryption_error: gimmick.decryption_error,
             });
           }
         });
@@ -742,6 +748,7 @@ export default function LibrariesSection({
                 is_encrypted: originalContent.is_encrypted,
                 is_shared: true,
                 owner_id: shared.owner_id,
+                decryption_error: originalContent.decryption_error,
               });
             }
           }
@@ -1266,6 +1273,13 @@ export default function LibrariesSection({
   // Optimizacion del callback al pulsar un item
   const handleItemPress = useCallback(
     async (item: LibraryItem) => {
+      // Check if item has decryption error
+      if (item.decryption_error) {
+        // Show alert or modal asking user to refresh keys
+        setShowKeyRefreshBanner(true);
+        return;
+      }
+
       const itemData = await fetchItemData(item);
       if (itemData) {
         // Navegar a la ruta dinámica con los datos serializados
@@ -1311,6 +1325,24 @@ export default function LibrariesSection({
   // Renderizado final
   return (
     <StyledView className="flex-1">
+      {/* Key Refresh Banner */}
+      {showKeyRefreshBanner && (
+        <StyledView className="bg-red-500/20 border border-red-500/50 p-3 rounded-lg mb-3">
+          <StyledView className="flex-row items-center">
+            <Ionicons name="warning" size={20} color="#ef4444" />
+            <StyledText className="text-white ml-2 flex-1">
+              {t("decryptionError", "Some items couldn't be decrypted. Please re-enter your password.")}
+            </StyledText>
+            <StyledTouchableOpacity
+              onPress={() => setShowKeyRefreshBanner(false)}
+              className="p-1"
+            >
+              <AntDesign name="close" size={18} color="white" />
+            </StyledTouchableOpacity>
+          </StyledView>
+        </StyledView>
+      )}
+
       {/* Header de libraries */}
       <StyledView className="flex-row justify-between items-center mb-2">
         <StyledView className="flex-row items-center">

@@ -1,4 +1,4 @@
-// utils/cryptoService.ts
+import { keyCache } from "./smartKeyCache";
 import "react-native-get-random-values";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
@@ -10,6 +10,7 @@ import {
   decodeUTF8,
 } from "tweetnacl-util";
 import { supabase } from "../lib/supabase";
+import { hybridCrypto } from "./hybridCrypto";
 
 export interface EncryptedData {
   ciphertext: string;
@@ -27,7 +28,7 @@ export class CryptoService {
   private isInitialized = false;
 
   private constructor() {
-    this.initializePRNG();
+    this.initialize();
   }
 
   static getInstance(): CryptoService {
@@ -35,6 +36,27 @@ export class CryptoService {
       CryptoService.instance = new CryptoService();
     }
     return CryptoService.instance;
+  }
+
+  /**
+   * Initialize crypto services
+   */
+  private async initialize(): Promise<void> {
+    try {
+      // Initialize PRNG for TweetNaCl (fallback)
+      this.initializePRNG();
+      
+      // Initialize hybrid crypto
+      await hybridCrypto.initialize();
+      console.log(`🔐 Crypto initialized: ${hybridCrypto.getImplementationName()}`);
+      
+      this.isInitialized = true;
+    } catch (error) {
+      console.error("Error initializing crypto:", error);
+      // Continue with basic initialization
+      this.initializePRNG();
+      this.isInitialized = true;
+    }
   }
 
   /**
@@ -86,30 +108,14 @@ export class CryptoService {
   }
 
   /**
-   * Derive encryption key from password using PBKDF2-like approach
-   * FIXED: Use consistent key derivation
+   * Derive encryption key from password using best available method
    */
   private async deriveKeyFromPassword(
     password: string,
     salt: Uint8Array
   ): Promise<Uint8Array> {
-    this.ensureInitialized();
-
-    // Use consistent encoding and derivation
-    const passwordBytes = decodeUTF8(password);
-    const combined = new Uint8Array(passwordBytes.length + salt.length);
-    combined.set(passwordBytes);
-    combined.set(salt, passwordBytes.length);
-
-    // Hash multiple times for key stretching (consistent iterations)
-    let key = new Uint8Array(combined);
-    const iterations = 10000; // Must be consistent across all devices
-    
-    for (let i = 0; i < iterations; i++) {
-      key = new Uint8Array(nacl.hash(key));
-    }
-
-    return key.slice(0, 32); // Use first 32 bytes as key
+    // Use smart cache
+    return keyCache.getOrDerive(password, salt, 10000);
   }
 
   /**
@@ -119,19 +125,13 @@ export class CryptoService {
     privateKey: string,
     password: string
   ): Promise<{ encryptedKey: string; salt: string; nonce: string }> {
-    this.ensureInitialized();
+    await hybridCrypto.initialize();
 
-    const salt = nacl.randomBytes(16);
+    const salt = await hybridCrypto.generateNonce(); // Use as salt
     const derivedKey = await this.deriveKeyFromPassword(password, salt);
 
     const privateKeyBytes = decodeBase64(privateKey);
-    const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
-
-    const encrypted = nacl.secretbox(privateKeyBytes, nonce, derivedKey);
-
-    if (!encrypted) {
-      throw new Error("Failed to encrypt private key");
-    }
+    const { encrypted, nonce } = await hybridCrypto.encrypt(privateKeyBytes, derivedKey);
 
     return {
       encryptedKey: encodeBase64(encrypted),
@@ -147,7 +147,7 @@ export class CryptoService {
     encryptedData: { encryptedKey: string; salt: string; nonce: string },
     password: string
   ): Promise<string> {
-    this.ensureInitialized();
+    await hybridCrypto.initialize();
 
     const salt = decodeBase64(encryptedData.salt);
     const derivedKey = await this.deriveKeyFromPassword(password, salt);
@@ -155,12 +155,7 @@ export class CryptoService {
     const encrypted = decodeBase64(encryptedData.encryptedKey);
     const nonce = decodeBase64(encryptedData.nonce);
 
-    const decrypted = nacl.secretbox.open(encrypted, nonce, derivedKey);
-
-    if (!decrypted) {
-      throw new Error("Failed to decrypt private key - invalid password");
-    }
-
+    const decrypted = await hybridCrypto.decrypt(encrypted, derivedKey, nonce);
     return encodeBase64(decrypted);
   }
 
@@ -206,7 +201,7 @@ export class CryptoService {
       .single();
 
     if (error || !data?.encrypted_private_key) {
-return null;
+      return null;
     }
 
     try {
@@ -218,7 +213,7 @@ return null;
         },
         password
       );
-return decryptedKey;
+      return decryptedKey;
     } catch (error) {
       console.error("Failed to decrypt private key:", error);
       return null;
@@ -261,7 +256,6 @@ return decryptedKey;
 
   /**
    * Initialize keys from cloud if not present locally
-   * FIXED: Better error handling and key validation
    */
   async initializeFromCloud(
     userId: string,
@@ -271,12 +265,14 @@ return decryptedKey;
       // First, check if we have cloud backup
       const { data: profile } = await supabase
         .from("profiles")
-        .select("public_key, encrypted_private_key, private_key_salt, private_key_nonce")
+        .select(
+          "public_key, encrypted_private_key, private_key_salt, private_key_nonce"
+        )
         .eq("id", userId)
         .single();
 
       if (!profile?.encrypted_private_key || !profile?.public_key) {
-return null;
+        return null;
       }
 
       // Try to retrieve from cloud
@@ -284,7 +280,7 @@ return null;
         userId,
         password
       );
-      
+
       if (!cloudPrivateKey) {
         console.error("Failed to retrieve private key from cloud");
         return null;
@@ -299,9 +295,15 @@ return null;
       // Test the key pair with a simple encryption/decryption
       try {
         const testMessage = "test";
-        const encrypted = await this.encryptForSelf(testMessage, keyPair.privateKey);
-        const decrypted = await this.decryptForSelf(encrypted, keyPair.privateKey);
-        
+        const encrypted = await this.encryptForSelf(
+          testMessage,
+          keyPair.privateKey
+        );
+        const decrypted = await this.decryptForSelf(
+          encrypted,
+          keyPair.privateKey
+        );
+
         if (decrypted !== testMessage) {
           throw new Error("Key validation failed");
         }
@@ -312,7 +314,7 @@ return null;
 
       // Store locally for future use
       await this.storePrivateKey(cloudPrivateKey, userId);
-return keyPair;
+      return keyPair;
     } catch (error) {
       console.error("Error in initializeFromCloud:", error);
       return null;
@@ -334,7 +336,9 @@ return keyPair;
    * @deprecated Use generateKeyPairWithCloudBackup instead
    */
   async generateKeyPair(): Promise<KeyPair> {
-    console.warn('generateKeyPair is deprecated. Use generateKeyPairWithCloudBackup instead.');
+    console.warn(
+      "generateKeyPair is deprecated. Use generateKeyPairWithCloudBackup instead."
+    );
     this.ensureInitialized();
 
     try {
@@ -422,8 +426,11 @@ return keyPair;
   }
 
   async generateSymmetricKey(): Promise<Uint8Array> {
-    this.ensureInitialized();
-    return nacl.randomBytes(32);
+    return hybridCrypto.generateKey();
+  }
+
+  async generateNonce(): Promise<Uint8Array> {
+    return hybridCrypto.generateNonce();
   }
 
   async encryptSymmetricKey(
@@ -493,17 +500,9 @@ return keyPair;
     encrypted: Uint8Array;
     nonce: Uint8Array;
   }> {
-    this.ensureInitialized();
-
     try {
-      const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
-      const encrypted = nacl.secretbox(data, nonce, key);
-
-      if (!encrypted) {
-        throw new Error("File encryption failed");
-      }
-
-      return { encrypted, nonce };
+      const result = await hybridCrypto.encrypt(data, key);
+      return result;
     } catch (error) {
       console.error("Error encrypting file:", error);
       throw new Error(
@@ -518,16 +517,8 @@ return keyPair;
     nonce: Uint8Array,
     key: Uint8Array
   ): Promise<Uint8Array> {
-    this.ensureInitialized();
-
     try {
-      const decrypted = nacl.secretbox.open(encrypted, nonce, key);
-
-      if (!decrypted) {
-        throw new Error("File decryption failed");
-      }
-
-      return decrypted;
+      return await hybridCrypto.decrypt(encrypted, key, nonce);
     } catch (error) {
       console.error("Error decrypting file:", error);
       throw new Error(
@@ -544,20 +535,15 @@ return keyPair;
     plaintext: string,
     userPrivateKey: string
   ): Promise<string> {
-    this.ensureInitialized();
+    await hybridCrypto.initialize();
 
     try {
       // Use a consistent key derivation method
       const privateKeyBytes = decodeBase64(userPrivateKey);
       const derivedKey = nacl.hash(privateKeyBytes).slice(0, 32);
-      
-      const message = decodeUTF8(plaintext);
-      const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
-      const encrypted = nacl.secretbox(message, nonce, derivedKey);
 
-      if (!encrypted) {
-        throw new Error("Self encryption failed");
-      }
+      const message = decodeUTF8(plaintext);
+      const { encrypted, nonce } = await hybridCrypto.encrypt(message, derivedKey);
 
       return JSON.stringify({
         ciphertext: encodeBase64(encrypted),
@@ -574,13 +560,13 @@ return keyPair;
   }
 
   /**
-   * FIXED: Ensure consistent key derivation for self-decryption
+   * Ensure consistent key derivation for self-decryption
    */
   async decryptForSelf(
     encryptedData: string,
     userPrivateKey: string
   ): Promise<string> {
-    this.ensureInitialized();
+    await hybridCrypto.initialize();
 
     try {
       const parsedData = JSON.parse(encryptedData);
@@ -593,16 +579,12 @@ return keyPair;
       // Use the same key derivation method as encryption
       const privateKeyBytes = decodeBase64(userPrivateKey);
       const derivedKey = nacl.hash(privateKeyBytes).slice(0, 32);
-      
-      const decrypted = nacl.secretbox.open(
-        decodeBase64(ciphertext),
-        decodeBase64(nonce),
-        derivedKey
-      );
 
-      if (!decrypted) {
-        throw new Error("Self decryption failed - invalid data or key");
-      }
+      const decrypted = await hybridCrypto.decrypt(
+        decodeBase64(ciphertext),
+        derivedKey,
+        decodeBase64(nonce)
+      );
 
       return encodeUTF8(decrypted);
     } catch (error) {

@@ -68,6 +68,7 @@ export default function EffectStepEncrypted({
   const [saving, setSaving] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdItemId, setCreatedItemId] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   
   // Estados para archivos locales
   const [localEffectVideo, setLocalEffectVideo] = useState<string | null>(null);
@@ -325,44 +326,63 @@ export default function EffectStepEncrypted({
     }
   };
 
-  // Cifrar y subir todos los archivos
+  // Cifrar y subir todos los archivos con batch optimization
   const uploadAllFiles = async () => {
     if (!keyPair) return {};
 
-    const uploadedFiles: any = {};
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) throw new Error("Usuario no autenticado");
 
-    try {
-      // Subir video del efecto si existe
-      if (localEffectVideo) {
-        const metadata = await fileEncryptionService.encryptAndUploadFile(
-          localEffectVideo,
-          `effect_video_${Date.now()}.mp4`,
-          "video/mp4",
-          user.id,
-          [user.id],
-          getPublicKey,
-          () => keyPair.privateKey
-        );
-        uploadedFiles.effect_video = metadata.fileId;
-      }
+    // Prepare all files for batch upload
+    const allFiles: Array<{ uri: string; fileName: string; mimeType: string }> = [];
+    
+    if (localEffectVideo) {
+      allFiles.push({
+        uri: localEffectVideo,
+        fileName: `effect_video_${Date.now()}.mp4`,
+        mimeType: 'video/mp4'
+      });
+    }
+    
+    if (localSecretVideo) {
+      allFiles.push({
+        uri: localSecretVideo,
+        fileName: `secret_video_${Date.now()}.mp4`,
+        mimeType: 'video/mp4'
+      });
+    }
+    
+    if (allFiles.length === 0) return {};
 
-      // Subir video del secreto si existe
-      if (localSecretVideo) {
-        const metadata = await fileEncryptionService.encryptAndUploadFile(
-          localSecretVideo,
-          `secret_video_${Date.now()}.mp4`,
-          "video/mp4",
-          user.id,
-          [user.id],
-          getPublicKey,
-          () => keyPair.privateKey
-        );
-        uploadedFiles.secret_video = metadata.fileId;
-      }
+    try {
+      console.log(`📤 Uploading ${allFiles.length} videos with optimization...`);
+      
+      // Use batch upload with compression
+      const uploadMetadata = await fileEncryptionService.batchEncryptAndUploadFilesOptimized(
+        allFiles,
+        user.id,
+        [user.id],
+        getPublicKey,
+        () => keyPair.privateKey,
+        (progress, fileName) => {
+          setUploadProgress(prev => ({ ...prev, [fileName]: progress }));
+          console.log(`📊 Upload progress: ${progress.toFixed(0)}% - ${fileName}`);
+        }
+      );
+
+      // Process results
+      const uploadedFiles: any = {};
+      
+      uploadMetadata.forEach((metadata, index) => {
+        const originalFile = allFiles[index];
+        if (originalFile.fileName.includes('effect_video')) {
+          uploadedFiles.effect_video = metadata.fileId;
+        } else if (originalFile.fileName.includes('secret_video')) {
+          uploadedFiles.secret_video = metadata.fileId;
+        }
+      });
 
       return uploadedFiles;
     } catch (error) {
@@ -466,7 +486,7 @@ export default function EffectStepEncrypted({
         });
       }
 
-      // Subir todos los archivos
+      // Subir todos los archivos con compresión
       const uploadedFiles = await uploadAllFiles();
 
       // Cifrar campos sensibles
@@ -556,6 +576,7 @@ export default function EffectStepEncrypted({
       );
     } finally {
       setSaving(false);
+      setUploadProgress({});
     }
   };
 
@@ -708,6 +729,14 @@ export default function EffectStepEncrypted({
                   </StyledView>
                 </StyledView>
               </StyledTouchableOpacity>
+              {uploadProgress['effect_video'] && (
+                <StyledView className="mt-2 bg-white/10 rounded-full h-2">
+                  <StyledView 
+                    className="bg-emerald-500 h-full rounded-full"
+                    style={{ width: `${uploadProgress['effect_video']}%` }}
+                  />
+                </StyledView>
+              )}
             </StyledView>
           </StyledView>
 
@@ -786,6 +815,14 @@ export default function EffectStepEncrypted({
                   </StyledView>
                 </StyledView>
               </StyledTouchableOpacity>
+              {uploadProgress['secret_video'] && (
+                <StyledView className="mt-2 bg-white/10 rounded-full h-2">
+                  <StyledView 
+                    className="bg-emerald-500 h-full rounded-full"
+                    style={{ width: `${uploadProgress['secret_video']}%` }}
+                  />
+                </StyledView>
+              )}
             </StyledView>
           </StyledView>
 

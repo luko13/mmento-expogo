@@ -37,30 +37,48 @@ self.onmessage = async (e) => {
         
       case 'encryptBatch':
         // Para cifrado en batch
-        const { chunks, key } = data;
-        const encrypted = await Promise.all(
-          chunks.map(chunk => encryptChunk(chunk, key))
+        const batchData = data;
+        const encryptedBatch = await Promise.all(
+          batchData.chunks.map(chunk => encryptChunk(chunk, batchData.key))
         );
         self.postMessage({ 
           id, 
           success: true, 
-          result: encrypted,
+          result: encryptedBatch,
           duration: performance.now() - startTime
         });
         break;
         
       case 'batchBase64ToBuffer':
         // Convertir múltiples base64 en paralelo
-        const buffers = data.map(b64 => {
-          const buffer = Buffer.from(b64, 'base64');
-          return buffer.buffer;
-        });
+        const buffers = await Promise.all(
+          data.map(async (b64) => {
+            const buffer = Buffer.from(b64, 'base64');
+            return buffer.buffer;
+          })
+        );
         self.postMessage({ 
           id, 
           success: true, 
           result: buffers,
           duration: performance.now() - startTime
         }, buffers);
+        break;
+        
+      case 'streamEncrypt':
+        // Para cifrado por streaming de chunks
+        const streamData = data;
+        const encryptedChunks = await Promise.all(
+          streamData.chunks.map((chunk, index) => 
+            encryptChunk(Buffer.from(chunk), streamData.key, streamData.nonces[index])
+          )
+        );
+        self.postMessage({ 
+          id, 
+          success: true, 
+          result: encryptedChunks,
+          duration: performance.now() - startTime
+        });
         break;
         
       default:

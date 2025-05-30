@@ -309,75 +309,87 @@ export default function AddMagicWizardEncrypted({
       // Preparar archivos cifrados
       const encryptedFileIds: { [key: string]: any } = {};
 
-      // Subir video del efecto si existe
+      // Prepare all files for batch upload
+      const allFiles: Array<{ uri: string; fileName: string; mimeType: string }> = [];
+      
+      // Add effect video if exists
       if (trickData.localFiles?.effectVideo) {
-        try {
-          const metadata = await fileEncryptionService.encryptAndUploadFile(
-            trickData.localFiles.effectVideo,
-            `effect_video_${Date.now()}.mp4`,
-            "video/mp4",
-            profileId,
-            [profileId],
-            getPublicKey,
-            () => keyPair.privateKey
-          );
-          encryptedFileIds.effect_video = metadata.fileId;
-        } catch (error) {
-          console.error("Error uploading effect video:", error);
-          throw new Error("Error al subir video del efecto");
-        }
+        allFiles.push({
+          uri: trickData.localFiles.effectVideo,
+          fileName: `effect_video_${Date.now()}.mp4`,
+          mimeType: 'video/mp4'
+        });
       }
 
-      // Subir video del secreto si existe
+      // Add secret video if exists
       if (trickData.localFiles?.secretVideo) {
+        allFiles.push({
+          uri: trickData.localFiles.secretVideo,
+          fileName: `secret_video_${Date.now()}.mp4`,
+          mimeType: 'video/mp4'
+        });
+      }
+
+      // Add photos if exist
+      if (trickData.localFiles?.photos && trickData.localFiles.photos.length > 0) {
+        trickData.localFiles.photos.forEach((photoUri, index) => {
+          allFiles.push({
+            uri: photoUri,
+            fileName: `trick_photo_${Date.now()}_${index}.jpg`,
+            mimeType: 'image/jpeg'
+          });
+        });
+      }
+
+      // Upload all files with optimized batch processing
+      if (allFiles.length > 0) {
+        console.log(`📤 Uploading ${allFiles.length} files with optimized batch processing...`);
+        
         try {
-          const metadata = await fileEncryptionService.encryptAndUploadFile(
-            trickData.localFiles.secretVideo,
-            `secret_video_${Date.now()}.mp4`,
-            "video/mp4",
+          const uploadMetadata = await fileEncryptionService.batchEncryptAndUploadFilesOptimized(
+            allFiles,
             profileId,
             [profileId],
             getPublicKey,
-            () => keyPair.privateKey
+            () => keyPair.privateKey,
+            (progress, fileName) => {
+              console.log(`📊 Upload progress: ${progress.toFixed(0)}% - ${fileName}`);
+            }
           );
-          encryptedFileIds.secret_video = metadata.fileId;
-        } catch (error) {
-          console.error("Error uploading secret video:", error);
-          throw new Error("Error al subir video del secreto");
-        }
-      }
 
-      // Subir fotos si existen
-      if (
-        trickData.localFiles?.photos &&
-        trickData.localFiles.photos.length > 0
-      ) {
-        const photoIds: string[] = [];
+          // Process upload results
+          const photoIds: string[] = [];
+          
+          uploadMetadata.forEach((metadata, index) => {
+            const originalFile = allFiles[index];
+            
+            // Check if it's an archive
+            if (metadata.mimeType === 'application/x-magicbook-archive') {
+              // Archive containing multiple photos
+              photoIds.push(`archive:${metadata.fileId}`);
+            } else if (originalFile.mimeType.includes('video')) {
+              // Video file
+              if (originalFile.fileName.includes('effect_video')) {
+                encryptedFileIds.effect_video = metadata.fileId;
+              } else if (originalFile.fileName.includes('secret_video')) {
+                encryptedFileIds.secret_video = metadata.fileId;
+              }
+            } else if (originalFile.mimeType.includes('image')) {
+              // Individual photo
+              photoIds.push(metadata.fileId);
+            }
+          });
 
-        for (const photoUri of trickData.localFiles.photos) {
-          try {
-            const metadata = await fileEncryptionService.encryptAndUploadFile(
-              photoUri,
-              `trick_photo_${Date.now()}_${Math.random()
-                .toString(36)
-                .substr(2, 9)}.jpg`,
-              "image/jpeg",
-              profileId,
-              [profileId],
-              getPublicKey,
-              () => keyPair.privateKey
-            );
-            photoIds.push(metadata.fileId);
-          } catch (error) {
-            console.error("Error uploading photo:", error);
-            // Continuar con las demás fotos
+          // Set photo IDs if any
+          if (photoIds.length > 0) {
+            encryptedFileIds.photos = photoIds;
+            encryptedFileIds.photo = photoIds[0]; // First photo as main
+            setSavedPhotos(photoIds);
           }
-        }
 
-        if (photoIds.length > 0) {
-          encryptedFileIds.photos = photoIds;
-          encryptedFileIds.photo = photoIds[0]; // Primera foto como principal
-          setSavedPhotos(photoIds); // Guardar para usar después
+        } catch (error) {
+          console.error("Error in batch file upload:", error);
+          throw new Error("Error al subir archivos");
         }
       }
 

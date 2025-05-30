@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from 'expo-router';
+import { useRouter } from "expo-router";
 import type React from "react";
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
@@ -14,6 +14,7 @@ import {
   Animated,
   FlatList,
   ActivityIndicator,
+  Share,
 } from "react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
@@ -75,11 +76,12 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const [isSecretPlaying, setIsSecretPlaying] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
   const [overlayOpacity] = useState(new Animated.Value(0));
-  
-  // Función para cerrar 
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+
+  // Función para cerrar
   const handleClose = () => {
     if (onClose) {
-      router.push("/(app)/home");
+      onClose();
     } else {
       router.push("/(app)/home");
     }
@@ -123,19 +125,29 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   // Usar las fotos proporcionadas o crear un array con la foto principal si existe
   const photos = trick.photos || (trick.photo_url ? [trick.photo_url] : []);
 
-  console.log("📱 Fotos iniciales del trick:", {
-    photos_array: trick.photos,
-    photo_url: trick.photo_url,
-    photos_length: photos.length,
-    photos_content: photos,
-  });
-
   // Crear tags de ejemplo si no existen
   const tags = trick.tags || [
     { id: "1", name: "Card Magic" },
     { id: "2", name: "Sleight of Hand" },
     { id: "3", name: "Beginner" },
   ];
+
+  // Función helper para retry de descargas
+  const retryDownload = async (
+    downloadFunction: () => Promise<any>,
+    maxRetries = 3
+  ): Promise<any> => {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await downloadFunction();
+      } catch (error) {
+        console.log(`Intento ${i + 1} falló:`, error);
+        if (i === maxRetries - 1) throw error;
+        // Esperar con backoff exponencial
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+      }
+    }
+  };
 
   // useEffect #1: SOLO VIDEOS
   useEffect(() => {
@@ -196,13 +208,14 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             decryptedContent.effect_video_url.startsWith("encrypted_")
           ) {
             try {
-              const decryptedVideo =
-                await fileEncryption.downloadAndDecryptFile(
+              const decryptedVideo = await retryDownload(async () =>
+                fileEncryption.downloadAndDecryptFile(
                   decryptedContent.effect_video_url,
                   user.id,
                   getPublicKey,
                   () => keyPair.privateKey
-                );
+                )
+              );
 
               // Crear URL temporal para el video descifrado
               const tempUri = `${
@@ -253,13 +266,14 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             decryptedContent.secret_video_url.startsWith("encrypted_")
           ) {
             try {
-              const decryptedVideo =
-                await fileEncryption.downloadAndDecryptFile(
+              const decryptedVideo = await retryDownload(async () =>
+                fileEncryption.downloadAndDecryptFile(
                   decryptedContent.secret_video_url,
                   user.id,
                   getPublicKey,
                   () => keyPair.privateKey
-                );
+                )
+              );
 
               const tempUri = `${
                 FileSystem.cacheDirectory
@@ -322,84 +336,168 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     };
   }, [trick.id, keyPair]); // Dependemos del ID del truco y keyPair
 
-  /// useEffect #2: SOLO FOTOS - VERSIÓN CON LOGS DE DEPURACIÓN
-useEffect(() => {
-  const loadPhotos = async () => {
-    try {
-      // Evitar cargas múltiples
-      if (photosLoadedRef.current) {
-        return;
-      }
-      
-      // LOG 1: Ver qué fotos llegan
-      console.log("🔍 INICIO loadPhotos - fotos recibidas:", {
-        photos_from_props: trick.photos,
-        photos_array_length: photos.length,
-        is_encrypted: trick.is_encrypted
-      });
-      
-      // Si no está cifrado, usar fotos originales
-      if (!trick.is_encrypted) {
-        setDecryptedPhotos(photos);
-        photosLoadedRef.current = true;
-        setIsLoadingPhotos(false);
-        return;
-      }
-      
-      // Si aún no tenemos las claves, esperamos
-      if (!keyPair) {
-        return;
-      }
+  /// useEffect #2: SOLO FOTOS
+  useEffect(() => {
+    const loadPhotos = async () => {
+      try {
+        // Evitar cargas múltiples
+        if (photosLoadedRef.current) {
+          return;
+        }
 
-      setIsLoadingPhotos(true);
-      setPhotoLoadError(null);
+        // Si no está cifrado, usar fotos originales
+        if (!trick.is_encrypted) {
+          setDecryptedPhotos(photos);
+          photosLoadedRef.current = true;
+          setIsLoadingPhotos(false);
+          return;
+        }
 
-      // Obtener usuario
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuario no autenticado");
+        // Si aún no tenemos las claves, esperamos
+        if (!keyPair) {
+          return;
+        }
 
-      // Obtener contenido descifrado
-      const decryptedContent = await encryptedContentService.getContent(
-        trick.id,
-        'magic_tricks',
-        user.id,
-        decryptForSelf,
-        () => keyPair.privateKey
-      );
-      
-      if (!decryptedContent) {
-        throw new Error("No se pudo obtener el contenido descifrado");
-      }
+        setIsLoadingPhotos(true);
+        setPhotoLoadError(null);
 
-      // LOG 2: Ver qué devuelve el servicio
-      console.log("🔍 Contenido descifrado COMPLETO:", {
-        has_encrypted_files: !!decryptedContent.encrypted_files,
-        encrypted_files: decryptedContent.encrypted_files,
-        photos_in_decrypted: decryptedContent.photos,
-        photos_count: decryptedContent.photos?.length || 0
-      });
+        // Obtener usuario
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new Error("Usuario no autenticado");
 
-      const processedPhotos: string[] = [];
+        // Obtener contenido descifrado
+        const decryptedContent = await encryptedContentService.getContent(
+          trick.id,
+          "magic_tricks",
+          user.id,
+          decryptForSelf,
+          () => keyPair.privateKey
+        );
 
-      // OPCIÓN 1: Buscar en las fotos que vienen del prop
-      if (trick.photos && Array.isArray(trick.photos) && trick.photos.length > 0) {
-        console.log(`📸 Procesando ${trick.photos.length} fotos desde props`);
-        
-        const photoPromises = trick.photos.map(async (photoId: string, index: number) => {
-          console.log(`📸 Descifrando foto ${index + 1}: ${photoId}`);
-          
+        if (!decryptedContent) {
+          throw new Error("No se pudo obtener el contenido descifrado");
+        }
+
+        const processedPhotos: string[] = [];
+
+        // OPCIÓN 1: Buscar en las fotos que vienen del prop
+        if (
+          trick.photos &&
+          Array.isArray(trick.photos) &&
+          trick.photos.length > 0
+        ) {
+
+          const photoPromises = trick.photos.map(
+            async (photoId: string, index: number) => {
+
+              try {
+                const decryptedPhoto = await retryDownload(async () =>
+                  fileEncryption.downloadAndDecryptFile(
+                    photoId,
+                    user.id,
+                    getPublicKey,
+                    () => keyPair.privateKey
+                  )
+                );
+
+                // Convertir a base64 en chunks
+                let binaryString = "";
+                const chunkSize = 8192;
+                for (
+                  let j = 0;
+                  j < decryptedPhoto.data.length;
+                  j += chunkSize
+                ) {
+                  const chunk = decryptedPhoto.data.slice(j, j + chunkSize);
+                  binaryString += String.fromCharCode.apply(
+                    null,
+                    Array.from(chunk)
+                  );
+                }
+                const base64Data = btoa(binaryString);
+                const dataUri = `data:${decryptedPhoto.mimeType};base64,${base64Data}`;
+
+                return { index, dataUri };
+              } catch (err) {
+                console.error(`❌ Error descifrando foto ${index + 1}:`, err);
+                return null;
+              }
+            }
+          );
+
+          const results = await Promise.all(photoPromises);
+
+          const orderedPhotos = results
+            .filter(
+              (result): result is { index: number; dataUri: string } =>
+                result !== null
+            )
+            .sort((a, b) => a.index - b.index)
+            .map((result) => result.dataUri);
+
+          processedPhotos.push(...orderedPhotos);
+
+        }
+        // OPCIÓN 2: Si no hay fotos en props, buscar en encrypted_files
+        else if (
+          decryptedContent.encrypted_files?.photos &&
+          Array.isArray(decryptedContent.encrypted_files.photos)
+        ) {
+          const photoPromises = decryptedContent.encrypted_files.photos.map(
+            async (encryptedPhoto: any, index: number) => {
+              try {
+                const decryptedPhoto = await retryDownload(async () =>
+                  fileEncryption.downloadAndDecryptFile(
+                    encryptedPhoto.encrypted_url || encryptedPhoto.url,
+                    user.id,
+                    getPublicKey,
+                    () => keyPair.privateKey
+                  )
+                );
+
+                let binaryString = "";
+                const chunkSize = 8192;
+                for (let j = 0; j < decryptedPhoto.data.length; j += chunkSize) {
+                  const chunk = decryptedPhoto.data.slice(j, j + chunkSize);
+                  binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+                }
+                const base64Data = btoa(binaryString);
+                const dataUri = `data:${decryptedPhoto.mimeType};base64,${base64Data}`;
+
+                return { index, dataUri };
+              } catch (err) {
+                console.error(`❌ Error descifrando foto ${index + 1}:`, err);
+                return null;
+              }
+            }
+          );
+
+          const results = await Promise.all(photoPromises);
+          const orderedPhotos = results
+            .filter((result): result is { index: number; dataUri: string } => result !== null)
+            .sort((a, b) => a.index - b.index)
+            .map((result) => result.dataUri);
+
+          processedPhotos.push(...orderedPhotos);
+        }
+        // OPCIÓN 3: Foto única
+        else if (
+          decryptedContent.photo_url &&
+          decryptedContent.photo_url.startsWith("encrypted_")
+        ) {
           try {
-            const decryptedPhoto = await fileEncryption.downloadAndDecryptFile(
-              photoId,
-              user.id,
-              getPublicKey,
-              () => keyPair.privateKey
+            const decryptedPhoto = await retryDownload(async () =>
+              fileEncryption.downloadAndDecryptFile(
+                decryptedContent.photo_url,
+                user.id,
+                getPublicKey,
+                () => keyPair.privateKey
+              )
             );
-            
-            console.log(`✅ Foto ${index + 1} descifrada, tamaño: ${decryptedPhoto.data.length}`);
-            
-            // Convertir a base64 en chunks
-            let binaryString = '';
+
+            let binaryString = "";
             const chunkSize = 8192;
             for (let j = 0; j < decryptedPhoto.data.length; j += chunkSize) {
               const chunk = decryptedPhoto.data.slice(j, j + chunkSize);
@@ -408,60 +506,55 @@ useEffect(() => {
             const base64Data = btoa(binaryString);
             const dataUri = `data:${decryptedPhoto.mimeType};base64,${base64Data}`;
             
-            return { index, dataUri };
+            processedPhotos.push(dataUri);
           } catch (err) {
-            console.error(`❌ Error descifrando foto ${index + 1}:`, err);
-            return null;
+            console.error("❌ Error descifrando foto única:", err);
+            // Si falla, intentar con la URL pública
+            if (decryptedContent.photo_url) {
+              const { data: publicURL } = supabase.storage
+                .from("magic_trick_media")
+                .getPublicUrl(decryptedContent.photo_url);
+              processedPhotos.push(publicURL.publicUrl);
+            }
           }
-        });
+        }
+        // Si no está cifrada pero tiene URL
+        else if (decryptedContent.photo_url) {
+          if (!decryptedContent.photo_url.startsWith("http")) {
+            const { data: publicURL } = supabase.storage
+              .from("magic_trick_media")
+              .getPublicUrl(decryptedContent.photo_url);
+            processedPhotos.push(publicURL.publicUrl);
+          } else {
+            processedPhotos.push(decryptedContent.photo_url);
+          }
+        }
 
-        const results = await Promise.all(photoPromises);
-        
-        const orderedPhotos = results
-          .filter((result): result is { index: number; dataUri: string } => result !== null)
-          .sort((a, b) => a.index - b.index)
-          .map(result => result.dataUri);
-        
-        processedPhotos.push(...orderedPhotos);
-        
-        console.log(`✅ Total fotos procesadas: ${processedPhotos.length} de ${trick.photos.length}`);
-      }
-      // OPCIÓN 2: Si no hay fotos en props, buscar en encrypted_files (código existente)
-      else if (decryptedContent.encrypted_files?.photos && Array.isArray(decryptedContent.encrypted_files.photos)) {
-        console.log(`📸 Procesando ${decryptedContent.encrypted_files.photos.length} fotos desde encrypted_files`);
-        // ... código existente ...
-      }
-      // OPCIÓN 3: Foto única
-      else if (decryptedContent.photo_url && decryptedContent.photo_url.startsWith('encrypted_')) {
-        console.log("📸 Procesando foto única cifrada");
-        // ... código existente ...
-      }
+        // Actualizar el estado con las fotos procesadas
+        if (processedPhotos.length > 0) {
+          setDecryptedPhotos(processedPhotos);
+        } else {
+          setDecryptedPhotos(photos);
+        }
 
-      // Actualizar el estado con las fotos procesadas
-      if (processedPhotos.length > 0) {
-        console.log("✅ Estableciendo fotos descifradas:", processedPhotos.length);
-        setDecryptedPhotos(processedPhotos);
-      } else {
-        console.log("⚠️ No se procesaron fotos, usando originales");
+        photosLoadedRef.current = true;
+      } catch (error) {
+        console.error("❌ Error general cargando fotos:", error);
+        setPhotoLoadError(
+          error instanceof Error ? error.message : "Error desconocido"
+        );
         setDecryptedPhotos(photos);
+      } finally {
+        setIsLoadingPhotos(false);
       }
-      
-      photosLoadedRef.current = true;
-    } catch (error) {
-      console.error("❌ Error general cargando fotos:", error);
-      setPhotoLoadError(error instanceof Error ? error.message : "Error desconocido");
-      setDecryptedPhotos(photos);
-    } finally {
-      setIsLoadingPhotos(false);
-    }
-  };
+    };
 
-  loadPhotos();
+    loadPhotos();
 
-  return () => {
-    photosLoadedRef.current = false;
-  };
-}, [trick.id, trick.photos, keyPair]); // Agregar trick.photos a las dependencias
+    return () => {
+      photosLoadedRef.current = false;
+    };
+  }, [trick.id, trick.photos, keyPair]); // Agregar trick.photos a las dependencias
 
   // También actualiza los video players cuando las URLs cambien
   useEffect(() => {
@@ -498,6 +591,23 @@ useEffect(() => {
       secretVideoPlayer?.pause();
     }
   }, [currentSection, effectVideoPlayer, secretVideoPlayer]);
+
+  // Limpiar archivos temporales al desmontar
+  useEffect(() => {
+    return () => {
+      // Limpiar archivos temporales de video
+      if (effectVideoUrl && effectVideoUrl.startsWith(FileSystem.cacheDirectory || '')) {
+        FileSystem.deleteAsync(effectVideoUrl, { idempotent: true }).catch(
+          err => console.log("Error limpiando archivo temporal:", err)
+        );
+      }
+      if (secretVideoUrl && secretVideoUrl.startsWith(FileSystem.cacheDirectory || '')) {
+        FileSystem.deleteAsync(secretVideoUrl, { idempotent: true }).catch(
+          err => console.log("Error limpiando archivo temporal:", err)
+        );
+      }
+    };
+  }, [effectVideoUrl, secretVideoUrl]);
 
   // Función para manejar el cambio de sección al deslizar
   const handleScroll = useCallback(
@@ -556,7 +666,22 @@ useEffect(() => {
 
   // Manejar el botón de editar
   const handleEditPress = () => {
-    // Implementar la lógica para editar el truco
+    router.push({
+      pathname: "/(app)/edit-trick",
+      params: { trickId: trick.id }
+    });
+  };
+
+  // Manejar el botón de compartir
+  const handleSharePress = async () => {
+    try {
+      await Share.share({
+        message: `${t("checkOutThisTrick", "¡Mira este truco!")}: ${trick.title}\n\n${trick.effect}`,
+        title: trick.title,
+      });
+    } catch (error) {
+      console.error("Error compartiendo:", error);
+    }
   };
 
   // Manejar la eliminación de etiquetas
@@ -687,6 +812,10 @@ useEffect(() => {
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item, index) => `photo-${index}`}
+          onScroll={(event) => {
+            const index = Math.round(event.nativeEvent.contentOffset.x / width);
+            setCurrentPhotoIndex(index);
+          }}
           renderItem={({ item }) => (
             <Image
               source={{ uri: item as string }}
@@ -695,6 +824,20 @@ useEffect(() => {
             />
           )}
         />
+        
+        {/* Indicadores de página */}
+        {photosToDisplay.length > 1 && (
+          <StyledView className="absolute bottom-20 left-0 right-0 flex-row justify-center">
+            {photosToDisplay.map((_, index) => (
+              <StyledView
+                key={`dot-${index}`}
+                className={`w-2 h-2 mx-1 rounded-full ${
+                  index === currentPhotoIndex ? "bg-white" : "bg-white/30"
+                }`}
+              />
+            ))}
+          </StyledView>
+        )}
       </StyledView>
     );
   };
