@@ -3,6 +3,8 @@ import { CryptoService } from "./cryptoService";
 import { supabase } from "../lib/supabase";
 import * as FileSystem from "expo-file-system";
 import { Buffer } from "buffer";
+import { OptimizedBase64 } from "./optimizedBase64";
+import { performanceOptimizer } from "./performanceOptimizer";
 
 export interface EncryptedFileMetadata {
   fileId: string;
@@ -33,33 +35,41 @@ export class FileEncryptionService {
   ): Promise<EncryptedFileMetadata[]> {
     console.log(`🚀 Procesando ${files.length} archivos EN PARALELO TOTAL...`);
     const startTime = Date.now();
-    
+
     // Verificar sesión antes de empezar
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
-      throw new Error('No hay sesión activa. Por favor, inicia sesión nuevamente.');
+      throw new Error(
+        "No hay sesión activa. Por favor, inicia sesión nuevamente."
+      );
     }
 
     // Verificar tamaños de archivos primero
     const fileSizes = await Promise.all(
       files.map(async (file) => {
         const info = await FileSystem.getInfoAsync(file.uri);
-        const sizeMB = info.exists && 'size' in info ? info.size / (1024 * 1024) : 0;
+        const sizeMB =
+          info.exists && "size" in info ? info.size / (1024 * 1024) : 0;
         return { ...file, sizeMB };
       })
     );
 
     // Verificar archivos muy grandes
-    const largeFiles = fileSizes.filter(f => f.sizeMB > 20);
+    const largeFiles = fileSizes.filter((f) => f.sizeMB > 20);
     if (largeFiles.length > 0) {
-      console.warn('⚠️ Archivos grandes detectados:', largeFiles.map(f => `${f.fileName}: ${f.sizeMB.toFixed(1)}MB`));
+      console.warn(
+        "⚠️ Archivos grandes detectados:",
+        largeFiles.map((f) => `${f.fileName}: ${f.sizeMB.toFixed(1)}MB`)
+      );
     }
 
     let processedCount = 0;
     const totalFiles = files.length;
 
     // Procesar TODOS los archivos en paralelo sin importar el tamaño
-    const promises = files.map((file, index) => 
+    const promises = files.map((file, index) =>
       this.encryptAndUploadFileUltraFast(
         file.uri,
         file.fileName,
@@ -69,47 +79,61 @@ export class FileEncryptionService {
         getPublicKey,
         getPrivateKey,
         index // Para evitar colisiones de ID
-      ).then(result => {
-        processedCount++;
-        onProgress?.((processedCount / totalFiles) * 100, file.fileName);
-        console.log(`✅ ${file.fileName} completado`);
-        return result;
-      }).catch(error => {
-        console.error(`❌ Error con ${file.fileName}:`, error);
-        processedCount++;
-        onProgress?.((processedCount / totalFiles) * 100, file.fileName);
-        
-        // Re-throw para propagar el error
-        throw new Error(`Error procesando ${file.fileName}: ${error.message}`);
-      })
+      )
+        .then((result) => {
+          processedCount++;
+          onProgress?.((processedCount / totalFiles) * 100, file.fileName);
+          console.log(`✅ ${file.fileName} completado`);
+          return result;
+        })
+        .catch((error) => {
+          console.error(`❌ Error con ${file.fileName}:`, error);
+          processedCount++;
+          onProgress?.((processedCount / totalFiles) * 100, file.fileName);
+
+          // Re-throw para propagar el error
+          throw new Error(
+            `Error procesando ${file.fileName}: ${error.message}`
+          );
+        })
     );
 
     try {
       // Usar Promise.allSettled para obtener todos los resultados
       const results = await Promise.allSettled(promises);
-      
+
       const successful: EncryptedFileMetadata[] = [];
       const failed: string[] = [];
-      
+
       results.forEach((result, index) => {
-        if (result.status === 'fulfilled' && result.value) {
+        if (result.status === "fulfilled" && result.value) {
           successful.push(result.value);
-        } else if (result.status === 'rejected') {
-          failed.push(`${files[index].fileName}: ${result.reason?.message || 'Error desconocido'}`);
+        } else if (result.status === "rejected") {
+          failed.push(
+            `${files[index].fileName}: ${
+              result.reason?.message || "Error desconocido"
+            }`
+          );
         }
       });
-      
+
       const totalTime = Date.now() - startTime;
-      console.log(`✅ Procesados ${successful.length}/${files.length} en ${(totalTime / 1000).toFixed(1)}s`);
-      
+      console.log(
+        `✅ Procesados ${successful.length}/${files.length} en ${(
+          totalTime / 1000
+        ).toFixed(1)}s`
+      );
+
       if (failed.length > 0) {
-        console.error('❌ Archivos que fallaron:', failed);
-        throw new Error(`Error al procesar ${failed.length} archivo(s): ${failed.join(', ')}`);
+        console.error("❌ Archivos que fallaron:", failed);
+        throw new Error(
+          `Error al procesar ${failed.length} archivo(s): ${failed.join(", ")}`
+        );
       }
-      
+
       return successful;
     } catch (error) {
-      console.error('Error en batch upload:', error);
+      console.error("Error en batch upload:", error);
       throw error;
     }
   }
@@ -127,125 +151,152 @@ export class FileEncryptionService {
     getPrivateKey: () => string,
     index: number
   ): Promise<EncryptedFileMetadata> {
-    // 1. Verificar tamaño del archivo primero
+    // 1. Verificar tamaño y comprimir si es necesario
     const fileInfo = await FileSystem.getInfoAsync(fileUri);
-    const fileSizeMB = fileInfo.exists && 'size' in fileInfo ? fileInfo.size / (1024 * 1024) : 0;
-    
+    const fileSizeMB =
+      fileInfo.exists && "size" in fileInfo ? fileInfo.size / (1024 * 1024) : 0;
+
     let finalUri = fileUri;
-    
-    // Comprimir si es imagen > 3MB
-    if (mimeType.includes('image') && fileSizeMB > 3) {
+
+    // Comprimir imágenes grandes
+    if (mimeType.includes("image") && fileSizeMB > 3) {
       try {
-        const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator');
+        const { manipulateAsync, SaveFormat } = await import(
+          "expo-image-manipulator"
+        );
         const compressed = await manipulateAsync(
           fileUri,
           [{ resize: { width: 1920 } }],
           { compress: 0.7, format: SaveFormat.JPEG }
         );
         finalUri = compressed.uri;
-        console.log(`📸 Comprimido ${fileName}: ${fileSizeMB.toFixed(1)}MB → ~${(fileSizeMB * 0.3).toFixed(1)}MB`);
+        console.log(
+          `📸 Comprimido ${fileName}: ${fileSizeMB.toFixed(1)}MB → ~${(
+            fileSizeMB * 0.3
+          ).toFixed(1)}MB`
+        );
       } catch (e) {
-        console.warn('No se pudo comprimir la imagen:', e);
+        console.warn("No se pudo comprimir la imagen:", e);
       }
     }
 
-    // 2. Operaciones iniciales en paralelo
+    // 2. Obtener estrategia de optimización
+    const fileSize = fileInfo.exists && "size" in fileInfo ? fileInfo.size : 0;
+    const strategy = performanceOptimizer.getOptimizationStrategy(fileSize);
+
+    // 3. Leer archivo y generar clave simétrica en paralelo
     const [fileDataResult, symmetricKey] = await Promise.all([
-      FileSystem.readAsStringAsync(finalUri, { encoding: FileSystem.EncodingType.Base64 }),
-      this.cryptoService.generateSymmetricKey()
+      FileSystem.readAsStringAsync(finalUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      }),
+      this.cryptoService.generateSymmetricKey(),
     ]);
 
-    // 3. Convertir y cifrar
-    const fileBuffer = Buffer.from(fileDataResult, 'base64');
-    const fileSize = fileBuffer.length;
-    
-    // 4. Cifrar archivo y claves en paralelo
-    const [encryptResult, encryptedKeys] = await Promise.all([
-      this.cryptoService.encryptFile(fileBuffer, symmetricKey),
-      this.encryptKeysForRecipients(
-        symmetricKey,
-        recipientUserIds,
-        getPublicKey,
-        getPrivateKey()
-      )
-    ]);
+    // 4. Convertir Base64 a Uint8Array de forma optimizada
+    console.time(`base64-conversion-${fileName}`);
+    const fileBuffer = await performanceOptimizer.measureAndOptimize(
+      "base64ToBuffer",
+      OptimizedBase64.base64ToUint8Array,
+      fileDataResult
+    );
+    console.timeEnd(`base64-conversion-${fileName}`);
+
+    // 5. Cifrar archivo con medición de performance
+    const encryptResult = await performanceOptimizer.measureAndOptimize(
+      "encrypt",
+      async (data: Uint8Array, key: Uint8Array) => {
+        return this.cryptoService.encryptFile(data, key);
+      },
+      fileBuffer,
+      symmetricKey
+    );
 
     const { encrypted, nonce } = encryptResult;
 
-    // 5. Generar ID único con timestamp + index para evitar colisiones
-    const fileId = `e_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 5)}`;
+    // 6. Cifrar claves para destinatarios en paralelo
+    const encryptedKeys = await this.encryptKeysForRecipients(
+      symmetricKey,
+      recipientUserIds,
+      getPublicKey,
+      getPrivateKey()
+    );
+
+    // 7. Generar ID único
+    const fileId = `encrypted_${Date.now()}_${index}_${Math.random()
+      .toString(36)
+      .substr(2, 5)}`;
     const filePath = `encrypted_files/${fileId}`;
-    
-    // 6. Preparar metadata
+
+    // 8. Preparar metadata
     const metadata: EncryptedFileMetadata = {
       fileId,
       originalName: fileName,
       mimeType,
-      size: fileSize,
+      size: fileBuffer.length,
       encryptedKeys,
-      fileNonce: Buffer.from(nonce).toString('base64'),
+      fileNonce: Buffer.from(nonce).toString("base64"),
     };
 
-    // 6. Subir a Supabase con mejor manejo de errores
-    try {
-      // Verificar tamaño antes de subir
-      const uploadSizeMB = encrypted.length / (1024 * 1024);
-      if (uploadSizeMB > 50) {
-        throw new Error(`Archivo demasiado grande: ${uploadSizeMB.toFixed(1)}MB (máx 50MB)`);
-      }
+    // 9. Subir a Supabase con medición
+    const uploadResult = await performanceOptimizer.measureAndOptimize(
+      "upload",
+      async (encryptedData: Uint8Array) => {
+        const uploadSizeMB = encryptedData.length / (1024 * 1024);
 
-      // Intentar subir
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("encrypted_media")
-        .upload(filePath, encrypted, {
-          contentType: "application/octet-stream",
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) {
-        console.error(`Error subiendo ${fileName}:`, uploadError);
-        
-        // Si es error de tamaño
-        if (uploadError.message?.includes('413') || uploadError.message?.includes('too large')) {
-          throw new Error(`Archivo muy grande: ${fileName} (${uploadSizeMB.toFixed(1)}MB)`);
+        if (uploadSizeMB > 50) {
+          throw new Error(
+            `Archivo demasiado grande: ${uploadSizeMB.toFixed(1)}MB (máx 50MB)`
+          );
         }
-        
-        // Si es error de autenticación
-        if (uploadError.message?.includes('401') || uploadError.message?.includes('JWT')) {
-          throw new Error('Sesión expirada. Por favor, vuelve a iniciar sesión.');
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("encrypted_media")
+          .upload(filePath, encryptedData, {
+            contentType: "application/octet-stream",
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error(`Error subiendo ${fileName}:`, uploadError);
+
+          if (
+            uploadError.message?.includes("413") ||
+            uploadError.message?.includes("too large")
+          ) {
+            throw new Error(
+              `Archivo muy grande: ${fileName} (${uploadSizeMB.toFixed(1)}MB)`
+            );
+          }
+
+          if (
+            uploadError.message?.includes("401") ||
+            uploadError.message?.includes("JWT")
+          ) {
+            throw new Error(
+              "Sesión expirada. Por favor, vuelve a iniciar sesión."
+            );
+          }
+
+          throw new Error(
+            `Error subiendo: ${uploadError.message || "Error desconocido"}`
+          );
         }
-        
-        throw new Error(`Error subiendo: ${uploadError.message || 'Error desconocido'}`);
-      }
 
-      // Verificar que realmente se subió
-      if (!uploadData) {
-        console.warn('No se recibió confirmación de subida para', fileName);
-      }
+        return uploadData;
+      },
+      encrypted
+    );
 
-    } catch (error: any) {
-      // Si el error es un JSON parse error, probablemente sea un problema del servidor
-      if (error.message?.includes('JSON') || error.message?.includes('Unexpected character')) {
-        console.error('Error del servidor al subir archivo:', fileName);
-        console.error('Tamaño del archivo cifrado:', encrypted.length / 1024 / 1024, 'MB');
-        
-        // Verificar sesión
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          throw new Error('Sesión expirada. Por favor, vuelve a iniciar sesión.');
-        }
-        
-        throw new Error(`Error del servidor al subir ${fileName}. El archivo puede ser muy grande.`);
-      }
-      
-      throw error;
-    }
-
-    // 7. Guardar metadata (sin esperar respuesta para acelerar)
-    this.saveMetadataAndKeys(metadata, authorUserId).catch(error => {
+    // 10. Guardar metadata (sin esperar respuesta)
+    this.saveMetadataAndKeys(metadata, authorUserId).catch((error) => {
       console.error("Error guardando metadata:", error);
     });
+
+    // 11. Log de métricas de rendimiento
+    if (index === 0 || index % 5 === 0) {
+      performanceOptimizer.logPerformanceReport();
+    }
 
     return metadata;
   }
@@ -294,11 +345,13 @@ export class FileEncryptionService {
         privateKey
       );
 
-      return [{
-        userId: recipientUserIds[0],
-        encryptedKey: encryptedKeyData.ciphertext,
-        nonce: encryptedKeyData.nonce,
-      }];
+      return [
+        {
+          userId: recipientUserIds[0],
+          encryptedKey: encryptedKeyData.ciphertext,
+          nonce: encryptedKeyData.nonce,
+        },
+      ];
     }
 
     // Múltiples destinatarios
@@ -404,14 +457,14 @@ export class FileEncryptionService {
           .eq("user_id", userId)
           .single(),
       ]);
-      
+
     if (mErr || !metaData) throw new Error("Archivo no encontrado");
     if (kErr || !keyRow) throw new Error("Sin acceso a este archivo");
 
     // 2. Descifrar clave simétrica
     const authorPub = await getPublicKey(metaData.author_id);
     if (!authorPub) throw new Error("No se pudo obtener la clave del autor");
-    
+
     const symmetricKey = await this.cryptoService.decryptSymmetricKey(
       { ciphertext: keyRow.encrypted_key, nonce: keyRow.nonce },
       authorPub,
@@ -422,13 +475,13 @@ export class FileEncryptionService {
     const { data: blob, error: dErr } = await supabase.storage
       .from("encrypted_media")
       .download(`encrypted_files/${fileId}`);
-      
+
     if (dErr || !blob) throw new Error(`Error descargando: ${dErr?.message}`);
 
     // 4. Convertir y descifrar
     const encryptedBuffer = await this.blobToUint8Array(blob);
-    const fileNonce = Buffer.from(metaData.file_nonce, 'base64');
-    
+    const fileNonce = Buffer.from(metaData.file_nonce, "base64");
+
     const decrypted = await this.cryptoService.decryptFile(
       encryptedBuffer,
       fileNonce,
@@ -445,10 +498,43 @@ export class FileEncryptionService {
   /**
    * Helper: Blob to Uint8Array
    */
-  private async blobToUint8Array(blob: Blob | ArrayBuffer | Uint8Array): Promise<Uint8Array> {
+  private async blobToUint8Array(
+    blob: Blob | ArrayBuffer | Uint8Array
+  ): Promise<Uint8Array> {
     if (blob instanceof Uint8Array) return blob;
     if (blob instanceof ArrayBuffer) return new Uint8Array(blob);
 
-    return new Uint8Array(await blob.arrayBuffer());
+    // React Native Blob con _data
+    if (blob && typeof blob === "object" && "_data" in blob) {
+      const data = (blob as any)._data;
+
+      // Si _data es un objeto con blobId y offset
+      if (data && typeof data === "object" && "blobId" in data) {
+        // Es un React Native Blob, usar FileReader
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (reader.result) {
+              const arrayBuffer = reader.result as ArrayBuffer;
+              resolve(new Uint8Array(arrayBuffer));
+            } else {
+              reject(new Error("FileReader result is null"));
+            }
+          };
+          reader.onerror = () => reject(reader.error);
+          reader.readAsArrayBuffer(blob as Blob);
+        });
+      }
+
+      // Si _data es directamente los datos
+      if (data instanceof ArrayBuffer) {
+        return new Uint8Array(data);
+      }
+      if (typeof data === "string") {
+        return await OptimizedBase64.base64ToUint8Array(data);
+      }
+    }
+
+    throw new Error("No se pudo convertir el blob a Uint8Array");
   }
 }

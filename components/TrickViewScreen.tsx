@@ -29,6 +29,7 @@ import { EncryptedContentService } from "../services/encryptedContentService";
 import { useEncryption } from "../hooks/useEncryption";
 import { FileEncryptionService } from "../utils/fileEncryption";
 import { supabase } from "../lib/supabase";
+import { OptimizedBase64 } from "../utils/optimizedBase64";
 import * as FileSystem from "expo-file-system";
 
 const StyledView = styled(View);
@@ -144,7 +145,9 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         console.log(`Intento ${i + 1} falló:`, error);
         if (i === maxRetries - 1) throw error;
         // Esperar con backoff exponencial
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000 * Math.pow(2, i))
+        );
       }
     }
   };
@@ -221,19 +224,11 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
               const tempUri = `${
                 FileSystem.cacheDirectory
               }effect_${Date.now()}.mp4`;
-
-              // Convertir Uint8Array a base64 sin stack overflow
-              let binaryString = "";
-              const chunkSize = 8192; // Procesar en chunks para evitar stack overflow
-              for (let i = 0; i < decryptedVideo.data.length; i += chunkSize) {
-                const chunk = decryptedVideo.data.slice(i, i + chunkSize);
-                binaryString += String.fromCharCode.apply(
-                  null,
-                  Array.from(chunk)
-                );
-              }
-              const base64Data = btoa(binaryString);
-
+              console.time("conversion-effect-video");
+              const base64Data = await OptimizedBase64.uint8ArrayToBase64(
+                decryptedVideo.data
+              );
+              console.timeEnd("conversion-effect-video");
               await FileSystem.writeAsStringAsync(tempUri, base64Data, {
                 encoding: FileSystem.EncodingType.Base64,
               });
@@ -278,19 +273,11 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
               const tempUri = `${
                 FileSystem.cacheDirectory
               }secret_${Date.now()}.mp4`;
-
-              // Convertir Uint8Array a base64 sin stack overflow
-              let binaryString = "";
-              const chunkSize = 8192;
-              for (let i = 0; i < decryptedVideo.data.length; i += chunkSize) {
-                const chunk = decryptedVideo.data.slice(i, i + chunkSize);
-                binaryString += String.fromCharCode.apply(
-                  null,
-                  Array.from(chunk)
-                );
-              }
-              const base64Data = btoa(binaryString);
-
+              console.time("conversion-secret-video");
+              const base64Data = await OptimizedBase64.uint8ArrayToBase64(
+                decryptedVideo.data
+              );
+              console.timeEnd("conversion-secret-video");
               await FileSystem.writeAsStringAsync(tempUri, base64Data, {
                 encoding: FileSystem.EncodingType.Base64,
               });
@@ -383,15 +370,15 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         const processedPhotos: string[] = [];
 
         // OPCIÓN 1: Buscar en las fotos que vienen del prop
+        console.log("🎯 trick.photos en TrickViewScreen:", trick.photos);
+        console.log("🎯 trick.photos length:", trick.photos?.length);
         if (
           trick.photos &&
           Array.isArray(trick.photos) &&
           trick.photos.length > 0
         ) {
-
           const photoPromises = trick.photos.map(
             async (photoId: string, index: number) => {
-
               try {
                 const decryptedPhoto = await retryDownload(async () =>
                   fileEncryption.downloadAndDecryptFile(
@@ -401,22 +388,11 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
                     () => keyPair.privateKey
                   )
                 );
-
-                // Convertir a base64 en chunks
-                let binaryString = "";
-                const chunkSize = 8192;
-                for (
-                  let j = 0;
-                  j < decryptedPhoto.data.length;
-                  j += chunkSize
-                ) {
-                  const chunk = decryptedPhoto.data.slice(j, j + chunkSize);
-                  binaryString += String.fromCharCode.apply(
-                    null,
-                    Array.from(chunk)
-                  );
-                }
-                const base64Data = btoa(binaryString);
+                console.time(`conversion-photo-${index}`);
+                const base64Data = await OptimizedBase64.uint8ArrayToBase64(
+                  decryptedPhoto.data
+                );
+                console.timeEnd(`conversion-photo-${index}`);
                 const dataUri = `data:${decryptedPhoto.mimeType};base64,${base64Data}`;
 
                 return { index, dataUri };
@@ -438,7 +414,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             .map((result) => result.dataUri);
 
           processedPhotos.push(...orderedPhotos);
-
         }
         // OPCIÓN 2: Si no hay fotos en props, buscar en encrypted_files
         else if (
@@ -456,14 +431,11 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
                     () => keyPair.privateKey
                   )
                 );
-
-                let binaryString = "";
-                const chunkSize = 8192;
-                for (let j = 0; j < decryptedPhoto.data.length; j += chunkSize) {
-                  const chunk = decryptedPhoto.data.slice(j, j + chunkSize);
-                  binaryString += String.fromCharCode.apply(null, Array.from(chunk));
-                }
-                const base64Data = btoa(binaryString);
+                console.time(`conversion-photo-${index}`);
+                const base64Data = await OptimizedBase64.uint8ArrayToBase64(
+                  decryptedPhoto.data
+                );
+                console.timeEnd(`conversion-photo-${index}`);
                 const dataUri = `data:${decryptedPhoto.mimeType};base64,${base64Data}`;
 
                 return { index, dataUri };
@@ -476,7 +448,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
           const results = await Promise.all(photoPromises);
           const orderedPhotos = results
-            .filter((result): result is { index: number; dataUri: string } => result !== null)
+            .filter(
+              (result): result is { index: number; dataUri: string } =>
+                result !== null
+            )
             .sort((a, b) => a.index - b.index)
             .map((result) => result.dataUri);
 
@@ -496,16 +471,13 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
                 () => keyPair.privateKey
               )
             );
-
-            let binaryString = "";
-            const chunkSize = 8192;
-            for (let j = 0; j < decryptedPhoto.data.length; j += chunkSize) {
-              const chunk = decryptedPhoto.data.slice(j, j + chunkSize);
-              binaryString += String.fromCharCode.apply(null, Array.from(chunk));
-            }
-            const base64Data = btoa(binaryString);
+            console.time("conversion-photo-unique");
+            const base64Data = await OptimizedBase64.uint8ArrayToBase64(
+              decryptedPhoto.data
+            );
+            console.timeEnd("conversion-photo-unique");
             const dataUri = `data:${decryptedPhoto.mimeType};base64,${base64Data}`;
-            
+
             processedPhotos.push(dataUri);
           } catch (err) {
             console.error("❌ Error descifrando foto única:", err);
@@ -596,14 +568,20 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   useEffect(() => {
     return () => {
       // Limpiar archivos temporales de video
-      if (effectVideoUrl && effectVideoUrl.startsWith(FileSystem.cacheDirectory || '')) {
+      if (
+        effectVideoUrl &&
+        effectVideoUrl.startsWith(FileSystem.cacheDirectory || "")
+      ) {
         FileSystem.deleteAsync(effectVideoUrl, { idempotent: true }).catch(
-          err => console.log("Error limpiando archivo temporal:", err)
+          (err) => console.log("Error limpiando archivo temporal:", err)
         );
       }
-      if (secretVideoUrl && secretVideoUrl.startsWith(FileSystem.cacheDirectory || '')) {
+      if (
+        secretVideoUrl &&
+        secretVideoUrl.startsWith(FileSystem.cacheDirectory || "")
+      ) {
         FileSystem.deleteAsync(secretVideoUrl, { idempotent: true }).catch(
-          err => console.log("Error limpiando archivo temporal:", err)
+          (err) => console.log("Error limpiando archivo temporal:", err)
         );
       }
     };
@@ -668,7 +646,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const handleEditPress = () => {
     router.push({
       pathname: "/(app)/edit-trick",
-      params: { trickId: trick.id }
+      params: { trickId: trick.id },
     });
   };
 
@@ -676,7 +654,9 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const handleSharePress = async () => {
     try {
       await Share.share({
-        message: `${t("checkOutThisTrick", "¡Mira este truco!")}: ${trick.title}\n\n${trick.effect}`,
+        message: `${t("checkOutThisTrick", "¡Mira este truco!")}: ${
+          trick.title
+        }\n\n${trick.effect}`,
         title: trick.title,
       });
     } catch (error) {
@@ -824,7 +804,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             />
           )}
         />
-        
+
         {/* Indicadores de página */}
         {photosToDisplay.length > 1 && (
           <StyledView className="absolute bottom-20 left-0 right-0 flex-row justify-center">
