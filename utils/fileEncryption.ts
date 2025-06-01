@@ -191,7 +191,9 @@ export class FileEncryptionService {
       }),
       this.cryptoService.generateSymmetricKey(),
     ]);
-
+    if (!fileDataResult || fileDataResult.length === 0) {
+      throw new Error(`Archivo original vacío: ${fileName}`);
+    }
     // 4. Convertir Base64 a Uint8Array de forma optimizada
     console.time(`base64-conversion-${fileName}`);
     const fileBuffer = await performanceOptimizer.measureAndOptimize(
@@ -200,7 +202,10 @@ export class FileEncryptionService {
       fileDataResult
     );
     console.timeEnd(`base64-conversion-${fileName}`);
-
+    console.log(
+      `📊 ${fileName} - Tamaño original: ${fileDataResult.length} chars (base64)`
+    );
+    console.log(`📊 ${fileName} - Tamaño buffer: ${fileBuffer.length} bytes`);
     // 5. Cifrar archivo con medición de performance
     const encryptResult = await performanceOptimizer.measureAndOptimize(
       "encrypt",
@@ -220,7 +225,10 @@ export class FileEncryptionService {
       getPublicKey,
       getPrivateKey()
     );
-
+    if (!encrypted || encrypted.length === 0) {
+      throw new Error(`Archivo cifrado vacío: ${fileName}`);
+    }
+    console.log(`🔐 ${fileName} - Tamaño cifrado: ${encrypted.length} bytes`);
     // 7. Generar ID único
     const fileId = `encrypted_${Date.now()}_${index}_${Math.random()
       .toString(36)
@@ -242,7 +250,7 @@ export class FileEncryptionService {
       "upload",
       async (encryptedData: Uint8Array) => {
         const uploadSizeMB = encryptedData.length / (1024 * 1024);
-
+        console.log(`📤 Subiendo ${fileName}: ${encrypted.length} bytes (${uploadSizeMB.toFixed(2)}MB)`);
         if (uploadSizeMB > 50) {
           throw new Error(
             `Archivo demasiado grande: ${uploadSizeMB.toFixed(1)}MB (máx 50MB)`

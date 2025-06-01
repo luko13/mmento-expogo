@@ -256,11 +256,20 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
         // Procesar video secreto
         if (decryptedContent.secret_video_url) {
+          console.log(
+            "🔒 Procesando video secreto:",
+            decryptedContent.secret_video_url
+          );
+          console.log(
+            "🔒 Está cifrado?",
+            decryptedContent.secret_video_encrypted
+          );
           if (
             decryptedContent.secret_video_encrypted ||
             decryptedContent.secret_video_url.startsWith("encrypted_")
           ) {
             try {
+              console.log("🔓 Descifrando video secreto...");
               const decryptedVideo = await retryDownload(async () =>
                 fileEncryption.downloadAndDecryptFile(
                   decryptedContent.secret_video_url,
@@ -269,7 +278,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
                   () => keyPair.privateKey
                 )
               );
-
+              console.log(
+                "✅ Video secreto descifrado, tamaño:",
+                decryptedVideo.data.length
+              );
               const tempUri = `${
                 FileSystem.cacheDirectory
               }secret_${Date.now()}.mp4`;
