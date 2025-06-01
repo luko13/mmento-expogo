@@ -1,6 +1,8 @@
 // utils/hybridCrypto.ts
 import nacl from "tweetnacl";
 import { encodeBase64, decodeBase64 } from "tweetnacl-util";
+import { cryptoWorkerService } from "./cryptoWorkerService";
+import { performanceOptimizer } from "./performanceOptimizer";
 
 interface CryptoImplementation {
   name: string;
@@ -23,6 +25,9 @@ export class HybridCrypto {
   private implementation: CryptoImplementation | null = null;
   private sodium: any = null;
   private isInitialized = false;
+  
+  // Umbral para usar threads (5MB)
+  private readonly THREAD_THRESHOLD = 5 * 1024 * 1024;
 
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
@@ -97,11 +102,7 @@ export class HybridCrypto {
 
       // Extraemos la API real (está en default en la mayoría de bundlers)
       const sodium = (mod as any).default ?? mod;
-      console.log(
-        "🔑 sodium.ready, ¿randombytes_buf?",
-        typeof sodium.randombytes_buf
-      );
-
+      
       // Si no existe randombytes_buf, descartamos y usamos TweetNaCl
       if (typeof sodium.randombytes_buf !== "function") {
         console.warn(
@@ -164,7 +165,7 @@ export class HybridCrypto {
     };
   }
 
-  // Public methods
+  // Public methods con soporte para threads
   async encrypt(
     data: Uint8Array,
     key: Uint8Array,
@@ -173,6 +174,32 @@ export class HybridCrypto {
     if (!this.implementation) await this.initialize();
 
     const actualNonce = nonce || (await this.implementation!.generateNonce());
+    
+    // Verificar si debemos usar threads
+    if (data.length > this.THREAD_THRESHOLD) {
+      console.log(`🧵 Usando chunking asíncrono para cifrar ${(data.length / 1024 / 1024).toFixed(2)}MB`);
+      
+      try {
+        // Usar chunking asíncrono
+        const result = await cryptoWorkerService.encryptLargeData(
+          data,
+          key,
+          (progress) => {
+            console.log(`📊 Progreso cifrado: ${progress.toFixed(0)}%`);
+          }
+        );
+        
+        return {
+          encrypted: result.encrypted,
+          nonce: result.nonces[0] // Usar el primer nonce para compatibilidad
+        };
+      } catch (error) {
+        console.error("Error con chunking asíncrono, usando implementación local:", error);
+        // Fallback a implementación sin chunks
+      }
+    }
+    
+    // Para archivos pequeños o si fallan los threads
     const encrypted = await this.implementation!.encrypt(
       data,
       key,
@@ -189,6 +216,7 @@ export class HybridCrypto {
   ): Promise<Uint8Array> {
     if (!this.implementation) await this.initialize();
 
+    // Por ahora, descifrado siempre local (podemos agregar threads después)
     const decrypted = await this.implementation!.decrypt(data, key, nonce);
     if (!decrypted) throw new Error("Decryption failed");
 
@@ -251,6 +279,19 @@ export class HybridCrypto {
     }
 
     return key.slice(0, 32);
+  }
+  
+  /**
+   * Obtener estadísticas de rendimiento
+   */
+  getPerformanceStats() {
+    return {
+      implementation: this.getImplementationName(),
+      isNative: this.isUsingNativeCrypto(),
+      threadedCryptoStats: cryptoWorkerService.getStats(),
+      encryptMetrics: performanceOptimizer.getAverageMetrics('encrypt'),
+      workerMetrics: performanceOptimizer.getAverageMetrics('worker-encrypt')
+    };
   }
 }
 
