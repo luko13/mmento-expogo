@@ -142,11 +142,39 @@
   "noPhotosAvailable": "No hay fotos disponibles",
   "activeFilters": "Filtros Activos",
   "clearAll": "Limpiar Todo",
+  "uploadingFiles": "Subiendo archivos",
+  "encryptingAndUploading": "Cifrando y subiendo",
+  "file": "Archivo",
+  "processing": "Procesando",
+  "preparingFiles": "Preparando archivos",
+  "elapsedTime": "Tiempo transcurrido",
+  "estimatedRemaining": "Tiempo estimado restante",
+  "endToEndEncrypted": "*Cifrado de extremo a extremo*",
+  "errorFetchingTechniques": "Error al obtener las técnicas",
+  "errorFetchingGimmicks": "Error al obtener los gimmicks",
+  "missingFields": "Campos faltantes",
+  "pleaseCompleteTitleAndContent": "Por favor completa el título y el contenido",
+  "errorSavingScript": "Error al guardar el guión",
+  "confirmDelete": "¿Estás seguro de que deseas eliminar?",
+  "deleteAllPhotosConfirm": "¿Estás seguro de que deseas eliminar todas las fotos?",
+  "delete": "Eliminar",
+  "setDurationTime": "Establecer tiempo de duración",
+  "setResetTime": "Establecer tiempo de reinicio",
+  "trickTitle": "Título del truco",
+  "photosSelected": "Fotos seleccionadas",
+  "imagesUpload": "Subida de imágenes",
+  "techniquesSelected": "Técnicas seleccionadas",
+  "technique": "Técnica",
+  "gimmicksSelected": "Gimmicks seleccionados",
+  "gimmicks": "Gimmicks",
+  "writeScript": "Escribir guión",
+  "registerMagic": "Registrar magia",
   "common": {
     "error": "Error",
     "success": "Éxito",
     "loading": "Cargando...",
-    "loadingCategories": "Cargando categorías..."
+    "loadingCategories": "Cargando categorías...",
+    "trick": "Truco"
   },
   "forms": {
     "registerMagic": "Registrar Magia",
@@ -191,7 +219,13 @@
   },
   "security": {
     "identitySafe": "Tu magia está segura",
-    "endToEndEncrypted": "*Cifrado de extremo a extremo*"
+    "endToEndEncrypted": "*Cifrado de extremo a extremo*",
+    "encryptionRequired": "Cifrado requerido",
+    "setupEncryptionFirst": "Por favor, configura el cifrado primero",
+    "setupNow": "Configurar ahora",
+    "error": "Error de seguridad",
+    "encryptionNotReady": "El cifrado no está disponible",
+    "photosEncrypted": "{{count}} fotos cifradas ✓"
   },
   "messages": {
     "categoryCreatedSuccessfully": "Categoría creada exitosamente",
@@ -262,7 +296,7 @@
     "techniques": "Añade técnicas relacionadas con tu truco",
     "gimmicks": "Añade gimmicks relacionados con tu truco",
     "scripts": "Añade guiones relacionados con tu truco",
-    "security.photosEncrypted": "{{count}} fotos cifradas ✓",
+    "script": "Añade guión relacionado con tu truco",
     "imageSizeWarning": "Una o más imágenes son demasiado grandes. El límite es 10MB por imagen."
   }
 }

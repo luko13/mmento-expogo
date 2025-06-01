@@ -24,7 +24,7 @@ import {
   Ionicons,
   MaterialCommunityIcons,
   MaterialIcons,
-  EvilIcons
+  EvilIcons,
 } from "@expo/vector-icons";
 import type { EncryptedMagicTrick } from "../../../types/encryptedMagicTrick";
 import * as ImagePicker from "expo-image-picker";
@@ -85,16 +85,16 @@ interface StepProps {
 }
 
 // Componente de Modal de Progreso
-const UploadProgressModal = ({ 
-  visible, 
-  progress, 
-  currentFile, 
+const UploadProgressModal = ({
+  visible,
+  progress,
+  currentFile,
   elapsedTime,
   totalFiles,
-  processedFiles 
-}: { 
-  visible: boolean; 
-  progress: number; 
+  processedFiles,
+}: {
+  visible: boolean;
+  progress: number;
   currentFile: string;
   elapsedTime: number;
   totalFiles: number;
@@ -114,20 +114,16 @@ const UploadProgressModal = ({
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const progressWidth = progressAnimation.interpolate({
     inputRange: [0, 100],
-    outputRange: ['0%', '100%'],
+    outputRange: ["0%", "100%"],
   });
 
   return (
-    <StyledModal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-    >
+    <StyledModal visible={visible} transparent={true} animationType="fade">
       <StyledView className="flex-1 justify-center items-center bg-black/80">
         <StyledView className="bg-[#1a3a32] rounded-2xl p-6 mx-6 w-full max-w-sm">
           {/* Header */}
@@ -139,7 +135,10 @@ const UploadProgressModal = ({
               {t("uploadingFiles", "Subiendo archivos")}
             </StyledText>
             <StyledText className="text-white/60 text-sm text-center">
-              {t("encryptingAndUploading", "Cifrando y subiendo tus archivos de forma segura")}
+              {t(
+                "encryptingAndUploading",
+                "Cifrando y subiendo tus archivos de forma segura"
+              )}
             </StyledText>
           </StyledView>
 
@@ -158,9 +157,9 @@ const UploadProgressModal = ({
             <StyledView className="h-2 bg-white/10 rounded-full overflow-hidden mb-3">
               <Animated.View
                 style={{
-                  height: '100%',
+                  height: "100%",
                   width: progressWidth,
-                  backgroundColor: '#10b981',
+                  backgroundColor: "#10b981",
                   borderRadius: 4,
                 }}
               />
@@ -180,7 +179,8 @@ const UploadProgressModal = ({
             <StyledView className="flex-row items-center justify-center">
               <Feather name="clock" size={16} color="rgba(255,255,255,0.6)" />
               <StyledText className="text-white/60 text-sm ml-2">
-                {t("elapsedTime", "Tiempo transcurrido")}: {formatTime(elapsedTime)}
+                {t("elapsedTime", "Tiempo transcurrido")}:{" "}
+                {formatTime(elapsedTime)}
               </StyledText>
             </StyledView>
           </StyledView>
@@ -189,9 +189,10 @@ const UploadProgressModal = ({
           {progress > 10 && (
             <StyledView className="border-t border-white/10 pt-4">
               <StyledText className="text-white/40 text-xs text-center">
-                {t("estimatedRemaining", "Tiempo estimado restante")}: {
-                  formatTime(Math.round((elapsedTime / progress) * (100 - progress)))
-                }
+                {t("estimatedRemaining", "Tiempo estimado restante")}:{" "}
+                {formatTime(
+                  Math.round((elapsedTime / progress) * (100 - progress))
+                )}
               </StyledText>
             </StyledView>
           )}
@@ -223,7 +224,7 @@ export default function ExtrasStepEncrypted({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  
+
   // Estados para archivos locales
   const [localPhotos, setLocalPhotos] = useState<string[]>([]);
 
@@ -291,7 +292,7 @@ export default function ExtrasStepEncrypted({
   const handleUploadProgress = (progress: number, fileName: string) => {
     setUploadProgress(progress);
     setCurrentUploadFile(fileName);
-    
+
     // Actualizar archivos procesados
     const processed = Math.floor((progress / 100) * totalFiles);
     setProcessedFiles(processed);
@@ -301,7 +302,7 @@ export default function ExtrasStepEncrypted({
   const startUploadTimer = () => {
     setElapsedTime(0);
     timerRef.current = setInterval(() => {
-      setElapsedTime(prev => prev + 1);
+      setElapsedTime((prev) => prev + 1);
     }, 1000);
   };
 
@@ -318,17 +319,18 @@ export default function ExtrasStepEncrypted({
     if (onNext) {
       // Calcular total de archivos
       const photoCount = localPhotos.length;
-      const videoCount = (trickData.localFiles?.effectVideo ? 1 : 0) + 
-                        (trickData.localFiles?.secretVideo ? 1 : 0);
+      const videoCount =
+        (trickData.localFiles?.effectVideo ? 1 : 0) +
+        (trickData.localFiles?.secretVideo ? 1 : 0);
       const total = photoCount + videoCount;
-      
+
       if (total > 0) {
         setTotalFiles(total);
         setProcessedFiles(0);
         setShowUploadProgress(true);
         startUploadTimer();
       }
-      
+
       try {
         await onNext();
       } finally {
@@ -386,12 +388,12 @@ export default function ExtrasStepEncrypted({
   useEffect(() => {
     fetchTechniques();
     fetchGimmicks();
-    
+
     // Inicializar fotos locales desde trickData si existen
     if (trickData.localFiles?.photos) {
       setLocalPhotos(trickData.localFiles.photos);
     }
-    
+
     // Inicializar elementos seleccionados si los datos del truco los tienen
     if (trickData.techniqueIds && trickData.techniqueIds.length > 0) {
       fetchSelectedTechniques(trickData.techniqueIds);
@@ -592,7 +594,7 @@ export default function ExtrasStepEncrypted({
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const newPhotos: string[] = [];
-        
+
         // Procesar múltiples imágenes
         for (const asset of result.assets) {
           const uri = asset.uri;
@@ -627,8 +629,8 @@ export default function ExtrasStepEncrypted({
         updateTrickData({
           localFiles: {
             ...trickData.localFiles,
-            photos: updatedPhotos
-          }
+            photos: updatedPhotos,
+          },
         });
       }
     } catch (error) {
@@ -651,16 +653,19 @@ export default function ExtrasStepEncrypted({
     updateTrickData({
       localFiles: {
         ...trickData.localFiles,
-        photos: updatedPhotos
-      }
+        photos: updatedPhotos,
+      },
     });
   };
 
   // Eliminar todas las fotos
-  const removeAllPhotos = () => {
+  /* const removeAllPhotos = () => {
     Alert.alert(
       t("confirmDelete", "Confirmar eliminación"),
-      t("deleteAllPhotosConfirm", "¿Estás seguro de que quieres eliminar todas las fotos?"),
+      t(
+        "deleteAllPhotosConfirm",
+        "¿Estás seguro de que quieres eliminar todas las fotos?"
+      ),
       [
         { text: t("cancel", "Cancelar"), style: "cancel" },
         {
@@ -671,14 +676,14 @@ export default function ExtrasStepEncrypted({
             updateTrickData({
               localFiles: {
                 ...trickData.localFiles,
-                photos: []
-              }
+                photos: [],
+              },
             });
-          }
-        }
+          },
+        },
       ]
     );
-  };
+  }; */
 
   // Manejar datos de componentes modales
   const handleSaveTechniques = (techniqueIds: string[]) => {
@@ -732,7 +737,7 @@ export default function ExtrasStepEncrypted({
     // Si el padre (AddMagicWizard) necesita el callback de progreso
     if (updateTrickData) {
       updateTrickData({
-        uploadProgressCallback: handleUploadProgress
+        uploadProgressCallback: handleUploadProgress,
       } as any);
     }
   }, []);
@@ -785,7 +790,11 @@ export default function ExtrasStepEncrypted({
               textColor="white"
             >
               <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                <MaterialCommunityIcons name="angle-acute" size={32} color="white" />
+                <MaterialCommunityIcons
+                  name="angle-acute"
+                  size={32}
+                  color="white"
+                />
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
@@ -872,11 +881,7 @@ export default function ExtrasStepEncrypted({
               textColor="white"
             >
               <StyledView className="w-[48px] h-[70px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                <Feather
-                  name="bar-chart"
-                  size={28}
-                  color="white"
-                />
+                <Feather name="bar-chart" size={28} color="white" />
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
@@ -913,21 +918,23 @@ export default function ExtrasStepEncrypted({
             </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
-                onPress={localPhotos.length > 0 ? removeAllPhotos : pickImage}
+                onPress={pickImage}
                 disabled={!encryptionReady}
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[15px] border border-[#5bb9a3] flex-row items-center justify-between"
               >
                 <StyledView className="flex-1 flex-row items-center">
                   <StyledText className="text-white/70 flex-1">
                     {localPhotos.length > 0
-                      ? t("photosSelected", `${localPhotos.length} fotos seleccionadas`)
+                      ? t(
+                          "photosSelected",
+                          `${localPhotos.length} fotos seleccionadas`
+                        )
                       : t("imagesUpload", "Subir Imágenes")}
                   </StyledText>
                   <StyledView className="flex-row items-center">
                     <Feather
-                      name={localPhotos.length > 0 ? "x" : "upload"}
+                      name={"upload"}
                       size={16}
-                      color={localPhotos.length > 0 ? "#ef4444" : "white"}
                       style={{ marginLeft: 4 }}
                     />
                   </StyledView>
@@ -939,28 +946,35 @@ export default function ExtrasStepEncrypted({
           {/* Preview de fotos en pills */}
           {localPhotos.length > 0 && (
             <StyledView className="mb-6 -mt-3">
-              <StyledScrollView 
-                horizontal 
+              <StyledScrollView
+                horizontal
                 showsHorizontalScrollIndicator={false}
                 className="flex-row"
               >
                 {localPhotos.map((photoUri, index) => (
-                  <StyledView 
-                    key={index} 
+                  <StyledView
+                    key={index}
                     className="mr-2 bg-white/5 border border-emerald-500/20 rounded-full flex-row items-center px-2 py-1"
                   >
                     <StyledImage
                       source={{ uri: photoUri }}
                       className="w-6 h-6 rounded-full mr-2"
                     />
-                    <StyledText className="text-white/50 text-xs mr-2" numberOfLines={1}>
-                      {`IMG_${(index + 1).toString().padStart(3, '0')}.jpg`}
+                    <StyledText
+                      className="text-white/50 text-xs mr-2"
+                      numberOfLines={1}
+                    >
+                      {`IMG_${(index + 1).toString().padStart(3, "0")}.jpg`}
                     </StyledText>
                     <StyledTouchableOpacity
                       onPress={() => removePhoto(index)}
                       className="p-1"
                     >
-                      <Feather name="x" size={12} color="rgba(255,255,255,0.5)" />
+                      <Feather
+                        name="x"
+                        size={12}
+                        color="rgba(255,255,255,0.5)"
+                      />
                     </StyledTouchableOpacity>
                   </StyledView>
                 ))}
@@ -1034,7 +1048,11 @@ export default function ExtrasStepEncrypted({
               textColor="white"
             >
               <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                <MaterialCommunityIcons name="text-box-outline" size={28} color="white" />
+                <MaterialCommunityIcons
+                  name="text-box-outline"
+                  size={28}
+                  color="white"
+                />
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
@@ -1075,7 +1093,7 @@ export default function ExtrasStepEncrypted({
           </StyledText>
         </StyledTouchableOpacity>
       </StyledView>
-      
+
       {/* Modal de Progreso de Carga */}
       <UploadProgressModal
         visible={showUploadProgress}

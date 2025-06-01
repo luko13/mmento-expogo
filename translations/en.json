@@ -56,6 +56,38 @@
     "advanced": "Advanced",
     "expert": "Expert"
   },
+  "validationError": "Validation Error",
+  "ok": "OK",
+  "uploadingFiles": "Uploading files",
+  "encryptingAndUploading": "Encrypting and uploading",
+  "file": "File",
+  "processing": "Processing",
+  "preparingFiles": "Preparing files",
+  "elapsedTime": "Elapsed time",
+  "estimatedRemaining": "Estimated remaining",
+  "endToEndEncrypted": "*End-to-end Encrypted*",
+  "errorFetchingTechniques": "Error fetching techniques",
+  "errorFetchingGimmicks": "Error fetching gimmicks",
+  "missingFields": "Missing fields",
+  "pleaseCompleteTitleAndContent": "Please complete title and content",
+  "errorSavingScript": "Error saving script",
+  "permissionRequired": "Permission required",
+  "mediaLibraryPermission": "Media library permission required",
+  "fileTooLarge": "File too large",
+  "imagePickError": "Error picking image",
+  "confirmDelete": "Are you sure you want to delete?",
+  "deleteAllPhotosConfirm": "Are you sure you want to delete all photos?",
+  "delete": "Delete",
+  "setDurationTime": "Set duration time",
+  "setResetTime": "Set reset time",
+  "trickTitle": "Trick title",
+  "statistics": "Statistics",
+  "photosSelected": "Photos selected",
+  "imagesUpload": "Images upload",
+  "techniquesSelected": "Techniques selected",
+  "technique": "Technique",
+  "gimmicksSelected": "Gimmicks selected",
+  "gimmicks": "Gimmicks",
   "titleAndCategories": "Title & Categories",
   "effect": "Effect",
   "secret": "Secret",
@@ -145,7 +177,8 @@
     "error": "Error",
     "success": "Success",
     "loading": "Loading...",
-    "loadingCategories": "Loading categories..."
+    "loadingCategories": "Loading categories...",
+    "trick": "Trick"
   },
   "forms": {
     "registerMagic": "Register Magic",
@@ -190,7 +223,13 @@
   },
   "security": {
     "identitySafe": "Your identity is safe",
-    "endToEndEncrypted": "*End-to-end Encrypted*"
+    "endToEndEncrypted": "*End-to-end Encrypted*",
+    "encryptionRequired": "Encryption required",
+    "setupEncryptionFirst": "Please set up encryption first",
+    "setupNow": "Set up now",
+    "error": "Security error",
+    "encryptionNotReady": "Encryption not ready",
+    "photosEncrypted": "Photos are encrypted and securely stored."
   },
   "messages": {
     "categoryCreatedSuccessfully": "Category created successfully",
@@ -218,12 +257,15 @@
     "imageUpload": "Upload images for your magic trick",
     "techniques": "Add techniques related to your magic trick",
     "gimmicks": "Add gimmicks related to your magic trick",
-    "scripts": "Add scripts related to your magic trick"
+    "scripts": "Add scripts related to your magic trick",
+    "script": "Add script related to your magic trick"
   },
   "noItems": "No items in this category",
   "decryptingVideo": "Decrypting video...",
   "loadingVideo": "Loading video...",
   "videoLoadError": "Error loading video",
-  "security.photosEncrypted": "Photos are encrypted and securely stored.",
-  "imageSizeWarning": "Image size should not exceed 10MB."
+  "imageSizeWarning": "Image size should not exceed 10MB.",
+  "writeScript": "Write script",
+  "saving": "Saving...",
+  "registerMagic": "Register magic"
 }
