@@ -5,12 +5,12 @@ import {
   TextInput,
   TouchableOpacity,
   Modal,
-  Dimensions,
 } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
 import ColorPicker from "./ColorPicker";
+import { modalStyles, blurConfig, modalClasses, getTagPillStyle, getTagPillTextStyle } from "../../styles/modalStyles";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -27,8 +27,6 @@ interface TagModalProps {
   initialColor?: string;
   mode?: "create" | "edit";
 }
-
-const screenWidth = Dimensions.get("window").width;
 
 const COLOR_MAPPINGS: { [key: string]: string } = {
   // Verde
@@ -84,34 +82,20 @@ const TagModal: React.FC<TagModalProps> = ({
   return (
     <StyledModal visible={visible} transparent animationType="fade">
       <StyledBlurView
-        intensity={5}
-        tint="dark"
-        className="flex-1 justify-center items-center"
+        {...blurConfig.backgroundBlur}
+        className={modalClasses.backgroundBlur}
       >
-        <StyledView className="flex-1 justify-center items-center px-3 py-6">
+        <StyledView className={modalClasses.mainContainerWithPadding}>
           <StyledBlurView
-            className="overflow-hidden"
-            intensity={60}
-            tint="default"
-            style={{
-              width: screenWidth * 0.9,
-              maxWidth: 400,
-              backgroundColor: "rgba(255, 255, 255, 0.25)",
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: "rgba(200, 200, 200, 0.4)",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: 0.5,
-              shadowRadius: 20,
-              elevation: 10,
-            }}
+            {...blurConfig.containerBlur}
+            className={modalClasses.containerBlur}
+            style={modalStyles.modalContainer}
           >
             {/* Content */}
             <StyledView className="p-6">
               {/* Header with editable tag pill */}
               <StyledView className="flex-row items-center justify-center mb-6">
-                <StyledText className="text-white text-2xl font-light mr-3">
+                <StyledText className={`${modalClasses.titleText} mr-3`}>
                   {mode === "create" ? t("forms.create", "Create") : t("forms.edit", "Edit")}
                 </StyledText>
 
@@ -119,11 +103,7 @@ const TagModal: React.FC<TagModalProps> = ({
                 <StyledTouchableOpacity
                   onPress={() => setIsEditingName(true)}
                   className="px-4 py-2 rounded-full"
-                  style={{
-                    backgroundColor: selectedColor + "30",
-                    borderColor: COLOR_MAPPINGS[selectedColor] || selectedColor,
-                    borderWidth: 1,
-                  }}
+                  style={getTagPillStyle(selectedColor, COLOR_MAPPINGS[selectedColor])}
                 >
                   {isEditingName ? (
                     <StyledTextInput
@@ -131,12 +111,7 @@ const TagModal: React.FC<TagModalProps> = ({
                       onChangeText={setTagName}
                       onBlur={() => setIsEditingName(false)}
                       autoFocus
-                      style={{
-                        color: COLOR_MAPPINGS[selectedColor] || selectedColor,
-                        fontWeight: "500",
-                        minWidth: 80,
-                        textAlign: "center",
-                      }}
+                      style={getTagPillTextStyle(selectedColor, COLOR_MAPPINGS[selectedColor])}
                       className="text-base"
                       placeholder={t("tagName", "Tag name")}
                       placeholderTextColor={COLOR_MAPPINGS[selectedColor] || selectedColor}
@@ -156,7 +131,7 @@ const TagModal: React.FC<TagModalProps> = ({
 
               {/* Color Picker Section */}
               <StyledView className="mb-6 -m-3">
-                <StyledText className="text-white/60 text-sm mb-4">
+                <StyledText className={modalClasses.subtitleTextSmall}>
                   {t("forms.selectColor", "Select a color")}
                 </StyledText>
 
@@ -168,34 +143,22 @@ const TagModal: React.FC<TagModalProps> = ({
             </StyledView>
 
             {/* Actions */}
-            <StyledBlurView
-              className="flex-row overflow-hidden"
-              style={{ height: 56 }}
-              intensity={60}
-              tint="default"
+            <StyledView
+              className={`${modalClasses.flexRow}`}
+              style={modalStyles.footerContainer}
             >
               <StyledTouchableOpacity
-                className="flex-1 justify-center items-center"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                  borderTopWidth: 1,
-                  borderRightWidth: 0.5,
-                  borderColor: "rgba(200, 200, 200, 0.4)",
-                }}
+                className={modalClasses.centerContent}
+                style={modalStyles.buttonLeft}
                 onPress={handleClose}
               >
-                <StyledText className="text-white/60 text-base font-light">
+                <StyledText className={modalClasses.cancelButtonText}>
                   {t("common.cancel", "Cancel")}
                 </StyledText>
               </StyledTouchableOpacity>
               <StyledTouchableOpacity
-                className="flex-1 justify-center items-center"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                  borderTopWidth: 1,
-                  borderLeftWidth: 0.5,
-                  borderColor: "rgba(200, 200, 200, 0.4)",
-                }}
+                className={modalClasses.centerContent}
+                style={modalStyles.buttonRight}
                 onPress={handleConfirm}
                 disabled={!tagName.trim()}
               >
@@ -208,7 +171,7 @@ const TagModal: React.FC<TagModalProps> = ({
                   {mode === "create" ? t("common.create", "Create") : t("common.save", "Save")}
                 </StyledText>
               </StyledTouchableOpacity>
-            </StyledBlurView>
+            </StyledView>
           </StyledBlurView>
         </StyledView>
       </StyledBlurView>

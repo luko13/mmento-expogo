@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   Modal,
-  Dimensions,
 } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
+import { modalStyles, blurConfig, modalClasses } from "../../styles/modalStyles";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -26,8 +26,6 @@ interface CategoryModalProps {
   mode?: "create" | "edit";
 }
 
-const screenWidth = Dimensions.get("window").width;
-
 const CategoryModal: React.FC<CategoryModalProps> = ({
   visible,
   onClose,
@@ -43,62 +41,46 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
     setCategoryName(initialName);
   }, [initialName]);
 
-  const handleConfirm = () => {
-    if (categoryName.trim()) {
-      onConfirm(categoryName.trim());
+  const handleConfirm = useCallback(() => {
+    const trimmed = categoryName.trim();
+    if (trimmed) {
+      onConfirm(trimmed);
     }
-  };
+  }, [categoryName, onConfirm]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setCategoryName(initialName);
     onClose();
-  };
+  }, [initialName, onClose]);
 
   return (
     <StyledModal visible={visible} transparent animationType="fade">
+      {/* Fondo general desenfocado */}
       <StyledBlurView
-        intensity={5}
-        tint="dark"
-        className="flex-1 justify-center items-center"
+        {...blurConfig.backgroundBlur}
+        className={modalClasses.backgroundBlur}
       >
-        <StyledView className="flex-1 justify-center items-center px-6">
+        <StyledView className={modalClasses.mainContainer}>
+          {/* Caja contenedora con Blur + semitransparencia */}
           <StyledBlurView
-            className="overflow-hidden"
-            intensity={60}
-            tint="default"
-            style={{
-              width: screenWidth * 0.9,
-              maxWidth: 400,
-              backgroundColor: "rgba(255, 255, 255, 0.25)",
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: "rgba(200, 200, 200, 0.4)",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: 0.5,
-              shadowRadius: 20,
-              elevation: 10,
-            }}
+            {...blurConfig.containerBlur}
+            className={modalClasses.containerBlur}
+            style={modalStyles.modalContainer}
           >
-            {/* Content */}
+            {/* Encabezado + Input */}
             <StyledView className="pt-6 pb-4 px-6">
-              {/* Header with editable category pill */}
               <StyledView className="flex-row items-center justify-center mb-4">
-                <StyledText className="text-white text-2xl font-light mr-3">
+                <StyledText className={`${modalClasses.titleText} mr-3`}>
                   {mode === "create"
                     ? t("forms.create", "Create")
                     : t("forms.edit", "Edit")}
                 </StyledText>
 
-                {/* Editable Category Pill */}
+                {/* Píldora editable del nombre */}
                 <StyledTouchableOpacity
                   onPress={() => setIsEditingName(true)}
                   className="px-4 py-2 rounded-lg"
-                  style={{
-                    backgroundColor: "rgba(104, 104, 104, 0.027)",
-                    borderColor: "rgba(255, 255, 255, 0.568)",
-                    borderWidth: 1,
-                  }}
+                  style={modalStyles.pillContainer}
                 >
                   {isEditingName ? (
                     <StyledTextInput
@@ -106,21 +88,13 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
                       onChangeText={setCategoryName}
                       onBlur={() => setIsEditingName(false)}
                       autoFocus
-                      style={{
-                        color: "#ffffff",
-                        fontWeight: "500",
-                        minWidth: 80,
-                        textAlign: "center",
-                      }}
+                      style={modalStyles.pillInput}
                       className="text-base"
                       placeholder={t("categoryName", "Category name")}
                       placeholderTextColor="rgba(255, 255, 255, 0.5)"
                     />
                   ) : (
-                    <StyledText
-                      style={{ color: "#ffffff" }}
-                      className="font-medium"
-                    >
+                    <StyledText style={modalStyles.pillText} className="font-medium">
                       {categoryName || t("categoryName", "Category name")}
                     </StyledText>
                   )}
@@ -128,44 +102,30 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
               </StyledView>
             </StyledView>
 
-            {/* Actions */}
-            <StyledBlurView
-              className="flex-row overflow-hidden"
-              style={{ height: 56 }}
-              intensity={60}
-              tint="default"
-            >
+            {/* Acciones */}
+            <StyledView style={modalStyles.footerContainer} className={modalClasses.flexRow}>
               <StyledTouchableOpacity
-                className="flex-1 justify-center items-center"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                  borderTopWidth: 1,
-                  borderRightWidth: 0.5,
-                  borderColor: "rgba(200, 200, 200, 0.4)",
-                }}
+                className={modalClasses.centerContent}
+                style={modalStyles.buttonLeft}
                 onPress={handleClose}
               >
-                <StyledText className="text-white/60 text-base font-light">
+                <StyledText className={modalClasses.cancelButtonText}>
                   {t("common.cancel", "Cancel")}
                 </StyledText>
               </StyledTouchableOpacity>
+
               <StyledTouchableOpacity
-                className="flex-1 justify-center items-center"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                  borderTopWidth: 1,
-                  borderLeftWidth: 0.5,
-                  borderColor: "rgba(200, 200, 200, 0.4)",
-                }}
+                className={modalClasses.centerContent}
+                style={modalStyles.buttonRight}
                 onPress={handleConfirm}
                 disabled={!categoryName.trim()}
               >
                 <StyledText
-                  className="text-base font-medium"
+                  className="text-base font-medium text-white"
                   style={{
                     color: categoryName.trim()
                       ? "#ffffff"
-                      : "rgba(255, 255, 255, 0.4)",
+                      : "rgba(255, 255, 255, 1)",
                   }}
                 >
                   {mode === "create"
@@ -173,7 +133,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
                     : t("common.save", "Save")}
                 </StyledText>
               </StyledTouchableOpacity>
-            </StyledBlurView>
+            </StyledView>
           </StyledBlurView>
         </StyledView>
       </StyledBlurView>
@@ -181,4 +141,4 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
   );
 };
 
-export default CategoryModal;
+export default React.memo(CategoryModal);

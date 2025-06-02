@@ -4,13 +4,12 @@ import {
   Text,
   TouchableOpacity,
   Modal,
-  Dimensions,
   TouchableWithoutFeedback,
 } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
-import { Feather } from "@expo/vector-icons";
+import { modalStyles, blurConfig, modalClasses } from "../../styles/modalStyles";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -25,8 +24,6 @@ interface CategoryActionsModalProps {
   onDelete: () => void;
   categoryName?: string;
 }
-
-const screenWidth = Dimensions.get("window").width;
 
 const CategoryActionsModal: React.FC<CategoryActionsModalProps> = ({
   visible,
@@ -51,68 +48,66 @@ const CategoryActionsModal: React.FC<CategoryActionsModalProps> = ({
     <StyledModal visible={visible} transparent animationType="fade">
       <TouchableWithoutFeedback onPress={onClose}>
         <StyledBlurView
-          intensity={5}
-          tint="dark"
+          {...blurConfig.backgroundBlur}
           className="flex-1 justify-end"
         >
           <TouchableWithoutFeedback>
             <StyledView className="items-center pb-6 px-4">
               {/* Actions Container */}
               <StyledBlurView
+                {...blurConfig.containerBlur}
                 className="w-full overflow-hidden mb-2"
-                intensity={60}
-                tint="default"
-                style={{
-                  maxWidth: 400,
-                  backgroundColor: "rgba(255, 255, 255, 0.25)",
-                  borderRadius: 30,
-                  borderWidth: 1,
-                  borderColor: "rgba(200, 200, 200, 0.4)",
-                }}
+                style={modalStyles.actionModalContainer}
               >
-                {/* Edit Button */}
-                <StyledTouchableOpacity
-                  className="py-4 items-center"
-                  style={{
-                    borderBottomWidth: 0.5,
-                    borderBottomColor: "rgba(200, 200, 200, 0.3)",
-                  }}
-                  onPress={handleEdit}
-                >
-                  <StyledText className="text-white text-base font-medium">
-                    {t("common.edit", "Edit")}
-                  </StyledText>
-                </StyledTouchableOpacity>
+                {/* Actions wrapper - sin BlurView adicional */}
+                <StyledView>
+                  {/* Edit Button */}
+                  <StyledTouchableOpacity
+                    className="py-4 items-center"
+                    style={{
+                      borderBottomWidth: 0.5,
+                      borderBottomColor: "rgba(200, 200, 200, 0.3)",
+                      backgroundColor: "transparent",
+                    }}
+                    onPress={handleEdit}
+                  >
+                    <StyledText className={modalClasses.buttonText}>
+                      {t("common.edit", "Edit")}
+                    </StyledText>
+                  </StyledTouchableOpacity>
 
-                {/* Delete Button */}
-                <StyledTouchableOpacity
-                  className="py-4 items-center"
-                  onPress={handleDelete}
-                >
-                  <StyledText className="text-red-400 text-base font-light">
-                    {t("common.delete", "Delete")}
-                  </StyledText>
-                </StyledTouchableOpacity>
+                  {/* Delete Button */}
+                  <StyledTouchableOpacity
+                    className="py-4 items-center"
+                    style={{
+                      backgroundColor: "transparent",
+                    }}
+                    onPress={handleDelete}
+                  >
+                    <StyledText className={modalClasses.deleteButtonTextLight}>
+                      {t("common.delete", "Delete")}
+                    </StyledText>
+                  </StyledTouchableOpacity>
+                </StyledView>
               </StyledBlurView>
 
               {/* Cancel Button */}
               <StyledBlurView
+                {...blurConfig.containerBlur}
                 className="w-full overflow-hidden"
-                intensity={60}
-                tint="default"
                 style={{
-                  maxWidth: 400,
-                  backgroundColor: "rgba(255, 255, 255, 0.25)",
-                  borderRadius: 20,
-                  borderWidth: 1,
-                  borderColor: "rgba(200, 200, 200, 0.4)",
+                  ...modalStyles.actionModalContainer,
+                  borderRadius: 20, // Override para el botón de cancelar
                 }}
               >
                 <StyledTouchableOpacity
                   className="py-4 items-center"
+                  style={{
+                    backgroundColor: "transparent",
+                  }}
                   onPress={onClose}
                 >
-                  <StyledText className="text-white/60 text-base font-light">
+                  <StyledText className={modalClasses.cancelButtonText}>
                     {t("common.cancel", "Cancel")}
                   </StyledText>
                 </StyledTouchableOpacity>

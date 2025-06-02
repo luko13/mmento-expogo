@@ -1,9 +1,10 @@
 import React from "react";
-import { View, Text, TouchableOpacity, Modal, Dimensions } from "react-native";
+import { View, Text, TouchableOpacity, Modal } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
 import { Feather } from "@expo/vector-icons";
+import { modalStyles, blurConfig, modalClasses } from "../../styles/modalStyles";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -19,8 +20,6 @@ interface SuccessCreationModalProps {
   itemName: string;
   itemType: "trick" | "technique" | "gimmick";
 }
-
-const screenWidth = Dimensions.get("window").width;
 
 const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
   visible,
@@ -48,28 +47,14 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
   return (
     <StyledModal visible={visible} transparent animationType="fade">
       <StyledBlurView
-        intensity={5}
-        tint="dark"
-        className="flex-1 justify-center items-center"
+        {...blurConfig.backgroundBlur}
+        className={modalClasses.backgroundBlur}
       >
-        <StyledView className="flex-1 justify-center items-center px-6">
+        <StyledView className={modalClasses.mainContainer}>
           <StyledBlurView
-            className="overflow-hidden"
-            intensity={60}
-            tint="default"
-            style={{
-              width: screenWidth * 0.9,
-              maxWidth: 400,
-              backgroundColor: "rgba(255, 255, 255, 0.25)",
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: "rgba(200, 200, 200, 0.4)",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: 0.5,
-              shadowRadius: 20,
-              elevation: 10,
-            }}
+            {...blurConfig.containerBlur}
+            className={modalClasses.containerBlur}
+            style={modalStyles.modalContainer}
           >
             {/* Content */}
             <StyledView className="px-6 pt-8 pb-6">
@@ -82,13 +67,13 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
 
               {/* Success Message */}
               <StyledText className="text-white/90 text-xl text-center -mb-1">
-                <StyledText className="font-medium text-[#10b981]">
+                <StyledText className={`font-medium ${modalClasses.successButtonText}`}>
                   {itemName}
                 </StyledText>{" "}
                 {t("successCreation.hasBeenCreated", "has been created")}
               </StyledText>
 
-              <StyledText className="text-white/60 text-base text-center">
+              <StyledText className={modalClasses.subtitleText}>
                 {t(
                   "successCreation.andEncrypted",
                   "and encrypted successfully"
@@ -97,27 +82,19 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
             </StyledView>
 
             {/* Divider */}
-            <StyledView
-              style={{
-                height: 0.5,
-                backgroundColor: "rgba(200, 200, 200, 0.3)",
-              }}
-            />
+            <StyledView style={modalStyles.divider} />
 
             {/* Actions */}
             <StyledView>
               {/* View Item Button */}
               <StyledTouchableOpacity
                 className="py-3 items-center"
-                style={{
-                  borderBottomWidth: 0.5,
-                  borderBottomColor: "rgba(200, 200, 200, 0.3)",
-                }}
+                style={modalStyles.actionButton}
                 onPress={onViewItem}
               >
-                <StyledText className="text-white text-base font-bold">
+                <StyledText className={modalClasses.buttonTextBold}>
                   {t("successCreation.view", "View")}{" "}
-                  <StyledText className="font-medium text-base text-[#10b981]">
+                  <StyledText className={`font-medium text-base ${modalClasses.successButtonText}`}>
                     {itemName}
                   </StyledText>
                 </StyledText>
@@ -126,13 +103,10 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
               {/* Register More Button */}
               <StyledTouchableOpacity
                 className="py-3 items-center"
-                style={{
-                  borderBottomWidth: 0.5,
-                  borderBottomColor: "rgba(200, 200, 200, 0.3)",
-                }}
+                style={modalStyles.actionButton}
                 onPress={onAddAnother}
               >
-                <StyledText className="text-white text-base">
+                <StyledText className={modalClasses.buttonText}>
                   {t("successCreation.registerMore", "Register more")}
                 </StyledText>
               </StyledTouchableOpacity>
