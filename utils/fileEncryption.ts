@@ -5,6 +5,10 @@ import * as FileSystem from "expo-file-system";
 import { Buffer } from "buffer";
 import { OptimizedBase64 } from "./optimizedBase64";
 import { performanceOptimizer } from "./performanceOptimizer";
+import {
+  compressionService,
+  type CompressionResult,
+} from "./compressionService";
 
 export interface EncryptedFileMetadata {
   fileId: string;
@@ -17,11 +21,271 @@ export interface EncryptedFileMetadata {
     nonce: string;
   }>;
   fileNonce: string;
+  // NUEVO: Información de compresión
+  compressionInfo?: {
+    algorithm: "jpeg" | "h264" | "gzip" | "none";
+    originalSize: number;
+    compressedSize: number;
+    ratio: number;
+  };
 }
 
 export class FileEncryptionService {
   private cryptoService = CryptoService.getInstance();
 
+  private async compressEncryptAndUpload(
+    fileUri: string,
+    fileName: string,
+    mimeType: string,
+    authorUserId: string,
+    recipientUserIds: string[],
+    getPublicKey: (userId: string) => Promise<string | null>,
+    getPrivateKey: () => string,
+    index: number
+  ): Promise<EncryptedFileMetadata> {
+    // 1. COMPRIMIR archivo
+    console.log(`🗜️ Iniciando proceso para ${fileName}...`);
+    const compressionResult = await compressionService.compressFile(
+      fileUri,
+      mimeType,
+      {
+        quality: 0.8, // Configurable según preferencias del usuario
+        maxWidth: 1920,
+        maxHeight: 1920,
+      }
+    );
+
+    // 2. Usar el URI del archivo comprimido (o el original si no se comprimió)
+    const finalUri = compressionResult.uri;
+    const wasCompressed = compressionResult.wasCompressed;
+
+    if (wasCompressed) {
+      console.log(
+        `📉 ${fileName}: ${(
+          compressionResult.originalSize /
+          1024 /
+          1024
+        ).toFixed(2)}MB → ${(
+          compressionResult.compressedSize /
+          1024 /
+          1024
+        ).toFixed(2)}MB`
+      );
+    }
+
+    // 3. Continuar con el proceso existente de cifrado
+    const fileDataResult = await FileSystem.readAsStringAsync(finalUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    if (!fileDataResult || fileDataResult.length === 0) {
+      throw new Error(`Archivo vacío: ${fileName}`);
+    }
+
+    // 4. Generar clave simétrica y convertir datos
+    const [fileBuffer, symmetricKey] = await Promise.all([
+      performanceOptimizer.measureAndOptimize(
+        "base64-conversion",
+        OptimizedBase64.base64ToUint8Array,
+        fileDataResult
+      ),
+      this.cryptoService.generateSymmetricKey(),
+    ]);
+
+    // 5. Cifrar archivo
+    const { encrypted, nonce } = await this.cryptoService.encryptFile(
+      fileBuffer,
+      symmetricKey
+    );
+
+    // 6. Cifrar claves para destinatarios
+    const encryptedKeys = await this.encryptKeysForRecipients(
+      symmetricKey,
+      recipientUserIds,
+      getPublicKey,
+      getPrivateKey()
+    );
+
+    // 7. Generar ID único
+    const fileId = `encrypted_${Date.now()}_${index}_${Math.random()
+      .toString(36)
+      .substr(2, 5)}`;
+    const filePath = `encrypted_files/${fileId}`;
+
+    // 8. Preparar metadata con información de compresión
+    const metadata: EncryptedFileMetadata = {
+      fileId,
+      originalName: fileName,
+      mimeType,
+      size: wasCompressed
+        ? compressionResult.compressedSize
+        : fileBuffer.length,
+      encryptedKeys,
+      fileNonce: Buffer.from(nonce).toString("base64"),
+      // NUEVO: Guardar información de compresión
+      compressionInfo: wasCompressed
+        ? {
+            algorithm: compressionResult.algorithm,
+            originalSize: compressionResult.originalSize,
+            compressedSize: compressionResult.compressedSize,
+            ratio: compressionResult.ratio,
+          }
+        : undefined,
+    };
+
+    // 9. Subir a Supabase
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("encrypted_media")
+      .upload(filePath, encrypted, {
+        contentType: "application/octet-stream",
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error(
+        `Error subiendo: ${uploadError.message || "Error desconocido"}`
+      );
+    }
+
+    // 10. Guardar metadata actualizada
+    await this.saveMetadataAndKeys(metadata, authorUserId);
+
+    return metadata;
+  }
+
+  private async fastEncryptAndUpload(
+    file: {
+      uri: string;
+      fileName: string;
+      mimeType: string;
+      compressionInfo?: any;
+    },
+    symmetricKey: Uint8Array,
+    authorUserId: string,
+    recipientUserIds: string[],
+    getPublicKey: (userId: string) => Promise<string | null>,
+    getPrivateKey: () => string,
+    index: number
+  ): Promise<EncryptedFileMetadata> {
+    // Leer y convertir archivo (ya está comprimido si aplica)
+    const fileDataBase64 = await FileSystem.readAsStringAsync(file.uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    // OPTIMIZACIÓN: Usar conversión directa sin medición para archivos pequeños
+    const fileBuffer = await OptimizedBase64.base64ToUint8Array(fileDataBase64);
+
+    // Cifrar (ya tenemos la clave)
+    const { encrypted, nonce } = await this.cryptoService.encryptFile(
+      fileBuffer,
+      symmetricKey
+    );
+
+    // Cifrar claves para destinatarios (optimizado para 1 destinatario)
+    const encryptedKeys =
+      recipientUserIds.length === 1
+        ? await this.fastEncryptKeysForSingle(
+            symmetricKey,
+            recipientUserIds[0],
+            getPublicKey,
+            getPrivateKey()
+          )
+        : await this.encryptKeysForRecipients(
+            symmetricKey,
+            recipientUserIds,
+            getPublicKey,
+            getPrivateKey()
+          );
+
+    // Generar ID y subir
+    const fileId = `enc_${Date.now()}_${index}_${Math.random()
+      .toString(36)
+      .substr(2, 5)}`;
+    const filePath = `encrypted_files/${fileId}`;
+
+    // Subir con retry automático
+    let uploadAttempts = 0;
+    let uploadSuccess = false;
+
+    while (uploadAttempts < 2 && !uploadSuccess) {
+      try {
+        const { error } = await supabase.storage
+          .from("encrypted_media")
+          .upload(filePath, encrypted, {
+            contentType: "application/octet-stream",
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (!error) {
+          uploadSuccess = true;
+        } else if (uploadAttempts === 0) {
+          console.warn(`Reintentando subida de ${file.fileName}...`);
+          uploadAttempts++;
+          await new Promise((resolve) => setTimeout(resolve, 500)); // Esperar 500ms
+        } else {
+          throw error;
+        }
+      } catch (error) {
+        if (uploadAttempts === 0) {
+          uploadAttempts++;
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    // Metadata
+    const metadata: EncryptedFileMetadata = {
+      fileId,
+      originalName: file.fileName,
+      mimeType: file.mimeType,
+      size: fileBuffer.length,
+      encryptedKeys,
+      fileNonce: Buffer.from(nonce).toString("base64"),
+      compressionInfo: file.compressionInfo,
+    };
+
+    // Guardar metadata en background (no esperar)
+    this.saveMetadataAndKeys(metadata, authorUserId).catch(console.error);
+
+    return metadata;
+  }
+  private async fastEncryptKeysForSingle(
+    symmetricKey: Uint8Array,
+    userId: string,
+    getPublicKey: (userId: string) => Promise<string | null>,
+    privateKey: string
+  ): Promise<Array<{ userId: string; encryptedKey: string; nonce: string }>> {
+    const publicKey = await getPublicKey(userId);
+    if (!publicKey) return [];
+
+    const encryptedKeyData = await this.cryptoService.encryptSymmetricKey(
+      symmetricKey,
+      publicKey,
+      privateKey
+    );
+
+    return [
+      {
+        userId,
+        encryptedKey: encryptedKeyData.ciphertext,
+        nonce: encryptedKeyData.nonce,
+      },
+    ];
+  }
+
+  // Helper para obtener tamaño total
+  private async getTotalSize(files: Array<{ uri: string }>): Promise<number> {
+    const sizes = await Promise.all(
+      files.map(async (file) => {
+        const info = await FileSystem.getInfoAsync(file.uri);
+        return info.exists && "size" in info ? info.size : 0;
+      })
+    );
+    return sizes.reduce((sum, size) => sum + size, 0);
+  }
   /**
    * Batch ULTRA RÁPIDO - Procesa TODOS los archivos en paralelo con validación
    */
@@ -33,10 +297,10 @@ export class FileEncryptionService {
     getPrivateKey: () => string,
     onProgress?: (progress: number, currentFile: string) => void
   ): Promise<EncryptedFileMetadata[]> {
-    console.log(`🚀 Procesando ${files.length} archivos EN PARALELO TOTAL...`);
+    console.log(`🚀 Procesando ${files.length} archivos ULTRA RÁPIDO...`);
     const startTime = Date.now();
 
-    // Verificar sesión antes de empezar
+    // Verificar sesión
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -46,96 +310,129 @@ export class FileEncryptionService {
       );
     }
 
-    // Verificar tamaños de archivos primero
-    const fileSizes = await Promise.all(
-      files.map(async (file) => {
-        const info = await FileSystem.getInfoAsync(file.uri);
-        const sizeMB =
-          info.exists && "size" in info ? info.size / (1024 * 1024) : 0;
-        return { ...file, sizeMB };
-      })
+    // OPTIMIZACIÓN 1: Separar archivos por tipo y tamaño
+    const images = files.filter((f) => f.mimeType.startsWith("image/"));
+    const videos = files.filter((f) => f.mimeType.startsWith("video/"));
+    const others = files.filter(
+      (f) =>
+        !f.mimeType.startsWith("image/") && !f.mimeType.startsWith("video/")
     );
 
-    // Verificar archivos muy grandes
-    const largeFiles = fileSizes.filter((f) => f.sizeMB > 20);
-    if (largeFiles.length > 0) {
-      console.warn(
-        "⚠️ Archivos grandes detectados:",
-        largeFiles.map((f) => `${f.fileName}: ${f.sizeMB.toFixed(1)}MB`)
+    // OPTIMIZACIÓN 2: Procesar imágenes en batch con calidad reducida para velocidad
+    const processedFiles: Array<{
+      uri: string;
+      fileName: string;
+      mimeType: string;
+      compressionInfo?: any;
+    }> = [];
+
+    // Comprimir todas las imágenes en paralelo con configuración agresiva
+    if (images.length > 0) {
+      console.log(`📸 Comprimiendo ${images.length} imágenes en paralelo...`);
+
+      const compressedImages = await Promise.all(
+        images.map(async (img) => {
+          try {
+            // Comprimir más agresivamente para velocidad
+            const result = await compressionService.compressFile(
+              img.uri,
+              img.mimeType,
+              {
+                quality: 0.6, // Más agresivo
+                maxWidth: 1280, // Más pequeño
+                maxHeight: 1280,
+                forceCompress: true, // Siempre comprimir
+              }
+            );
+
+            return {
+              ...img,
+              uri: result.uri,
+              compressionInfo: result.wasCompressed
+                ? {
+                    algorithm: result.algorithm,
+                    originalSize: result.originalSize,
+                    compressedSize: result.compressedSize,
+                    ratio: result.ratio,
+                  }
+                : undefined,
+            };
+          } catch (error) {
+            console.error(`Error comprimiendo ${img.fileName}:`, error);
+            return img; // Usar original si falla
+          }
+        })
       );
+
+      processedFiles.push(...compressedImages);
     }
 
-    let processedCount = 0;
-    const totalFiles = files.length;
+    // OPTIMIZACIÓN 3: Para videos, advertir al usuario o procesarlos después
+    if (videos.length > 0) {
+      const totalVideoSize = await this.getTotalSize(videos);
 
-    // Procesar TODOS los archivos en paralelo sin importar el tamaño
-    const promises = files.map((file, index) =>
-      this.encryptAndUploadFileUltraFast(
-        file.uri,
-        file.fileName,
-        file.mimeType,
-        authorUserId,
-        recipientUserIds,
-        getPublicKey,
-        getPrivateKey,
-        index // Para evitar colisiones de ID
-      )
-        .then((result) => {
-          processedCount++;
-          onProgress?.((processedCount / totalFiles) * 100, file.fileName);
-          console.log(`✅ ${file.fileName} completado`);
-          return result;
-        })
-        .catch((error) => {
-          console.error(`❌ Error con ${file.fileName}:`, error);
-          processedCount++;
-          onProgress?.((processedCount / totalFiles) * 100, file.fileName);
-
-          // Re-throw para propagar el error
-          throw new Error(
-            `Error procesando ${file.fileName}: ${error.message}`
-          );
-        })
-    );
-
-    try {
-      // Usar Promise.allSettled para obtener todos los resultados
-      const results = await Promise.allSettled(promises);
-
-      const successful: EncryptedFileMetadata[] = [];
-      const failed: string[] = [];
-
-      results.forEach((result, index) => {
-        if (result.status === "fulfilled" && result.value) {
-          successful.push(result.value);
-        } else if (result.status === "rejected") {
-          failed.push(
-            `${files[index].fileName}: ${
-              result.reason?.message || "Error desconocido"
-            }`
-          );
-        }
-      });
-
-      const totalTime = Date.now() - startTime;
-      console.log(
-        `✅ Procesados ${successful.length}/${files.length} en ${(
-          totalTime / 1000
-        ).toFixed(1)}s`
-      );
-
-      if (failed.length > 0) {
-        console.error("❌ Archivos que fallaron:", failed);
-        throw new Error(
-          `Error al procesar ${failed.length} archivo(s): ${failed.join(", ")}`
+      if (totalVideoSize > 10 * 1024 * 1024) {
+        // > 10MB
+        console.warn(
+          `⚠️ Videos grandes detectados: ${(
+            totalVideoSize /
+            1024 /
+            1024
+          ).toFixed(1)}MB`
         );
+        // Opción: Subir videos después de mostrar el éxito del truco
       }
 
-      return successful;
-    } catch (error) {
-      console.error("Error en batch upload:", error);
-      throw error;
+      processedFiles.push(...videos);
     }
+
+    processedFiles.push(...others);
+
+    // OPTIMIZACIÓN 4: Generar todas las claves simétricas de una vez
+    const symmetricKeys = await Promise.all(
+      processedFiles.map(() => this.cryptoService.generateSymmetricKey())
+    );
+
+    // OPTIMIZACIÓN 5: Procesar en lotes más pequeños
+    const BATCH_SIZE = 3; // Procesar de 3 en 3
+    const results: EncryptedFileMetadata[] = [];
+
+    for (let i = 0; i < processedFiles.length; i += BATCH_SIZE) {
+      const batch = processedFiles.slice(i, i + BATCH_SIZE);
+      const batchKeys = symmetricKeys.slice(i, i + BATCH_SIZE);
+
+      const batchResults = await Promise.all(
+        batch.map((file, index) =>
+          this.fastEncryptAndUpload(
+            file,
+            batchKeys[index],
+            authorUserId,
+            recipientUserIds,
+            getPublicKey,
+            getPrivateKey,
+            i + index
+          )
+        )
+      );
+
+      results.push(...batchResults);
+
+      // Actualizar progreso
+      const progress = ((i + batch.length) / processedFiles.length) * 100;
+      onProgress?.(progress, `Procesando...`);
+    }
+
+    const totalTime = Date.now() - startTime;
+    console.log(
+      `✅ Completado en ${(totalTime / 1000).toFixed(1)}s (${(
+        totalTime / processedFiles.length
+      ).toFixed(0)}ms por archivo)`
+    );
+
+    // Limpiar archivos temporales
+    await compressionService.cleanupTemporaryFiles();
+
+    return results;
   }
 
   /**
@@ -250,7 +547,11 @@ export class FileEncryptionService {
       "upload",
       async (encryptedData: Uint8Array) => {
         const uploadSizeMB = encryptedData.length / (1024 * 1024);
-        console.log(`📤 Subiendo ${fileName}: ${encrypted.length} bytes (${uploadSizeMB.toFixed(2)}MB)`);
+        console.log(
+          `📤 Subiendo ${fileName}: ${
+            encrypted.length
+          } bytes (${uploadSizeMB.toFixed(2)}MB)`
+        );
         if (uploadSizeMB > 50) {
           throw new Error(
             `Archivo demasiado grande: ${uploadSizeMB.toFixed(1)}MB (máx 50MB)`
@@ -396,7 +697,7 @@ export class FileEncryptionService {
     metadata: EncryptedFileMetadata,
     authorUserId: string
   ): Promise<void> {
-    // Insertar metadata
+    // Insertar metadata con información de compresión
     const { error: metaError } = await supabase.from("encrypted_files").insert({
       file_id: metadata.fileId,
       original_name: metadata.originalName,
@@ -408,20 +709,23 @@ export class FileEncryptionService {
         version: "1.0",
         algorithm: "nacl-secretbox",
         keyDerivation: "nacl-box",
+        // NUEVO: Incluir info de compresión en el header
+        compression: metadata.compressionInfo || { algorithm: "none" },
       }),
       chunks: 1,
       created_at: new Date().toISOString(),
+      // NUEVO: Guardar compression_info como JSONB
+      compression_info: metadata.compressionInfo || null,
     });
 
     if (metaError) {
-      // Intentar limpiar el archivo subido
       await supabase.storage
         .from("encrypted_media")
         .remove([`encrypted_files/${metadata.fileId}`]);
       throw new Error(`Error guardando metadata: ${metaError.message}`);
     }
 
-    // Insertar claves
+    // Continuar con el guardado de claves...
     if (metadata.encryptedKeys.length > 0) {
       const rows = metadata.encryptedKeys.map((k) => ({
         file_id: metadata.fileId,
@@ -450,7 +754,7 @@ export class FileEncryptionService {
     getPublicKey: (userId: string) => Promise<string | null>,
     getPrivateKey: () => string
   ): Promise<{ data: Uint8Array; fileName: string; mimeType: string }> {
-    // 1. Obtener metadata y clave en paralelo
+    // 1. Obtener metadata y clave
     const [{ data: metaData, error: mErr }, { data: keyRow, error: kErr }] =
       await Promise.all([
         supabase
@@ -490,11 +794,28 @@ export class FileEncryptionService {
     const encryptedBuffer = await this.blobToUint8Array(blob);
     const fileNonce = Buffer.from(metaData.file_nonce, "base64");
 
-    const decrypted = await this.cryptoService.decryptFile(
+    let decrypted = await this.cryptoService.decryptFile(
       encryptedBuffer,
       fileNonce,
       symmetricKey
     );
+
+    // 5. NUEVO: Descomprimir si fue comprimido
+    if (
+      metaData.compression_info?.algorithm &&
+      metaData.compression_info.algorithm !== "none"
+    ) {
+      console.log(
+        `🔓 Descomprimiendo archivo (${metaData.compression_info.algorithm})...`
+      );
+
+      // Para gzip, necesitamos descomprimir los datos
+      if (metaData.compression_info.algorithm === "gzip") {
+        const { default: pako } = await import("pako");
+        decrypted = pako.ungzip(decrypted);
+      }
+      // Para jpeg/h264, los datos ya están descomprimidos (son formatos con pérdida)
+    }
 
     return {
       data: decrypted,
