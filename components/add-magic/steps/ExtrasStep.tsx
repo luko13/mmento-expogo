@@ -585,7 +585,7 @@ export default function ExtrasStepEncrypted({
 
       const options: ImagePicker.ImagePickerOptions = {
         mediaTypes: ["images"],
-        allowsEditing: true,
+        allowsEditing: false,
         allowsMultipleSelection: true,
         quality: 0.4,
       };

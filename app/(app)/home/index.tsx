@@ -466,7 +466,7 @@ export default function Home() {
               transform: [{ translateY: librariesTranslateY }],
               marginTop: 5,
               marginHorizontal: -18, // Márgenes negativos para compensar el padding del padre
-              paddingBottom: NAVBAR_HEIGHT + BOTTOM_SPACING + insets.bottom,
+              paddingBottom: 0,
               zIndex: 1,
             }}
           >
