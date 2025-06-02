@@ -15,7 +15,10 @@ import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import UserProfile from "../../../components/home/UserProfile";
 import ActionButtonsCarousel from "../../../components/home/ActionButtonsCarousel";
 import LibrariesSection from "../../../components/home/LibrariesSection";
@@ -367,113 +370,113 @@ export default function Home() {
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <StyledView className="flex-1" {...panResponder.panHandlers}>
-      {/* Background image que viene del layout padre */}
+        {/* Background image que viene del layout padre */}
 
-      {/* Container principal con padding para las safe areas */}
-      <StyledView className="flex-1" style={{ paddingHorizontal: 24 }}>
-        {/* User Profile - always visible */}
-        <StyledView style={{ zIndex: 10, marginBottom: 10, marginTop: 10 }}>
-          <UserProfile
-            onProfilePress={() => router.push("/(app)/profile")}
-            isSearchVisible={searchVisible}
-            onCloseSearch={() => animateSearch(false)}
-          />
-        </StyledView>
+        {/* Container principal con padding para todos los componentes */}
+        <StyledView className="flex-1" style={{ paddingHorizontal: 24 }}>
+          {/* User Profile - always visible */}
+          <StyledView style={{ zIndex: 10, marginBottom: 10, marginTop: 10 }}>
+            <UserProfile
+              onProfilePress={() => router.push("/(app)/profile")}
+              isSearchVisible={searchVisible}
+              onCloseSearch={() => animateSearch(false)}
+            />
+          </StyledView>
 
-        {/* Action Buttons Carousel - animates up and out when search is visible */}
-        <StyledAnimatedView
-          style={{
-            marginBottom: 2,
-            zIndex: 10,
-            transform: [{ translateY: carouselTranslateY }],
-            opacity: carouselOpacity,
-            pointerEvents: carouselInteractive ? "auto" : "none",
-          }}
-        >
-          <ActionButtonsCarousel />
-        </StyledAnimatedView>
-
-        {/* Swipe Indicator / Search Bar Container */}
-        <StyledView
-          className="mb-4 h-12 justify-center "
-          style={{ marginTop: 0 }}
-        >
-          {/* Search Bar Compact (Solo visible cuando la búsqueda está oculta) */}
+          {/* Action Buttons Carousel - animates up and out when search is visible */}
           <StyledAnimatedView
-            className="absolute left-0 right-0"
             style={{
-              opacity: indicatorOpacity,
-              zIndex: 5,
-              alignItems: "center",
+              marginBottom: 2,
+              zIndex: 10,
+              transform: [{ translateY: carouselTranslateY }],
+              opacity: carouselOpacity,
+              pointerEvents: carouselInteractive ? "auto" : "none",
             }}
-            pointerEvents={isReady && indicatorInteractive ? "auto" : "none"}
           >
-            <StyledTouchableOpacity
-              className="flex-row items-center justify-between px-4 py-3 rounded-lg w-full border border-white/40"
-              onPress={() => {
-                animateSearch(true);
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Ionicons
-                  name="search"
-                  size={16}
-                  color="white"
-                  style={{ marginRight: 8 }}
-                />
-                <StyledText className="text-white opacity-60">
-                  {t("search", "Buscar")}
-                </StyledText>
-              </View>
-            </StyledTouchableOpacity>
+            <ActionButtonsCarousel />
           </StyledAnimatedView>
 
-          {/* Compact Search Bar */}
-          <StyledAnimatedView
-            className="absolute left-0 right-0"
-            style={{
-              opacity: searchOpacity,
-              zIndex: 50,
-              position: "absolute",
-              top: -140, // Posición más cerca del UserProfile
-            }}
-            pointerEvents={
-              isReady && searchVisibleRef.current ? "auto" : "none"
-            }
+          {/* Swipe Indicator / Search Bar Container */}
+          <StyledView
+            className="mb-4 h-12 justify-center "
+            style={{ marginTop: 0 }}
           >
-            <CompactSearchBar
-              value={searchQuery}
-              onChangeText={handleSearchQueryChange}
-              onClose={() => {
-                animateSearch(false);
+            {/* Search Bar Compact (Solo visible cuando la búsqueda está oculta) */}
+            <StyledAnimatedView
+              className="absolute left-0 right-0"
+              style={{
+                opacity: indicatorOpacity,
+                zIndex: 5,
+                alignItems: "center",
               }}
-              onFiltersChange={handleFiltersChange}
-              onSearchBarPress={() => {
-                // Esta función se llama cuando se presiona la barra de búsqueda expandida
-                // No necesita hacer nada adicional porque la barra ya está visible
+              pointerEvents={isReady && indicatorInteractive ? "auto" : "none"}
+            >
+              <StyledTouchableOpacity
+                className="flex-row items-center justify-between px-4 py-3 rounded-lg w-full border border-white/40"
+                onPress={() => {
+                  animateSearch(true);
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Ionicons
+                    name="search"
+                    size={16}
+                    color="white"
+                    style={{ marginRight: 8 }}
+                  />
+                  <StyledText className="text-white opacity-60">
+                    {t("search", "Buscar")}
+                  </StyledText>
+                </View>
+              </StyledTouchableOpacity>
+            </StyledAnimatedView>
+
+            {/* Compact Search Bar */}
+            <StyledAnimatedView
+              className="absolute left-0 right-0"
+              style={{
+                opacity: searchOpacity,
+                zIndex: 50,
+                position: "absolute",
+                top: -140, // Posición más cerca del UserProfile
               }}
+              pointerEvents={
+                isReady && searchVisibleRef.current ? "auto" : "none"
+              }
+            >
+              <CompactSearchBar
+                value={searchQuery}
+                onChangeText={handleSearchQueryChange}
+                onClose={() => {
+                  animateSearch(false);
+                }}
+                onFiltersChange={handleFiltersChange}
+                onSearchBarPress={() => {
+                  // Esta función se llama cuando se presiona la barra de búsqueda expandida
+                  // No necesita hacer nada adicional porque la barra ya está visible
+                }}
+              />
+            </StyledAnimatedView>
+          </StyledView>
+
+          {/* Libraries Section - con márgenes negativos para extenderse */}
+          <StyledAnimatedView
+            className="flex-1"
+            style={{
+              transform: [{ translateY: librariesTranslateY }],
+              marginTop: 5,
+              marginHorizontal: -18, // Márgenes negativos para compensar el padding del padre
+              paddingBottom: NAVBAR_HEIGHT + BOTTOM_SPACING + insets.bottom,
+              zIndex: 1,
+            }}
+          >
+            <LibrariesSection
+              searchQuery={searchQuery}
+              searchFilters={searchFilters}
             />
           </StyledAnimatedView>
         </StyledView>
-
-        {/* Libraries Section - animates down when search is visible with proper spacing */}
-        <StyledAnimatedView
-          className="flex-1"
-          style={{
-            transform: [{ translateY: librariesTranslateY }],
-            marginTop: 5,
-            // Usar insets.bottom para el padding inferior junto con los valores existentes
-            paddingBottom: NAVBAR_HEIGHT + BOTTOM_SPACING + insets.bottom,
-            zIndex: 1,
-          }}
-        >
-          <LibrariesSection
-            searchQuery={searchQuery}
-            searchFilters={searchFilters}
-          />
-        </StyledAnimatedView>
       </StyledView>
-    </StyledView>
     </SafeAreaView>
   );
 }

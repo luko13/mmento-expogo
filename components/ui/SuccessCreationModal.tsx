@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Modal,
-  Dimensions,
-} from "react-native";
+import { View, Text, TouchableOpacity, Modal, Dimensions } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
@@ -81,70 +75,74 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
             <StyledView className="px-6 pt-8 pb-6">
               {/* Success Icon */}
               <StyledView className="items-center mb-6">
-                <StyledView 
-                  className="w-16 h-16 rounded-full items-center justify-center"
-                  style={{ backgroundColor: "rgba(16, 185, 129, 0.2)" }}
-                >
-                  <Feather name="check" size={32} color="#10b981" />
+                <StyledView className="w-16 h-16 rounded-full items-center justify-center">
+                  <Feather name="check" size={64} color="#10b981" />
                 </StyledView>
               </StyledView>
 
               {/* Success Message */}
-              <StyledText className="text-white/90 text-xl text-center mb-2">
-                <StyledText className="font-medium">{itemName}</StyledText>
-                {" "}
+              <StyledText className="text-white/90 text-xl text-center -mb-1">
+                <StyledText className="font-medium text-[#10b981]">
+                  {itemName}
+                </StyledText>{" "}
                 {t("successCreation.hasBeenCreated", "has been created")}
               </StyledText>
-              
+
               <StyledText className="text-white/60 text-base text-center">
-                {t("successCreation.andEncrypted", "and encrypted successfully")}
+                {t(
+                  "successCreation.andEncrypted",
+                  "and encrypted successfully"
+                )}
               </StyledText>
             </StyledView>
 
             {/* Divider */}
-            <StyledView 
-              style={{ 
-                height: 0.5, 
-                backgroundColor: "rgba(200, 200, 200, 0.3)" 
-              }} 
+            <StyledView
+              style={{
+                height: 0.5,
+                backgroundColor: "rgba(200, 200, 200, 0.3)",
+              }}
             />
 
             {/* Actions */}
             <StyledView>
               {/* View Item Button */}
               <StyledTouchableOpacity
-                className="py-4 items-center"
+                className="py-3 items-center"
                 style={{
                   borderBottomWidth: 0.5,
                   borderBottomColor: "rgba(200, 200, 200, 0.3)",
                 }}
                 onPress={onViewItem}
               >
-                <StyledText className="text-white text-base">
-                  {t("successCreation.view", "View")} {itemName}
+                <StyledText className="text-white text-base font-bold">
+                  {t("successCreation.view", "View")}{" "}
+                  <StyledText className="font-medium text-base text-[#10b981]">
+                    {itemName}
+                  </StyledText>
                 </StyledText>
               </StyledTouchableOpacity>
 
               {/* Register More Button */}
               <StyledTouchableOpacity
-                className="py-4 items-center"
+                className="py-3 items-center"
                 style={{
                   borderBottomWidth: 0.5,
                   borderBottomColor: "rgba(200, 200, 200, 0.3)",
                 }}
                 onPress={onAddAnother}
               >
-                <StyledText className="text-white/80 text-base">
+                <StyledText className="text-white text-base">
                   {t("successCreation.registerMore", "Register more")}
                 </StyledText>
               </StyledTouchableOpacity>
 
               {/* Done Button */}
               <StyledTouchableOpacity
-                className="py-4 items-center"
+                className="py-3 items-center"
                 onPress={onClose}
               >
-                <StyledText className="text-white text-base font-medium">
+                <StyledText className="text-white/50 text-base font-light">
                   {t("successCreation.done", "Done")}
                 </StyledText>
               </StyledTouchableOpacity>

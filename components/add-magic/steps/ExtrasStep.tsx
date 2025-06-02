@@ -936,6 +936,7 @@ export default function ExtrasStepEncrypted({
                       name={"upload"}
                       size={16}
                       style={{ marginLeft: 4 }}
+                      color="white"
                     />
                   </StyledView>
                 </StyledView>
