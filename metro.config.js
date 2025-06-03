@@ -12,13 +12,9 @@ module.exports = {
       stream: 'stream-browserify',
       util: 'util',
       events: require.resolve('events/'),
-      ws: require.resolve('isomorphic-ws'),  // Agrega esta línea
+      ws: require.resolve('isomorphic-ws'),
     },
     unstable_enablePackageExports: false,
-    extraNodeModules: {
-      ...(defaultConfig.resolver.extraNodeModules || {}),
-      'react-native-threads': require.resolve('react-native-threads'),
-    },
   },
   serializer: {
     ...defaultConfig.serializer,
