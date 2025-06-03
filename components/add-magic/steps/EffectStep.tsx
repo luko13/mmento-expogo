@@ -1,6 +1,7 @@
+// components/add-magic/steps/EffectStep.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -21,17 +22,15 @@ import {
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import type { EncryptedMagicTrick } from "../../../types/encryptedMagicTrick";
-import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../../lib/supabase";
-import * as FileSystem from "expo-file-system";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { v4 as uuidv4 } from "uuid";
 import { useEncryption } from "../../../hooks/useEncryption";
-import { FileEncryptionService } from "../../../utils/fileEncryption";
 import CustomTooltip from "../../ui/Tooltip";
 import SuccessCreationModal from "../../ui/SuccessCreationModal";
+import { MediaSelector, MediaSelectorRef } from "../../ui/MediaSelector";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -50,6 +49,8 @@ interface StepProps {
   isSubmitting?: boolean;
   isNextButtonDisabled?: boolean;
   isLastStep?: boolean;
+  encryptionTasks?: any;
+  setEncryptionTasks?: (tasks: any) => void;
 }
 
 export default function EffectStepEncrypted({
@@ -68,11 +69,11 @@ export default function EffectStepEncrypted({
   const [saving, setSaving] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdItemId, setCreatedItemId] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
-  
-  // Estados para archivos locales
-  const [localEffectVideo, setLocalEffectVideo] = useState<string | null>(null);
-  const [localSecretVideo, setLocalSecretVideo] = useState<string | null>(null);
+
+  // Referencias a los selectores de media
+  const effectVideoRef = useRef<MediaSelectorRef>(null);
+  const secretVideoRef = useRef<MediaSelectorRef>(null);
+  const photosRef = useRef<MediaSelectorRef>(null);
 
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -86,8 +87,6 @@ export default function EffectStepEncrypted({
     error: encryptionError,
   } = useEncryption();
 
-  const fileEncryptionService = new FileEncryptionService();
-
   // Verificar que el cifrado esté listo
   useEffect(() => {
     if (!encryptionReady && !encryptionError) {
@@ -99,39 +98,6 @@ export default function EffectStepEncrypted({
       );
     }
   }, [encryptionReady, encryptionError, t]);
-
-  // Inicializar archivos locales desde trickData si existen
-  useEffect(() => {
-    if (trickData.localFiles?.effectVideo) {
-      setLocalEffectVideo(trickData.localFiles.effectVideo);
-    }
-    if (trickData.localFiles?.secretVideo) {
-      setLocalSecretVideo(trickData.localFiles.secretVideo);
-    }
-  }, []);
-
-  // Request permissions
-  const requestMediaLibraryPermissions = async () => {
-    try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          t("permissionRequired", "Permission Required"),
-          t(
-            "mediaLibraryPermission",
-            "We need access to your media library to upload videos."
-          ),
-          [{ text: t("ok", "OK") }]
-        );
-        return false;
-      }
-      return true;
-    } catch (error) {
-      console.error("Error requesting permissions:", error);
-      return false;
-    }
-  };
 
   // Actualizar contador de tags
   const updateTagsUsageCount = async (tagIds: string[]) => {
@@ -155,239 +121,10 @@ export default function EffectStepEncrypted({
     }
   };
 
-  // Pick effect video (solo guardar localmente)
-  const pickEffectVideo = async () => {
-    try {
-      if (!encryptionReady || !keyPair) {
-        Alert.alert(
-          t("security.error", "Error de Seguridad"),
-          t(
-            "security.encryptionNotReady",
-            "El sistema de cifrado no está listo"
-          )
-        );
-        return;
-      }
-
-      const hasPermission = await requestMediaLibraryPermissions();
-      if (!hasPermission) return;
-
-      const options: ImagePicker.ImagePickerOptions = {
-        mediaTypes: ["videos"],
-        allowsEditing: true,
-        quality: 0.5,
-        videoMaxDuration: 60,
-      };
-
-      const result = await ImagePicker.launchImageLibraryAsync(options);
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-
-        // Check file size
-        try {
-          const fileInfo = await FileSystem.getInfoAsync(uri);
-          if (fileInfo.exists && "size" in fileInfo) {
-            if (fileInfo.size > 50 * 1024 * 1024) {
-              Alert.alert(
-                t("fileTooLarge", "File Too Large"),
-                t(
-                  "fileSizeWarning",
-                  "The selected video is too large. Please select a smaller video or trim this one."
-                ),
-                [{ text: t("ok", "OK") }]
-              );
-              return;
-            }
-          }
-        } catch (error) {
-          console.error("Error checking file size:", error);
-        }
-
-        // Guardar localmente
-        setLocalEffectVideo(uri);
-        updateTrickData({
-          localFiles: {
-            ...trickData.localFiles,
-            effectVideo: uri
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Error picking video:", error);
-      Alert.alert(
-        t("error", "Error"),
-        t(
-          "videoPickError",
-          "There was an error selecting the video. Please try again."
-        ),
-        [{ text: t("ok", "OK") }]
-      );
-    }
-  };
-
-  // Pick secret video (solo guardar localmente)
-  const pickSecretVideo = async () => {
-    try {
-      if (!encryptionReady || !keyPair) {
-        Alert.alert(
-          t("security.error", "Error de Seguridad"),
-          t(
-            "security.encryptionNotReady",
-            "El sistema de cifrado no está listo"
-          )
-        );
-        return;
-      }
-
-      const hasPermission = await requestMediaLibraryPermissions();
-      if (!hasPermission) return;
-
-      const options: ImagePicker.ImagePickerOptions = {
-        mediaTypes: ["videos"],
-        allowsEditing: true,
-        quality: 0.5,
-        videoMaxDuration: 60,
-      };
-
-      const result = await ImagePicker.launchImageLibraryAsync(options);
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-
-        // Check file size
-        try {
-          const fileInfo = await FileSystem.getInfoAsync(uri);
-          if (fileInfo.exists && "size" in fileInfo) {
-            if (fileInfo.size > 50 * 1024 * 1024) {
-              Alert.alert(
-                t("fileTooLarge", "File Too Large"),
-                t(
-                  "fileSizeWarning",
-                  "The selected video is too large. Please select a smaller video or trim this one."
-                ),
-                [{ text: t("ok", "OK") }]
-              );
-              return;
-            }
-          }
-        } catch (error) {
-          console.error("Error checking file size:", error);
-        }
-
-        // Guardar localmente
-        setLocalSecretVideo(uri);
-        updateTrickData({
-          localFiles: {
-            ...trickData.localFiles,
-            secretVideo: uri
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Error picking video:", error);
-      Alert.alert(
-        t("error", "Error"),
-        t(
-          "videoPickError",
-          "There was an error selecting the video. Please try again."
-        ),
-        [{ text: t("ok", "OK") }]
-      );
-    }
-  };
-
-  // Eliminar video del efecto
-  const removeEffectVideo = () => {
-    setLocalEffectVideo(null);
-    updateTrickData({
-      localFiles: {
-        ...trickData.localFiles,
-        effectVideo: null
-      }
-    });
-  };
-
-  // Eliminar video del secreto
-  const removeSecretVideo = () => {
-    setLocalSecretVideo(null);
-    updateTrickData({
-      localFiles: {
-        ...trickData.localFiles,
-        secretVideo: null
-      }
-    });
-  };
-
   // Navigate to extras step
   const goToExtrasStep = () => {
     if (onNext) {
       onNext();
-    }
-  };
-
-  // Cifrar y subir todos los archivos con batch optimization
-  const uploadAllFiles = async () => {
-    if (!keyPair) return {};
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error("Usuario no autenticado");
-
-    // Prepare all files for batch upload
-    const allFiles: Array<{ uri: string; fileName: string; mimeType: string }> = [];
-    
-    if (localEffectVideo) {
-      allFiles.push({
-        uri: localEffectVideo,
-        fileName: `effect_video_${Date.now()}.mp4`,
-        mimeType: 'video/mp4'
-      });
-    }
-    
-    if (localSecretVideo) {
-      allFiles.push({
-        uri: localSecretVideo,
-        fileName: `secret_video_${Date.now()}.mp4`,
-        mimeType: 'video/mp4'
-      });
-    }
-    
-    if (allFiles.length === 0) return {};
-
-    try {
-      console.log(`📤 Uploading ${allFiles.length} videos with optimization...`);
-      
-      // Use batch upload with compression
-      const uploadMetadata = await fileEncryptionService.batchEncryptAndUploadFilesOptimized(
-        allFiles,
-        user.id,
-        [user.id],
-        getPublicKey,
-        () => keyPair.privateKey,
-        (progress, fileName) => {
-          setUploadProgress(prev => ({ ...prev, [fileName]: progress }));
-          console.log(`📊 Upload progress: ${progress.toFixed(0)}% - ${fileName}`);
-        }
-      );
-
-      // Process results
-      const uploadedFiles: any = {};
-      
-      uploadMetadata.forEach((metadata, index) => {
-        const originalFile = allFiles[index];
-        if (originalFile.fileName.includes('effect_video')) {
-          uploadedFiles.effect_video = metadata.fileId;
-        } else if (originalFile.fileName.includes('secret_video')) {
-          uploadedFiles.secret_video = metadata.fileId;
-        }
-      });
-
-      return uploadedFiles;
-    } catch (error) {
-      console.error("Error uploading files:", error);
-      throw error;
     }
   };
 
@@ -486,8 +223,28 @@ export default function EffectStepEncrypted({
         });
       }
 
-      // Subir todos los archivos con compresión
-      const uploadedFiles = await uploadAllFiles();
+      // Obtener los archivos cifrados de los selectores
+      const [effectVideoIds, secretVideoIds, photoIds] = await Promise.all([
+        effectVideoRef.current?.getEncryptedFileIds() || [],
+        secretVideoRef.current?.getEncryptedFileIds() || [],
+        photosRef.current?.getEncryptedFileIds() || [],
+      ]);
+
+      // Preparar archivos cifrados
+      const encryptedFileIds: { [key: string]: any } = {};
+
+      if (effectVideoIds.length > 0) {
+        encryptedFileIds.effect_video = effectVideoIds[0];
+      }
+
+      if (secretVideoIds.length > 0) {
+        encryptedFileIds.secret_video = secretVideoIds[0];
+      }
+
+      if (photoIds.length > 0) {
+        encryptedFileIds.photos = photoIds;
+        encryptedFileIds.photo = photoIds[0]; // Primera foto como principal
+      }
 
       // Cifrar campos sensibles
       const encryptedTrickData = await encryptAllSensitiveFields(trickData);
@@ -512,9 +269,9 @@ export default function EffectStepEncrypted({
             is_public: false,
             status: "draft",
             price: null,
-            photo_url: encryptedTrickData.photo_url,
-            effect_video_url: uploadedFiles.effect_video || null,
-            secret_video_url: uploadedFiles.secret_video || null,
+            photo_url: encryptedFileIds.photo || null,
+            effect_video_url: encryptedFileIds.effect_video || null,
+            secret_video_url: encryptedFileIds.secret_video || null,
             views_count: 0,
             likes_count: 0,
             dislikes_count: 0,
@@ -528,7 +285,7 @@ export default function EffectStepEncrypted({
             content_type: "magic_tricks",
             user_id: user.id,
             encrypted_fields: encryptedTrickData.encryptedFields,
-            encrypted_files: uploadedFiles,
+            encrypted_files: encryptedFileIds,
           },
         }
       );
@@ -576,7 +333,6 @@ export default function EffectStepEncrypted({
       );
     } finally {
       setSaving(false);
-      setUploadProgress({});
     }
   };
 
@@ -595,9 +351,9 @@ export default function EffectStepEncrypted({
           .from("magic_tricks")
           .select(
             `
-            *,
-            trick_categories!inner(category_id)
-          `
+          *,
+          trick_categories!inner(category_id)
+        `
           )
           .eq("id", createdItemId)
           .single();
@@ -615,6 +371,23 @@ export default function EffectStepEncrypted({
             if (categoryData) categoryName = categoryData.name;
           }
 
+          // Obtener las fotos cifradas desde encrypted_content
+          let encryptedPhotos: string[] = [];
+          const { data: encryptedContent } = await supabase
+            .from("encrypted_content")
+            .select("encrypted_files")
+            .eq("content_id", createdItemId)
+            .eq("content_type", "magic_tricks")
+            .single();
+
+          if (encryptedContent?.encrypted_files?.photos) {
+            encryptedPhotos = Array.isArray(
+              encryptedContent.encrypted_files.photos
+            )
+              ? encryptedContent.encrypted_files.photos
+              : [encryptedContent.encrypted_files.photos];
+          }
+
           // Preparar datos para navegación
           const navigationData = {
             id: trickData.id,
@@ -625,7 +398,7 @@ export default function EffectStepEncrypted({
             effect_video_url: trickData.effect_video_url,
             secret_video_url: trickData.secret_video_url,
             photo_url: trickData.photo_url,
-            photos: trickData.encryptedFiles?.photos || [],
+            photos: encryptedPhotos, // Usar las fotos obtenidas de encrypted_content
             script: "",
             angles: trickData.angles || [],
             duration: trickData.duration || 0,
@@ -696,52 +469,29 @@ export default function EffectStepEncrypted({
             {t("effect", "Efecto")}
           </StyledText>
 
-          {/* Effect Video */}
-          <StyledView className="flex-row mb-6">
-            <CustomTooltip
-              text={t("tooltips.effectVideo")}
-              backgroundColor="rgba(91, 185, 163, 0.95)"
-              textColor="white"
-            >
-              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-                <Feather name="video" size={24} color="white" />
-              </StyledView>
-            </CustomTooltip>
-            <StyledView className="flex-1 ">
-              <StyledTouchableOpacity
-                onPress={localEffectVideo ? removeEffectVideo : pickEffectVideo}
-                disabled={!encryptionReady}
-                className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40"
-              >
-                <StyledView className="flex-1 flex-row items-center">
-                  <StyledText className="text-white/70 flex-1">
-                    {localEffectVideo
-                      ? t("effectVideoSelected", "Video del efecto seleccionado")
-                      : t("uploadEffectVideo", "Subir video del efecto*")}
-                  </StyledText>
-                  <StyledView className="flex-row items-center">
-                    <Feather
-                      name={localEffectVideo ? "x" : "upload"}
-                      size={16}
-                      color={localEffectVideo ? "#ef4444" : "white"}
-                      style={{ marginLeft: 4 }}
-                    />
-                  </StyledView>
-                </StyledView>
-              </StyledTouchableOpacity>
-              {uploadProgress['effect_video'] && (
-                <StyledView className="mt-2 bg-white/10 rounded-full h-2">
-                  <StyledView 
-                    className="bg-emerald-500 h-full rounded-full"
-                    style={{ width: `${uploadProgress['effect_video']}%` }}
-                  />
-                </StyledView>
-              )}
-            </StyledView>
-          </StyledView>
+          {/* Effect Video - Usando MediaSelector */}
+          <MediaSelector
+            ref={effectVideoRef}
+            type="video"
+            multiple={false}
+            maxFiles={1}
+            maxFileSize={50}
+            quality={0.5}
+            tooltip={t("tooltips.effectVideo")}
+            placeholder={t("uploadEffectVideo", "Subir video del efecto*")}
+            onFilesSelected={(files) => {
+              // Guardar en trickData para persistir entre steps
+              updateTrickData({
+                localFiles: {
+                  ...trickData.localFiles,
+                  effectVideo: files[0]?.uri || null,
+                },
+              });
+            }}
+          />
 
           {/* Effect Description */}
-          <StyledView className="mb-6">
+          <StyledView className="mb-6 mt-6">
             <StyledView className="flex-row items-center">
               <CustomTooltip
                 text={t("tooltips.effectDescription")}
@@ -782,52 +532,20 @@ export default function EffectStepEncrypted({
             {t("secret", "Secreto")}
           </StyledText>
 
-          {/* Secret Video */}
-          <StyledView className="flex-row mb-6">
-            <CustomTooltip
-              text={t("tooltips.secretVideo")}
-              backgroundColor="rgba(91, 185, 163, 0.95)"
-              textColor="white"
-            >
-              <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-                <Feather name="video" size={24} color="white" />
-              </StyledView>
-            </CustomTooltip>
-            <StyledView className="flex-1 ">
-              <StyledTouchableOpacity
-                onPress={localSecretVideo ? removeSecretVideo : pickSecretVideo}
-                disabled={!encryptionReady}
-                className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40"
-              >
-                <StyledView className="flex-1 flex-row items-center">
-                  <StyledText className="text-white/70 flex-1">
-                    {localSecretVideo
-                      ? t("secretVideoSelected", "Video del secreto seleccionado")
-                      : t("secretVideoUpload", "Subir video del secreto")}
-                  </StyledText>
-                  <StyledView className="flex-row items-center">
-                    <Feather
-                      name={localSecretVideo ? "x" : "upload"}
-                      size={16}
-                      color={localSecretVideo ? "#ef4444" : "white"}
-                      style={{ marginLeft: 4 }}
-                    />
-                  </StyledView>
-                </StyledView>
-              </StyledTouchableOpacity>
-              {uploadProgress['secret_video'] && (
-                <StyledView className="mt-2 bg-white/10 rounded-full h-2">
-                  <StyledView 
-                    className="bg-emerald-500 h-full rounded-full"
-                    style={{ width: `${uploadProgress['secret_video']}%` }}
-                  />
-                </StyledView>
-              )}
-            </StyledView>
-          </StyledView>
+          {/* Secret Video - Usando MediaSelector */}
+          <MediaSelector
+            ref={secretVideoRef}
+            type="video"
+            multiple={false}
+            maxFiles={1}
+            maxFileSize={50}
+            quality={0.5}
+            tooltip={t("tooltips.secretVideo")}
+            placeholder={t("secretVideoUpload", "Subir video del secreto")}
+          />
 
           {/* Secret Description */}
-          <StyledView className="mb-16">
+          <StyledView className="mb-6 mt-6">
             <StyledView className="flex-row items-center">
               <CustomTooltip
                 text={t("tooltips.secretDescription")}
@@ -857,12 +575,33 @@ export default function EffectStepEncrypted({
             </StyledView>
           </StyledView>
         </StyledView>
+
+        {/* Photos Section - NUEVA */}
+        <StyledView className="mb-16">
+          <StyledText className="text-white/60 text-lg font-semibold mb-4">
+            {t("photos", "Fotos")}
+          </StyledText>
+
+          {/* Photos - Usando MediaSelector */}
+          <MediaSelector
+            ref={photosRef}
+            type="photo"
+            multiple={true}
+            maxFiles={10}
+            maxFileSize={10}
+            quality={0.4}
+            tooltip={t("tooltips.imageUpload")}
+            placeholder={t("imagesUpload", "Subir Imágenes")}
+          />
+        </StyledView>
       </StyledScrollView>
+
       <StyledView className="justify-end px-6 pb-6">
         {/* Step indicator */}
         <StyledText className="text-center text-white/60 mb-4">
           {`${currentStep} de ${totalSteps}`}
         </StyledText>
+
         {/* Statistics Button */}
         <StyledTouchableOpacity
           className="w-full py-4 rounded-lg items-center justify-center flex-row border border-[#2C6B5C] bg-transparent mb-4"
@@ -897,6 +636,7 @@ export default function EffectStepEncrypted({
           </StyledText>
         </StyledTouchableOpacity>
       </StyledView>
+
       {/* Success Modal */}
       <SuccessCreationModal
         visible={showSuccessModal}

@@ -213,14 +213,7 @@ export default function CategorySelector({
             >
               {category.name}
             </Text>
-            {isSelected && (
-              <Feather
-                name="x"
-                size={14}
-                color="white"
-                style={{ marginLeft: 4 }}
-              />
-            )}
+            {isSelected}
           </TouchableOpacity>
         ))}
       </ScrollView>

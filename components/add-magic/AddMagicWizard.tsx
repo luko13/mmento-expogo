@@ -39,7 +39,11 @@ export default function AddMagicWizardEncrypted({
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdItemId, setCreatedItemId] = useState<string | null>(null);
   const [savedPhotos, setSavedPhotos] = useState<string[]>([]);
-
+  const [encryptionTasks, setEncryptionTasks] = useState<{
+    effectVideo?: string;
+    secretVideo?: string;
+    photos?: string[];
+  }>({});
   // Hook de cifrado
   const {
     isReady: encryptionReady,
@@ -686,6 +690,8 @@ export default function AddMagicWizardEncrypted({
       <StepComponent
         trickData={trickData}
         updateTrickData={updateTrickData}
+        encryptionTasks={encryptionTasks}
+        setEncryptionTasks={setEncryptionTasks}
         onNext={goToNextStep}
         onCancel={goToPreviousStep}
         currentStep={currentStep + 1}
