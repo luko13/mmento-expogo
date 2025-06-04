@@ -1,5 +1,6 @@
 // utils/hybridCrypto.ts
 import nacl from "tweetnacl";
+import { Buffer } from 'buffer';
 import { encodeBase64, decodeBase64 } from "tweetnacl-util";
 import { cryptoWorkerService } from "./cryptoWorkerService";
 import { performanceOptimizer } from "./performanceOptimizer";
@@ -25,7 +26,7 @@ export class HybridCrypto {
   private implementation: CryptoImplementation | null = null;
   private sodium: any = null;
   private isInitialized = false;
-  
+
   // Umbral para usar threads (5MB)
   private readonly THREAD_THRESHOLD = 5 * 1024 * 1024;
 
@@ -102,7 +103,7 @@ export class HybridCrypto {
 
       // Extraemos la API real (está en default en la mayoría de bundlers)
       const sodium = (mod as any).default ?? mod;
-      
+
       // Si no existe randombytes_buf, descartamos y usamos TweetNaCl
       if (typeof sodium.randombytes_buf !== "function") {
         console.warn(
@@ -174,11 +175,17 @@ export class HybridCrypto {
     if (!this.implementation) await this.initialize();
 
     const actualNonce = nonce || (await this.implementation!.generateNonce());
-    
+
     // Verificar si debemos usar threads
     if (data.length > this.THREAD_THRESHOLD) {
-      console.log(`🧵 Usando chunking asíncrono para cifrar ${(data.length / 1024 / 1024).toFixed(2)}MB`);
-      
+      console.log(
+        `🧵 Usando chunking asíncrono para cifrar ${(
+          data.length /
+          1024 /
+          1024
+        ).toFixed(2)}MB`
+      );
+
       try {
         // Usar chunking asíncrono
         const result = await cryptoWorkerService.encryptLargeData(
@@ -188,17 +195,20 @@ export class HybridCrypto {
             console.log(`📊 Progreso cifrado: ${progress.toFixed(0)}%`);
           }
         );
-        
+
         return {
           encrypted: result.encrypted,
-          nonce: result.nonces[0] // Usar el primer nonce para compatibilidad
+          nonce: result.nonces[0], // Usar el primer nonce para compatibilidad
         };
       } catch (error) {
-        console.error("Error con chunking asíncrono, usando implementación local:", error);
+        console.error(
+          "Error con chunking asíncrono, usando implementación local:",
+          error
+        );
         // Fallback a implementación sin chunks
       }
     }
-    
+
     // Para archivos pequeños o si fallan los threads
     const encrypted = await this.implementation!.encrypt(
       data,
@@ -216,11 +226,37 @@ export class HybridCrypto {
   ): Promise<Uint8Array> {
     if (!this.implementation) await this.initialize();
 
-    // Por ahora, descifrado siempre local (podemos agregar threads después)
-    const decrypted = await this.implementation!.decrypt(data, key, nonce);
-    if (!decrypted) throw new Error("Decryption failed");
+    console.log("🔐 hybridCrypto.decrypt:", {
+      dataLength: data.length,
+      keyLength: key.length,
+      nonceLength: nonce.length,
+      implementation: this.implementation!.name,
+      // Primeros y últimos bytes para verificar integridad
+      dataPreview: {
+        first10: Array.from(data.slice(0, 10)),
+        last10: Array.from(data.slice(-10)),
+      },
+    });
 
-    return decrypted;
+    try {
+      const decrypted = await this.implementation!.decrypt(data, key, nonce);
+
+      if (!decrypted) {
+        console.error("❌ Decryption returned null/false");
+        console.error("Debug info:", {
+          keyHex: Buffer.from(key).toString("hex"),
+          nonceHex: Buffer.from(nonce).toString("hex"),
+          dataLength: data.length,
+        });
+        throw new Error("Decryption failed");
+      }
+
+      console.log("✅ Decryption successful, length:", decrypted.length);
+      return decrypted;
+    } catch (error) {
+      console.error("❌ Decryption error:", error);
+      throw error;
+    }
   }
 
   async generateKey(): Promise<Uint8Array> {
@@ -280,7 +316,7 @@ export class HybridCrypto {
 
     return key.slice(0, 32);
   }
-  
+
   /**
    * Obtener estadísticas de rendimiento
    */
@@ -289,8 +325,8 @@ export class HybridCrypto {
       implementation: this.getImplementationName(),
       isNative: this.isUsingNativeCrypto(),
       threadedCryptoStats: cryptoWorkerService.getStats(),
-      encryptMetrics: performanceOptimizer.getAverageMetrics('encrypt'),
-      workerMetrics: performanceOptimizer.getAverageMetrics('worker-encrypt')
+      encryptMetrics: performanceOptimizer.getAverageMetrics("encrypt"),
+      workerMetrics: performanceOptimizer.getAverageMetrics("worker-encrypt"),
     };
   }
 }

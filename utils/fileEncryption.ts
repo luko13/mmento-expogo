@@ -754,6 +754,8 @@ export class FileEncryptionService {
     getPublicKey: (userId: string) => Promise<string | null>,
     getPrivateKey: () => string
   ): Promise<{ data: Uint8Array; fileName: string; mimeType: string }> {
+    console.log("📥 downloadAndDecryptFile START:", { fileId, userId });
+
     // 1. Obtener metadata y clave
     const [{ data: metaData, error: mErr }, { data: keyRow, error: kErr }] =
       await Promise.all([
@@ -770,11 +772,17 @@ export class FileEncryptionService {
           .single(),
       ]);
 
+    console.log("📋 Metadata:", metaData);
+    console.log("🔑 Key row:", keyRow);
+
     if (mErr || !metaData) throw new Error("Archivo no encontrado");
     if (kErr || !keyRow) throw new Error("Sin acceso a este archivo");
 
     // 2. Descifrar clave simétrica
     const authorPub = await getPublicKey(metaData.author_id);
+    console.log("👤 Author public key:", authorPub);
+    console.log("🔐 My private key:", getPrivateKey());
+
     if (!authorPub) throw new Error("No se pudo obtener la clave del autor");
 
     const symmetricKey = await this.cryptoService.decryptSymmetricKey(
@@ -782,25 +790,60 @@ export class FileEncryptionService {
       authorPub,
       getPrivateKey()
     );
+    console.log("🔓 Symmetric key decrypted, length:", symmetricKey.length);
 
     // 3. Descargar archivo
+    const filePath = `encrypted_files/${fileId}`;
+    console.log("📁 Downloading from:", filePath);
+
     const { data: blob, error: dErr } = await supabase.storage
       .from("encrypted_media")
-      .download(`encrypted_files/${fileId}`);
+      .download(filePath);
 
-    if (dErr || !blob) throw new Error(`Error descargando: ${dErr?.message}`);
+    if (dErr || !blob) {
+      console.error("❌ Download error:", dErr);
+      throw new Error(`Error descargando: ${dErr?.message}`);
+    }
+
+    console.log(
+      "✅ Downloaded blob type:",
+      blob.constructor.name,
+      "size:",
+      blob.size
+    );
+
+    // IMPORTANTE: Verificar el tamaño esperado vs descargado
+    if (blob.size !== metaData.size) {
+      console.warn(
+        `⚠️ Tamaño inesperado: esperado ${metaData.size}, recibido ${blob.size}`
+      );
+      console.warn(`⚠️ Diferencia: ${blob.size - metaData.size} bytes`);
+    }
 
     // 4. Convertir y descifrar
     const encryptedBuffer = await this.blobToUint8Array(blob);
+    console.log("🔢 Encrypted buffer length:", encryptedBuffer.length);
+
+    // NUEVO: Si hay bytes extra, intentar recortarlos
+    let finalBuffer = encryptedBuffer;
+    if (encryptedBuffer.length > metaData.size) {
+      console.warn(
+        `🔧 Recortando ${encryptedBuffer.length - metaData.size} bytes extra`
+      );
+      finalBuffer = encryptedBuffer.slice(0, metaData.size);
+    }
+
     const fileNonce = Buffer.from(metaData.file_nonce, "base64");
+    console.log("📍 File nonce length:", fileNonce.length);
 
     let decrypted = await this.cryptoService.decryptFile(
-      encryptedBuffer,
+      finalBuffer,
       fileNonce,
       symmetricKey
     );
+    console.log("🎉 Decrypted length:", decrypted.length);
 
-    // 5. NUEVO: Descomprimir si fue comprimido
+    // 5. Descomprimir si es necesario
     if (
       metaData.compression_info?.algorithm &&
       metaData.compression_info.algorithm !== "none"
@@ -808,13 +851,10 @@ export class FileEncryptionService {
       console.log(
         `🔓 Descomprimiendo archivo (${metaData.compression_info.algorithm})...`
       );
-
-      // Para gzip, necesitamos descomprimir los datos
       if (metaData.compression_info.algorithm === "gzip") {
         const { default: pako } = await import("pako");
         decrypted = pako.ungzip(decrypted);
       }
-      // Para jpeg/h264, los datos ya están descomprimidos (son formatos con pérdida)
     }
 
     return {
@@ -828,42 +868,71 @@ export class FileEncryptionService {
    * Helper: Blob to Uint8Array
    */
   private async blobToUint8Array(
-    blob: Blob | ArrayBuffer | Uint8Array
+    blob: Blob | ArrayBuffer | Uint8Array | any
   ): Promise<Uint8Array> {
+    console.log("🔄 blobToUint8Array input:", {
+      type: blob?.constructor?.name,
+      isBlob: blob instanceof Blob,
+      isArrayBuffer: blob instanceof ArrayBuffer,
+      isUint8Array: blob instanceof Uint8Array,
+      size: blob?.size,
+    });
+
     if (blob instanceof Uint8Array) return blob;
     if (blob instanceof ArrayBuffer) return new Uint8Array(blob);
 
-    // React Native Blob con _data
-    if (blob && typeof blob === "object" && "_data" in blob) {
-      const data = (blob as any)._data;
+    // Para React Native / Expo
+    if (blob && typeof blob === "object") {
+      // Opción 1: Si el blob tiene un método text() (algunos Blobs de React Native lo tienen)
+      if (typeof blob.text === "function") {
+        try {
+          console.log("📱 Using blob.text() method");
+          const text = await blob.text();
+          // Convertir el texto a Uint8Array
+          const encoder = new TextEncoder();
+          return encoder.encode(text);
+        } catch (e) {
+          console.log("❌ blob.text() failed:", e);
+        }
+      }
 
-      // Si _data es un objeto con blobId y offset
-      if (data && typeof data === "object" && "blobId" in data) {
-        // Es un React Native Blob, usar FileReader
+      // Opción 2: Usar fetch para leer el blob
+      if (blob instanceof Blob) {
+        try {
+          console.log("📱 Using fetch to read React Native Blob");
+          const response = await fetch(blob as any);
+          const arrayBuffer = await response.arrayBuffer();
+          console.log("✅ Fetch successful, size:", arrayBuffer.byteLength);
+          return new Uint8Array(arrayBuffer);
+        } catch (e) {
+          console.log("❌ Fetch method failed:", e);
+        }
+      }
+
+      // Opción 3: FileReader (fallback)
+      if (typeof FileReader !== "undefined" && blob instanceof Blob) {
+        console.log("📱 Using FileReader fallback");
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onloadend = () => {
             if (reader.result) {
               const arrayBuffer = reader.result as ArrayBuffer;
+              console.log("✅ FileReader result size:", arrayBuffer.byteLength);
               resolve(new Uint8Array(arrayBuffer));
             } else {
               reject(new Error("FileReader result is null"));
             }
           };
           reader.onerror = () => reject(reader.error);
-          reader.readAsArrayBuffer(blob as Blob);
+          reader.readAsArrayBuffer(blob);
         });
-      }
-
-      // Si _data es directamente los datos
-      if (data instanceof ArrayBuffer) {
-        return new Uint8Array(data);
-      }
-      if (typeof data === "string") {
-        return await OptimizedBase64.base64ToUint8Array(data);
       }
     }
 
-    throw new Error("No se pudo convertir el blob a Uint8Array");
+    throw new Error(
+      `No se pudo convertir el blob a Uint8Array: ${
+        (blob as any)?.constructor?.name || "unknown type"
+      }`
+    );
   }
 }

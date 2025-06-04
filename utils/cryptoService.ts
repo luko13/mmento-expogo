@@ -1,4 +1,5 @@
 import { keyCache } from "./smartKeyCache";
+import { Buffer } from "buffer";
 import "react-native-get-random-values";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
@@ -474,6 +475,12 @@ export class CryptoService {
     senderPublicKey: string,
     recipientPrivateKey: string
   ): Promise<Uint8Array> {
+    console.log("🔐 decryptSymmetricKey - Input:", {
+      ciphertext: encryptedKey.ciphertext,
+      nonce: encryptedKey.nonce,
+      senderPublicKey,
+      recipientPrivateKey,
+    });
     this.ensureInitialized();
 
     try {
@@ -482,12 +489,22 @@ export class CryptoService {
       const publicKey = decodeBase64(senderPublicKey);
       const privateKey = decodeBase64(recipientPrivateKey);
 
+      console.log("🔢 Decoded lengths:", {
+        ciphertext: ciphertext.length,
+        nonce: nonce.length,
+        publicKey: publicKey.length,
+        privateKey: privateKey.length,
+      });
+
       const decrypted = nacl.box.open(ciphertext, nonce, publicKey, privateKey);
 
       if (!decrypted) {
         throw new Error("Symmetric key decryption failed");
       }
-
+      console.log(
+        "✅ Symmetric key decrypted successfully, length:",
+        decrypted.length
+      );
       return decrypted;
     } catch (error) {
       console.error("Error decrypting symmetric key:", error);
@@ -522,10 +539,22 @@ export class CryptoService {
     nonce: Uint8Array,
     key: Uint8Array
   ): Promise<Uint8Array> {
+    console.log("🔓 decryptFile - Inputs:", {
+      encryptedLength: encrypted.length,
+      nonceLength: nonce.length,
+      keyLength: key.length,
+      firstBytes: Array.from(encrypted.slice(0, 10)),
+      lastBytes: Array.from(encrypted.slice(-10)),
+    });
+
     try {
-      return await hybridCrypto.decrypt(encrypted, key, nonce);
+      const decrypted = await hybridCrypto.decrypt(encrypted, key, nonce);
+      console.log("✅ File decrypted, length:", decrypted.length);
+      return decrypted;
     } catch (error) {
-      console.error("Error decrypting file:", error);
+      console.error("❌ decryptFile failed:", error);
+      console.error("Nonce as hex:", Buffer.from(nonce).toString("hex"));
+      console.error("Key as hex:", Buffer.from(key).toString("hex"));
       throw new Error(
         "Error al descifrar archivo: " +
           (error instanceof Error ? error.message : "Error desconocido")
@@ -571,51 +600,47 @@ export class CryptoService {
    * Ensure consistent key derivation for self-decryption
    */
   async decryptForSelf(
-    encryptedData: string,
+    encryptedData: string | any,
     userPrivateKey: string
   ): Promise<string> {
     await hybridCrypto.initialize();
-    console.log("🔐 decryptForSelf, encryptedData:", encryptedData);
-    console.log("🔑 decryptForSelf, privateKey:", userPrivateKey);
-    let parsed;
-    try {
-      parsed =
-        typeof encryptedData === "string"
-          ? JSON.parse(encryptedData)
-          : encryptedData;
-    } catch (e) {
-      console.error("❌ parsing encryptedData fallido:", e);
-      throw e;
-    }
+
+    console.log("🔐 decryptForSelf input:", {
+      type: typeof encryptedData,
+      isString: typeof encryptedData === "string",
+      data: encryptedData,
+    });
+
+    // Si ya es un objeto, usarlo directamente
+    const parsed =
+      typeof encryptedData === "string"
+        ? JSON.parse(encryptedData)
+        : encryptedData;
+
     const { ciphertext, nonce, version } = parsed;
-    console.log(
-      `ℹ️ versión ${version}, ciphertext length:`,
-      ciphertext?.length,
-      "nonce length:",
-      nonce?.length
-    );
 
     if (!ciphertext || !nonce) {
       throw new Error("Invalid encrypted data format");
     }
 
-    // Use the same key derivation method as encryption
-    const privateKeyBytes = decodeBase64(userPrivateKey);
-    const derivedKey = nacl.hash(privateKeyBytes).slice(0, 32);
+    try {
+      // Use the same key derivation method as encryption
+      const privateKeyBytes = decodeBase64(userPrivateKey);
+      const derivedKey = nacl.hash(privateKeyBytes).slice(0, 32);
 
-    const decrypted = await hybridCrypto.decrypt(
-      decodeBase64(ciphertext),
-      derivedKey,
-      decodeBase64(nonce)
-    );
+      const decrypted = await hybridCrypto.decrypt(
+        decodeBase64(ciphertext),
+        derivedKey,
+        decodeBase64(nonce)
+      );
 
-    return encodeUTF8(decrypted);
-  }
-  catch(error: any) {
-    console.error("Error en decryptForSelf:", error);
-    throw new Error(
-      "Error al descifrar datos personales: " +
-        (error instanceof Error ? error.message : "Error desconocido")
-    );
+      return encodeUTF8(decrypted);
+    } catch (error: any) {
+      console.error("Error en decryptForSelf:", error);
+      throw new Error(
+        "Error al descifrar datos personales: " +
+          (error instanceof Error ? error.message : "Error desconocido")
+      );
+    }
   }
 }
