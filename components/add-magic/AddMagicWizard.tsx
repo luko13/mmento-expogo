@@ -694,6 +694,7 @@ export default function AddMagicWizardEncrypted({
         setEncryptionTasks={setEncryptionTasks}
         onNext={goToNextStep}
         onCancel={goToPreviousStep}
+        onSave={handleSubmit} 
         currentStep={currentStep + 1}
         totalSteps={steps.length}
         isSubmitting={isSubmitting}

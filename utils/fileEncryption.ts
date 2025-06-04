@@ -21,7 +21,6 @@ export interface EncryptedFileMetadata {
     nonce: string;
   }>;
   fileNonce: string;
-  // NUEVO: Información de compresión
   compressionInfo?: {
     algorithm: "jpeg" | "h264" | "gzip" | "none";
     originalSize: number;
@@ -32,6 +31,42 @@ export interface EncryptedFileMetadata {
 
 export class FileEncryptionService {
   private cryptoService = CryptoService.getInstance();
+
+  /**
+   * Helper para subir archivo cifrado a Supabase en React Native
+   */
+  private async uploadEncryptedFile(
+    encrypted: Uint8Array,
+    filePath: string
+  ): Promise<void> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("No hay sesión activa");
+
+    // Para React Native, usar FormData
+    const formData = new FormData();
+    const blob = {
+      uri: `data:application/octet-stream;base64,${Buffer.from(
+        encrypted
+      ).toString("base64")}`,
+      type: "application/octet-stream",
+      name: filePath.split("/").pop() || "file.enc",
+    } as any;
+
+    formData.append("", blob);
+
+    const { error } = await supabase.storage
+      .from("encrypted_media")
+      .upload(filePath, formData, {
+        contentType: "multipart/form-data",
+        upsert: false,
+      });
+
+    if (error) {
+      throw new Error(`Upload failed: ${error.message}`);
+    }
+  }
 
   private async compressEncryptAndUpload(
     fileUri: string,
@@ -49,13 +84,12 @@ export class FileEncryptionService {
       fileUri,
       mimeType,
       {
-        quality: 0.8, // Configurable según preferencias del usuario
+        quality: 0.8,
         maxWidth: 1920,
         maxHeight: 1920,
       }
     );
 
-    // 2. Usar el URI del archivo comprimido (o el original si no se comprimió)
     const finalUri = compressionResult.uri;
     const wasCompressed = compressionResult.wasCompressed;
 
@@ -73,7 +107,7 @@ export class FileEncryptionService {
       );
     }
 
-    // 3. Continuar con el proceso existente de cifrado
+    // 2. Leer archivo
     const fileDataResult = await FileSystem.readAsStringAsync(finalUri, {
       encoding: FileSystem.EncodingType.Base64,
     });
@@ -82,7 +116,7 @@ export class FileEncryptionService {
       throw new Error(`Archivo vacío: ${fileName}`);
     }
 
-    // 4. Generar clave simétrica y convertir datos
+    // 3. Generar clave simétrica y convertir datos
     const [fileBuffer, symmetricKey] = await Promise.all([
       performanceOptimizer.measureAndOptimize(
         "base64-conversion",
@@ -92,13 +126,13 @@ export class FileEncryptionService {
       this.cryptoService.generateSymmetricKey(),
     ]);
 
-    // 5. Cifrar archivo
+    // 4. Cifrar archivo
     const { encrypted, nonce } = await this.cryptoService.encryptFile(
       fileBuffer,
       symmetricKey
     );
 
-    // 6. Cifrar claves para destinatarios
+    // 5. Cifrar claves para destinatarios
     const encryptedKeys = await this.encryptKeysForRecipients(
       symmetricKey,
       recipientUserIds,
@@ -106,13 +140,13 @@ export class FileEncryptionService {
       getPrivateKey()
     );
 
-    // 7. Generar ID único
-    const fileId = `encrypted_${Date.now()}_${index}_${Math.random()
+    // 6. Generar ID único
+    const fileId = `enc_${Date.now()}_${index}_${Math.random()
       .toString(36)
       .substr(2, 5)}`;
     const filePath = `encrypted_files/${fileId}`;
 
-    // 8. Preparar metadata con información de compresión
+    // 7. Preparar metadata
     const metadata: EncryptedFileMetadata = {
       fileId,
       originalName: fileName,
@@ -122,7 +156,6 @@ export class FileEncryptionService {
         : fileBuffer.length,
       encryptedKeys,
       fileNonce: Buffer.from(nonce).toString("base64"),
-      // NUEVO: Guardar información de compresión
       compressionInfo: wasCompressed
         ? {
             algorithm: compressionResult.algorithm,
@@ -133,22 +166,10 @@ export class FileEncryptionService {
         : undefined,
     };
 
-    // 9. Subir a Supabase
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("encrypted_media")
-      .upload(filePath, encrypted, {
-        contentType: "application/octet-stream",
-        cacheControl: "3600",
-        upsert: false,
-      });
+    // 8. Subir usando método compatible con React Native
+    await this.uploadEncryptedFile(encrypted, filePath);
 
-    if (uploadError) {
-      throw new Error(
-        `Error subiendo: ${uploadError.message || "Error desconocido"}`
-      );
-    }
-
-    // 10. Guardar metadata actualizada
+    // 9. Guardar metadata
     await this.saveMetadataAndKeys(metadata, authorUserId);
 
     return metadata;
@@ -168,21 +189,20 @@ export class FileEncryptionService {
     getPrivateKey: () => string,
     index: number
   ): Promise<EncryptedFileMetadata> {
-    // Leer y convertir archivo (ya está comprimido si aplica)
+    // Leer archivo
     const fileDataBase64 = await FileSystem.readAsStringAsync(file.uri, {
       encoding: FileSystem.EncodingType.Base64,
     });
 
-    // OPTIMIZACIÓN: Usar conversión directa sin medición para archivos pequeños
     const fileBuffer = await OptimizedBase64.base64ToUint8Array(fileDataBase64);
 
-    // Cifrar (ya tenemos la clave)
+    // Cifrar
     const { encrypted, nonce } = await this.cryptoService.encryptFile(
       fileBuffer,
       symmetricKey
     );
 
-    // Cifrar claves para destinatarios (optimizado para 1 destinatario)
+    // Cifrar claves
     const encryptedKeys =
       recipientUserIds.length === 1
         ? await this.fastEncryptKeysForSingle(
@@ -198,38 +218,25 @@ export class FileEncryptionService {
             getPrivateKey()
           );
 
-    // Generar ID y subir
+    // Generar ID
     const fileId = `enc_${Date.now()}_${index}_${Math.random()
       .toString(36)
       .substr(2, 5)}`;
     const filePath = `encrypted_files/${fileId}`;
 
-    // Subir con retry automático
+    // Subir con retry
     let uploadAttempts = 0;
     let uploadSuccess = false;
 
     while (uploadAttempts < 2 && !uploadSuccess) {
       try {
-        const { error } = await supabase.storage
-          .from("encrypted_media")
-          .upload(filePath, encrypted, {
-            contentType: "application/octet-stream",
-            cacheControl: "3600",
-            upsert: false,
-          });
-
-        if (!error) {
-          uploadSuccess = true;
-        } else if (uploadAttempts === 0) {
-          console.warn(`Reintentando subida de ${file.fileName}...`);
-          uploadAttempts++;
-          await new Promise((resolve) => setTimeout(resolve, 500)); // Esperar 500ms
-        } else {
-          throw error;
-        }
+        await this.uploadEncryptedFile(encrypted, filePath);
+        uploadSuccess = true;
       } catch (error) {
         if (uploadAttempts === 0) {
+          console.warn(`Reintentando subida de ${file.fileName}...`);
           uploadAttempts++;
+          await new Promise((resolve) => setTimeout(resolve, 500));
         } else {
           throw error;
         }
@@ -247,11 +254,12 @@ export class FileEncryptionService {
       compressionInfo: file.compressionInfo,
     };
 
-    // Guardar metadata en background (no esperar)
+    // Guardar metadata en background
     this.saveMetadataAndKeys(metadata, authorUserId).catch(console.error);
 
     return metadata;
   }
+
   private async fastEncryptKeysForSingle(
     symmetricKey: Uint8Array,
     userId: string,
@@ -276,7 +284,6 @@ export class FileEncryptionService {
     ];
   }
 
-  // Helper para obtener tamaño total
   private async getTotalSize(files: Array<{ uri: string }>): Promise<number> {
     const sizes = await Promise.all(
       files.map(async (file) => {
@@ -286,9 +293,7 @@ export class FileEncryptionService {
     );
     return sizes.reduce((sum, size) => sum + size, 0);
   }
-  /**
-   * Batch ULTRA RÁPIDO - Procesa TODOS los archivos en paralelo con validación
-   */
+
   async batchEncryptAndUploadFilesOptimized(
     files: Array<{ uri: string; fileName: string; mimeType: string }>,
     authorUserId: string,
@@ -297,7 +302,7 @@ export class FileEncryptionService {
     getPrivateKey: () => string,
     onProgress?: (progress: number, currentFile: string) => void
   ): Promise<EncryptedFileMetadata[]> {
-    console.log(`🚀 Procesando ${files.length} archivos ULTRA RÁPIDO...`);
+    console.log(`🚀 Procesando ${files.length} archivos...`);
     const startTime = Date.now();
 
     // Verificar sesión
@@ -310,7 +315,7 @@ export class FileEncryptionService {
       );
     }
 
-    // OPTIMIZACIÓN 1: Separar archivos por tipo y tamaño
+    // Separar archivos por tipo
     const images = files.filter((f) => f.mimeType.startsWith("image/"));
     const videos = files.filter((f) => f.mimeType.startsWith("video/"));
     const others = files.filter(
@@ -318,7 +323,6 @@ export class FileEncryptionService {
         !f.mimeType.startsWith("image/") && !f.mimeType.startsWith("video/")
     );
 
-    // OPTIMIZACIÓN 2: Procesar imágenes en batch con calidad reducida para velocidad
     const processedFiles: Array<{
       uri: string;
       fileName: string;
@@ -326,22 +330,21 @@ export class FileEncryptionService {
       compressionInfo?: any;
     }> = [];
 
-    // Comprimir todas las imágenes en paralelo con configuración agresiva
+    // Comprimir imágenes en paralelo
     if (images.length > 0) {
-      console.log(`📸 Comprimiendo ${images.length} imágenes en paralelo...`);
+      console.log(`📸 Comprimiendo ${images.length} imágenes...`);
 
       const compressedImages = await Promise.all(
         images.map(async (img) => {
           try {
-            // Comprimir más agresivamente para velocidad
             const result = await compressionService.compressFile(
               img.uri,
               img.mimeType,
               {
-                quality: 0.6, // Más agresivo
-                maxWidth: 1280, // Más pequeño
+                quality: 0.6,
+                maxWidth: 1280,
                 maxHeight: 1280,
-                forceCompress: true, // Siempre comprimir
+                forceCompress: true,
               }
             );
 
@@ -359,7 +362,7 @@ export class FileEncryptionService {
             };
           } catch (error) {
             console.error(`Error comprimiendo ${img.fileName}:`, error);
-            return img; // Usar original si falla
+            return img;
           }
         })
       );
@@ -367,34 +370,26 @@ export class FileEncryptionService {
       processedFiles.push(...compressedImages);
     }
 
-    // OPTIMIZACIÓN 3: Para videos, advertir al usuario o procesarlos después
+    // Advertir sobre videos grandes
     if (videos.length > 0) {
       const totalVideoSize = await this.getTotalSize(videos);
-
       if (totalVideoSize > 10 * 1024 * 1024) {
-        // > 10MB
         console.warn(
-          `⚠️ Videos grandes detectados: ${(
-            totalVideoSize /
-            1024 /
-            1024
-          ).toFixed(1)}MB`
+          `⚠️ Videos grandes: ${(totalVideoSize / 1024 / 1024).toFixed(1)}MB`
         );
-        // Opción: Subir videos después de mostrar el éxito del truco
       }
-
       processedFiles.push(...videos);
     }
 
     processedFiles.push(...others);
 
-    // OPTIMIZACIÓN 4: Generar todas las claves simétricas de una vez
+    // Generar claves simétricas
     const symmetricKeys = await Promise.all(
       processedFiles.map(() => this.cryptoService.generateSymmetricKey())
     );
 
-    // OPTIMIZACIÓN 5: Procesar en lotes más pequeños
-    const BATCH_SIZE = 3; // Procesar de 3 en 3
+    // Procesar en lotes
+    const BATCH_SIZE = 3;
     const results: EncryptedFileMetadata[] = [];
 
     for (let i = 0; i < processedFiles.length; i += BATCH_SIZE) {
@@ -417,27 +412,18 @@ export class FileEncryptionService {
 
       results.push(...batchResults);
 
-      // Actualizar progreso
       const progress = ((i + batch.length) / processedFiles.length) * 100;
       onProgress?.(progress, `Procesando...`);
     }
 
     const totalTime = Date.now() - startTime;
-    console.log(
-      `✅ Completado en ${(totalTime / 1000).toFixed(1)}s (${(
-        totalTime / processedFiles.length
-      ).toFixed(0)}ms por archivo)`
-    );
+    console.log(`✅ Completado en ${(totalTime / 1000).toFixed(1)}s`);
 
-    // Limpiar archivos temporales
     await compressionService.cleanupTemporaryFiles();
 
     return results;
   }
 
-  /**
-   * Versión ULTRA RÁPIDA - Con compresión opcional para archivos grandes
-   */
   private async encryptAndUploadFileUltraFast(
     fileUri: string,
     fileName: string,
@@ -448,7 +434,7 @@ export class FileEncryptionService {
     getPrivateKey: () => string,
     index: number
   ): Promise<EncryptedFileMetadata> {
-    // 1. Verificar tamaño y comprimir si es necesario
+    // Verificar tamaño y comprimir si es necesario
     const fileInfo = await FileSystem.getInfoAsync(fileUri);
     const fileSizeMB =
       fileInfo.exists && "size" in fileInfo ? fileInfo.size / (1024 * 1024) : 0;
@@ -468,71 +454,53 @@ export class FileEncryptionService {
         );
         finalUri = compressed.uri;
         console.log(
-          `📸 Comprimido ${fileName}: ${fileSizeMB.toFixed(1)}MB → ~${(
+          `📸 Comprimido: ${fileSizeMB.toFixed(1)}MB → ~${(
             fileSizeMB * 0.3
           ).toFixed(1)}MB`
         );
       } catch (e) {
-        console.warn("No se pudo comprimir la imagen:", e);
+        console.warn("No se pudo comprimir:", e);
       }
     }
 
-    // 2. Obtener estrategia de optimización
-    const fileSize = fileInfo.exists && "size" in fileInfo ? fileInfo.size : 0;
-    const strategy = performanceOptimizer.getOptimizationStrategy(fileSize);
-
-    // 3. Leer archivo y generar clave simétrica en paralelo
+    // Leer archivo y generar clave
     const [fileDataResult, symmetricKey] = await Promise.all([
       FileSystem.readAsStringAsync(finalUri, {
         encoding: FileSystem.EncodingType.Base64,
       }),
       this.cryptoService.generateSymmetricKey(),
     ]);
+
     if (!fileDataResult || fileDataResult.length === 0) {
-      throw new Error(`Archivo original vacío: ${fileName}`);
+      throw new Error(`Archivo vacío: ${fileName}`);
     }
-    // 4. Convertir Base64 a Uint8Array de forma optimizada
-    console.time(`base64-conversion-${fileName}`);
-    const fileBuffer = await performanceOptimizer.measureAndOptimize(
-      "base64ToBuffer",
-      OptimizedBase64.base64ToUint8Array,
-      fileDataResult
-    );
-    console.timeEnd(`base64-conversion-${fileName}`);
-    console.log(
-      `📊 ${fileName} - Tamaño original: ${fileDataResult.length} chars (base64)`
-    );
-    console.log(`📊 ${fileName} - Tamaño buffer: ${fileBuffer.length} bytes`);
-    // 5. Cifrar archivo con medición de performance
-    const encryptResult = await performanceOptimizer.measureAndOptimize(
-      "encrypt",
-      async (data: Uint8Array, key: Uint8Array) => {
-        return this.cryptoService.encryptFile(data, key);
-      },
+
+    // Convertir y cifrar
+    const fileBuffer = await OptimizedBase64.base64ToUint8Array(fileDataResult);
+    const { encrypted, nonce } = await this.cryptoService.encryptFile(
       fileBuffer,
       symmetricKey
     );
 
-    const { encrypted, nonce } = encryptResult;
-
-    // 6. Cifrar claves para destinatarios en paralelo
+    // Cifrar claves
     const encryptedKeys = await this.encryptKeysForRecipients(
       symmetricKey,
       recipientUserIds,
       getPublicKey,
       getPrivateKey()
     );
+
     if (!encrypted || encrypted.length === 0) {
       throw new Error(`Archivo cifrado vacío: ${fileName}`);
     }
-    console.log(`🔐 ${fileName} - Tamaño cifrado: ${encrypted.length} bytes`);
-    // 7. Generar ID único
-    const fileId = `encrypted_${Date.now()}_${index}_${Math.random()
+
+    // Generar ID
+    const fileId = `enc_${Date.now()}_${index}_${Math.random()
       .toString(36)
       .substr(2, 5)}`;
     const filePath = `encrypted_files/${fileId}`;
 
-    // 8. Preparar metadata
+    // Metadata
     const metadata: EncryptedFileMetadata = {
       fileId,
       originalName: fileName,
@@ -542,77 +510,24 @@ export class FileEncryptionService {
       fileNonce: Buffer.from(nonce).toString("base64"),
     };
 
-    // 9. Subir a Supabase con medición
-    const uploadResult = await performanceOptimizer.measureAndOptimize(
-      "upload",
-      async (encryptedData: Uint8Array) => {
-        const uploadSizeMB = encryptedData.length / (1024 * 1024);
-        console.log(
-          `📤 Subiendo ${fileName}: ${
-            encrypted.length
-          } bytes (${uploadSizeMB.toFixed(2)}MB)`
-        );
-        if (uploadSizeMB > 50) {
-          throw new Error(
-            `Archivo demasiado grande: ${uploadSizeMB.toFixed(1)}MB (máx 50MB)`
-          );
-        }
+    // Subir
+    const uploadSizeMB = encrypted.length / (1024 * 1024);
+    console.log(`📤 Subiendo ${fileName}: ${uploadSizeMB.toFixed(2)}MB`);
 
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("encrypted_media")
-          .upload(filePath, encryptedData, {
-            contentType: "application/octet-stream",
-            cacheControl: "3600",
-            upsert: false,
-          });
-
-        if (uploadError) {
-          console.error(`Error subiendo ${fileName}:`, uploadError);
-
-          if (
-            uploadError.message?.includes("413") ||
-            uploadError.message?.includes("too large")
-          ) {
-            throw new Error(
-              `Archivo muy grande: ${fileName} (${uploadSizeMB.toFixed(1)}MB)`
-            );
-          }
-
-          if (
-            uploadError.message?.includes("401") ||
-            uploadError.message?.includes("JWT")
-          ) {
-            throw new Error(
-              "Sesión expirada. Por favor, vuelve a iniciar sesión."
-            );
-          }
-
-          throw new Error(
-            `Error subiendo: ${uploadError.message || "Error desconocido"}`
-          );
-        }
-
-        return uploadData;
-      },
-      encrypted
-    );
-
-    // 10. Guardar metadata (sin esperar respuesta)
-    this.saveMetadataAndKeys(metadata, authorUserId).catch((error) => {
-      console.error("Error guardando metadata:", error);
-    });
-
-    // 11. Log de métricas de rendimiento
-    if (index === 0 || index % 5 === 0) {
-      performanceOptimizer.logPerformanceReport();
+    if (uploadSizeMB > 50) {
+      throw new Error(
+        `Archivo demasiado grande: ${uploadSizeMB.toFixed(1)}MB (máx 50MB)`
+      );
     }
+
+    await this.uploadEncryptedFile(encrypted, filePath);
+
+    // Guardar metadata
+    this.saveMetadataAndKeys(metadata, authorUserId).catch(console.error);
 
     return metadata;
   }
 
-  /**
-   * Cifrado simple y directo
-   */
   async encryptAndUploadFile(
     fileUri: string,
     fileName: string,
@@ -634,16 +549,12 @@ export class FileEncryptionService {
     );
   }
 
-  /**
-   * Cifrar claves para destinatarios - OPTIMIZADO
-   */
   private async encryptKeysForRecipients(
     symmetricKey: Uint8Array,
     recipientUserIds: string[],
     getPublicKey: (userId: string) => Promise<string | null>,
     privateKey: string
   ): Promise<Array<{ userId: string; encryptedKey: string; nonce: string }>> {
-    // Si solo hay un destinatario (caso común), no usar Promise.all
     if (recipientUserIds.length === 1) {
       const publicKey = await getPublicKey(recipientUserIds[0]);
       if (!publicKey) return [];
@@ -663,7 +574,6 @@ export class FileEncryptionService {
       ];
     }
 
-    // Múltiples destinatarios
     const results = await Promise.all(
       recipientUserIds.map(async (userId) => {
         const publicKey = await getPublicKey(userId);
@@ -690,14 +600,10 @@ export class FileEncryptionService {
     }>;
   }
 
-  /**
-   * Guardar metadata - Fire and forget para no bloquear
-   */
   private async saveMetadataAndKeys(
     metadata: EncryptedFileMetadata,
     authorUserId: string
   ): Promise<void> {
-    // Insertar metadata con información de compresión
     const { error: metaError } = await supabase.from("encrypted_files").insert({
       file_id: metadata.fileId,
       original_name: metadata.originalName,
@@ -709,12 +615,10 @@ export class FileEncryptionService {
         version: "1.0",
         algorithm: "nacl-secretbox",
         keyDerivation: "nacl-box",
-        // NUEVO: Incluir info de compresión en el header
         compression: metadata.compressionInfo || { algorithm: "none" },
       }),
       chunks: 1,
       created_at: new Date().toISOString(),
-      // NUEVO: Guardar compression_info como JSONB
       compression_info: metadata.compressionInfo || null,
     });
 
@@ -725,7 +629,6 @@ export class FileEncryptionService {
       throw new Error(`Error guardando metadata: ${metaError.message}`);
     }
 
-    // Continuar con el guardado de claves...
     if (metadata.encryptedKeys.length > 0) {
       const rows = metadata.encryptedKeys.map((k) => ({
         file_id: metadata.fileId,
@@ -745,9 +648,6 @@ export class FileEncryptionService {
     }
   }
 
-  /**
-   * Descargar y descifrar archivo - Sin cambios
-   */
   async downloadAndDecryptFile(
     fileId: string,
     userId: string,
@@ -756,7 +656,7 @@ export class FileEncryptionService {
   ): Promise<{ data: Uint8Array; fileName: string; mimeType: string }> {
     console.log("📥 downloadAndDecryptFile START:", { fileId, userId });
 
-    // 1. Obtener metadata y clave
+    // Obtener metadata y clave
     const [{ data: metaData, error: mErr }, { data: keyRow, error: kErr }] =
       await Promise.all([
         supabase
@@ -772,17 +672,11 @@ export class FileEncryptionService {
           .single(),
       ]);
 
-    console.log("📋 Metadata:", metaData);
-    console.log("🔑 Key row:", keyRow);
-
     if (mErr || !metaData) throw new Error("Archivo no encontrado");
     if (kErr || !keyRow) throw new Error("Sin acceso a este archivo");
 
-    // 2. Descifrar clave simétrica
+    // Descifrar clave simétrica
     const authorPub = await getPublicKey(metaData.author_id);
-    console.log("👤 Author public key:", authorPub);
-    console.log("🔐 My private key:", getPrivateKey());
-
     if (!authorPub) throw new Error("No se pudo obtener la clave del autor");
 
     const symmetricKey = await this.cryptoService.decryptSymmetricKey(
@@ -790,71 +684,43 @@ export class FileEncryptionService {
       authorPub,
       getPrivateKey()
     );
-    console.log("🔓 Symmetric key decrypted, length:", symmetricKey.length);
 
-    // 3. Descargar archivo
+    // Descargar archivo
     const filePath = `encrypted_files/${fileId}`;
-    console.log("📁 Downloading from:", filePath);
-
     const { data: blob, error: dErr } = await supabase.storage
       .from("encrypted_media")
       .download(filePath);
 
     if (dErr || !blob) {
-      console.error("❌ Download error:", dErr);
       throw new Error(`Error descargando: ${dErr?.message}`);
     }
 
-    console.log(
-      "✅ Downloaded blob type:",
-      blob.constructor.name,
-      "size:",
-      blob.size
-    );
-
-    // IMPORTANTE: Verificar el tamaño esperado vs descargado
-    if (blob.size !== metaData.size) {
-      console.warn(
-        `⚠️ Tamaño inesperado: esperado ${metaData.size}, recibido ${blob.size}`
-      );
-      console.warn(`⚠️ Diferencia: ${blob.size - metaData.size} bytes`);
-    }
-
-    // 4. Convertir y descifrar
+    // Convertir blob a Uint8Array
     const encryptedBuffer = await this.blobToUint8Array(blob);
-    console.log("🔢 Encrypted buffer length:", encryptedBuffer.length);
 
-    // NUEVO: Si hay bytes extra, intentar recortarlos
+    // Verificar tamaño
+    const expectedSize = metaData.size + 16;
     let finalBuffer = encryptedBuffer;
-    if (encryptedBuffer.length > metaData.size) {
+
+    if (encryptedBuffer.length > expectedSize) {
       console.warn(
-        `🔧 Recortando ${encryptedBuffer.length - metaData.size} bytes extra`
+        `⚠️ Recortando ${encryptedBuffer.length - expectedSize} bytes extra`
       );
-      finalBuffer = encryptedBuffer.slice(0, metaData.size);
+      finalBuffer = encryptedBuffer.slice(0, expectedSize);
     }
 
+    // Descifrar
     const fileNonce = Buffer.from(metaData.file_nonce, "base64");
-    console.log("📍 File nonce length:", fileNonce.length);
-
     let decrypted = await this.cryptoService.decryptFile(
       finalBuffer,
       fileNonce,
       symmetricKey
     );
-    console.log("🎉 Decrypted length:", decrypted.length);
 
-    // 5. Descomprimir si es necesario
-    if (
-      metaData.compression_info?.algorithm &&
-      metaData.compression_info.algorithm !== "none"
-    ) {
-      console.log(
-        `🔓 Descomprimiendo archivo (${metaData.compression_info.algorithm})...`
-      );
-      if (metaData.compression_info.algorithm === "gzip") {
-        const { default: pako } = await import("pako");
-        decrypted = pako.ungzip(decrypted);
-      }
+    // Descomprimir si es necesario
+    if (metaData.compression_info?.algorithm === "gzip") {
+      const { default: pako } = await import("pako");
+      decrypted = pako.ungzip(decrypted);
     }
 
     return {
@@ -864,75 +730,37 @@ export class FileEncryptionService {
     };
   }
 
-  /**
-   * Helper: Blob to Uint8Array
-   */
   private async blobToUint8Array(
     blob: Blob | ArrayBuffer | Uint8Array | any
   ): Promise<Uint8Array> {
-    console.log("🔄 blobToUint8Array input:", {
-      type: blob?.constructor?.name,
-      isBlob: blob instanceof Blob,
-      isArrayBuffer: blob instanceof ArrayBuffer,
-      isUint8Array: blob instanceof Uint8Array,
-      size: blob?.size,
-    });
-
     if (blob instanceof Uint8Array) return blob;
     if (blob instanceof ArrayBuffer) return new Uint8Array(blob);
 
-    // Para React Native / Expo
-    if (blob && typeof blob === "object") {
-      // Opción 1: Si el blob tiene un método text() (algunos Blobs de React Native lo tienen)
-      if (typeof blob.text === "function") {
-        try {
-          console.log("📱 Using blob.text() method");
-          const text = await blob.text();
-          // Convertir el texto a Uint8Array
-          const encoder = new TextEncoder();
-          return encoder.encode(text);
-        } catch (e) {
-          console.log("❌ blob.text() failed:", e);
+    // Para React Native
+    if (blob instanceof Blob) {
+      try {
+        const response = await fetch(blob as any);
+        const arrayBuffer = await response.arrayBuffer();
+        return new Uint8Array(arrayBuffer);
+      } catch (e) {
+        // Fallback: FileReader
+        if (typeof FileReader !== "undefined") {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              if (reader.result) {
+                resolve(new Uint8Array(reader.result as ArrayBuffer));
+              } else {
+                reject(new Error("FileReader result is null"));
+              }
+            };
+            reader.onerror = () => reject(reader.error);
+            reader.readAsArrayBuffer(blob);
+          });
         }
-      }
-
-      // Opción 2: Usar fetch para leer el blob
-      if (blob instanceof Blob) {
-        try {
-          console.log("📱 Using fetch to read React Native Blob");
-          const response = await fetch(blob as any);
-          const arrayBuffer = await response.arrayBuffer();
-          console.log("✅ Fetch successful, size:", arrayBuffer.byteLength);
-          return new Uint8Array(arrayBuffer);
-        } catch (e) {
-          console.log("❌ Fetch method failed:", e);
-        }
-      }
-
-      // Opción 3: FileReader (fallback)
-      if (typeof FileReader !== "undefined" && blob instanceof Blob) {
-        console.log("📱 Using FileReader fallback");
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            if (reader.result) {
-              const arrayBuffer = reader.result as ArrayBuffer;
-              console.log("✅ FileReader result size:", arrayBuffer.byteLength);
-              resolve(new Uint8Array(arrayBuffer));
-            } else {
-              reject(new Error("FileReader result is null"));
-            }
-          };
-          reader.onerror = () => reject(reader.error);
-          reader.readAsArrayBuffer(blob);
-        });
       }
     }
 
-    throw new Error(
-      `No se pudo convertir el blob a Uint8Array: ${
-        (blob as any)?.constructor?.name || "unknown type"
-      }`
-    );
+    throw new Error(`No se pudo convertir blob a Uint8Array`);
   }
 }
