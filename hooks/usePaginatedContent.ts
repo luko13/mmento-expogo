@@ -283,8 +283,7 @@ export function usePaginatedContent(
     () =>
       debounce((query: string, filters?: SearchFilters) => {
         if (!keyPair) {
-          console.log("⏳ Aún no hay keyPair: ignorando búsqueda");
-          return;
+                    return;
         }
         setPage(0);
         setSections([]);
@@ -327,12 +326,7 @@ export function usePaginatedContent(
   //    - sections (para ver si hay nuevos ítems marcados como isDecrypting)
   // --------------------------------------------------------------------------
   useEffect(() => {
-    console.log("→ useEffect(descifrado) se disparó con:", {
-      keyPair,
-      currentUserId,
-      queueLength: decryptionQueue.current.length,
-    });
-    if (
+        if (
       keyPair &&
       currentUserId &&
       decryptionQueue.current.length > 0 &&
@@ -347,23 +341,20 @@ export function usePaginatedContent(
   // --------------------------------------------------------------------------
   const processDecryptionQueue = useCallback(async () => {
     if (isProcessingQueue.current || decryptionQueue.current.length === 0) {
-      console.log("⚠️ processDecryptionQueue: ya en ejecución o cola vacía");
-      return;
+            return;
     }
 
     isProcessingQueue.current = true;
     const itemsToProcess = [...decryptionQueue.current];
     decryptionQueue.current = [];
 
-    console.log(`🔓 Procesando ${itemsToProcess.length} items de la queue…`);
-
+    
     try {
       const BATCH_SIZE = 3;
 
       for (let i = 0; i < itemsToProcess.length; i += BATCH_SIZE) {
         if (!isMounted.current) {
-          console.log("🛑 Componente desmontado: interrumpiendo descifrado");
-          break;
+                    break;
         }
 
         const batch = itemsToProcess.slice(i, i + BATCH_SIZE);
@@ -373,24 +364,20 @@ export function usePaginatedContent(
             const itemKey = `${sectionId}-${item.id}`;
 
             if (processedItems.current.has(itemKey)) {
-              console.log(`✂️ Saltando ítem ya procesado: ${item.type} ${item.id}`);
-              return;
+                            return;
             }
 
             try {
-              console.log(`🔐 Descifrando ${item.type} ${item.id}…`);
-              const decrypted = await decryptItem(item, currentUserId!);
+                            const decrypted = await decryptItem(item, currentUserId!);
 
               processedItems.current.add(itemKey);
 
               if (!isMounted.current) {
-                console.log("🛑 Desmontado tras descifrar, abortando setState");
-                return;
+                                return;
               }
 
               if (decrypted) {
-                console.log(`✅ Descifrado exitoso: ${item.type} ${item.id}`);
-                setSections((prevSections) =>
+                                setSections((prevSections) =>
                   prevSections.map((section) => {
                     if (section.category.id !== sectionId) return section;
                     return {
@@ -450,8 +437,7 @@ export function usePaginatedContent(
               processedItems.current.add(itemKey);
 
               if (!isMounted.current) {
-                console.log("🛑 Desmontado tras error de descifrado");
-                return;
+                                return;
               }
               setSections((prevSections) =>
                 prevSections.map((section) => {
@@ -479,19 +465,14 @@ export function usePaginatedContent(
         );
 
         if (i + BATCH_SIZE < itemsToProcess.length) {
-          console.log("⏳ Esperando 100 ms antes del siguiente batch…");
-          await new Promise((resolve) => setTimeout(resolve, 100));
+                    await new Promise((resolve) => setTimeout(resolve, 100));
         }
       }
     } finally {
       isProcessingQueue.current = false;
-      console.log("🔒 processDecryptionQueue ha finalizado");
-
+      
       if (decryptionQueue.current.length > 0) {
-        console.log(
-          `↻ Hay ${decryptionQueue.current.length} nuevos ítems en cola, relanzando processDecryptionQueue…`
-        );
-        setTimeout(() => processDecryptionQueue(), 100);
+                setTimeout(() => processDecryptionQueue(), 100);
       }
     }
   }, [currentUserId, decryptItem]);
@@ -536,13 +517,7 @@ export function usePaginatedContent(
           Boolean(keyPair)
         );
 
-        console.log("📊 Contenido cargado:", {
-          tricks: content.tricks.length,
-          techniques: content.techniques.length,
-          gimmicks: content.gimmicks.length,
-          hasEncrypted: content.tricks.some((t: any) => t.is_encrypted),
-        });
-
+        
         if (pageToLoad === 0) {
           setAllCategories(content.categories);
           setSections(newSections);
@@ -569,13 +544,7 @@ export function usePaginatedContent(
           });
         });
 
-        console.log(
-          `🔐 Items que necesitan descifrado: ${itemsNeedingDecryption}`
-        );
-        console.log(
-          `📋 Items en cola de descifrado: ${decryptionQueue.current.length}`
-        );
-
+                
         if (content.hasMore) {
           paginatedContentService.prefetchNextPage(
             user.id,

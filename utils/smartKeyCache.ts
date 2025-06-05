@@ -44,16 +44,12 @@ export class SmartKeyCache {
       cached.accessCount++;
       this.accessOrder.set(cacheKey, now);
 
-      console.log(
-        `🎯 Cache hit for key (${this.stats.hits} hits, ${this.stats.misses} misses)`
-      );
-      return cached.key;
+            return cached.key;
     }
 
     // Cache miss
     this.stats.misses++;
-    console.log(`❌ Cache miss - deriving key...`);
-
+    
     // Check if we need to evict
     if (
       this.cache.size >= this.maxSize ||
@@ -99,10 +95,7 @@ export class SmartKeyCache {
       const key = await hybridCrypto.deriveKey(password, salt, iterations);
       const duration = Date.now() - start;
 
-      console.log(
-        `⏱️ Key derivation took ${duration}ms using ${hybridCrypto.getImplementationName()}`
-      );
-
+      
       // Adjust iterations if too slow
       if (duration > 1000 && iterations > 5000) {
         console.warn(
@@ -156,10 +149,7 @@ export class SmartKeyCache {
       }
     }
 
-    console.log(
-      `🗑️ Evicted ${toEvict} keys (total evictions: ${this.stats.evictions})`
-    );
-  }
+      }
 
   /**
    * Persist key to secure storage
@@ -175,7 +165,7 @@ export class SmartKeyCache {
         JSON.stringify(data)
       );
     } catch (error) {
-      console.warn("Failed to persist key:", error);
+      
     }
   }
 
@@ -198,7 +188,7 @@ export class SmartKeyCache {
 
       return Buffer.from(data.key, "base64");
     } catch (error) {
-      console.warn("Failed to load persisted key:", error);
+      
       return null;
     }
   }
@@ -210,7 +200,7 @@ export class SmartKeyCache {
     try {
       await SecureStore.deleteItemAsync(`keyCache_${cacheKey}`);
     } catch (error) {
-      console.warn("Failed to remove persisted key:", error);
+      
     }
   }
 
@@ -218,8 +208,7 @@ export class SmartKeyCache {
    * Preload frequently used keys
    */
   async preloadKeys(passwords: string[], salt: Uint8Array): Promise<void> {
-    console.log(`📦 Preloading ${passwords.length} keys...`);
-
+    
     const promises = passwords.map((password) =>
       this.getOrDerive(password, salt).catch((err) =>
         console.error(`Failed to preload key: ${err}`)
@@ -255,19 +244,16 @@ export class SmartKeyCache {
       await this.removePersistedKey(key);
     }
 
-    console.log("🧹 Cache cleared");
-  }
+      }
 
   /**
    * Warm up cache from persistent storage
    */
   async warmUp(): Promise<void> {
-    console.log("🔥 Warming up cache...");
-
+    
     // Since we can't list all keys, we'll only warm up from memory
     // In a real app, you might want to maintain a separate index of cache keys
-    console.log("✅ Cache warming complete (limited to in-memory cache)");
-  }
+      }
 }
 
 // Singleton instance

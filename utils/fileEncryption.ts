@@ -43,23 +43,16 @@ export class FileEncryptionService {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) throw new Error("No hay sesión activa");
-
-    // Para React Native, usar FormData
-    const formData = new FormData();
-    const blob = {
-      uri: `data:application/octet-stream;base64,${Buffer.from(
-        encrypted
-      ).toString("base64")}`,
-      type: "application/octet-stream",
-      name: filePath.split("/").pop() || "file.enc",
-    } as any;
-
-    formData.append("", blob);
-
+    
+    console.log("📤 Upload - encrypted.length:", encrypted.length);
+    console.log("📤 Upload - primeros 20 bytes:", encrypted.slice(0, 20));
+    console.log("📤 Upload - últimos 20 bytes:", encrypted.slice(-20));
+    
+    // Subir directamente el Uint8Array
     const { error } = await supabase.storage
       .from("encrypted_media")
-      .upload(filePath, formData, {
-        contentType: "multipart/form-data",
+      .upload(filePath, encrypted, {
+        contentType: "application/octet-stream",
         upsert: false,
       });
 
@@ -79,7 +72,6 @@ export class FileEncryptionService {
     index: number
   ): Promise<EncryptedFileMetadata> {
     // 1. COMPRIMIR archivo
-    console.log(`🗜️ Iniciando proceso para ${fileName}...`);
     const compressionResult = await compressionService.compressFile(
       fileUri,
       mimeType,
@@ -94,17 +86,7 @@ export class FileEncryptionService {
     const wasCompressed = compressionResult.wasCompressed;
 
     if (wasCompressed) {
-      console.log(
-        `📉 ${fileName}: ${(
-          compressionResult.originalSize /
-          1024 /
-          1024
-        ).toFixed(2)}MB → ${(
-          compressionResult.compressedSize /
-          1024 /
-          1024
-        ).toFixed(2)}MB`
-      );
+      console.log(`✅ Archivo comprimido: ${compressionResult.originalSize} -> ${compressionResult.compressedSize}`);
     }
 
     // 2. Leer archivo
@@ -217,7 +199,12 @@ export class FileEncryptionService {
             getPublicKey,
             getPrivateKey()
           );
-
+    
+    console.log("📊 Tamaños ANTES de upload:");
+    console.log("- fileBuffer.length:", fileBuffer.length);
+    console.log("- encrypted.length:", encrypted.length);
+    console.log("- nonce.length:", nonce.length);
+    
     // Generar ID
     const fileId = `enc_${Date.now()}_${index}_${Math.random()
       .toString(36)
@@ -234,7 +221,6 @@ export class FileEncryptionService {
         uploadSuccess = true;
       } catch (error) {
         if (uploadAttempts === 0) {
-          console.warn(`Reintentando subida de ${file.fileName}...`);
           uploadAttempts++;
           await new Promise((resolve) => setTimeout(resolve, 500));
         } else {
@@ -302,7 +288,6 @@ export class FileEncryptionService {
     getPrivateKey: () => string,
     onProgress?: (progress: number, currentFile: string) => void
   ): Promise<EncryptedFileMetadata[]> {
-    console.log(`🚀 Procesando ${files.length} archivos...`);
     const startTime = Date.now();
 
     // Verificar sesión
@@ -332,8 +317,6 @@ export class FileEncryptionService {
 
     // Comprimir imágenes en paralelo
     if (images.length > 0) {
-      console.log(`📸 Comprimiendo ${images.length} imágenes...`);
-
       const compressedImages = await Promise.all(
         images.map(async (img) => {
           try {
@@ -417,7 +400,7 @@ export class FileEncryptionService {
     }
 
     const totalTime = Date.now() - startTime;
-    console.log(`✅ Completado en ${(totalTime / 1000).toFixed(1)}s`);
+    console.log(`✅ Batch upload completado en ${(totalTime / 1000).toFixed(2)}s`);
 
     await compressionService.cleanupTemporaryFiles();
 
@@ -453,13 +436,8 @@ export class FileEncryptionService {
           { compress: 0.7, format: SaveFormat.JPEG }
         );
         finalUri = compressed.uri;
-        console.log(
-          `📸 Comprimido: ${fileSizeMB.toFixed(1)}MB → ~${(
-            fileSizeMB * 0.3
-          ).toFixed(1)}MB`
-        );
       } catch (e) {
-        console.warn("No se pudo comprimir:", e);
+        console.warn("Error comprimiendo imagen:", e);
       }
     }
 
@@ -512,7 +490,6 @@ export class FileEncryptionService {
 
     // Subir
     const uploadSizeMB = encrypted.length / (1024 * 1024);
-    console.log(`📤 Subiendo ${fileName}: ${uploadSizeMB.toFixed(2)}MB`);
 
     if (uploadSizeMB > 50) {
       throw new Error(
@@ -654,8 +631,8 @@ export class FileEncryptionService {
     getPublicKey: (userId: string) => Promise<string | null>,
     getPrivateKey: () => string
   ): Promise<{ data: Uint8Array; fileName: string; mimeType: string }> {
-    console.log("📥 downloadAndDecryptFile START:", { fileId, userId });
-
+    console.log(`📥 Iniciando descarga de archivo: ${fileId}`);
+    
     // Obtener metadata y clave
     const [{ data: metaData, error: mErr }, { data: keyRow, error: kErr }] =
       await Promise.all([
@@ -675,6 +652,8 @@ export class FileEncryptionService {
     if (mErr || !metaData) throw new Error("Archivo no encontrado");
     if (kErr || !keyRow) throw new Error("Sin acceso a este archivo");
 
+    console.log(`📥 Metadata obtenida - Tamaño original: ${metaData.size}`);
+
     // Descifrar clave simétrica
     const authorPub = await getPublicKey(metaData.author_id);
     if (!authorPub) throw new Error("No se pudo obtener la clave del autor");
@@ -684,6 +663,8 @@ export class FileEncryptionService {
       authorPub,
       getPrivateKey()
     );
+
+    console.log("🔐 Clave simétrica descifrada - length:", symmetricKey.length);
 
     // Descargar archivo
     const filePath = `encrypted_files/${fileId}`;
@@ -698,29 +679,45 @@ export class FileEncryptionService {
     // Convertir blob a Uint8Array
     const encryptedBuffer = await this.blobToUint8Array(blob);
 
-    // Verificar tamaño
-    const expectedSize = metaData.size + 16;
-    let finalBuffer = encryptedBuffer;
+    console.log("📥 Download - blob type:", typeof blob);
+    console.log("📥 Download - blob size:", blob.size);
+    console.log("📥 Download - encryptedBuffer.length:", encryptedBuffer.length);
+    console.log("📥 Download - primeros 20 bytes:", Array.from(encryptedBuffer.slice(0, 20)));
+    console.log("📥 Download - últimos 20 bytes:", Array.from(encryptedBuffer.slice(-20)));
 
-    if (encryptedBuffer.length > expectedSize) {
-      console.warn(
-        `⚠️ Recortando ${encryptedBuffer.length - expectedSize} bytes extra`
-      );
-      finalBuffer = encryptedBuffer.slice(0, expectedSize);
+    // IMPORTANTE: TweetNaCl secretbox agrega 16 bytes de overhead
+    const NACL_OVERHEAD = 16;
+    const expectedSizeWithOverhead = metaData.size + NACL_OVERHEAD;
+    
+    if (encryptedBuffer.length !== expectedSizeWithOverhead && encryptedBuffer.length !== metaData.size) {
+      console.warn(`⚠️ Tamaño inesperado. Esperado: ${expectedSizeWithOverhead} o ${metaData.size}, Recibido: ${encryptedBuffer.length}`);
+      console.warn(`⚠️ Diferencia: ${encryptedBuffer.length - metaData.size} bytes`);
+      // No fallar, intentar descifrar de todos modos
     }
 
     // Descifrar
     const fileNonce = Buffer.from(metaData.file_nonce, "base64");
-    let decrypted = await this.cryptoService.decryptFile(
-      finalBuffer,
-      fileNonce,
-      symmetricKey
-    );
+    console.log("🔐 Descifrado - nonce:", Buffer.from(fileNonce).toString('hex'));
+    
+    let decrypted: Uint8Array;
+    try {
+      decrypted = await this.cryptoService.decryptFile(
+        encryptedBuffer, // Usar el buffer completo, nacl.secretbox.open manejará el overhead
+        fileNonce,
+        symmetricKey
+      );
+      console.log("✅ Archivo descifrado correctamente - tamaño:", decrypted.length);
+    } catch (error) {
+      console.error("❌ Error descifrando archivo:", error);
+      throw new Error("Error al descifrar el archivo. Verifique las claves.");
+    }
 
     // Descomprimir si es necesario
     if (metaData.compression_info?.algorithm === "gzip") {
+      console.log("📦 Descomprimiendo archivo gzip...");
       const { default: pako } = await import("pako");
       decrypted = pako.ungzip(decrypted);
+      console.log("✅ Archivo descomprimido - tamaño final:", decrypted.length);
     }
 
     return {

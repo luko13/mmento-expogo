@@ -1,7 +1,7 @@
 // components/home/LibrariesSection.tsx
 "use client";
 
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, memo, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,11 +13,7 @@ import {
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
-import {
-  AntDesign,
-  Feather,
-  Ionicons,
-} from "@expo/vector-icons";
+import { AntDesign, Feather, Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { supabase } from "../../lib/supabase";
 import {
@@ -61,15 +57,17 @@ const LibrariesSection = memo(function LibrariesSection({
 }: LibrariesSectionProps) {
   const router = useRouter();
   const { t } = useTranslation();
-  
+
   // Modal states
-  const [isAddCategoryModalVisible, setAddCategoryModalVisible] = useState(false);
-  const [isEditCategoryModalVisible, setEditCategoryModalVisible] = useState(false);
+  const [isAddCategoryModalVisible, setAddCategoryModalVisible] =
+    useState(false);
+  const [isEditCategoryModalVisible, setEditCategoryModalVisible] =
+    useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [selectedTrickData, setSelectedTrickData] = useState<any>(null);
   const [showKeyRefreshBanner, setShowKeyRefreshBanner] = useState(false);
-  
+
   // Delete modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<{
@@ -79,12 +77,14 @@ const LibrariesSection = memo(function LibrariesSection({
   const [showCantDeleteModal, setShowCantDeleteModal] = useState(false);
   const [categoryItemCount, setCategoryItemCount] = useState(0);
   const [showActionsModal, setShowActionsModal] = useState(false);
-  const [selectedCategoryForActions, setSelectedCategoryForActions] = useState<Category | null>(null);
+  const [selectedCategoryForActions, setSelectedCategoryForActions] =
+    useState<Category | null>(null);
 
   // Encryption services
   const { decryptForSelf, keyPair, getPublicKey } = useEncryption();
   const encryptedService = new EncryptedContentService();
   const fileEncryptionService = new FileEncryptionService();
+  const { debugKeys, isReady } = useEncryption();
 
   // Use paginated content hook
   const {
@@ -127,7 +127,8 @@ const LibrariesSection = memo(function LibrariesSection({
       await FileSystem.writeAsStringAsync(tempUri, base64Data, {
         encoding: FileSystem.EncodingType.Base64,
       });
-
+      console.log("📹 Video guardado en:", tempUri);
+      console.log("📹 Existe?", await FileSystem.getInfoAsync(tempUri));
       return tempUri;
     } catch (error) {
       console.error("Error downloading encrypted file:", error);
@@ -138,7 +139,9 @@ const LibrariesSection = memo(function LibrariesSection({
   // Fetch item data
   const fetchItemData = async (item: any) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return null;
 
       if (item.type === "magic") {
@@ -180,7 +183,10 @@ const LibrariesSection = memo(function LibrariesSection({
             if (photoUrl) decryptedData.photo_url = photoUrl;
           }
 
-          if (decryptedData.effect_video_encrypted && decryptedData.effect_video_url) {
+          if (
+            decryptedData.effect_video_encrypted &&
+            decryptedData.effect_video_url
+          ) {
             const videoUrl = await handleEncryptedFile(
               decryptedData.effect_video_url,
               "effect_video.mp4",
@@ -190,7 +196,10 @@ const LibrariesSection = memo(function LibrariesSection({
             if (videoUrl) decryptedData.effect_video_url = videoUrl;
           }
 
-          if (decryptedData.secret_video_encrypted && decryptedData.secret_video_url) {
+          if (
+            decryptedData.secret_video_encrypted &&
+            decryptedData.secret_video_url
+          ) {
             const videoUrl = await handleEncryptedFile(
               decryptedData.secret_video_url,
               "secret_video.mp4",
@@ -226,7 +235,9 @@ const LibrariesSection = memo(function LibrariesSection({
           angles: decryptedData.angles,
           duration: decryptedData.duration || 0,
           reset: decryptedData.reset || 0,
-          difficulty: decryptedData.difficulty ? Number.parseInt(decryptedData.difficulty) : 0,
+          difficulty: decryptedData.difficulty
+            ? Number.parseInt(decryptedData.difficulty)
+            : 0,
           is_encrypted: data.is_encrypted,
           is_shared: item.is_shared,
           owner_info: item.is_shared ? item.owner_id : null,
@@ -254,8 +265,7 @@ const LibrariesSection = memo(function LibrariesSection({
 
         return trickData;
       }
-      // Similar logic for techniques and gimmicks...
-      
+
       return null;
     } catch (error) {
       console.error("Error in fetchItemData:", error);
@@ -268,7 +278,9 @@ const LibrariesSection = memo(function LibrariesSection({
     if (!newCategoryName.trim()) return;
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const newCategory = await createCategory(user.id, newCategoryName.trim());
@@ -304,24 +316,38 @@ const LibrariesSection = memo(function LibrariesSection({
       console.error("Error updating category:", error);
     }
   }, [editingCategory, newCategoryName, refresh]);
-
-  const handleDeleteCategory = useCallback(async (categoryId: string) => {
-    const category = sections.find(s => s.category.id === categoryId)?.category;
-    if (!category) return;
-
-    const categorySection = sections.find(section => section.category.id === categoryId);
-    const itemCount = categorySection?.items.length || 0;
-
-    if (itemCount > 0) {
-      setCategoryToDelete({ id: category.id, name: category.name });
-      setCategoryItemCount(itemCount);
-      setShowCantDeleteModal(true);
-      return;
+  //DEBUG
+  useEffect(() => {
+    // Solo ejecutar cuando las claves estén listas
+    if (isReady) {
+      debugKeys();
     }
+  }, [isReady]);
 
-    setCategoryToDelete({ id: category.id, name: category.name });
-    setShowDeleteModal(true);
-  }, [sections]);
+  const handleDeleteCategory = useCallback(
+    async (categoryId: string) => {
+      const category = sections.find(
+        (s) => s.category.id === categoryId
+      )?.category;
+      if (!category) return;
+
+      const categorySection = sections.find(
+        (section) => section.category.id === categoryId
+      );
+      const itemCount = categorySection?.items.length || 0;
+
+      if (itemCount > 0) {
+        setCategoryToDelete({ id: category.id, name: category.name });
+        setCategoryItemCount(itemCount);
+        setShowCantDeleteModal(true);
+        return;
+      }
+
+      setCategoryToDelete({ id: category.id, name: category.name });
+      setShowDeleteModal(true);
+    },
+    [sections]
+  );
 
   const confirmDeleteCategory = useCallback(async () => {
     if (!categoryToDelete) return;
@@ -350,45 +376,53 @@ const LibrariesSection = memo(function LibrariesSection({
     setShowActionsModal(true);
   }, []);
 
-  const handleItemPress = useCallback(async (item: any) => {
-    if (item.decryption_error) {
-      setShowKeyRefreshBanner(true);
-      return;
-    }
+  const handleItemPress = useCallback(
+    async (item: any) => {
+      if (item.decryption_error) {
+        setShowKeyRefreshBanner(true);
+        return;
+      }
 
-    const itemData = await fetchItemData(item);
-    if (itemData) {
-      router.push({
-        pathname: "/trick/[id]",
-        params: {
-          id: itemData.id,
-          trick: JSON.stringify(itemData),
-        },
-      });
-    }
-  }, [router, fetchItemData]);
+      const itemData = await fetchItemData(item);
+      if (itemData) {
+        router.push({
+          pathname: "/trick/[id]",
+          params: {
+            id: itemData.id,
+            trick: JSON.stringify(itemData),
+          },
+        });
+      }
+    },
+    [router, fetchItemData]
+  );
 
   // Render functions
-  const ListHeader = useCallback(() => (
-    <StyledView className="flex-row justify-between items-center mb-2 px-4">
-      <StyledView className="flex-row items-center">
-        <Feather name="book" size={24} color="white" />
-        <StyledText className="text-white text-xl ml-2">
-          {t("librariesCount", { count: allCategories?.length || sections.length })}
-        </StyledText>
+  const ListHeader = useCallback(
+    () => (
+      <StyledView className="flex-row justify-between items-center mb-2 px-4">
+        <StyledView className="flex-row items-center">
+          <Feather name="book" size={24} color="white" />
+          <StyledText className="text-white text-xl ml-2">
+            {t("librariesCount", {
+              count: allCategories?.length || sections.length,
+            })}
+          </StyledText>
+        </StyledView>
+        <StyledTouchableOpacity
+          className="p-2"
+          onPress={() => setAddCategoryModalVisible(true)}
+        >
+          <AntDesign name="plus" size={24} color="white" />
+        </StyledTouchableOpacity>
       </StyledView>
-      <StyledTouchableOpacity
-        className="p-2"
-        onPress={() => setAddCategoryModalVisible(true)}
-      >
-        <AntDesign name="plus" size={24} color="white" />
-      </StyledTouchableOpacity>
-    </StyledView>
-  ), [t, allCategories, sections.length]);
+    ),
+    [t, allCategories, sections.length]
+  );
 
   const ListFooter = useCallback(() => {
     if (!loadingMore) return null;
-    
+
     return (
       <StyledView className="py-4">
         <ActivityIndicator size="small" color="#10b981" />
@@ -424,19 +458,29 @@ const LibrariesSection = memo(function LibrariesSection({
     );
   }, [loading, searchQuery, searchFilters, t]);
 
-  const renderSection = useCallback(({ item }: { item: any }) => {
-    return (
-      <CollapsibleCategoryOptimized
-        section={item}
-        searchQuery={searchQuery}
-        searchFilters={searchFilters}
-        onItemPress={handleItemPress}
-        onEditCategory={openEditCategoryModal}
-        onDeleteCategory={handleDeleteCategory}
-        onMoreOptions={handleMoreOptions}
-      />
-    );
-  }, [searchQuery, searchFilters, handleItemPress, openEditCategoryModal, handleDeleteCategory, handleMoreOptions]);
+  const renderSection = useCallback(
+    ({ item }: { item: any }) => {
+      return (
+        <CollapsibleCategoryOptimized
+          section={item}
+          searchQuery={searchQuery}
+          searchFilters={searchFilters}
+          onItemPress={handleItemPress}
+          onEditCategory={openEditCategoryModal}
+          onDeleteCategory={handleDeleteCategory}
+          onMoreOptions={handleMoreOptions}
+        />
+      );
+    },
+    [
+      searchQuery,
+      searchFilters,
+      handleItemPress,
+      openEditCategoryModal,
+      handleDeleteCategory,
+      handleMoreOptions,
+    ]
+  );
 
   const keyExtractor = useCallback((item: any) => item.category.id, []);
 
@@ -455,7 +499,10 @@ const LibrariesSection = memo(function LibrariesSection({
           <StyledView className="flex-row items-center">
             <Ionicons name="warning" size={20} color="#ef4444" />
             <StyledText className="text-white ml-2 flex-1">
-              {t("decryptionError", "Some items couldn't be decrypted. Please re-enter your password.")}
+              {t(
+                "decryptionError",
+                "Some items couldn't be decrypted. Please re-enter your password."
+              )}
             </StyledText>
             <StyledTouchableOpacity
               onPress={() => setShowKeyRefreshBanner(false)}
@@ -468,15 +515,19 @@ const LibrariesSection = memo(function LibrariesSection({
       )}
 
       <ListHeader />
-      
+
       {error ? (
         <StyledView className="flex-1 justify-center items-center p-4">
-          <StyledText className="text-red-500 text-center mb-4">{error}</StyledText>
+          <StyledText className="text-red-500 text-center mb-4">
+            {error}
+          </StyledText>
           <StyledTouchableOpacity
             className="bg-emerald-700 px-4 py-2 rounded-lg"
             onPress={refresh}
           >
-            <StyledText className="text-white">{t("retry", "Retry")}</StyledText>
+            <StyledText className="text-white">
+              {t("retry", "Retry")}
+            </StyledText>
           </StyledTouchableOpacity>
         </StyledView>
       ) : (
@@ -505,7 +556,7 @@ const LibrariesSection = memo(function LibrariesSection({
           removeClippedSubviews={true}
           estimatedListSize={{
             height: 600,
-            width: 350
+            width: 350,
           }}
         />
       )}

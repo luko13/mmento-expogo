@@ -62,8 +62,7 @@ export class ThreadedCryptoService {
         this.restartWorker();
       };
       
-      console.log('🔧 Worker de cifrado inicializado');
-    } catch (error) {
+          } catch (error) {
       console.error('Error inicializando worker:', error);
       // Marcar como listo aunque falle para no bloquear
       this.isReady = true;
@@ -79,8 +78,7 @@ export class ThreadedCryptoService {
       if (response.type === 'ready') {
         this.isReady = true;
         this.readyResolve();
-        console.log('✅ Worker de cifrado listo');
-        return;
+                return;
       }
       
       // Procesar respuesta de tarea
@@ -92,8 +90,7 @@ export class ThreadedCryptoService {
       const duration = Date.now() - task.startTime;
       
       if (response.success) {
-        console.log(`✅ Tarea ${response.id} completada en ${duration}ms`);
-        task.resolve(response.result);
+                task.resolve(response.result);
       } else {
         console.error(`❌ Tarea ${response.id} falló:`, response.error);
         task.reject(new Error(response.error));
@@ -104,8 +101,7 @@ export class ThreadedCryptoService {
   }
   
   private async restartWorker() {
-    console.log('🔄 Reiniciando worker...');
-    
+        
     if (this.worker) {
       try {
         this.worker.terminate();
@@ -216,8 +212,7 @@ export class ThreadedCryptoService {
       chunks.push(data.slice(i, Math.min(i + chunkSize, data.length)));
     }
     
-    console.log(`📦 Dividiendo ${(data.length / 1024 / 1024).toFixed(2)}MB en ${chunks.length} chunks`);
-    
+        
     // Generar nonces
     for (let i = 0; i < chunks.length; i++) {
       const nonceB64 = await this.sendToWorker('generateNonce', {});

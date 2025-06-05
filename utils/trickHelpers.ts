@@ -25,18 +25,12 @@ export const getTrickWithEncryptedPhotos = async (trickId: string) => {
         .single();
 
       if (!encryptedError && encryptedData?.encrypted_files?.photos) {
-        console.log(
-          "🔍 encrypted_files.photos:",
-          encryptedData.encrypted_files.photos
-        );
-        // Asegurarse de que photos es un array
+                // Asegurarse de que photos es un array
         trick.photos = Array.isArray(encryptedData.encrypted_files.photos)
           ? encryptedData.encrypted_files.photos
           : [encryptedData.encrypted_files.photos];
-        console.log("📸 Fotos asignadas a trick.photos:", trick.photos);
-
-        console.log("📸 Fotos encontradas:", trick.photos.length);
-      }
+        
+              }
     }
 
     return trick;

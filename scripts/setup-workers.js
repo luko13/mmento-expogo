@@ -34,8 +34,7 @@ const { Buffer } = require('buffer');
     // Escribir el archivo JavaScript
     fs.writeFileSync(WORKER_DEST, content);
     
-    console.log('✅ Worker transpilado correctamente');
-  } catch (error) {
+      } catch (error) {
     console.error('❌ Error transpilando worker:', error);
     process.exit(1);
   }
@@ -46,10 +45,8 @@ transpileWorker();
 
 // Watch mode si se pasa --watch
 if (process.argv.includes('--watch')) {
-  console.log('👀 Watching for changes...');
-  
+    
   fs.watchFile(WORKER_SOURCE, (curr, prev) => {
-    console.log('📝 Worker modificado, retranspilando...');
-    transpileWorker();
+        transpileWorker();
   });
 }

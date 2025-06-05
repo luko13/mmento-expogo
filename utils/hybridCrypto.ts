@@ -38,18 +38,15 @@ export class HybridCrypto {
       const nativeImpl = await this.tryNativeCrypto();
       if (nativeImpl) {
         this.implementation = nativeImpl;
-        console.log("✅ Using native crypto implementation");
-      } else {
+              } else {
         // Try libsodium-wrappers (WASM, faster than tweetnacl)
         const sodiumImpl = await this.tryLibsodium();
         if (sodiumImpl) {
           this.implementation = sodiumImpl;
-          console.log("✅ Using libsodium WASM implementation");
-        } else {
+                  } else {
           // Fallback to tweetnacl
           this.implementation = this.getTweetNaclImplementation();
-          console.log("✅ Using TweetNaCl implementation (fallback)");
-        }
+                  }
       }
 
       this.isInitialized = true;
@@ -89,8 +86,7 @@ export class HybridCrypto {
         },
       };
     } catch (error) {
-      console.log("Native crypto not available:", error);
-      return null;
+            return null;
     }
   }
 
@@ -140,8 +136,7 @@ export class HybridCrypto {
           this.sodium.randombytes_buf(this.sodium.crypto_secretbox_NONCEBYTES),
       };
     } catch (error) {
-      console.log("Libsodium no disponible o mal cargado:", error);
-      return null;
+            return null;
     }
   }
 
@@ -178,22 +173,14 @@ export class HybridCrypto {
 
     // Verificar si debemos usar threads
     if (data.length > this.THREAD_THRESHOLD) {
-      console.log(
-        `🧵 Usando chunking asíncrono para cifrar ${(
-          data.length /
-          1024 /
-          1024
-        ).toFixed(2)}MB`
-      );
-
+      
       try {
         // Usar chunking asíncrono
         const result = await cryptoWorkerService.encryptLargeData(
           data,
           key,
           (progress) => {
-            console.log(`📊 Progreso cifrado: ${progress.toFixed(0)}%`);
-          }
+                      }
         );
 
         return {
@@ -226,18 +213,7 @@ export class HybridCrypto {
   ): Promise<Uint8Array> {
     if (!this.implementation) await this.initialize();
 
-    console.log("🔐 hybridCrypto.decrypt:", {
-      dataLength: data.length,
-      keyLength: key.length,
-      nonceLength: nonce.length,
-      implementation: this.implementation!.name,
-      // Primeros y últimos bytes para verificar integridad
-      dataPreview: {
-        first10: Array.from(data.slice(0, 10)),
-        last10: Array.from(data.slice(-10)),
-      },
-    });
-
+    
     try {
       const decrypted = await this.implementation!.decrypt(data, key, nonce);
 
@@ -251,8 +227,7 @@ export class HybridCrypto {
         throw new Error("Decryption failed");
       }
 
-      console.log("✅ Decryption successful, length:", decrypted.length);
-      return decrypted;
+            return decrypted;
     } catch (error) {
       console.error("❌ Decryption error:", error);
       throw error;
@@ -297,8 +272,7 @@ export class HybridCrypto {
           this.sodium.crypto_pwhash_ALG_ARGON2ID13
         );
       } catch (error) {
-        console.log("Argon2id not available, falling back to PBKDF2");
-      }
+              }
     }
 
     // Fallback to simple key derivation

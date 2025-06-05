@@ -45,8 +45,7 @@ export class PerformanceOptimizer {
       
       // Log performance
       const speed = size > 0 ? (size / duration / 1024).toFixed(2) : 'N/A';
-      console.log(`⏱️ ${operation}: ${duration}ms for ${(size / 1024 / 1024).toFixed(2)}MB (${speed} MB/s)`);
-      
+            
       // Analyze and adjust strategy
       if (duration > this.SLOW_THRESHOLD) {
         await this.adjustStrategy(operation, duration, size);
@@ -58,8 +57,7 @@ export class PerformanceOptimizer {
       
       // Try with fallback strategy
       if (operation === 'encrypt' && size > this.adaptiveThresholds.streaming) {
-        console.log('🔄 Retrying with streaming strategy...');
-        return this.retryWithStreaming(fn, args);
+                return this.retryWithStreaming(fn, args);
       }
       
       throw error;
@@ -144,15 +142,14 @@ export class PerformanceOptimizer {
    * Adjust strategy based on performance
    */
   private async adjustStrategy(operation: string, duration: number, size: number): Promise<void> {
-    console.warn(`⚠️ Slow ${operation} detected: ${duration}ms for ${(size / 1024 / 1024).toFixed(2)}MB`);
+    
     
     if (duration > this.VERY_SLOW_THRESHOLD) {
       // Significantly slow - adjust thresholds
       if (operation === 'encrypt' && size < this.adaptiveThresholds.streaming) {
         // Lower streaming threshold
         this.adaptiveThresholds.streaming = Math.max(size * 0.8, 1024 * 1024);
-        console.log(`📉 Lowered streaming threshold to ${(this.adaptiveThresholds.streaming / 1024 / 1024).toFixed(2)}MB`);
-      }
+              }
     }
     
     // Log performance report
@@ -224,21 +221,12 @@ export class PerformanceOptimizer {
    * Log performance report
    */
   logPerformanceReport(): void {
-    console.log('\n📊 Performance Report:');
-    
+        
     for (const [operation, metrics] of this.metrics.entries()) {
       const avg = this.getAverageMetrics(operation);
-      console.log(`${operation}:`);
-      console.log(`  - Avg Duration: ${avg.avgDuration.toFixed(0)}ms`);
-      console.log(`  - Avg Size: ${(avg.avgSize / 1024 / 1024).toFixed(2)}MB`);
-      console.log(`  - Avg Speed: ${avg.avgSpeed.toFixed(2)}MB/s`);
-      console.log(`  - Samples: ${avg.count}`);
-    }
+                                  }
     
-    console.log(`\n🎯 Adaptive Thresholds:`);
-    console.log(`  - Streaming: ${(this.adaptiveThresholds.streaming / 1024 / 1024).toFixed(2)}MB`);
-    console.log(`  - Compression: ${(this.adaptiveThresholds.compression / 1024 / 1024).toFixed(2)}MB\n`);
-  }
+              }
 
   /**
    * Reset metrics

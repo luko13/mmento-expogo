@@ -94,6 +94,13 @@ export class BackgroundEncryptionService {
   }
 
   /**
+   * Obtener tarea por ID
+   */
+  getTask(taskId: string): EncryptionTask | undefined {
+    return this.encryptionTasks.get(taskId);
+  }
+
+  /**
    * Crea la promesa de cifrado con manejo de cancelación
    */
   private createEncryptionPromise(
@@ -286,7 +293,7 @@ export class BackgroundEncryptionService {
       );
 
       reportProgress(100);
-      return fileId;
+      return fileId; // IMPORTANTE: Retornar fileId, no cacheKey
     } catch (error: any) {
       if (error.message === "Cancelled") {
         console.log(`🚫 ${params.fileName} cancelado`);

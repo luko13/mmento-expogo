@@ -1,25 +1,25 @@
 // services/encryptedContentService.ts
-import { supabase } from '../lib/supabase'
-import { useEncryption } from '../hooks/useEncryption'
-import { FileEncryptionService } from '../utils/fileEncryption'
+import { supabase } from "../lib/supabase";
+import { useEncryption } from "../hooks/useEncryption";
+import { FileEncryptionService } from "../utils/fileEncryption";
 
 interface DecryptedContent {
-  [key: string]: any
+  [key: string]: any;
 }
 
 export class EncryptedContentService {
-  private fileEncryption: FileEncryptionService
-  
+  private fileEncryption: FileEncryptionService;
+
   constructor() {
-    this.fileEncryption = new FileEncryptionService()
+    this.fileEncryption = new FileEncryptionService();
   }
 
   /**
    * Obtiene y descifra contenido propio
    */
   async getOwnContent(
-    contentId: string, 
-    contentType: 'techniques' | 'gimmicks' | 'magic_tricks',
+    contentId: string,
+    contentType: "techniques" | "gimmicks" | "magic_tricks",
     decryptForSelf: (encrypted: string) => Promise<string>,
     getPrivateKey: () => string
   ): Promise<DecryptedContent | null> {
@@ -27,43 +27,49 @@ export class EncryptedContentService {
       // Obtener contenido original
       const { data: content, error: contentError } = await supabase
         .from(contentType)
-        .select('*')
-        .eq('id', contentId)
-        .single()
+        .select("*")
+        .eq("id", contentId)
+        .single();
 
       if (contentError || !content) {
-        console.error('Error obteniendo contenido:', contentError)
-        return null
+        console.error("Error obteniendo contenido:", contentError);
+        return null;
       }
 
       // Si no está cifrado, devolver tal cual
       if (!content.is_encrypted) {
-        return content
+        return content;
       }
 
       // Obtener metadatos de cifrado
       const { data: encryptedMeta, error: metaError } = await supabase
-        .from('encrypted_content')
-        .select('encrypted_fields, encrypted_files')
-        .eq('content_id', contentId)
-        .eq('content_type', contentType)
-        .single()
+        .from("encrypted_content")
+        .select("encrypted_fields, encrypted_files")
+        .eq("content_id", contentId)
+        .eq("content_type", contentType)
+        .single();
 
       if (metaError || !encryptedMeta) {
-        console.error('Error obteniendo metadatos:', metaError)
-        return content // Devolver sin descifrar
+        console.error("Error obteniendo metadatos:", metaError);
+        return content; // Devolver sin descifrar
       }
-
+      console.log("🔍 Encrypted content:", encryptedMeta.encrypted_fields);
       // Descifrar campos
-      const decrypted = { ...content }
-      
+      const decrypted = { ...content };
+
       if (encryptedMeta.encrypted_fields) {
-        for (const [field, encryptedValue] of Object.entries(encryptedMeta.encrypted_fields)) {
+        for (const [field, encryptedValue] of Object.entries(
+          encryptedMeta.encrypted_fields
+        )) {
           if (encryptedValue) {
+            console.log(`🔓 Descifrando campo: ${field}`);
+            console.log(`🔓 Valor cifrado:`, encryptedValue);
             try {
-              decrypted[field] = await decryptForSelf(encryptedValue as string)
+              decrypted[field] = await decryptForSelf(encryptedValue as string);
+              console.log(`✅ ${field} descifrado OK`);
             } catch (error) {
-              console.error(`Error descifrando campo ${field}:`, error)
+              console.error(`Error descifrando campo ${field}:`, error);
+              console.error(`❌ ${field} falló:`, error)
             }
           }
         }
@@ -71,18 +77,20 @@ export class EncryptedContentService {
 
       // Manejar archivos cifrados
       if (encryptedMeta.encrypted_files) {
-        for (const [fileType, fileId] of Object.entries(encryptedMeta.encrypted_files)) {
+        for (const [fileType, fileId] of Object.entries(
+          encryptedMeta.encrypted_files
+        )) {
           if (fileId) {
-            decrypted[`${fileType}_url`] = fileId // El ID del archivo cifrado
-            decrypted[`${fileType}_encrypted`] = true
+            decrypted[`${fileType}_url`] = fileId; // El ID del archivo cifrado
+            decrypted[`${fileType}_encrypted`] = true;
           }
         }
       }
 
-      return decrypted
+      return decrypted;
     } catch (error) {
-      console.error('Error en getOwnContent:', error)
-      return null
+      console.error("Error en getOwnContent:", error);
+      return null;
     }
   }
 
@@ -91,59 +99,64 @@ export class EncryptedContentService {
    */
   async getSharedContent(
     contentId: string,
-    contentType: 'techniques' | 'gimmicks' | 'magic_tricks',
+    contentType: "techniques" | "gimmicks" | "magic_tricks",
     userId: string,
     decryptForSelf: (encrypted: string) => Promise<string>
   ): Promise<DecryptedContent | null> {
     try {
       // Verificar si el contenido fue compartido con este usuario
       const { data: sharedAccess, error: sharedError } = await supabase
-        .from('shared_content')
-        .select('encrypted_fields, permissions')
-        .eq('content_id', contentId)
-        .eq('content_type', contentType)
-        .eq('shared_with', userId)
-        .single()
+        .from("shared_content")
+        .select("encrypted_fields, permissions")
+        .eq("content_id", contentId)
+        .eq("content_type", contentType)
+        .eq("shared_with", userId)
+        .single();
 
       if (sharedError || !sharedAccess) {
-        console.error('No tienes acceso a este contenido')
-        return null
+        console.error("No tienes acceso a este contenido");
+        return null;
       }
 
       // Obtener contenido original
       const { data: content, error: contentError } = await supabase
         .from(contentType)
-        .select('*')
-        .eq('id', contentId)
-        .single()
+        .select("*")
+        .eq("id", contentId)
+        .single();
 
       if (contentError || !content) {
-        return null
+        return null;
       }
 
       // Descifrar campos compartidos
-      const decrypted = { ...content }
-      
+      const decrypted = { ...content };
+
       if (sharedAccess.encrypted_fields) {
-        for (const [field, encryptedValue] of Object.entries(sharedAccess.encrypted_fields)) {
+        for (const [field, encryptedValue] of Object.entries(
+          sharedAccess.encrypted_fields
+        )) {
           if (encryptedValue) {
             try {
-              decrypted[field] = await decryptForSelf(encryptedValue as string)
+              decrypted[field] = await decryptForSelf(encryptedValue as string);
             } catch (error) {
-              console.error(`Error descifrando campo compartido ${field}:`, error)
+              console.error(
+                `Error descifrando campo compartido ${field}:`,
+                error
+              );
             }
           }
         }
       }
 
       // Agregar indicador de contenido compartido
-      decrypted.is_shared = true
-      decrypted.permissions = sharedAccess.permissions
+      decrypted.is_shared = true;
+      decrypted.permissions = sharedAccess.permissions;
 
-      return decrypted
+      return decrypted;
     } catch (error) {
-      console.error('Error en getSharedContent:', error)
-      return null
+      console.error("Error en getSharedContent:", error);
+      return null;
     }
   }
 
@@ -152,7 +165,7 @@ export class EncryptedContentService {
    */
   async getContent(
     contentId: string,
-    contentType: 'techniques' | 'gimmicks' | 'magic_tricks',
+    contentType: "techniques" | "gimmicks" | "magic_tricks",
     userId: string,
     decryptForSelf: (encrypted: string) => Promise<string>,
     getPrivateKey: () => string
@@ -160,14 +173,24 @@ export class EncryptedContentService {
     // Primero verificar si es contenido propio
     const { data: content } = await supabase
       .from(contentType)
-      .select('user_id')
-      .eq('id', contentId)
-      .single()
+      .select("user_id")
+      .eq("id", contentId)
+      .single();
 
     if (content?.user_id === userId) {
-      return this.getOwnContent(contentId, contentType, decryptForSelf, getPrivateKey)
+      return this.getOwnContent(
+        contentId,
+        contentType,
+        decryptForSelf,
+        getPrivateKey
+      );
     } else {
-      return this.getSharedContent(contentId, contentType, userId, decryptForSelf)
+      return this.getSharedContent(
+        contentId,
+        contentType,
+        userId,
+        decryptForSelf
+      );
     }
   }
 
@@ -176,7 +199,7 @@ export class EncryptedContentService {
    */
   async shareContent(
     contentId: string,
-    contentType: 'techniques' | 'gimmicks' | 'magic_tricks',
+    contentType: "techniques" | "gimmicks" | "magic_tricks",
     targetUserId: string,
     permissions: string[],
     encryptForUser: (data: string, publicKey: string) => Promise<string>,
@@ -185,61 +208,66 @@ export class EncryptedContentService {
     try {
       // Obtener clave pública del destinatario
       const { data: targetProfile } = await supabase
-        .from('profiles')
-        .select('public_key')
-        .eq('id', targetUserId)
-        .single()
+        .from("profiles")
+        .select("public_key")
+        .eq("id", targetUserId)
+        .single();
 
       if (!targetProfile?.public_key) {
-        throw new Error('El usuario destinatario no tiene configurado el cifrado')
+        throw new Error(
+          "El usuario destinatario no tiene configurado el cifrado"
+        );
       }
 
       // Obtener metadatos cifrados originales
       const { data: encryptedMeta } = await supabase
-        .from('encrypted_content')
-        .select('encrypted_fields')
-        .eq('content_id', contentId)
-        .eq('content_type', contentType)
-        .single()
+        .from("encrypted_content")
+        .select("encrypted_fields")
+        .eq("content_id", contentId)
+        .eq("content_type", contentType)
+        .single();
 
       if (!encryptedMeta) {
-        throw new Error('No se encontraron metadatos cifrados')
+        throw new Error("No se encontraron metadatos cifrados");
       }
 
       // Descifrar y recifrar para el destinatario
-      const sharedFields: any = {}
-      
-      for (const [field, encryptedValue] of Object.entries(encryptedMeta.encrypted_fields)) {
+      const sharedFields: any = {};
+
+      for (const [field, encryptedValue] of Object.entries(
+        encryptedMeta.encrypted_fields
+      )) {
         if (encryptedValue) {
           // Descifrar con mi clave
-          const decrypted = await decryptForSelf(encryptedValue as string)
+          const decrypted = await decryptForSelf(encryptedValue as string);
           // Cifrar con la clave del destinatario
-          sharedFields[field] = await encryptForUser(decrypted, targetProfile.public_key)
+          sharedFields[field] = await encryptForUser(
+            decrypted,
+            targetProfile.public_key
+          );
         }
       }
 
       // Guardar acceso compartido
-      const { error } = await supabase
-        .from('shared_content')
-        .upsert({
-          content_id: contentId,
-          content_type: contentType,
-          owner_id: (await supabase.auth.getUser()).data.user?.id,
-          shared_with: targetUserId,
-          encrypted_fields: sharedFields,
-          permissions: permissions,
-          created_at: new Date().toISOString()
-        })
+      const { error } = await supabase.from("shared_content").upsert({
+        content_id: contentId,
+        content_type: contentType,
+        owner_id: (await supabase.auth.getUser()).data.user?.id,
+        shared_with: targetUserId,
+        encrypted_fields: sharedFields,
+        permissions: permissions,
+        created_at: new Date().toISOString(),
+      });
 
       if (error) {
-        console.error('Error compartiendo contenido:', error)
-        return false
+        console.error("Error compartiendo contenido:", error);
+        return false;
       }
 
-      return true
+      return true;
     } catch (error) {
-      console.error('Error en shareContent:', error)
-      return false
+      console.error("Error en shareContent:", error);
+      return false;
     }
   }
 
@@ -253,30 +281,28 @@ export class EncryptedContentService {
   ): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('shared_content')
+        .from("shared_content")
         .delete()
-        .eq('content_id', contentId)
-        .eq('content_type', contentType)
-        .eq('shared_with', targetUserId)
+        .eq("content_id", contentId)
+        .eq("content_type", contentType)
+        .eq("shared_with", targetUserId);
 
-      return !error
+      return !error;
     } catch (error) {
-      console.error('Error revocando acceso:', error)
-      return false
+      console.error("Error revocando acceso:", error);
+      return false;
     }
   }
 
   /**
    * Obtener lista de usuarios con acceso compartido
    */
-  async getSharedUsers(
-    contentId: string,
-    contentType: string
-  ): Promise<any[]> {
+  async getSharedUsers(contentId: string, contentType: string): Promise<any[]> {
     try {
       const { data } = await supabase
-        .from('shared_content')
-        .select(`
+        .from("shared_content")
+        .select(
+          `
           shared_with,
           permissions,
           created_at,
@@ -285,14 +311,15 @@ export class EncryptedContentService {
             username,
             avatar_url
           )
-        `)
-        .eq('content_id', contentId)
-        .eq('content_type', contentType)
+        `
+        )
+        .eq("content_id", contentId)
+        .eq("content_type", contentType);
 
-      return data || []
+      return data || [];
     } catch (error) {
-      console.error('Error obteniendo usuarios compartidos:', error)
-      return []
+      console.error("Error obteniendo usuarios compartidos:", error);
+      return [];
     }
   }
 }

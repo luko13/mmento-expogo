@@ -49,9 +49,6 @@ export class CryptoService {
 
       // Initialize hybrid crypto
       await hybridCrypto.initialize();
-      console.log(
-        `🔐 Crypto initialized: ${hybridCrypto.getImplementationName()}`
-      );
 
       this.isInitialized = true;
     } catch (error) {
@@ -475,12 +472,6 @@ export class CryptoService {
     senderPublicKey: string,
     recipientPrivateKey: string
   ): Promise<Uint8Array> {
-    console.log("🔐 decryptSymmetricKey - Input:", {
-      ciphertext: encryptedKey.ciphertext,
-      nonce: encryptedKey.nonce,
-      senderPublicKey,
-      recipientPrivateKey,
-    });
     this.ensureInitialized();
 
     try {
@@ -489,22 +480,11 @@ export class CryptoService {
       const publicKey = decodeBase64(senderPublicKey);
       const privateKey = decodeBase64(recipientPrivateKey);
 
-      console.log("🔢 Decoded lengths:", {
-        ciphertext: ciphertext.length,
-        nonce: nonce.length,
-        publicKey: publicKey.length,
-        privateKey: privateKey.length,
-      });
-
       const decrypted = nacl.box.open(ciphertext, nonce, publicKey, privateKey);
 
       if (!decrypted) {
         throw new Error("Symmetric key decryption failed");
       }
-      console.log(
-        "✅ Symmetric key decrypted successfully, length:",
-        decrypted.length
-      );
       return decrypted;
     } catch (error) {
       console.error("Error decrypting symmetric key:", error);
@@ -539,17 +519,8 @@ export class CryptoService {
     nonce: Uint8Array,
     key: Uint8Array
   ): Promise<Uint8Array> {
-    console.log("🔓 decryptFile - Inputs:", {
-      encryptedLength: encrypted.length,
-      nonceLength: nonce.length,
-      keyLength: key.length,
-      firstBytes: Array.from(encrypted.slice(0, 10)),
-      lastBytes: Array.from(encrypted.slice(-10)),
-    });
-
     try {
       const decrypted = await hybridCrypto.decrypt(encrypted, key, nonce);
-      console.log("✅ File decrypted, length:", decrypted.length);
       return decrypted;
     } catch (error) {
       console.error("❌ decryptFile failed:", error);
@@ -582,11 +553,18 @@ export class CryptoService {
         derivedKey
       );
 
-      return JSON.stringify({
+      const result = JSON.stringify({
         ciphertext: encodeBase64(encrypted),
         nonce: encodeBase64(nonce),
         version: "nacl_secretbox_v1",
       });
+      console.log(
+        "🔐 encryptForSelf - derivedKey:",
+        Buffer.from(derivedKey).toString("hex")
+      );
+      console.log("🔐 encryptForSelf - resultado:", result);
+
+      return result;
     } catch (error) {
       console.error("Error en encryptForSelf:", error);
       throw new Error(
@@ -605,12 +583,6 @@ export class CryptoService {
   ): Promise<string> {
     await hybridCrypto.initialize();
 
-    console.log("🔐 decryptForSelf input:", {
-      type: typeof encryptedData,
-      isString: typeof encryptedData === "string",
-      data: encryptedData,
-    });
-
     // Si ya es un objeto, usarlo directamente
     const parsed =
       typeof encryptedData === "string"
@@ -624,10 +596,14 @@ export class CryptoService {
     }
 
     try {
+      console.log("🔓 decryptForSelf - input:", encryptedData);
       // Use the same key derivation method as encryption
       const privateKeyBytes = decodeBase64(userPrivateKey);
       const derivedKey = nacl.hash(privateKeyBytes).slice(0, 32);
-
+      console.log(
+        "🔓 decryptForSelf - derivedKey:",
+        Buffer.from(derivedKey).toString("hex")
+      );
       const decrypted = await hybridCrypto.decrypt(
         decodeBase64(ciphertext),
         derivedKey,

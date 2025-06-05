@@ -123,14 +123,7 @@ export class CompressionService {
           : originalSize;
 
       const ratio = compressedSize / originalSize;
-      console.log(
-        `📸 ${(originalSize / 1024 / 1024).toFixed(1)}MB → ${(
-          compressedSize /
-          1024 /
-          1024
-        ).toFixed(1)}MB`
-      );
-
+      
       return {
         uri: compressed.uri,
         originalSize,
@@ -159,12 +152,7 @@ export class CompressionService {
     uri: string,
     originalSize: number
   ): Promise<CompressionResult> {
-    console.log(
-      `🎥 Video detectado (${(originalSize / 1024 / 1024).toFixed(
-        2
-      )}MB) - compresión no disponible en Expo`
-    );
-
+    
     // Opcionalmente, podemos generar un thumbnail para preview
     try {
       const { uri: thumbnailUri } = await VideoThumbnails.getThumbnailAsync(
@@ -173,10 +161,8 @@ export class CompressionService {
           time: 1000, // 1 segundo
         }
       );
-      console.log(`📸 Thumbnail generado para preview rápido`);
-    } catch (error) {
-      console.log("No se pudo generar thumbnail");
-    }
+          } catch (error) {
+          }
 
     return {
       uri,
@@ -197,10 +183,7 @@ export class CompressionService {
     mimeType: string
   ): Promise<CompressionResult> {
     try {
-      console.log(
-        `📦 Comprimiendo datos: ${(originalSize / 1024).toFixed(2)}KB`
-      );
-
+      
       // Leer archivo
       const data = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.UTF8,
@@ -237,12 +220,7 @@ export class CompressionService {
         };
       }
 
-      console.log(
-        `✅ Datos comprimidos: ${(originalSize / 1024).toFixed(2)}KB → ${(
-          compressedSize / 1024
-        ).toFixed(2)}KB (${(benefit * 100).toFixed(0)}% reducción)`
-      );
-
+      
       return {
         uri: compressedUri,
         originalSize,
@@ -344,10 +322,7 @@ export class CompressionService {
         )
       );
 
-      console.log(
-        `🧹 Limpiados ${compressionFiles.length} archivos temporales`
-      );
-    } catch (error) {
+          } catch (error) {
       console.error("Error limpiando archivos temporales:", error);
     }
   }

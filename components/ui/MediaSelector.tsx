@@ -118,7 +118,6 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
     useEffect(() => {
       return () => {
         if (!disableEncryption && selectedFiles.some((f) => f.isEncrypting)) {
-          console.log("🚫 Cancelling ongoing encryption tasks...");
           selectedFiles.forEach((file) => {
             if (file.isEncrypting) {
               backgroundEncryptionService.cancelTask(file.taskId);
@@ -136,16 +135,22 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
           return [];
         }
 
-        // Filtrar solo archivos que completaron el cifrado
-        const completedFiles = selectedFiles.filter((f) => !f.isEncrypting);
-        const fileIds = completedFiles.map((f) => f.taskId);
+        const fileIds: string[] = [];
+
+        // Obtener IDs de archivos completados
+        for (const file of selectedFiles) {
+          if (!file.isEncrypting) {
+            // Archivo ya completado - obtener el resultado de la tarea
+            const task = backgroundEncryptionService.getTask(file.taskId);
+            if (task?.status === "completed" && task.result) {
+              fileIds.push(task.result);
+            }
+          }
+        }
 
         // Esperar por cualquier cifrado en progreso si es necesario
         const encryptingFiles = selectedFiles.filter((f) => f.isEncrypting);
         if (encryptingFiles.length > 0) {
-          console.log(
-            `⏳ Esperando ${encryptingFiles.length} archivos en cifrado...`
-          );
           const encryptingIds = encryptingFiles.map((f) => f.taskId);
           try {
             const results =
@@ -249,9 +254,7 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
                     continue;
                   }
                 }
-              } catch (error) {
-                console.warn("Could not check file size:", error);
-              }
+              } catch (error) {}
             }
 
             // Si el cifrado está deshabilitado, solo agregar el archivo sin cifrar
@@ -343,7 +346,6 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
 
       // Cancelar cifrado si está en progreso
       if (!disableEncryption && file.isEncrypting) {
-        console.log(`🚫 Cancelling encryption for ${file.fileName}`);
         backgroundEncryptionService.cancelTask(file.taskId);
       }
 

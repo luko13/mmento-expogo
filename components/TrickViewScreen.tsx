@@ -16,7 +16,7 @@ import {
   ActivityIndicator,
   Share,
 } from "react-native";
-import { useVideoPlayer, VideoView } from "expo-video";
+import { Video, ResizeMode } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -90,6 +90,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(true);
   const [photoLoadError, setPhotoLoadError] = useState<string | null>(null);
 
+  // Referencias para los videos
+  const effectVideoRef = useRef<Video>(null);
+  const secretVideoRef = useRef<Video>(null);
+
   // Hooks de cifrado
   const { decryptForSelf, getPublicKey, keyPair } = useEncryption();
   const encryptedContentService = new EncryptedContentService();
@@ -98,21 +102,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   // Ref para evitar cargas múltiples
   const videosLoadedRef = useRef(false);
   const photosLoadedRef = useRef(false);
-
-  // Crear video players solo cuando tengamos URLs válidas
-  const effectVideoPlayer = useVideoPlayer(effectVideoUrl || "", (player) => {
-    if (effectVideoUrl) {
-      player.loop = true;
-      player.play();
-    }
-  });
-
-  const secretVideoPlayer = useVideoPlayer(secretVideoUrl || "", (player) => {
-    if (secretVideoUrl) {
-      player.loop = true;
-      player.play();
-    }
-  });
 
   // Usar las fotos proporcionadas o crear un array con la foto principal si existe
   const photos = trick.photos || (trick.photo_url ? [trick.photo_url] : []);
@@ -156,7 +145,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       try {
         return await downloadFunction();
       } catch (error) {
-        console.log(`Intento ${i + 1} falló:`, error);
         if (i === maxRetries - 1) throw error;
         await new Promise((resolve) =>
           setTimeout(resolve, 1000 * Math.pow(2, i))
@@ -175,6 +163,9 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
         setIsLoadingVideos(true);
         setVideoLoadError(null);
+
+        // Array temporal para fotos mal clasificadas
+        const misplacedPhotos: string[] = [];
 
         // Si no está cifrado, usar URLs directamente
         if (!trick.is_encrypted) {
@@ -208,10 +199,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           decryptForSelf,
           () => keyPair.privateKey
         );
-        console.log(
-          "📋 decryptedContent:",
-          JSON.stringify(decryptedContent, null, 2)
-        );
+        
         if (!decryptedContent) {
           throw new Error("No se pudo obtener el contenido");
         }
@@ -224,10 +212,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         if (decryptedContent.effect_video_url) {
           if (
             decryptedContent.effect_video_encrypted ||
-            decryptedContent.effect_video_url.startsWith("encrypted_")
+            decryptedContent.effect_video_url.startsWith("enc_")
           ) {
             try {
-              console.log("🔓 Descifrando video de efecto...");
+              console.log("📹 Descargando video de efecto cifrado...");
               const decryptedVideo = await retryDownload(async () =>
                 fileEncryption.downloadAndDecryptFile(
                   decryptedContent.effect_video_url,
@@ -237,25 +225,36 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
                 )
               );
 
-              // Crear URL temporal para el video descifrado
-              const tempUri = `${
-                FileSystem.cacheDirectory
-              }effect_${Date.now()}.mp4`;
-              const base64Data = await OptimizedBase64.uint8ArrayToBase64(
-                decryptedVideo.data
-              );
-              await FileSystem.writeAsStringAsync(tempUri, base64Data, {
-                encoding: FileSystem.EncodingType.Base64,
-              });
-              finalEffectUrl = tempUri;
-              console.log("✅ Video de efecto descifrado:", tempUri);
+              // PARCHE: Verificar si es realmente un video
+              if (!decryptedVideo.mimeType.includes('video')) {
+                console.warn(`⚠️ El video de efecto es en realidad ${decryptedVideo.mimeType}`);
+                
+                if (decryptedVideo.mimeType.includes('image')) {
+                  // Es una imagen, guardarla para las fotos
+                  const tempPhotoUri = `${FileSystem.cacheDirectory}misplaced_effect_${Date.now()}.jpg`;
+                  const base64Data = await OptimizedBase64.uint8ArrayToBase64(decryptedVideo.data);
+                  await FileSystem.writeAsStringAsync(tempPhotoUri, base64Data, {
+                    encoding: FileSystem.EncodingType.Base64,
+                  });
+                  misplacedPhotos.push(tempPhotoUri);
+                }
+                
+                // No establecer URL de video
+                finalEffectUrl = null;
+              } else {
+                // Es un video real
+                const tempUri = `${FileSystem.cacheDirectory}effect_${Date.now()}.mp4`;
+                const base64Data = await OptimizedBase64.uint8ArrayToBase64(decryptedVideo.data);
+                await FileSystem.writeAsStringAsync(tempUri, base64Data, {
+                  encoding: FileSystem.EncodingType.Base64,
+                });
+
+                console.log("✅ Video de efecto guardado en:", tempUri);
+                finalEffectUrl = tempUri;
+              }
             } catch (error) {
               console.error("❌ Error descargando video de efecto:", error);
-              // Intentar con URL pública como fallback
-              finalEffectUrl = getPublicUrl(
-                decryptedContent.effect_video_url,
-                "encrypted_media"
-              );
+              finalEffectUrl = null;
             }
           } else {
             // Video no cifrado
@@ -267,10 +266,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         if (decryptedContent.secret_video_url) {
           if (
             decryptedContent.secret_video_encrypted ||
-            decryptedContent.secret_video_url.startsWith("encrypted_")
+            decryptedContent.secret_video_url.startsWith("enc_")
           ) {
             try {
-              console.log("🔓 Descifrando video secreto...");
+              console.log("📹 Descargando video secreto cifrado...");
               const decryptedVideo = await retryDownload(async () =>
                 fileEncryption.downloadAndDecryptFile(
                   decryptedContent.secret_video_url,
@@ -280,23 +279,33 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
                 )
               );
 
-              const tempUri = `${
-                FileSystem.cacheDirectory
-              }secret_${Date.now()}.mp4`;
-              const base64Data = await OptimizedBase64.uint8ArrayToBase64(
-                decryptedVideo.data
-              );
-              await FileSystem.writeAsStringAsync(tempUri, base64Data, {
-                encoding: FileSystem.EncodingType.Base64,
-              });
-              finalSecretUrl = tempUri;
-              console.log("✅ Video secreto descifrado:", tempUri);
+              // Verificar tipo MIME
+              if (!decryptedVideo.mimeType.includes('video')) {
+                console.warn(`⚠️ El video secreto es en realidad ${decryptedVideo.mimeType}`);
+                
+                if (decryptedVideo.mimeType.includes('image')) {
+                  const tempPhotoUri = `${FileSystem.cacheDirectory}misplaced_secret_${Date.now()}.jpg`;
+                  const base64Data = await OptimizedBase64.uint8ArrayToBase64(decryptedVideo.data);
+                  await FileSystem.writeAsStringAsync(tempPhotoUri, base64Data, {
+                    encoding: FileSystem.EncodingType.Base64,
+                  });
+                  misplacedPhotos.push(tempPhotoUri);
+                }
+                
+                finalSecretUrl = null;
+              } else {
+                const tempUri = `${FileSystem.cacheDirectory}secret_${Date.now()}.mp4`;
+                const base64Data = await OptimizedBase64.uint8ArrayToBase64(decryptedVideo.data);
+                await FileSystem.writeAsStringAsync(tempUri, base64Data, {
+                  encoding: FileSystem.EncodingType.Base64,
+                });
+                
+                console.log("✅ Video secreto guardado en:", tempUri);
+                finalSecretUrl = tempUri;
+              }
             } catch (error) {
               console.error("❌ Error descargando video secreto:", error);
-              finalSecretUrl = getPublicUrl(
-                decryptedContent.secret_video_url,
-                "encrypted_media"
-              );
+              finalSecretUrl = null;
             }
           } else {
             finalSecretUrl = getPublicUrl(decryptedContent.secret_video_url);
@@ -306,6 +315,12 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         // Actualizar las URLs de estado
         setEffectVideoUrl(finalEffectUrl);
         setSecretVideoUrl(finalSecretUrl);
+        
+        // Si encontramos fotos mal clasificadas, agregarlas
+        if (misplacedPhotos.length > 0) {
+          setDecryptedPhotos(prev => [...prev, ...misplacedPhotos]);
+        }
+        
         videosLoadedRef.current = true;
       } catch (error) {
         console.error("❌ Error general cargando videos:", error);
@@ -331,6 +346,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         if (photosLoadedRef.current) {
           return;
         }
+
+        console.log("📸 Iniciando carga de fotos...");
+        console.log("📸 trick.photos:", trick.photos);
+        console.log("📸 trick.photo_url:", trick.photo_url);
 
         // Si no está cifrado, usar fotos originales
         if (!trick.is_encrypted) {
@@ -360,57 +379,95 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         const processedPhotos: string[] = [];
 
         // Procesar las fotos del prop
-        if (
-          trick.photos &&
-          Array.isArray(trick.photos) &&
-          trick.photos.length > 0
-        ) {
-          console.log("🎯 Procesando fotos cifradas:", trick.photos.length);
-
-          const photoPromises = trick.photos.map(
-            async (photoId: string, index: number) => {
-              try {
-                console.log(`📸 Descifrando foto ${index + 1}:`, photoId);
+        if (trick.photos && Array.isArray(trick.photos) && trick.photos.length > 0) {
+          const photoPromises = trick.photos.map(async (photoIdOrUrl: string, index: number) => {
+            try {
+              console.log(`📸 Procesando foto ${index + 1}:`, photoIdOrUrl);
+              
+              // Si ya es una URL completa o ruta local, usarla directamente
+              if (photoIdOrUrl.startsWith('http') || photoIdOrUrl.startsWith('file://')) {
+                return { index, dataUri: photoIdOrUrl };
+              }
+              
+              // Si es un ID de archivo cifrado (enc_*)
+              if (photoIdOrUrl.startsWith('enc_')) {
                 const decryptedPhoto = await retryDownload(async () =>
                   fileEncryption.downloadAndDecryptFile(
-                    photoId,
+                    photoIdOrUrl,
                     user.id,
                     getPublicKey,
                     () => keyPair.privateKey
                   )
                 );
 
-                const base64Data = await OptimizedBase64.uint8ArrayToBase64(
-                  decryptedPhoto.data
-                );
-                const dataUri = `data:${decryptedPhoto.mimeType};base64,${base64Data}`;
-                console.log(`✅ Foto ${index + 1} descifrada`);
-
-                return { index, dataUri };
-              } catch (err) {
-                console.error(`❌ Error descifrando foto ${index + 1}:`, err);
-                // Intentar con URL pública como fallback
-                const publicUrl = getPublicUrl(photoId, "encrypted_media");
-                if (publicUrl) {
-                  return { index, dataUri: publicUrl };
+                // Verificar que la imagen se descifró correctamente
+                if (!decryptedPhoto.data || decryptedPhoto.data.length === 0) {
+                  console.error(`❌ Foto ${index} vacía después de descifrar`);
+                  return null;
                 }
-                return null;
+
+                console.log(`✅ Foto ${index + 1} descifrada, tamaño:`, decryptedPhoto.data.length);
+                console.log(`📸 MimeType: ${decryptedPhoto.mimeType}`);
+                
+                // Para fotos muy grandes, crear archivo temporal
+                if (decryptedPhoto.data.length > 1000000) { // 1MB
+                  const tempUri = `${FileSystem.cacheDirectory}photo_${Date.now()}_${index}.jpg`;
+                  
+                  // Intentar comprimir si es muy grande
+                  if (decryptedPhoto.data.length > 3000000) { // 3MB
+                    try {
+                      // Crear data URI temporal para comprimir
+                      const base64Data = await OptimizedBase64.uint8ArrayToBase64(decryptedPhoto.data);
+                      const dataUri = `data:${decryptedPhoto.mimeType};base64,${base64Data}`;
+                      
+                      // Comprimir con expo-image-manipulator
+                      const { manipulateAsync, SaveFormat } = await import("expo-image-manipulator");
+                      const compressed = await manipulateAsync(
+                        dataUri,
+                        [{ resize: { width: 1920 } }],
+                        { compress: 0.8, format: SaveFormat.JPEG }
+                      );
+                      
+                      console.log(`✅ Foto comprimida de ${decryptedPhoto.data.length} a archivo temporal`);
+                      return { index, dataUri: compressed.uri };
+                    } catch (compressionError) {
+                      console.warn("No se pudo comprimir, usando original:", compressionError);
+                    }
+                  }
+                  
+                  // Guardar sin comprimir
+                  const base64Data = await OptimizedBase64.uint8ArrayToBase64(decryptedPhoto.data);
+                  await FileSystem.writeAsStringAsync(tempUri, base64Data, {
+                    encoding: FileSystem.EncodingType.Base64,
+                  });
+                  console.log(`📸 Foto guardada en: ${tempUri}`);
+                  return { index, dataUri: tempUri };
+                } else {
+                  // Foto pequeña, usar data URI
+                  const base64Data = await OptimizedBase64.uint8ArrayToBase64(decryptedPhoto.data);
+                  const dataUri = `data:${decryptedPhoto.mimeType};base64,${base64Data}`;
+                  return { index, dataUri };
+                }
               }
+              
+              // Si es un path relativo, construir URL pública
+              const publicUrl = getPublicUrl(photoIdOrUrl, "encrypted_media");
+              return { index, dataUri: publicUrl };
+              
+            } catch (err) {
+              console.error(`❌ Error procesando foto ${index}:`, err);
+              return null;
             }
-          );
+          });
 
           const results = await Promise.all(photoPromises);
 
           const orderedPhotos = results
-            .filter(
-              (result): result is { index: number; dataUri: string } =>
-                result !== null
-            )
+            .filter((result): result is { index: number; dataUri: string } => result !== null)
             .sort((a, b) => a.index - b.index)
             .map((result) => result.dataUri);
 
           processedPhotos.push(...orderedPhotos);
-          console.log(`📊 Total fotos procesadas: ${processedPhotos.length}`);
         }
 
         // Si no hay fotos procesadas, intentar con la foto principal
@@ -421,7 +478,12 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           }
         }
 
-        setDecryptedPhotos(processedPhotos);
+        console.log(`📸 Total fotos procesadas: ${processedPhotos.length}`);
+        setDecryptedPhotos(prev => {
+          // Combinar con fotos mal clasificadas de videos
+          const combined = [...processedPhotos, ...prev];
+          return [...new Set(combined)]; // Eliminar duplicados
+        });
         photosLoadedRef.current = true;
       } catch (error) {
         console.error("❌ Error general cargando fotos:", error);
@@ -447,39 +509,42 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
   // Pausar/reproducir videos según la sección actual
   useEffect(() => {
-    if (currentSection === "effect") {
-      effectVideoPlayer?.play();
-      secretVideoPlayer?.pause();
-    } else if (currentSection === "secret") {
-      secretVideoPlayer?.play();
-      effectVideoPlayer?.pause();
+    if (currentSection === "effect" && effectVideoRef.current) {
+      effectVideoRef.current.playAsync();
+      secretVideoRef.current?.pauseAsync();
+    } else if (currentSection === "secret" && secretVideoRef.current) {
+      secretVideoRef.current.playAsync();
+      effectVideoRef.current?.pauseAsync();
     } else {
-      effectVideoPlayer?.pause();
-      secretVideoPlayer?.pause();
+      effectVideoRef.current?.pauseAsync();
+      secretVideoRef.current?.pauseAsync();
     }
-  }, [currentSection, effectVideoPlayer, secretVideoPlayer]);
+  }, [currentSection]);
 
   // Limpiar archivos temporales al desmontar
   useEffect(() => {
     return () => {
-      if (
-        effectVideoUrl &&
-        effectVideoUrl.startsWith(FileSystem.cacheDirectory || "")
-      ) {
-        FileSystem.deleteAsync(effectVideoUrl, { idempotent: true }).catch(
-          (err) => console.log("Error limpiando archivo temporal:", err)
-        );
-      }
-      if (
-        secretVideoUrl &&
-        secretVideoUrl.startsWith(FileSystem.cacheDirectory || "")
-      ) {
-        FileSystem.deleteAsync(secretVideoUrl, { idempotent: true }).catch(
-          (err) => console.log("Error limpiando archivo temporal:", err)
-        );
-      }
+      const cleanupFiles = async () => {
+        const filesToDelete = [
+          effectVideoUrl,
+          secretVideoUrl,
+          ...decryptedPhotos.filter(photo => photo.startsWith(FileSystem.cacheDirectory || ""))
+        ].filter(Boolean);
+
+        for (const file of filesToDelete) {
+          if (file) {
+            try {
+              await FileSystem.deleteAsync(file, { idempotent: true });
+            } catch (error) {
+              console.warn("Error limpiando archivo:", error);
+            }
+          }
+        }
+      };
+
+      cleanupFiles();
     };
-  }, [effectVideoUrl, secretVideoUrl]);
+  }, [effectVideoUrl, secretVideoUrl, decryptedPhotos]);
 
   // Función para manejar el cambio de sección al deslizar
   const handleScroll = useCallback(
@@ -500,8 +565,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
   // Función para navegar a una sección específica
   const navigateToSection = (section: StageType) => {
-    const sectionIndex =
-      section === "effect" ? 0 : section === "secret" ? 1 : 2;
+    const sectionIndex = section === "effect" ? 0 : section === "secret" ? 1 : 2;
     scrollViewRef.current?.scrollTo({
       y: sectionIndex * height,
       animated: true,
@@ -510,23 +574,11 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   };
 
   // Alternar reproducción de video
-  const togglePlayPause = () => {
-    if (currentSection === "effect" && effectVideoPlayer) {
-      if (effectVideoPlayer.playing) {
-        effectVideoPlayer.pause();
-        setIsEffectPlaying(false);
-      } else {
-        effectVideoPlayer.play();
-        setIsEffectPlaying(true);
-      }
-    } else if (currentSection === "secret" && secretVideoPlayer) {
-      if (secretVideoPlayer.playing) {
-        secretVideoPlayer.pause();
-        setIsSecretPlaying(false);
-      } else {
-        secretVideoPlayer.play();
-        setIsSecretPlaying(true);
-      }
+  const togglePlayPause = (type: 'effect' | 'secret') => {
+    if (type === 'effect') {
+      setIsEffectPlaying(!isEffectPlaying);
+    } else {
+      setIsSecretPlaying(!isSecretPlaying);
     }
   };
 
@@ -547,9 +599,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const handleSharePress = async () => {
     try {
       await Share.share({
-        message: `${t("checkOutThisTrick", "¡Mira este truco!")}: ${
-          trick.title
-        }\n\n${trick.effect}`,
+        message: `${t("checkOutThisTrick", "¡Mira este truco!")}: ${trick.title}\n\n${trick.effect}`,
         title: trick.title,
       });
     } catch (error) {
@@ -562,29 +612,22 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     // Implementar lógica para eliminar la etiqueta
   };
 
-  // Renderizar video con controles
-  const renderVideo = (
-    url: string | null,
-    player: any,
-    isPlaying: boolean,
-    isLoading: boolean
-  ) => {
+  // Renderizar video con controles usando expo-av
+  const renderVideo = (url: string | null, isPlaying: boolean, isLoading: boolean, type: 'effect' | 'secret') => {
     if (isLoading) {
       return (
-        <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
+        <StyledView className="absolute inset-0 items-center justify-center bg-black/80">
           <ActivityIndicator size="large" color="white" />
           <StyledText className="text-white text-lg mt-4">
-            {trick.is_encrypted
-              ? t("decryptingVideo", "Descifrando video...")
-              : t("loadingVideo", "Cargando video...")}
+            {trick.is_encrypted ? t("decryptingVideo", "Descifrando video...") : t("loadingVideo", "Cargando video...")}
           </StyledText>
         </StyledView>
       );
     }
 
-    if (videoLoadError) {
+    if (videoLoadError && !url) {
       return (
-        <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
+        <StyledView className="absolute inset-0 items-center justify-center bg-black/80">
           <Ionicons name="alert-circle-outline" size={50} color="white" />
           <StyledText className="text-white text-lg mt-4">
             {t("videoLoadError", "Error al cargar el video")}
@@ -596,9 +639,27 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       );
     }
 
-    if (!url || !player) {
+    if (!url) {
+      // Si no hay video, mostrar la primera foto si existe
+      if (decryptedPhotos.length > 0) {
+        return (
+          <StyledView className="absolute inset-0">
+            <Image
+              source={{ uri: decryptedPhotos[0] }}
+              style={{ width: "100%", height: "100%" }}
+              resizeMode="contain"
+            />
+            <StyledView className="absolute inset-0 items-center justify-center bg-black/30">
+              <StyledText className="text-white text-lg">
+                {t("noVideoButPhoto", "Sin video - Ver fotos abajo")}
+              </StyledText>
+            </StyledView>
+          </StyledView>
+        );
+      }
+      
       return (
-        <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
+        <StyledView className="absolute inset-0 items-center justify-center bg-black/80">
           <StyledText className="text-white text-xl">
             {t("noVideoAvailable", "No video available")}
           </StyledText>
@@ -607,21 +668,28 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     }
 
     return (
-      <StyledView className="absolute top-0 left-0 right-0 bottom-0">
-        <VideoView
-          player={player}
+      <StyledView className="absolute inset-0">
+        <Video
+          ref={type === 'effect' ? effectVideoRef : secretVideoRef}
+          source={{ uri: url }}
           style={{ width: "100%", height: "100%" }}
-          contentFit="cover"
-          nativeControls={false}
+          shouldPlay={isPlaying && currentSection === type}
+          isLooping
+          resizeMode={ResizeMode.COVER}
+          onError={(error) => {
+            console.error(`❌ Error reproduciendo video ${type}:`, error);
+          }}
+          onLoad={() => {
+            console.log(`✅ Video ${type} cargado correctamente`);
+          }}
         />
-
-        {/* Área táctil para pausar/reproducir */}
+        
+        {/* Control de play/pause */}
         <StyledTouchableOpacity
-          className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center"
+          className="absolute inset-0 items-center justify-center"
           activeOpacity={1}
-          onPress={togglePlayPause}
+          onPress={() => togglePlayPause(type)}
         >
-          {/* Mostrar icono de reproducción solo cuando está pausado */}
           {!isPlaying && (
             <StyledView className="bg-black/30 rounded-full p-5">
               <Ionicons name="play" color="white" size={50} />
@@ -639,9 +707,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
           <ActivityIndicator size="large" color="white" />
           <StyledText className="text-white text-lg mt-4">
-            {trick.is_encrypted
-              ? t("decryptingPhotos", "Descifrando fotos...")
-              : t("loadingPhotos", "Cargando fotos...")}
+            {trick.is_encrypted ? t("decryptingPhotos", "Descifrando fotos...") : t("loadingPhotos", "Cargando fotos...")}
           </StyledText>
         </StyledView>
       );
@@ -661,8 +727,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       );
     }
 
-    const photosToDisplay =
-      decryptedPhotos.length > 0 ? decryptedPhotos : photos;
+    const photosToDisplay = decryptedPhotos.length > 0 ? decryptedPhotos : photos;
 
     if (photosToDisplay.length === 0) {
       return (
@@ -686,13 +751,31 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             const index = Math.round(event.nativeEvent.contentOffset.x / width);
             setCurrentPhotoIndex(index);
           }}
-          renderItem={({ item }) => (
-            <Image
-              source={{ uri: item as string }}
-              style={{ width, height: height }}
-              resizeMode="contain"
-            />
-          )}
+          renderItem={({ item }) => {
+            // Validar que el URI sea válido
+            if (!item || typeof item !== 'string' || item.length < 10) {
+              console.error("❌ URI de foto inválido:", item);
+              return (
+                <View style={{ width, height, backgroundColor: '#333', justifyContent: 'center', alignItems: 'center' }}>
+                  <Text style={{ color: 'white' }}>Error loading image</Text>
+                </View>
+              );
+            }
+            
+            return (
+              <Image
+                source={{ uri: item }}
+                style={{ width, height }}
+                resizeMode="contain"
+                onError={(e) => {
+                  console.error("❌ Error cargando imagen:", e.nativeEvent.error);
+                }}
+                onLoad={() => {
+                  console.log("✅ Imagen cargada correctamente");
+                }}
+              />
+            );
+          }}
         />
 
         {photosToDisplay.length > 1 && (
@@ -747,22 +830,12 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       >
         {/* Sección de Efecto */}
         <StyledView style={{ width, height }}>
-          {renderVideo(
-            effectVideoUrl,
-            effectVideoPlayer,
-            isEffectPlaying,
-            isLoadingVideos
-          )}
+          {renderVideo(effectVideoUrl, isEffectPlaying, isLoadingVideos, 'effect')}
         </StyledView>
 
         {/* Sección de Secreto */}
         <StyledView style={{ width, height }}>
-          {renderVideo(
-            secretVideoUrl,
-            secretVideoPlayer,
-            isSecretPlaying,
-            isLoadingVideos
-          )}
+          {renderVideo(secretVideoUrl, isSecretPlaying, isLoadingVideos, 'secret')}
         </StyledView>
 
         {/* Sección de Fotos/Detalles */}

@@ -238,9 +238,7 @@ export default function AddMagicWizardEncrypted({
     try {
       // Solo cifrar si el campo tiene contenido
       if (data.title?.trim()) {
-        console.log("🔄 Antes de encryptForSelf, keyPair:", keyPair);
-        console.log("✅ CryptoService inicializado.");
-        encryptedFields.title = await encryptForSelf(data.title.trim());
+                        encryptedFields.title = await encryptForSelf(data.title.trim());
         encryptedData.title = "[ENCRYPTED]";
       } else {
         encryptedData.title = ""; // Valor vacío en lugar de [ENCRYPTED]
@@ -357,10 +355,7 @@ export default function AddMagicWizardEncrypted({
 
       // Upload all files with optimized batch processing
       if (allFiles.length > 0) {
-        console.log(
-          `📤 Uploading ${allFiles.length} files with optimized batch processing...`
-        );
-
+        
         try {
           const uploadMetadata =
             await fileEncryptionService.batchEncryptAndUploadFilesOptimized(

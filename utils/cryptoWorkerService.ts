@@ -40,8 +40,7 @@ export class CryptoWorkerService {
       chunks.push(data.slice(i, Math.min(i + this.CHUNK_SIZE, data.length)));
     }
     
-    console.log(`📦 Procesando ${(data.length / 1024 / 1024).toFixed(2)}MB en ${chunks.length} chunks`);
-    
+        
     // Procesar en batches para no bloquear UI
     for (let i = 0; i < chunks.length; i += this.BATCH_SIZE) {
       const batch = chunks.slice(i, Math.min(i + this.BATCH_SIZE, chunks.length));
