@@ -43,11 +43,11 @@ export class FileEncryptionService {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) throw new Error("No hay sesión activa");
-    
+
     console.log("📤 Upload - encrypted.length:", encrypted.length);
     console.log("📤 Upload - primeros 20 bytes:", encrypted.slice(0, 20));
     console.log("📤 Upload - últimos 20 bytes:", encrypted.slice(-20));
-    
+
     // Subir directamente el Uint8Array
     const { error } = await supabase.storage
       .from("encrypted_media")
@@ -86,7 +86,9 @@ export class FileEncryptionService {
     const wasCompressed = compressionResult.wasCompressed;
 
     if (wasCompressed) {
-      console.log(`✅ Archivo comprimido: ${compressionResult.originalSize} -> ${compressionResult.compressedSize}`);
+      console.log(
+        `✅ Archivo comprimido: ${compressionResult.originalSize} -> ${compressionResult.compressedSize}`
+      );
     }
 
     // 2. Leer archivo
@@ -199,12 +201,12 @@ export class FileEncryptionService {
             getPublicKey,
             getPrivateKey()
           );
-    
+
     console.log("📊 Tamaños ANTES de upload:");
     console.log("- fileBuffer.length:", fileBuffer.length);
     console.log("- encrypted.length:", encrypted.length);
     console.log("- nonce.length:", nonce.length);
-    
+
     // Generar ID
     const fileId = `enc_${Date.now()}_${index}_${Math.random()
       .toString(36)
@@ -300,113 +302,170 @@ export class FileEncryptionService {
       );
     }
 
-    // Separar archivos por tipo
-    const images = files.filter((f) => f.mimeType.startsWith("image/"));
-    const videos = files.filter((f) => f.mimeType.startsWith("video/"));
-    const others = files.filter(
-      (f) =>
-        !f.mimeType.startsWith("image/") && !f.mimeType.startsWith("video/")
-    );
-
+    // IMPORTANTE: Mantener el orden original de los archivos
     const processedFiles: Array<{
       uri: string;
       fileName: string;
       mimeType: string;
       compressionInfo?: any;
+      originalIndex: number; // Agregar índice original
     }> = [];
 
-    // Comprimir imágenes en paralelo
-    if (images.length > 0) {
-      const compressedImages = await Promise.all(
-        images.map(async (img) => {
-          try {
-            const result = await compressionService.compressFile(
-              img.uri,
-              img.mimeType,
-              {
-                quality: 0.6,
-                maxWidth: 1280,
-                maxHeight: 1280,
-                forceCompress: true,
-              }
-            );
+    // Procesar cada archivo manteniendo su índice original
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      let processedFile = {
+        ...file,
+        originalIndex: i, // Guardar índice original
+        compressionInfo: undefined as any,
+      };
 
-            return {
-              ...img,
-              uri: result.uri,
-              compressionInfo: result.wasCompressed
-                ? {
-                    algorithm: result.algorithm,
-                    originalSize: result.originalSize,
-                    compressedSize: result.compressedSize,
-                    ratio: result.ratio,
-                  }
-                : undefined,
+      // Comprimir si es imagen
+      if (file.mimeType.startsWith("image/")) {
+        try {
+          const result = await compressionService.compressFile(
+            file.uri,
+            file.mimeType,
+            {
+              quality: 0.6,
+              maxWidth: 1280,
+              maxHeight: 1280,
+              forceCompress: true,
+            }
+          );
+
+          if (result.wasCompressed) {
+            processedFile.uri = result.uri;
+            processedFile.compressionInfo = {
+              algorithm: result.algorithm,
+              originalSize: result.originalSize,
+              compressedSize: result.compressedSize,
+              ratio: result.ratio,
             };
-          } catch (error) {
-            console.error(`Error comprimiendo ${img.fileName}:`, error);
-            return img;
           }
-        })
-      );
-
-      processedFiles.push(...compressedImages);
-    }
-
-    // Advertir sobre videos grandes
-    if (videos.length > 0) {
-      const totalVideoSize = await this.getTotalSize(videos);
-      if (totalVideoSize > 10 * 1024 * 1024) {
-        console.warn(
-          `⚠️ Videos grandes: ${(totalVideoSize / 1024 / 1024).toFixed(1)}MB`
-        );
+        } catch (error) {
+          console.error(`Error comprimiendo ${file.fileName}:`, error);
+        }
       }
-      processedFiles.push(...videos);
-    }
 
-    processedFiles.push(...others);
+      // Advertir sobre videos grandes
+      if (file.mimeType.startsWith("video/")) {
+        try {
+          const fileInfo = await FileSystem.getInfoAsync(file.uri);
+          if (
+            fileInfo.exists &&
+            "size" in fileInfo &&
+            fileInfo.size > 10 * 1024 * 1024
+          ) {
+            console.warn(
+              `⚠️ Video grande: ${file.fileName} - ${(
+                fileInfo.size /
+                1024 /
+                1024
+              ).toFixed(1)}MB`
+            );
+          }
+        } catch (error) {
+          console.warn("No se pudo verificar tamaño del video");
+        }
+      }
+
+      processedFiles.push(processedFile);
+    }
 
     // Generar claves simétricas
     const symmetricKeys = await Promise.all(
       processedFiles.map(() => this.cryptoService.generateSymmetricKey())
     );
 
-    // Procesar en lotes
+    // Procesar en lotes MANTENIENDO EL ORDEN
     const BATCH_SIZE = 3;
-    const results: EncryptedFileMetadata[] = [];
+    const results: EncryptedFileMetadata[] = new Array(processedFiles.length);
 
     for (let i = 0; i < processedFiles.length; i += BATCH_SIZE) {
       const batch = processedFiles.slice(i, i + BATCH_SIZE);
       const batchKeys = symmetricKeys.slice(i, i + BATCH_SIZE);
 
-      const batchResults = await Promise.all(
-        batch.map((file, index) =>
-          this.fastEncryptAndUpload(
-            file,
-            batchKeys[index],
-            authorUserId,
-            recipientUserIds,
-            getPublicKey,
-            getPrivateKey,
-            i + index
-          )
-        )
-      );
+      console.log(`\n📦 Procesando lote ${Math.floor(i / BATCH_SIZE) + 1}:`);
+      batch.forEach((file, idx) => {
+        console.log(
+          `- Archivo ${i + idx}: ${file.fileName} (índice original: ${
+            file.originalIndex
+          })`
+        );
+      });
 
-      results.push(...batchResults);
+      const batchPromises = batch.map((file, batchIndex) => {
+        const globalIndex = i + batchIndex;
+        const originalIndex = file.originalIndex;
+
+        return this.fastEncryptAndUpload(
+          file,
+          batchKeys[batchIndex],
+          authorUserId,
+          recipientUserIds,
+          getPublicKey,
+          getPrivateKey,
+          originalIndex // Usar el índice original, no el global
+        ).then((result) => {
+          this.verifyUploadedFile(result.fileId, file.fileName);
+          // Guardar el resultado en la posición original
+          results[originalIndex] = result;
+          console.log(
+            `✅ Archivo ${originalIndex} (${file.fileName}) procesado como ${result.fileId}`
+          );
+          return result;
+        });
+      });
+
+      await Promise.all(batchPromises);
 
       const progress = ((i + batch.length) / processedFiles.length) * 100;
       onProgress?.(progress, `Procesando...`);
     }
 
     const totalTime = Date.now() - startTime;
-    console.log(`✅ Batch upload completado en ${(totalTime / 1000).toFixed(2)}s`);
+    console.log(
+      `\n✅ Batch upload completado en ${(totalTime / 1000).toFixed(2)}s`
+    );
+    console.log("📊 Orden final de archivos:");
+    results.forEach((r, i) => {
+      console.log(`${i}. ${r.fileId} - ${r.originalName} (${r.mimeType})`);
+    });
 
     await compressionService.cleanupTemporaryFiles();
 
     return results;
   }
+  private async verifyUploadedFile(fileId: string, fileName: string) {
+    try {
+      // Verificar el archivo recién subido
+      const { data: dbFile } = await supabase
+        .from("encrypted_files")
+        .select("size, file_nonce")
+        .eq("file_id", fileId)
+        .single();
 
+      const { data: blob } = await supabase.storage
+        .from("encrypted_media")
+        .download(`encrypted_files/${fileId}`);
+
+      if (blob && dbFile) {
+        const expectedSize = dbFile.size + 16; // NaCl overhead
+        const actualSize = blob.size;
+
+        if (actualSize !== expectedSize) {
+          console.error(`❌ PROBLEMA DETECTADO en ${fileName}:`);
+          console.error(`- DB size: ${dbFile.size}`);
+          console.error(`- Esperado (con overhead): ${expectedSize}`);
+          console.error(`- Descargado: ${actualSize}`);
+          console.error(`- DIFERENCIA: ${actualSize - expectedSize} bytes`);
+        }
+      }
+    } catch (error) {
+      console.error("Error verificando upload:", error);
+    }
+  }
   private async encryptAndUploadFileUltraFast(
     fileUri: string,
     fileName: string,
@@ -632,7 +691,7 @@ export class FileEncryptionService {
     getPrivateKey: () => string
   ): Promise<{ data: Uint8Array; fileName: string; mimeType: string }> {
     console.log(`📥 Iniciando descarga de archivo: ${fileId}`);
-    
+
     // Obtener metadata y clave
     const [{ data: metaData, error: mErr }, { data: keyRow, error: kErr }] =
       await Promise.all([
@@ -681,24 +740,43 @@ export class FileEncryptionService {
 
     console.log("📥 Download - blob type:", typeof blob);
     console.log("📥 Download - blob size:", blob.size);
-    console.log("📥 Download - encryptedBuffer.length:", encryptedBuffer.length);
-    console.log("📥 Download - primeros 20 bytes:", Array.from(encryptedBuffer.slice(0, 20)));
-    console.log("📥 Download - últimos 20 bytes:", Array.from(encryptedBuffer.slice(-20)));
+    console.log(
+      "📥 Download - encryptedBuffer.length:",
+      encryptedBuffer.length
+    );
+    console.log(
+      "📥 Download - primeros 20 bytes:",
+      Array.from(encryptedBuffer.slice(0, 20))
+    );
+    console.log(
+      "📥 Download - últimos 20 bytes:",
+      Array.from(encryptedBuffer.slice(-20))
+    );
 
     // IMPORTANTE: TweetNaCl secretbox agrega 16 bytes de overhead
     const NACL_OVERHEAD = 16;
     const expectedSizeWithOverhead = metaData.size + NACL_OVERHEAD;
-    
-    if (encryptedBuffer.length !== expectedSizeWithOverhead && encryptedBuffer.length !== metaData.size) {
-      console.warn(`⚠️ Tamaño inesperado. Esperado: ${expectedSizeWithOverhead} o ${metaData.size}, Recibido: ${encryptedBuffer.length}`);
-      console.warn(`⚠️ Diferencia: ${encryptedBuffer.length - metaData.size} bytes`);
+
+    if (
+      encryptedBuffer.length !== expectedSizeWithOverhead &&
+      encryptedBuffer.length !== metaData.size
+    ) {
+      console.warn(
+        `⚠️ Tamaño inesperado. Esperado: ${expectedSizeWithOverhead} o ${metaData.size}, Recibido: ${encryptedBuffer.length}`
+      );
+      console.warn(
+        `⚠️ Diferencia: ${encryptedBuffer.length - metaData.size} bytes`
+      );
       // No fallar, intentar descifrar de todos modos
     }
 
     // Descifrar
     const fileNonce = Buffer.from(metaData.file_nonce, "base64");
-    console.log("🔐 Descifrado - nonce:", Buffer.from(fileNonce).toString('hex'));
-    
+    console.log(
+      "🔐 Descifrado - nonce:",
+      Buffer.from(fileNonce).toString("hex")
+    );
+
     let decrypted: Uint8Array;
     try {
       decrypted = await this.cryptoService.decryptFile(
@@ -706,7 +784,10 @@ export class FileEncryptionService {
         fileNonce,
         symmetricKey
       );
-      console.log("✅ Archivo descifrado correctamente - tamaño:", decrypted.length);
+      console.log(
+        "✅ Archivo descifrado correctamente - tamaño:",
+        decrypted.length
+      );
     } catch (error) {
       console.error("❌ Error descifrando archivo:", error);
       throw new Error("Error al descifrar el archivo. Verifique las claves.");

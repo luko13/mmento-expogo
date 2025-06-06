@@ -502,8 +502,13 @@ export class CryptoService {
     encrypted: Uint8Array;
     nonce: Uint8Array;
   }> {
+    console.log("🔐 encryptFile:");
+    console.log("- Input size:", data.length);
     try {
       const result = await hybridCrypto.encrypt(data, key);
+      console.log("- Output size:", result.encrypted.length);
+      console.log("- Overhead:", result.encrypted.length - data.length);
+      console.log("- Nonce size:", result.nonce.length);
       return result;
     } catch (error) {
       console.error("Error encrypting file:", error);

@@ -217,7 +217,7 @@ export class BackgroundEncryptionService {
     const taskId = params.fileName;
     const startTime = Date.now();
     console.log(`📋 Procesando ${params.fileName}...`);
-    
+
     // Función throttled para progreso
     const reportProgress = (progress: number) => {
       const now = Date.now();
@@ -231,7 +231,7 @@ export class BackgroundEncryptionService {
         params.onProgress(progress);
       }
     };
-    
+
     try {
       // Verificar cancelación al inicio
       if (isCancelled()) {
@@ -260,7 +260,30 @@ export class BackgroundEncryptionService {
 
       // 4. Cifrar con streaming
       if (isCancelled()) throw new Error("Cancelled");
+      console.log("🔐 ANTES de cifrar - data.length:", processed.data.length);
+
       const encrypted = await this.encryptWithStreaming(processed.data);
+      console.log("CIFRADO:", {
+        originalSize: processed.data.length,
+        encryptedSize: encrypted.encrypted.length,
+        wasCompressed: processed.wasCompressed,
+        compressionRatio: processed.compressionRatio,
+      });
+      console.log("🔐 DESPUÉS de cifrar:");
+      console.log("- encrypted.encrypted.length:", encrypted.encrypted.length);
+      console.log(
+        "- encrypted.encrypted.byteLength:",
+        encrypted.encrypted.byteLength
+      );
+      console.log(
+        "- Overhead NaCl:",
+        encrypted.encrypted.length - processed.data.length
+      );
+      console.log(
+        "- Primera verificación:",
+        encrypted.encrypted instanceof Uint8Array
+      );
+
       reportProgress(70);
 
       // 5. Generar metadatos
@@ -276,6 +299,14 @@ export class BackgroundEncryptionService {
 
       // 6. Subir con reintentos inteligentes
       if (isCancelled()) throw new Error("Cancelled");
+
+      console.log("📤 ANTES de subir:");
+      console.log("- Tamaño a subir:", encrypted.encrypted.length);
+      console.log(
+        "- Tipo:",
+        Object.prototype.toString.call(encrypted.encrypted)
+      );
+
       const fileId = await this.uploadWithSmartRetry(
         encrypted.encrypted,
         metadata,
@@ -330,7 +361,7 @@ export class BackgroundEncryptionService {
           return new Uint8Array(arrayBuffer);
         } catch (fetchError) {
           console.log("Fetch failed, trying FileSystem...");
-          
+
           // Fallback a FileSystem
           try {
             const fileInfo = await FileSystem.getInfoAsync(uri);
@@ -355,14 +386,13 @@ export class BackgroundEncryptionService {
                 2
               )}MB) en chunks...`
             );
-            
+
             // Nota: FileSystem.readAsStringAsync no soporta position/length en Expo
             // Así que para archivos grandes, leer todo de una vez
             const base64 = await FileSystem.readAsStringAsync(uri, {
               encoding: FileSystem.EncodingType.Base64,
             });
             return this.fastBase64Decode(base64);
-            
           } catch (fileSystemError) {
             console.error("FileSystem error:", fileSystemError);
             throw fileSystemError;
@@ -378,7 +408,6 @@ export class BackgroundEncryptionService {
       } catch (error) {
         throw new Error(`Unable to read URI: ${uri}`);
       }
-
     } catch (error) {
       console.error("Error reading file:", error);
       throw new Error(
@@ -457,7 +486,7 @@ export class BackgroundEncryptionService {
           // Crear un data URI temporal para el servicio de compresión
           const base64String = Buffer.from(data).toString("base64");
           const dataUri = `data:${type};base64,${base64String}`;
-          
+
           const compressed = await compressionService.compressFile(
             dataUri,
             "image/jpeg",
@@ -502,10 +531,21 @@ export class BackgroundEncryptionService {
   }> {
     // Generar clave simétrica
     const symmetricKey = await this.cryptoService.generateSymmetricKey();
-
+    console.log("PRE-CIFRADO:", {
+      inputSize: data.length,
+      isLargeFile: data.length >= 5 * 1024 * 1024,
+    });
     // Para archivos pequeños, cifrar directamente
     if (data.length < 5 * 1024 * 1024) {
-      return await this.cryptoService.encryptFile(data, symmetricKey);
+      const result = await this.cryptoService.encryptFile(data, symmetricKey);
+
+      // 🔴 LOG DESPUÉS DE CIFRAR
+      console.log("POST-CIFRADO (pequeño):", {
+        encryptedSize: result.encrypted.length,
+        overhead: result.encrypted.length - data.length,
+      });
+
+      return result;
     }
 
     // Para archivos grandes, usar chunking
@@ -551,7 +591,10 @@ export class BackgroundEncryptionService {
         console.log(
           `📤 Subiendo archivo (intento ${attempt + 1}/${maxRetries})...`
         );
-
+        console.log("UPLOAD:", {
+          dataToUpload: encryptedData.length,
+          fileId: fileId,
+        });
         const { data, error } = await supabase.storage
           .from("encrypted_media")
           .upload(filePath, encryptedData, {
@@ -779,32 +822,34 @@ export class BackgroundEncryptionService {
    */
   async waitForSpecificTasks(taskIds: string[]): Promise<string[]> {
     const tasks = taskIds
-      .map(id => this.encryptionTasks.get(id))
-      .filter(task => task !== undefined) as EncryptionTask[];
+      .map((id) => this.encryptionTasks.get(id))
+      .filter((task) => task !== undefined) as EncryptionTask[];
 
     const pendingTasks = tasks.filter(
-      t => t.status === "pending" || t.status === "processing"
+      (t) => t.status === "pending" || t.status === "processing"
     );
 
     if (pendingTasks.length === 0) {
       // Retornar los resultados de las tareas completadas
       return tasks
-        .filter(t => t.status === "completed" && t.result)
-        .map(t => t.result!);
+        .filter((t) => t.status === "completed" && t.result)
+        .map((t) => t.result!);
     }
 
     console.log(`⏳ Esperando ${pendingTasks.length} tareas específicas...`);
 
     try {
       const results = await Promise.all(
-        pendingTasks.map(t => t.promise.catch(err => {
-          console.error(`Task ${t.id} failed:`, err);
-          return null;
-        }))
+        pendingTasks.map((t) =>
+          t.promise.catch((err) => {
+            console.error(`Task ${t.id} failed:`, err);
+            return null;
+          })
+        )
       );
 
       // Filtrar resultados válidos
-      return results.filter(r => r !== null) as string[];
+      return results.filter((r) => r !== null) as string[];
     } catch (error) {
       console.error("❌ Error esperando tareas:", error);
       return [];
