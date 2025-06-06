@@ -1,6 +1,6 @@
 // utils/hybridCrypto.ts
 import nacl from "tweetnacl";
-import { Buffer } from 'buffer';
+import { Buffer } from "buffer";
 import { encodeBase64, decodeBase64 } from "tweetnacl-util";
 import { cryptoWorkerService } from "./cryptoWorkerService";
 import { performanceOptimizer } from "./performanceOptimizer";
@@ -22,6 +22,11 @@ interface CryptoImplementation {
   generateNonce: () => Promise<Uint8Array>;
 }
 
+// SOLUCIÓN TEMPORAL: Agregar opciones para encrypt
+interface EncryptOptions {
+  forStorage?: boolean; // Si true, NO usa chunking (evita problema de 240 bytes)
+}
+
 export class HybridCrypto {
   private implementation: CryptoImplementation | null = null;
   private sodium: any = null;
@@ -38,15 +43,18 @@ export class HybridCrypto {
       const nativeImpl = await this.tryNativeCrypto();
       if (nativeImpl) {
         this.implementation = nativeImpl;
-              } else {
+        console.log("🚀 Usando crypto nativo");
+      } else {
         // Try libsodium-wrappers (WASM, faster than tweetnacl)
         const sodiumImpl = await this.tryLibsodium();
         if (sodiumImpl) {
           this.implementation = sodiumImpl;
-                  } else {
+          console.log("⚡ Usando libsodium-wrappers");
+        } else {
           // Fallback to tweetnacl
           this.implementation = this.getTweetNaclImplementation();
-                  }
+          console.log("📦 Usando tweetnacl (fallback)");
+        }
       }
 
       this.isInitialized = true;
@@ -86,7 +94,8 @@ export class HybridCrypto {
         },
       };
     } catch (error) {
-            return null;
+      console.log("❌ react-native-fast-crypto no disponible");
+      return null;
     }
   }
 
@@ -136,7 +145,8 @@ export class HybridCrypto {
           this.sodium.randombytes_buf(this.sodium.crypto_secretbox_NONCEBYTES),
       };
     } catch (error) {
-            return null;
+      console.log("❌ libsodium-wrappers no disponible");
+      return null;
     }
   }
 
@@ -165,23 +175,61 @@ export class HybridCrypto {
   async encrypt(
     data: Uint8Array,
     key: Uint8Array,
-    nonce?: Uint8Array
+    nonce?: Uint8Array,
+    options?: EncryptOptions
   ): Promise<{ encrypted: Uint8Array; nonce: Uint8Array }> {
     if (!this.implementation) await this.initialize();
 
     const actualNonce = nonce || (await this.implementation!.generateNonce());
 
-    // Verificar si debemos usar threads
+    // SOLUCIÓN TEMPORAL: Si es para storage, NUNCA usar workers/chunking
+    // Esto evita el problema de los 240 bytes extra
+    if (options?.forStorage) {
+      console.log(
+        `🔐 Cifrando para storage - modo directo (${(
+          data.length /
+          1024 /
+          1024
+        ).toFixed(2)}MB)`
+      );
+      const encrypted = await this.implementation!.encrypt(
+        data,
+        key,
+        actualNonce
+      );
+
+      console.log(
+        `✅ Cifrado completo: ${data.length} → ${encrypted.length} bytes (+${
+          encrypted.length - data.length
+        } overhead)`
+      );
+
+      return { encrypted, nonce: actualNonce };
+    }
+
+    // Verificar si debemos usar threads (solo para operaciones temporales en UI)
     if (data.length > this.THREAD_THRESHOLD) {
-      
+      console.warn(
+        `⚠️ Archivo grande (${(data.length / 1024 / 1024).toFixed(
+          2
+        )}MB) sin forStorage:true`
+      );
+      console.warn(
+        "💡 Para archivos que se van a almacenar, usar { forStorage: true }"
+      );
+
       try {
-        // Usar chunking asíncrono
+        // Usar chunking asíncrono (problemático para storage)
         const result = await cryptoWorkerService.encryptLargeData(
           data,
           key,
           (progress) => {
-                      }
+            // Progress callback
+          }
         );
+
+        // ADVERTENCIA: Esto causa el problema de 240 bytes extra
+        console.warn("🚨 Usando chunking - solo para operaciones temporales");
 
         return {
           encrypted: result.encrypted,
@@ -213,7 +261,12 @@ export class HybridCrypto {
   ): Promise<Uint8Array> {
     if (!this.implementation) await this.initialize();
 
-    
+    console.log(
+      `🔓 Descifrando ${(data.length / 1024 / 1024).toFixed(2)}MB con ${
+        this.implementation!.name
+      }`
+    );
+
     try {
       const decrypted = await this.implementation!.decrypt(data, key, nonce);
 
@@ -227,7 +280,10 @@ export class HybridCrypto {
         throw new Error("Decryption failed");
       }
 
-            return decrypted;
+      console.log(
+        `✅ Descifrado exitoso: ${data.length} → ${decrypted.length} bytes`
+      );
+      return decrypted;
     } catch (error) {
       console.error("❌ Decryption error:", error);
       throw error;
@@ -272,7 +328,8 @@ export class HybridCrypto {
           this.sodium.crypto_pwhash_ALG_ARGON2ID13
         );
       } catch (error) {
-              }
+        console.log("Argon2id no disponible, usando fallback");
+      }
     }
 
     // Fallback to simple key derivation
