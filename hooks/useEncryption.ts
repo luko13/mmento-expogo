@@ -1,4 +1,4 @@
-// hooks/useEncryption.ts
+// hooks/useEncryption.ts - VERSIÓN CORREGIDA
 import { useState, useEffect, useCallback } from "react";
 import { CryptoService, type KeyPair } from "../utils/cryptoService";
 import { supabase } from "../lib/supabase";
@@ -18,6 +18,8 @@ export interface UseEncryptionReturn {
   hasDecryptionErrors: boolean;
   error: string | null;
   debugKeys: () => Promise<void>;
+  // NUEVO: Método para inicializar claves después del login
+  initializeKeysFromCloud: (password: string) => Promise<boolean>;
 }
 
 export const useEncryption = (): UseEncryptionReturn => {
@@ -72,7 +74,8 @@ export const useEncryption = (): UseEncryptionReturn => {
 
       if (event === "SIGNED_IN" && session?.user) {
         setCurrentUserId(session.user.id);
-        await loadExistingKeys(session.user.id);
+        // NO cargar claves automáticamente aquí, esperar a que se llame initializeKeysFromCloud
+        setIsReady(true); // Marcar como listo pero sin claves
       } else if (event === "SIGNED_OUT") {
         // Clear crypto state on logout
         setKeyPair(null);
@@ -92,15 +95,21 @@ export const useEncryption = (): UseEncryptionReturn => {
     };
   }, []);
 
+  /**
+   * VERSIÓN MEJORADA: Intenta cargar claves locales Y de la nube
+   */
   const loadExistingKeys = async (userId: string) => {
     try {
       setError(null);
+      console.log("🔍 Buscando claves existentes para usuario:", userId);
 
-      // Try to load existing private key
+      // Primero intentar cargar clave privada local
       const existingPrivateKey = await cryptoService.getPrivateKey(userId);
 
       if (existingPrivateKey) {
-        // Get public key from server
+        console.log("✅ Clave privada encontrada en almacenamiento local");
+
+        // Obtener clave pública del servidor
         const { data: profile } = await supabase
           .from("profiles")
           .select("public_key")
@@ -112,12 +121,92 @@ export const useEncryption = (): UseEncryptionReturn => {
             publicKey: profile.public_key,
             privateKey: existingPrivateKey,
           });
+          console.log("✅ Par de claves cargado desde almacenamiento local");
+        }
+      } else {
+        console.log("⚠️ No hay clave privada en almacenamiento local");
+
+        // Verificar si el usuario tiene claves en la nube
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("public_key, encrypted_private_key")
+          .eq("id", userId)
+          .single();
+
+        if (profile?.public_key && profile?.encrypted_private_key) {
+          console.log(
+            "🔍 Usuario tiene claves en la nube, pero necesita contraseña para recuperarlas"
+          );
+          // NO intentar recuperar sin contraseña
+          // El usuario deberá llamar a initializeKeysFromCloud después del login
+        } else {
+          console.log("ℹ️ Usuario no tiene claves configuradas");
         }
       }
 
       setIsReady(true);
     } catch (err) {
+      console.error("❌ Error cargando claves:", err);
       setError(err instanceof Error ? err.message : "Error desconocido");
+      setIsReady(true); // Marcar como listo aunque haya error
+    }
+  };
+
+  /**
+   * NUEVO MÉTODO: Inicializar claves desde la nube con contraseña
+   * Debe ser llamado después del login exitoso
+   */
+  const initializeKeysFromCloud = async (
+    password: string
+  ): Promise<boolean> => {
+    try {
+      if (!currentUserId) {
+        throw new Error("Usuario no autenticado");
+      }
+
+      console.log("🔄 Intentando recuperar claves de la nube...");
+
+      // Intentar recuperar claves de la nube
+      const cloudKeyPair = await cryptoService.initializeFromCloud(
+        currentUserId,
+        password
+      );
+
+      if (cloudKeyPair) {
+        console.log("✅ Claves recuperadas exitosamente de la nube");
+        setKeyPair(cloudKeyPair);
+        setHasDecryptionErrors(false);
+        return true;
+      } else {
+        console.log("⚠️ No se pudieron recuperar las claves de la nube");
+
+        // Verificar si el usuario tiene claves pero la contraseña es incorrecta
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("encrypted_private_key")
+          .eq("id", currentUserId)
+          .single();
+
+        if (profile?.encrypted_private_key) {
+          console.error(
+            "❌ Las claves existen pero no se pudieron descifrar (¿contraseña incorrecta?)"
+          );
+          setError(
+            "No se pudieron descifrar las claves. Verifica tu contraseña."
+          );
+        } else {
+          console.log("🆕 Usuario sin claves, generando nuevas...");
+          // Generar nuevas claves
+          await generateKeys(password);
+          return true;
+        }
+
+        return false;
+      }
+    } catch (err) {
+      console.error("❌ Error inicializando claves desde la nube:", err);
+      setError(err instanceof Error ? err.message : "Error recuperando claves");
+      return false;
     }
   };
 
@@ -127,7 +216,7 @@ export const useEncryption = (): UseEncryptionReturn => {
         throw new Error("Usuario no autenticado");
       }
 
-      // Log cache stats before generation
+      console.log("🔑 Generando nuevas claves con respaldo en la nube...");
 
       // Always generate with cloud backup
       const newKeyPair = await cryptoService.generateKeyPairWithCloudBackup(
@@ -138,7 +227,9 @@ export const useEncryption = (): UseEncryptionReturn => {
       setKeyPair(newKeyPair);
       setIsReady(true);
       setHasDecryptionErrors(false);
+      console.log("✅ Nuevas claves generadas y respaldadas");
     } catch (err) {
+      console.error("❌ Error generando claves:", err);
       setError(err instanceof Error ? err.message : "Error generando claves");
       throw err;
     }
@@ -427,6 +518,7 @@ export const useEncryption = (): UseEncryptionReturn => {
 
     console.log("\n🔍 === FIN DIAGNÓSTICO ===");
   };
+
   return {
     isReady,
     keyPair,
@@ -441,5 +533,6 @@ export const useEncryption = (): UseEncryptionReturn => {
     debugKeys,
     hasDecryptionErrors,
     error,
+    initializeKeysFromCloud, // NUEVO: Exponer el método
   };
 };

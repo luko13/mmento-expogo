@@ -1,4 +1,4 @@
-// utils/auth.ts - VERSIÓN MEJORADA
+// utils/auth.ts
 import { supabase } from "../lib/supabase"
 import { getAuthToken, setAuthToken, removeAuthToken } from "./storage"
 import { AuthService } from "../services/authService"

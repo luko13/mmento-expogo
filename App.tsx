@@ -1,7 +1,4 @@
-"use client"
-
-// CRÍTICO: Este import DEBE ser el primero de todos
-import 'react-native-get-random-values';
+import './utils/globalInit';
 
 import { useEffect, useState } from "react"
 import { I18nextProvider } from "react-i18next"
@@ -13,48 +10,62 @@ import * as SplashScreen from "expo-splash-screen"
 import { SafeAreaProvider } from "react-native-safe-area-context"
 import i18n from "./i18n"
 
-// Keep splash screen visible while loading fonts
+// Mantener la pantalla de splash visible mientras se cargan las fuentes
 SplashScreen.preventAutoHideAsync()
 
+/**
+ * Componente principal de la aplicación
+ * Gestiona:
+ * - Carga de fuentes personalizadas
+ * - Inicialización de servicios criptográficos
+ * - Configuración de idioma según el dispositivo
+ * - Tema de la aplicación (claro/oscuro)
+ */
 export default function App() {
   const colorScheme = useColorScheme()
+  
+  // Estados para gestionar la carga de recursos
   const [fontsLoaded, setFontsLoaded] = useState(false)
   const [fontError, setFontError] = useState<string | null>(null)
   const [fontInfo, setFontInfo] = useState<string[]>([])
+  
+  // Estados para gestionar la inicialización criptográfica
   const [cryptoInitialized, setCryptoInitialized] = useState(false)
   const [cryptoError, setCryptoError] = useState<string | null>(null)
 
-  // Initialize crypto early
+  /**
+   * Inicializa los servicios criptográficos al montar el componente
+   */
   useEffect(() => {
     initializeCrypto();
   }, []);
 
+  /**
+   * Inicializa y configura los servicios criptográficos de la aplicación
+   * Esta función es crítica para el funcionamiento del cifrado end-to-end
+   */
   const initializeCrypto = async () => {
     try {
       setFontInfo((prev) => [...prev, "🔐 Inicializando servicios de criptografía..."]);
       
-      // Test that react-native-get-random-values is working
-      if (typeof crypto === 'undefined' || typeof crypto.getRandomValues !== 'function') {
-        throw new Error("react-native-get-random-values no está funcionando correctamente");
-      }
-
-      // Test random generation
-      const testArray = new Uint8Array(16);
-      crypto.getRandomValues(testArray);
+      // Paso 1: Inicializar variables globales y polyfills
+      const { initializeGlobals } = await import('./utils/globalInit');
+      const globalsOk = await initializeGlobals();
       
-      if (testArray.every(byte => byte === 0)) {
-        throw new Error("El generador de números aleatorios no está produciendo valores válidos");
+      if (!globalsOk) {
+        throw new Error("No se pudieron inicializar los globals correctamente");
       }
+      
+      setFontInfo((prev) => [...prev, "✅ Globals inicializados correctamente"]);
 
-      setFontInfo((prev) => [...prev, "✅ Generador de números aleatorios OK"]);
-
-      // Test crypto service
+      // Paso 2: Importar y probar el servicio de criptografía
       const { CryptoService } = await import("./utils/cryptoService");
       const cryptoService = CryptoService.getInstance();
       
+      // Verificar que el servicio funcione correctamente
       const isWorking = await cryptoService.testCryptoService();
       if (!isWorking) {
-        throw new Error("CryptoService test failed");
+        throw new Error("El test del CryptoService falló");
       }
 
       setFontInfo((prev) => [...prev, "✅ CryptoService inicializado correctamente"]);
@@ -66,7 +77,7 @@ export default function App() {
       setCryptoError(errorMsg);
       setFontInfo((prev) => [...prev, `❌ Error crypto: ${errorMsg}`]);
       
-      // Show alert for crypto errors
+      // Mostrar alerta al usuario sobre el error
       Alert.alert(
         "Error de Inicialización",
         `Problema con el sistema de cifrado:\n${errorMsg}\n\nLa app funcionará con funcionalidad limitada.`,
@@ -75,13 +86,15 @@ export default function App() {
     }
   };
 
-  // Load fonts
+  /**
+   * Carga las fuentes personalizadas de la aplicación
+   */
   useEffect(() => {
     async function loadFonts() {
       try {
         setFontInfo((prev) => [...prev, "📝 Cargando fuentes..."]);
 
-        // Method 1: Load fonts directly from assets
+        // Método 1: Intentar cargar fuentes desde assets locales
         try {
           await Font.loadAsync({
             "Outfit-Regular": require("./assets/fonts/Outfit-Regular.ttf"),
@@ -90,13 +103,13 @@ export default function App() {
           
           setFontInfo((prev) => [...prev, "✅ Fuentes cargadas desde assets locales"]);
         } catch (error) {
-          console.error("Error loading fonts from assets:", error)
+          console.error("Error cargando fuentes desde assets:", error)
           setFontInfo((prev) => [
             ...prev,
             `❌ Error cargando desde assets: ${error instanceof Error ? error.message : String(error)}`,
           ])
 
-          // Method 2: Try with @expo-google-fonts
+          // Método 2: Fallback a @expo-google-fonts si falla el método 1
           try {
             const Outfit = require("@expo-google-fonts/outfit")
             await Font.loadAsync({
@@ -106,7 +119,7 @@ export default function App() {
             
             setFontInfo((prev) => [...prev, "✅ Fuentes cargadas desde @expo-google-fonts"]);
           } catch (error) {
-            console.error("Error loading fonts from @expo-google-fonts:", error)
+            console.error("Error cargando fuentes desde @expo-google-fonts:", error)
             setFontInfo((prev) => [
               ...prev,
               `❌ Error con @expo-google-fonts: ${error instanceof Error ? error.message : String(error)}`,
@@ -115,13 +128,13 @@ export default function App() {
           }
         }
 
-        // Verify fonts are available
+        // Verificar que las fuentes estén disponibles
         const fontNames = await Font.getLoadedFonts()
         setFontInfo((prev) => [...prev, `📚 Fuentes disponibles: ${fontNames.join(", ")}`]);
 
         setFontsLoaded(true)
       } catch (error) {
-        console.error("Error loading fonts:", error)
+        console.error("Error cargando fuentes:", error)
         setFontError(error instanceof Error ? error.message : String(error))
         setFontInfo((prev) => [...prev, `❌ Error final: ${error instanceof Error ? error.message : String(error)}`])
       }
@@ -130,6 +143,9 @@ export default function App() {
     loadFonts()
   }, [])
 
+  /**
+   * Configura el idioma de la aplicación según el idioma del dispositivo
+   */
   useEffect(() => {
     const getDeviceLanguage = () => {
       const deviceLanguage =
@@ -154,13 +170,17 @@ export default function App() {
 
     setAppLanguage()
 
-    // Hide splash screen when both fonts and crypto are ready
+    // Ocultar splash screen cuando todo esté listo
     if (fontsLoaded && cryptoInitialized) {
       SplashScreen.hideAsync()
     }
   }, [fontsLoaded, cryptoInitialized])
 
-  // Show error if fonts failed to load
+  /**
+   * Renderizado condicional según el estado de carga
+   */
+  
+  // Mostrar error si las fuentes no se pudieron cargar
   if (fontError) {
     return (
       <SafeAreaProvider>
@@ -180,7 +200,7 @@ export default function App() {
     )
   }
 
-  // Show loading while initializing
+  // Mostrar pantalla de carga mientras se inicializan los recursos
   if (!fontsLoaded || !cryptoInitialized) {
     return (
       <SafeAreaProvider>
@@ -206,6 +226,9 @@ export default function App() {
     )
   }
 
+  /**
+   * Configuración del tema de la aplicación
+   */
   const theme = {
     ...(colorScheme === "dark" ? DarkTheme : DefaultTheme),
     colors: {
@@ -231,6 +254,9 @@ export default function App() {
     },
   }
 
+  /**
+   * Renderizado principal de la aplicación
+   */
   return (
     <SafeAreaProvider>
       <I18nextProvider i18n={i18n}>
@@ -242,6 +268,9 @@ export default function App() {
   )
 }
 
+/**
+ * Estilos de la aplicación
+ */
 const styles = StyleSheet.create({
   errorContainer: {
     flex: 1,
