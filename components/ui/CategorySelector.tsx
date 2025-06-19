@@ -53,21 +53,20 @@ export default function CategorySelector({
   const [predefinedCategories, setPredefinedCategories] = useState<Category[]>(
     []
   );
-  const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
+  const [sortedCategories, setSortedCategories] = useState<Category[]>([]);
   const [newCategory, setNewCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [categoryToCreate, setCategoryToCreate] = useState("");
 
   const scrollRef = useRef<ScrollView>(null);
-  const selectedScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     fetchCategories();
   }, [userId]);
 
   useEffect(() => {
-    filterCategories();
+    sortCategoriesBySelection();
   }, [newCategory, userCategories, predefinedCategories, selectedCategories]);
 
   const fetchCategories = async () => {
@@ -87,21 +86,36 @@ export default function CategorySelector({
     }
   };
 
-  const filterCategories = () => {
+  const sortCategoriesBySelection = () => {
     const allCategories = [...userCategories, ...predefinedCategories];
 
-    if (newCategory.trim() === "") {
-      setFilteredCategories(
-        allCategories.filter((cat) => !selectedCategories.includes(cat.id))
+    // Filtrar por búsqueda si hay texto
+    let filtered = allCategories;
+    if (newCategory.trim() !== "") {
+      filtered = allCategories.filter((cat) =>
+        cat.name.toLowerCase().includes(newCategory.toLowerCase())
       );
-    } else {
-      const filtered = allCategories.filter(
-        (cat) =>
-          !selectedCategories.includes(cat.id) &&
-          cat.name.toLowerCase().includes(newCategory.toLowerCase())
-      );
-      setFilteredCategories(filtered);
     }
+
+    // Ordenar: seleccionadas primero
+    const sorted = filtered.sort((a, b) => {
+      const aSelected = selectedCategories.includes(a.id);
+      const bSelected = selectedCategories.includes(b.id);
+
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+
+      // Si ambas están seleccionadas, mantener el orden de selección
+      if (aSelected && bSelected) {
+        return (
+          selectedCategories.indexOf(a.id) - selectedCategories.indexOf(b.id)
+        );
+      }
+
+      return 0;
+    });
+
+    setSortedCategories(sorted);
   };
 
   const toggleCategory = (categoryId: string) => {
@@ -111,8 +125,18 @@ export default function CategorySelector({
         : [...selectedCategories, categoryId];
       onCategoriesChange(updatedCategories);
     } else {
-      // Single selection mode
-      onCategoriesChange([categoryId]);
+      // Single selection mode - si ya está seleccionada, la deselecciona
+      const updatedCategories = selectedCategories.includes(categoryId)
+        ? []
+        : [categoryId];
+      onCategoriesChange(updatedCategories);
+    }
+
+    // Scroll al inicio cuando se selecciona una categoría
+    if (!selectedCategories.includes(categoryId)) {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ x: 0, animated: true });
+      }, 100);
     }
   };
 
@@ -152,74 +176,6 @@ export default function CategorySelector({
     }
   };
 
-  const getSelectedCategoriesData = () => {
-    const allCategories = [...userCategories, ...predefinedCategories];
-    return selectedCategories
-      .map((catId) => allCategories.find((cat) => cat.id === catId))
-      .filter((cat) => cat !== undefined) as Category[];
-  };
-
-  const CategoryCarousel = ({
-    categoriesArray,
-    isSelected = false,
-  }: {
-    categoriesArray: Category[];
-    isSelected?: boolean;
-  }) => {
-    if (categoriesArray.length === 0) return null;
-
-    return (
-      <ScrollView
-        ref={isSelected ? selectedScrollRef : scrollRef}
-        horizontal={true}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          alignItems: "center",
-          height: 44,
-        }}
-        style={{ flex: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {categoriesArray.map((category, index) => (
-          <TouchableOpacity
-            key={category.id}
-            onPress={() => toggleCategory(category.id)}
-            style={{
-              backgroundColor: isSelected
-                ? "rgba(16, 185, 129, 0.8)"
-                : "rgba(255, 255, 255, 0.1)",
-              borderWidth: 1,
-              borderColor: isSelected
-                ? "rgba(16, 185, 129, 0.9)"
-                : "rgba(255, 255, 255, 0.2)",
-              borderRadius: 10,
-              paddingHorizontal: 16,
-              paddingVertical: 8,
-              marginRight: index === categoriesArray.length - 1 ? 16 : 12,
-              height: 36,
-              justifyContent: "center",
-              alignItems: "center",
-              flexDirection: "row",
-            }}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={{
-                color: isSelected ? "white" : "rgba(255, 255, 255, 0.7)",
-                fontSize: 14,
-                textAlign: "center",
-              }}
-            >
-              {category.name}
-            </Text>
-            {isSelected}
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    );
-  };
-
   return (
     <>
       <StyledView className="mb-6">
@@ -255,22 +211,61 @@ export default function CategorySelector({
           </StyledView>
         </StyledView>
 
-        {/* Selected Categories */}
-        {selectedCategories.length > 0 && (
-          <StyledView className="ml-11 mt-3" style={{ height: 44 }}>
-            <CategoryCarousel
-              categoriesArray={getSelectedCategoriesData()}
-              isSelected={true}
-            />
-          </StyledView>
-        )}
-
-        {/* Available Categories */}
-        {filteredCategories.length > 0 && (
-          <StyledView className="mt-4">
-            <StyledView style={{ height: 44 }}>
-              <CategoryCarousel categoriesArray={filteredCategories} />
-            </StyledView>
+        {/* Categories Carousel - Todas juntas, seleccionadas primero */}
+        {sortedCategories.length > 0 && (
+          <StyledView className="mt-4" style={{ height: 44 }}>
+            <ScrollView
+              ref={scrollRef}
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                alignItems: "center",
+                height: 44,
+              }}
+              style={{ flex: 1 }}
+              keyboardShouldPersistTaps="handled"
+            >
+              {sortedCategories.map((category, index) => {
+                const isSelected = selectedCategories.includes(category.id);
+                return (
+                  <TouchableOpacity
+                    key={category.id}
+                    onPress={() => toggleCategory(category.id)}
+                    style={{
+                      backgroundColor: isSelected
+                        ? "rgba(255, 255, 255, 0.30)"
+                        : "rgba(255, 255, 255, 0.1)",
+                      borderWidth: 1,
+                      borderColor: isSelected
+                        ? "rgba(255, 255, 255, 0.5)"
+                        : "rgba(255, 255, 255, 0.2)",
+                      borderRadius: 10,
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      marginRight:
+                        index === sortedCategories.length - 1 ? 16 : 12,
+                      height: 36,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      flexDirection: "row",
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={{
+                        color: isSelected
+                          ? "white"
+                          : "rgba(255, 255, 255, 0.7)",
+                        fontSize: 14,
+                        textAlign: "center",
+                      }}
+                    >
+                      {category.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </StyledView>
         )}
       </StyledView>

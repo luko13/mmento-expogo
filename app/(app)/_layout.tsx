@@ -1,14 +1,20 @@
 "use client";
 
-import { View, Image, Dimensions, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity, Dimensions } from "react-native";
 import { styled } from "nativewind";
 import { Slot, useRouter, usePathname } from "expo-router";
-import { Ionicons, FontAwesome5, FontAwesome } from "@expo/vector-icons";
+import {
+  Ionicons,
+  FontAwesome,
+  AntDesign,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledBlurView = styled(BlurView);
 const { width, height } = Dimensions.get("window");
 
 export default function AppLayout() {
@@ -16,7 +22,7 @@ export default function AppLayout() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
 
-  // Verificar si estamos en la ruta de add-magic
+  // Verificar si estamos en rutas que no deben mostrar navbar
   const isAddMagicRoute = pathname.includes("/add-magic");
   const isAddTechniqueRoute = pathname.includes("/add-technique");
   const isAddGimmickRoute = pathname.includes("/add-gimmick");
@@ -29,53 +35,129 @@ export default function AppLayout() {
   const isGimmickViewRoute =
     pathname.includes("/gimmick/") || pathname.includes("/gimmicks/");
 
+  const shouldHideNavbar =
+    isAddMagicRoute ||
+    isAddTechniqueRoute ||
+    isAddQuickMagicRoute ||
+    isTrickViewRoute ||
+    isTechniqueViewRoute ||
+    isGimmickViewRoute;
+
+  // Determinar ruta activa
+  const getActiveRoute = () => {
+    if (pathname.includes("/home")) return "home";
+    if (pathname.includes("/notifications")) return "notifications";
+    if (pathname.includes("/add-magic")) return "add";
+    if (pathname.includes("/videos")) return "video";
+    if (pathname.includes("/ai")) return "ai";
+    return "home";
+  };
+
+  const navItems = [
+    {
+      id: "home",
+      icon: "home",
+      route: "/(app)/home",
+      library: "antdesign",
+      size: 30,
+    },
+    {
+      id: "notifications",
+      icon: "notifications-outline",
+      route: "/(app)/notifications",
+      library: "ionicons",
+      size: 30,
+    },
+    {
+      id: "add",
+      icon: "magic",
+      route: "/(app)/add-magic",
+      special: true,
+      library: "fontawesome",
+      size: 30,
+    },
+    {
+      id: "video",
+      icon: "play-circle-outline",
+      route: "/(app)/videos",
+      library: "ionicons",
+      size: 30,
+    },
+    {
+      id: "ai",
+      icon: "robot-angry-outline",
+      route: "/(app)/ai",
+      library: "materialcommunity",
+      size: 30,
+    },
+  ];
+
   return (
     <StyledView className="flex-1">
-      {/* Contenido principal SIN SafeAreaView wrapper - las pantallas individuales manejan sus own safe areas */}
+      {/* Contenido principal */}
       <Slot />
 
-      {/* Bottom navigation bar que respeta las safe areas */}
-      {!isAddMagicRoute &&
-        !isAddTechniqueRoute &&
-        !isAddQuickMagicRoute &&
-        !isTrickViewRoute &&
-        !isTechniqueViewRoute &&
-        !isGimmickViewRoute && (
-          <StyledView
-            className="absolute bottom-0 left-24 right-0 z-10"
+      {/* Glass morphism navbar */}
+      {!shouldHideNavbar && (
+        <StyledView className="absolute bottom-0 left-0 right-0">
+          <StyledBlurView
+            intensity={40}
+            tint="dark"
+            className="overflow-hidden"
             style={{
-              height: 48 + insets.bottom,
-              backgroundColor: "rgba(15, 63, 52, 0.80)",
-              borderTopStartRadius: 20,
-              borderBottomLeftRadius: 20,
-              overflow: "hidden",
+              backgroundColor: "rgba(255, 255, 255, 0.15)",
+              borderTopWidth: 1,
+              borderTopColor: "rgba(255, 255, 255, 0.2)",
               paddingBottom: insets.bottom,
             }}
           >
-            <StyledView className="flex-1 flex-row justify-evenly items-center">
-              <StyledTouchableOpacity
-                onPress={() => router.push("/(app)/home")}
-                className="p-3"
-              >
-                <Ionicons name="home" size={24} color="#FFFFFF" />
-              </StyledTouchableOpacity>
-
-              <StyledTouchableOpacity
-                onPress={() => router.push("/(app)/tricks")}
-                className="p-3"
-              >
-                <FontAwesome5 name="magic" size={24} color="#FFFFFF" />
-              </StyledTouchableOpacity>
-
-              <StyledTouchableOpacity
-                onPress={() => router.push("/(app)/profile")}
-                className="p-3"
-              >
-                <FontAwesome name="user" size={24} color="#FFFFFF" />
-              </StyledTouchableOpacity>
+            <StyledView className="flex-row justify-evenly items-center py-3">
+              {navItems.map((item) => (
+                <StyledTouchableOpacity
+                  key={item.id}
+                  onPress={() => router.push(item.route)}
+                  className="p-3"
+                  style={{
+                    opacity: getActiveRoute() === item.id ? 1 : 0.6,
+                    ...(item.special
+                      ? {
+                          backgroundColor: "rgba(255, 255, 255, 0.2)",
+                          borderRadius: 12,
+                        }
+                      : {}),
+                  }}
+                >
+                  {item.library === "antdesign" ? (
+                    <AntDesign
+                      name={item.icon as any}
+                      size={item.size}
+                      color="#FFFFFF"
+                    />
+                  ) : item.library === "fontawesome" ? (
+                    <FontAwesome
+                      name={item.icon as any}
+                      size={item.size}
+                      color="#FFFFFF"
+                    />
+                  ) : item.library === "materialcommunity" ? (
+                    <MaterialCommunityIcons
+                      name={item.icon as any}
+                      size={item.size}
+                      color="#FFFFFF"
+                    />
+                  ) : (
+                    <Ionicons
+                      name={item.icon as any}
+                      size={item.size}
+                      color="#FFFFFF"
+                    />
+                  )}
+                </StyledTouchableOpacity>
+              ))}
             </StyledView>
-          </StyledView>
-        )}
+          </StyledBlurView>
+        </StyledView>
+      )}
     </StyledView>
   );
 }

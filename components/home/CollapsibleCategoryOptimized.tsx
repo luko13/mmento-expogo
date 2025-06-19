@@ -51,29 +51,6 @@ interface Props {
   onMoreOptions: (category: any) => void;
 }
 
-// Memoized icon component
-const ItemIcon = memo(({ type }: { type: string }) => {
-  switch (type) {
-    case "magic":
-      return (
-        <FontAwesome
-          name="magic"
-          size={20}
-          color="white"
-          style={{ transform: [{ scaleX: -1 }] }}
-        />
-      );
-    case "gimmick":
-      return <Feather name="box" size={20} color="white" />;
-    case "technique":
-      return <MaterialIcons name="animation" size={20} color="white" />;
-    default:
-      return <FontAwesome name="file-text-o" size={20} color="white" />;
-  }
-});
-
-ItemIcon.displayName = 'ItemIcon';
-
 // Memoized library item row
 const LibraryItemRow = memo(({ 
   item, 
@@ -93,7 +70,6 @@ const LibraryItemRow = memo(({
       ]}
     >
       <StyledView className="flex-row items-center flex-1">
-        <ItemIcon type={item.type} />
         <StyledText 
           className="text-white ml-2 flex-1" 
           numberOfLines={1}
@@ -225,7 +201,7 @@ const CollapsibleCategoryOptimized = ({
   return (
     <StyledView className="mb-4 px-4">
       <StyledTouchableOpacity
-        className="flex-row justify-between items-center bg-white/10 px-3 border border-white/20 rounded-lg mb-2"
+        className="flex-row justify-between items-center bg-white/10 px-3 border border-white/40 rounded-lg mb-2"
         onPress={toggleExpanded}
         activeOpacity={0.7}
       >

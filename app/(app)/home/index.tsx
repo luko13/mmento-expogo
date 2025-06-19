@@ -20,7 +20,6 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import UserProfile from "../../../components/home/UserProfile";
-import ActionButtonsCarousel from "../../../components/home/ActionButtonsCarousel";
 import LibrariesSection from "../../../components/home/LibrariesSection";
 import CompactSearchBar, {
   type SearchFilters,
@@ -383,18 +382,6 @@ export default function Home() {
             />
           </StyledView>
 
-          {/* Action Buttons Carousel - animates up and out when search is visible */}
-          <StyledAnimatedView
-            style={{
-              marginBottom: 2,
-              zIndex: 10,
-              transform: [{ translateY: carouselTranslateY }],
-              opacity: carouselOpacity,
-              pointerEvents: carouselInteractive ? "auto" : "none",
-            }}
-          >
-            <ActionButtonsCarousel />
-          </StyledAnimatedView>
 
           {/* Swipe Indicator / Search Bar Container */}
           <StyledView

@@ -16,6 +16,7 @@ import {
   Ionicons,
   FontAwesome6,
   MaterialIcons,
+  AntDesign,
 } from "@expo/vector-icons";
 import { supabase } from "../../../lib/supabase";
 import type { EncryptedMagicTrick } from "../../../types/encryptedMagicTrick";
@@ -34,6 +35,7 @@ interface StepProps {
   updateTrickData: (data: Partial<EncryptedMagicTrick>) => void;
   onNext?: () => void;
   onCancel?: () => void;
+  onSave?: () => void;
   currentStep?: number;
   totalSteps?: number;
   isSubmitting?: boolean;
@@ -48,6 +50,7 @@ export default function TitleCategoryStepEncrypted({
   updateTrickData,
   onNext,
   onCancel,
+  onSave,
   currentStep = 1,
   totalSteps = 3,
   isSubmitting = false,
@@ -300,38 +303,57 @@ export default function TitleCategoryStepEncrypted({
             })}
           </StyledText>
 
-          {/* Next Button */}
-          <StyledTouchableOpacity
-            className={`w-full py-4 rounded-lg items-center justify-center flex-row ${
-              isFormValid && !isSubmitting ? "bg-emerald-700" : "bg-white/10"
-            }`}
-            disabled={!isFormValid || isSubmitting}
-            onPress={() => {
-              if (isFormValid && onNext) {
-                onNext();
-              }
-            }}
-          >
-            {isSubmitting ? (
-              <>
-                <StyledText className="text-white font-semibold text-base mr-2">
-                  {t("actions.saving")}
-                </StyledText>
-                <Ionicons name="refresh" size={20} color="white" />
-              </>
-            ) : (
-              <>
-                <StyledText className="text-white font-semibold text-base mr-2">
-                  {isLastStep ? t("actions.save") : t("actions.next")}
-                </StyledText>
-                {isLastStep ? (
-                  <Feather name="shield" size={20} color="white" />
-                ) : (
-                  <Feather name="chevron-right" size={20} color="white" />
-                )}
-              </>
-            )}
-          </StyledTouchableOpacity>
+          {/* Buttons Container */}
+          <StyledView className="flex-row space-x-3">
+            {/* Save Button */}
+            <StyledTouchableOpacity
+              className={`flex-1 py-4 rounded-lg items-center justify-center flex-row ${
+                isFormValid && !isSubmitting
+                  ? "bg-white/10 "
+                  : "bg-transparent border border-[#5bb9a3]/50"
+              }`}
+              disabled={!isFormValid || isSubmitting}
+              onPress={() => {
+                if (isFormValid && onSave) {
+                  onSave();
+                }
+              }}
+            >
+              {isSubmitting ? (
+                <>
+                  <StyledText className="text-white font-semibold text-base mr-2">
+                    {t("actions.saving")}
+                  </StyledText>
+                  <Ionicons name="refresh" size={20} color="white" />
+                </>
+              ) : (
+                <>
+                  <StyledText className="text-white font-semibold text-base mr-2">
+                    {t("actions.save")}
+                  </StyledText>
+                  <AntDesign name="check" size={20} color="white" />
+                </>
+              )}
+            </StyledTouchableOpacity>
+
+            {/* Next Button */}
+            <StyledTouchableOpacity
+              className={`flex-1 py-4 rounded-lg items-center justify-center flex-row ${
+                isFormValid && !isSubmitting ? "bg-emerald-700" : "bg-white/10"
+              }`}
+              disabled={!isFormValid || isSubmitting || isLastStep}
+              onPress={() => {
+                if (isFormValid && onNext) {
+                  onNext();
+                }
+              }}
+            >
+              <StyledText className="text-white font-semibold text-base mr-2">
+                {t("actions.content", "Content")}
+              </StyledText>
+              <Feather name="chevron-right" size={20} color="white" />
+            </StyledTouchableOpacity>
+          </StyledView>
         </StyledView>
       </StyledView>
     </StyledView>

@@ -49,14 +49,13 @@ export default function TagSelector({
 }: TagSelectorProps) {
   const { t } = useTranslation();
   const [tags, setTags] = useState<Tag[]>([]);
-  const [filteredTags, setFilteredTags] = useState<Tag[]>([]);
+  const [sortedTags, setSortedTags] = useState<Tag[]>([]);
   const [newTag, setNewTag] = useState("");
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [tagToCreate, setTagToCreate] = useState("");
 
   const scrollRef = useRef<ScrollView>(null);
-  const selectedScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (userId) {
@@ -65,7 +64,7 @@ export default function TagSelector({
   }, [userId]);
 
   useEffect(() => {
-    filterTags();
+    sortTagsBySelectionAndUsage();
   }, [newTag, tags, selectedTags]);
 
   const fetchTags = async () => {
@@ -89,32 +88,49 @@ export default function TagSelector({
     }
   };
 
-  const filterTags = () => {
-    if (newTag.trim() === "") {
-      setFilteredTags(
-        tags
-          .filter((tag) => !selectedTags.includes(tag.id))
-          .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
-      );
-    } else {
-      const filtered = tags
-        .filter(
-          (tag) =>
-            !selectedTags.includes(tag.id) &&
-            tag.name.toLowerCase().includes(newTag.toLowerCase())
-        )
-        .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0));
+  const sortTagsBySelectionAndUsage = () => {
+    let filtered = [...tags];
 
-      setFilteredTags(filtered);
+    // Filtrar por búsqueda si hay texto
+    if (newTag.trim() !== "") {
+      filtered = tags.filter((tag) =>
+        tag.name.toLowerCase().includes(newTag.toLowerCase())
+      );
     }
+
+    // Ordenar: seleccionadas primero (manteniendo orden de selección), luego por uso
+    const sorted = filtered.sort((a, b) => {
+      const aSelected = selectedTags.includes(a.id);
+      const bSelected = selectedTags.includes(b.id);
+
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+
+      // Si ambas están seleccionadas, mantener el orden de selección
+      if (aSelected && bSelected) {
+        return selectedTags.indexOf(a.id) - selectedTags.indexOf(b.id);
+      }
+
+      // Si ninguna está seleccionada, ordenar por uso (mayor a menor)
+      return (b.usage_count || 0) - (a.usage_count || 0);
+    });
+
+    setSortedTags(sorted);
   };
 
-  const toggleTag = (tagId: string) => {
+  const toggleTag = async (tagId: string) => {
     const updatedTags = selectedTags.includes(tagId)
       ? selectedTags.filter((id) => id !== tagId)
       : [...selectedTags, tagId];
 
     onTagsChange(updatedTags);
+
+    // Hacer scroll al inicio cuando se selecciona
+    if (!selectedTags.includes(tagId)) {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ x: 0, animated: true });
+      }, 100);
+    }
   };
 
   const handleAddTag = () => {
@@ -164,12 +180,6 @@ export default function TagSelector({
     }
   };
 
-  const getSelectedTagsData = () => {
-    return selectedTags
-      .map((tagId) => tags.find((tag) => tag.id === tagId))
-      .filter((tag) => tag !== undefined) as Tag[];
-  };
-
   const COLOR_MAPPINGS: { [key: string]: string } = {
     // Verde
     "#4CAF50": "#C8E6C9", // medio -> claro
@@ -190,82 +200,10 @@ export default function TagSelector({
     // Rojo
     "#F44336": "#FFCDD2", // medio -> claro
     "#B71C1C": "#FFCDD2", // oscuro -> claro
-    
+
     // Grises
     "#9E9E9E": "#F5F5F5", // gris medio -> gris claro
     "#424242": "#F5F5F5", // gris oscuro -> gris claro
-  };
-
-  const TagCarousel = ({
-    tagsArray,
-    isSelected = false,
-  }: {
-    tagsArray: Tag[];
-    isSelected?: boolean;
-  }) => {
-    if (tagsArray.length === 0) return null;
-
-    return (
-      <ScrollView
-        ref={isSelected ? selectedScrollRef : scrollRef}
-        horizontal={true}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          alignItems: "center",
-          height: 44,
-        }}
-        style={{ flex: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {tagsArray.map((tag, index) => {
-          const tagColor = tag.color || "#5bb9a3";
-          const lightColor = COLOR_MAPPINGS[tagColor] || tagColor;
-
-          return (
-            <TouchableOpacity
-              key={tag.id}
-              onPress={() => toggleTag(tag.id)}
-              style={{
-                backgroundColor: isSelected
-                  ? tagColor + "30" // 30 for selected (more opaque)
-                  : tagColor + "15", // 15 for unselected (more transparent)
-                borderWidth: 1,
-                borderColor: isSelected ? lightColor : tagColor + "60",
-                borderRadius: 20,
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                marginRight: index === tagsArray.length - 1 ? 16 : 12,
-                height: 36,
-                justifyContent: "center",
-                alignItems: "center",
-                flexDirection: "row",
-              }}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={{
-                  color: isSelected ? lightColor : tagColor + "DD", // DD for slightly transparent text when not selected
-                  fontSize: 14,
-                  textAlign: "center",
-                  fontWeight: isSelected ? "500" : "400",
-                }}
-              >
-                {tag.name}
-              </Text>
-              {isSelected && (
-                <Feather
-                  name="x"
-                  size={14}
-                  color={tagColor}
-                  style={{ marginLeft: 4 }}
-                />
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-    );
   };
 
   return (
@@ -301,19 +239,68 @@ export default function TagSelector({
           </StyledView>
         </StyledView>
 
-        {/* Selected Tags */}
-        {selectedTags.length > 0 && (
-          <StyledView className="ml-11 mt-3" style={{ height: 44 }}>
-            <TagCarousel tagsArray={getSelectedTagsData()} isSelected={true} />
-          </StyledView>
-        )}
+        {/* Single Carousel - Selected tags first, then by usage */}
+        {sortedTags.length > 0 && (
+          <StyledView className="mt-4" style={{ height: 44 }}>
+            <ScrollView
+              ref={scrollRef}
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                alignItems: "center",
+                height: 44,
+              }}
+              style={{ flex: 1 }}
+              keyboardShouldPersistTaps="handled"
+            >
+              {sortedTags.map((tag, index) => {
+                const isSelected = selectedTags.includes(tag.id);
+                const tagColor = tag.color || "#5bb9a3";
+                const lightColor = COLOR_MAPPINGS[tagColor] || tagColor;
 
-        {/* Available Tags */}
-        {filteredTags.length > 0 && (
-          <StyledView className="mt-4">
-            <StyledView style={{ height: 44 }}>
-              <TagCarousel tagsArray={filteredTags} />
-            </StyledView>
+                return (
+                  <TouchableOpacity
+                    key={tag.id}
+                    onPress={() => toggleTag(tag.id)}
+                    style={{
+                      backgroundColor: isSelected
+                        ? tagColor + "30" // 30 for selected (more opaque)
+                        : tagColor + "15", // 15 for unselected (more transparent)
+                      borderWidth: 1,
+                      borderColor: isSelected ? lightColor : tagColor + "60",
+                      borderRadius: 20,
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      marginRight: index === sortedTags.length - 1 ? 16 : 12,
+                      height: 36,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      flexDirection: "row",
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={{
+                        color: isSelected ? lightColor : tagColor + "DD",
+                        fontSize: 14,
+                        textAlign: "center",
+                        fontWeight: isSelected ? "500" : "400",
+                      }}
+                    >
+                      {tag.name}
+                    </Text>
+                    {isSelected && (
+                      <Feather
+                        name="x"
+                        size={14}
+                        color={lightColor}
+                        style={{ marginLeft: 4 }}
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </StyledView>
         )}
       </StyledView>

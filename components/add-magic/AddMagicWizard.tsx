@@ -44,7 +44,7 @@ export default function AddMagicWizardEncrypted({
     secretVideo?: string;
     photos?: string[];
   }>({});
-  
+
   // Hook de cifrado
   const {
     isReady: encryptionReady,
@@ -118,7 +118,10 @@ export default function AddMagicWizardEncrypted({
         });
 
         if (error) {
-          console.error(`Error incrementing usage count for tag ${tagId}:`, error);
+          console.error(
+            `Error incrementing usage count for tag ${tagId}:`,
+            error
+          );
         }
       }
     } catch (error) {
@@ -281,7 +284,10 @@ export default function AddMagicWizardEncrypted({
       if (!keyPair) {
         Alert.alert(
           t("security.encryptionRequired", "Cifrado Requerido"),
-          t("security.setupEncryptionFirst", "Configura el cifrado antes de guardar el truco"),
+          t(
+            "security.setupEncryptionFirst",
+            "Configura el cifrado antes de guardar el truco"
+          ),
           [
             { text: t("actions.cancel", "Cancelar"), style: "cancel" },
             {
@@ -294,7 +300,9 @@ export default function AddMagicWizardEncrypted({
       }
 
       // Obtener usuario
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         Alert.alert(t("error"), t("userNotFound", "Usuario no encontrado"));
         return;
@@ -319,7 +327,7 @@ export default function AddMagicWizardEncrypted({
         uri: string;
         fileName: string;
         mimeType: string;
-        originalType: 'effect' | 'secret' | 'photo';
+        originalType: "effect" | "secret" | "photo";
         photoIndex?: number;
       }> = [];
 
@@ -329,7 +337,7 @@ export default function AddMagicWizardEncrypted({
           uri: trickData.localFiles.effectVideo,
           fileName: `effect_video_${Date.now()}.mp4`,
           mimeType: "video/mp4",
-          originalType: 'effect'
+          originalType: "effect",
         });
         console.log("✅ Video de efecto agregado a la cola");
       }
@@ -340,23 +348,28 @@ export default function AddMagicWizardEncrypted({
           uri: trickData.localFiles.secretVideo,
           fileName: `secret_video_${Date.now()}.mp4`,
           mimeType: "video/mp4",
-          originalType: 'secret'
+          originalType: "secret",
         });
         console.log("✅ Video secreto agregado a la cola");
       }
 
       // Add photos if exist
-      if (trickData.localFiles?.photos && trickData.localFiles.photos.length > 0) {
+      if (
+        trickData.localFiles?.photos &&
+        trickData.localFiles.photos.length > 0
+      ) {
         trickData.localFiles.photos.forEach((photoUri, index) => {
           allFiles.push({
             uri: photoUri,
             fileName: `trick_photo_${Date.now()}_${index}.jpg`,
             mimeType: "image/jpeg",
-            originalType: 'photo',
-            photoIndex: index
+            originalType: "photo",
+            photoIndex: index,
           });
         });
-        console.log(`✅ ${trickData.localFiles.photos.length} fotos agregadas a la cola`);
+        console.log(
+          `✅ ${trickData.localFiles.photos.length} fotos agregadas a la cola`
+        );
       }
 
       console.log("\n📊 RESUMEN DE ARCHIVOS A SUBIR:");
@@ -367,21 +380,28 @@ export default function AddMagicWizardEncrypted({
       // Upload all files with optimized batch processing
       if (allFiles.length > 0) {
         console.log("\n🔐 INICIANDO CIFRADO Y UPLOAD...");
-        
+
         try {
-          const uploadMetadata = await fileEncryptionService.batchEncryptAndUploadFilesOptimized(
-            allFiles.map(f => ({ uri: f.uri, fileName: f.fileName, mimeType: f.mimeType })),
-            profileId,
-            [profileId],
-            getPublicKey,
-            () => keyPair.privateKey,
-            (progress, fileName) => {
-              console.log(`📤 Progreso: ${progress.toFixed(0)}% - ${fileName}`);
-              if (trickData.uploadProgressCallback) {
-                trickData.uploadProgressCallback(progress, fileName);
+          const uploadMetadata =
+            await fileEncryptionService.batchEncryptAndUploadFilesOptimized(
+              allFiles.map((f) => ({
+                uri: f.uri,
+                fileName: f.fileName,
+                mimeType: f.mimeType,
+              })),
+              profileId,
+              [profileId],
+              getPublicKey,
+              () => keyPair.privateKey,
+              (progress, fileName) => {
+                console.log(
+                  `📤 Progreso: ${progress.toFixed(0)}% - ${fileName}`
+                );
+                if (trickData.uploadProgressCallback) {
+                  trickData.uploadProgressCallback(progress, fileName);
+                }
               }
-            }
-          );
+            );
 
           console.log("\n✅ UPLOADS COMPLETADOS:");
           console.log("Metadatos recibidos:", uploadMetadata.length);
@@ -400,26 +420,36 @@ export default function AddMagicWizardEncrypted({
 
           uploadMetadata.forEach((metadata, index) => {
             const originalFile = allFiles[index];
-            
+
             console.log(`\n🔍 Asignando archivo ${index}:`);
-            console.log(`- Original: ${originalFile.originalType} - ${originalFile.fileName}`);
-            console.log(`- Metadata: ${metadata.fileId} - ${metadata.mimeType}`);
+            console.log(
+              `- Original: ${originalFile.originalType} - ${originalFile.fileName}`
+            );
+            console.log(
+              `- Metadata: ${metadata.fileId} - ${metadata.mimeType}`
+            );
 
             // Asignar según el tipo ORIGINAL, no el metadata
             switch (originalFile.originalType) {
-              case 'effect':
+              case "effect":
                 encryptedFileIds.effect_video = metadata.fileId;
-                console.log(`✅ Asignado como VIDEO DE EFECTO: ${metadata.fileId}`);
+                console.log(
+                  `✅ Asignado como VIDEO DE EFECTO: ${metadata.fileId}`
+                );
                 break;
-              
-              case 'secret':
+
+              case "secret":
                 encryptedFileIds.secret_video = metadata.fileId;
-                console.log(`✅ Asignado como VIDEO SECRETO: ${metadata.fileId}`);
+                console.log(
+                  `✅ Asignado como VIDEO SECRETO: ${metadata.fileId}`
+                );
                 break;
-              
-              case 'photo':
+
+              case "photo":
                 photoIds.push(metadata.fileId);
-                console.log(`✅ Asignado como FOTO ${originalFile.photoIndex}: ${metadata.fileId}`);
+                console.log(
+                  `✅ Asignado como FOTO ${originalFile.photoIndex}: ${metadata.fileId}`
+                );
                 break;
             }
           });
@@ -436,7 +466,6 @@ export default function AddMagicWizardEncrypted({
           console.log("- effect_video:", encryptedFileIds.effect_video);
           console.log("- secret_video:", encryptedFileIds.secret_video);
           console.log("- photos:", encryptedFileIds.photos);
-
         } catch (error) {
           console.error("❌ Error en batch file upload:", error);
           throw new Error("Error al subir archivos");
@@ -462,9 +491,16 @@ export default function AddMagicWizardEncrypted({
           is_public: encryptedTrickData.is_public,
           status: encryptedTrickData.status,
           price: encryptedTrickData.price,
-          photo_url: encryptedFileIds.photos?.[0] || encryptedFileIds.photo || encryptedTrickData.photo_url,
-          effect_video_url: encryptedFileIds.effect_video || encryptedTrickData.effect_video_url,
-          secret_video_url: encryptedFileIds.secret_video || encryptedTrickData.secret_video_url,
+          photo_url:
+            encryptedFileIds.photos?.[0] ||
+            encryptedFileIds.photo ||
+            encryptedTrickData.photo_url,
+          effect_video_url:
+            encryptedFileIds.effect_video ||
+            encryptedTrickData.effect_video_url,
+          secret_video_url:
+            encryptedFileIds.secret_video ||
+            encryptedTrickData.secret_video_url,
           views_count: 0,
           likes_count: 0,
           dislikes_count: 0,
@@ -486,13 +522,22 @@ export default function AddMagicWizardEncrypted({
       console.log("- effect_video_url:", rpcData.trick_data.effect_video_url);
       console.log("- secret_video_url:", rpcData.trick_data.secret_video_url);
       console.log("- photo_url:", rpcData.trick_data.photo_url);
-      console.log("- encrypted_files:", rpcData.encryption_metadata.encrypted_files);
+      console.log(
+        "- encrypted_files:",
+        rpcData.encryption_metadata.encrypted_files
+      );
 
-      const { data, error } = await supabase.rpc("create_encrypted_magic_trick", rpcData);
+      const { data, error } = await supabase.rpc(
+        "create_encrypted_magic_trick",
+        rpcData
+      );
 
       if (error) {
         console.error("❌ Error al crear el truco:", error);
-        Alert.alert(t("error"), t("errorCreatingTrick", "Error creando el truco"));
+        Alert.alert(
+          t("error"),
+          t("errorCreatingTrick", "Error creando el truco")
+        );
         return;
       }
 
@@ -586,7 +631,9 @@ export default function AddMagicWizardEncrypted({
       console.error("❌ Error durante el guardado:", error);
       Alert.alert(
         t("error", "Error"),
-        error instanceof Error ? error.message : t("unexpectedError", "Ocurrió un error inesperado")
+        error instanceof Error
+          ? error.message
+          : t("unexpectedError", "Ocurrió un error inesperado")
       );
     } finally {
       setIsSubmitting(false);
@@ -723,7 +770,7 @@ export default function AddMagicWizardEncrypted({
         setEncryptionTasks={setEncryptionTasks}
         onNext={goToNextStep}
         onCancel={goToPreviousStep}
-        onSave={handleSubmit} 
+        onSave={handleSubmit}
         currentStep={currentStep + 1}
         totalSteps={steps.length}
         isSubmitting={isSubmitting}
