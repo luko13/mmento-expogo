@@ -1,63 +1,35 @@
-// components/add-magic/AddMagicWizardEncrypted.tsx
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState } from "react";
 import { Alert } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "../../lib/supabase";
-import { useEncryption } from "../../hooks/useEncryption";
-import { FileEncryptionService } from "../../utils/fileEncryption";
-import { EncryptionSetup } from "../security/EncryptionSetup";
-import {
-  type EncryptedMagicTrick,
-  type MagicTrickDBRecord,
-} from "../../types/encryptedMagicTrick";
-import TitleCategoryStepEncrypted from "./steps/TitleCategoryStep";
-import EffectStepEncrypted from "./steps/EffectStep";
-import ExtrasStepEncrypted from "./steps/ExtrasStep";
+import { uploadFileToStorage } from "../../utils/mediaUtils";
+import type { EncryptedMagicTrick } from "../../types/encryptedMagicTrick";
+import TitleCategoryStep from "./steps/TitleCategoryStep";
+import EffectStep from "./steps/EffectStep";
+import ExtrasStep from "./steps/ExtrasStep";
 import SuccessCreationModal from "../ui/SuccessCreationModal";
-import { CryptoService } from "../../utils/cryptoService";
 
-interface AddMagicWizardEncryptedProps {
+interface AddMagicWizardProps {
   onComplete?: (trickId: string) => void;
   onCancel?: () => void;
   onViewItem?: (trickId: string) => void;
 }
 
-export default function AddMagicWizardEncrypted({
+export default function AddMagicWizard({
   onComplete,
   onCancel,
   onViewItem,
-}: AddMagicWizardEncryptedProps) {
+}: AddMagicWizardProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showEncryptionSetup, setShowEncryptionSetup] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdItemId, setCreatedItemId] = useState<string | null>(null);
-  const [savedPhotos, setSavedPhotos] = useState<string[]>([]);
-  const [encryptionTasks, setEncryptionTasks] = useState<{
-    effectVideo?: string;
-    secretVideo?: string;
-    photos?: string[];
-  }>({});
-
-  // Hook de cifrado
-  const {
-    isReady: encryptionReady,
-    keyPair,
-    encryptForSelf,
-    getPublicKey,
-    generateKeys,
-    error: encryptionError,
-  } = useEncryption();
-
-  const fileEncryptionService = new FileEncryptionService();
-
-  // Estado inicial del truco con cifrado
   const [trickData, setTrickData] = useState<EncryptedMagicTrick>({
     title: "",
     categories: [],
@@ -80,717 +52,145 @@ export default function AddMagicWizardEncrypted({
     is_public: false,
     status: "draft",
     price: null,
-    isEncryptionEnabled: true,
+    isEncryptionEnabled: false,
     encryptedFields: {},
     encryptedFiles: {},
-    localFiles: {
-      effectVideo: null,
-      secretVideo: null,
-      photos: [],
-    },
+    localFiles: { effectVideo: null, secretVideo: null, photos: [] },
   });
 
-  // Actualizar datos del truco
   const updateTrickData = (data: Partial<EncryptedMagicTrick>) => {
     setTrickData((prev) => ({ ...prev, ...data }));
   };
 
-  // Generar claves automáticamente si no existen
-  useEffect(() => {
-    const checkEncryptionSetup = async () => {
-      if (encryptionReady && !keyPair) {
-        // Si no hay claves, mostrar el modal de configuración
-        setShowEncryptionSetup(true);
-      }
-    };
-
-    checkEncryptionSetup();
-  }, [encryptionReady, keyPair]);
-
-  // Función para actualizar el contador de uso de las etiquetas
-  const updateTagsUsageCount = async (tagIds: string[]) => {
-    try {
-      if (!tagIds || tagIds.length === 0) return;
-
-      for (const tagId of tagIds) {
-        const { error } = await supabase.rpc("increment_tag_usage", {
-          tag_id: tagId,
-        });
-
-        if (error) {
-          console.error(
-            `Error incrementing usage count for tag ${tagId}:`,
-            error
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Error updating tag usage counts:", error);
-    }
-  };
-
-  // Pasos del asistente con componentes cifrados
   const steps = [
-    {
-      title: t("titleAndCategories", "Title & Categories"),
-      component: TitleCategoryStepEncrypted,
-    },
-    { title: t("effect", "Effect"), component: EffectStepEncrypted },
-    { title: t("extras", "Extras"), component: ExtrasStepEncrypted },
+    { title: t("titleAndCategories", "Title & Categories"), component: TitleCategoryStep },
+    { title: t("effect", "Effect"), component: EffectStep },
+    { title: t("extras", "Extras"), component: ExtrasStep },
   ];
 
-  // Validación de los campos obligatorios
-  const validateCurrentStep = (): {
-    isValid: boolean;
-    errorMessage?: string;
-  } => {
-    return { isValid: true }; //Siempre devuelve true, ya no hay campos obligatorios.
-  };
-
-  const isNextButtonDisabled = useMemo(() => {
-    const validation = validateCurrentStep();
-    return !validation.isValid;
-  }, [trickData, currentStep]);
-
-  // Ir al paso anterior
-  const goToPreviousStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    } else if (onCancel) {
-      onCancel();
-    }
-  };
-
-  // Ir al siguiente paso
-  const goToNextStep = async () => {
+  const handleSubmit = async () => {
     try {
-      const validation = validateCurrentStep();
+      setIsSubmitting(true);
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData?.user;
+      if (!user) throw new Error("User not found");
 
-      if (!validation.isValid) {
-        Alert.alert(
-          t("validationError", "Error de Validación"),
-          validation.errorMessage,
-          [{ text: t("ok", "OK") }]
+      const uploads: { [key: string]: string | null } = {};
+      if (trickData.localFiles?.effectVideo) {
+        uploads.effect_video_url = await uploadFileToStorage(
+          trickData.localFiles.effectVideo,
+          user.id,
+          "videos",
+          "video/mp4",
+          `effect_${Date.now()}.mp4`
         );
-        return;
+      }
+      if (trickData.localFiles?.secretVideo) {
+        uploads.secret_video_url = await uploadFileToStorage(
+          trickData.localFiles.secretVideo,
+          user.id,
+          "videos",
+          "video/mp4",
+          `secret_${Date.now()}.mp4`
+        );
+      }
+      if (trickData.localFiles?.photos?.length) {
+        const photoUrl = await uploadFileToStorage(
+          trickData.localFiles.photos[0],
+          user.id,
+          "images",
+          "image/jpeg",
+          `photo_${Date.now()}.jpg`
+        );
+        uploads.photo_url = photoUrl;
       }
 
-      if (currentStep === steps.length - 1) {
-        await handleSubmit();
-      } else {
-        setCurrentStep(currentStep + 1);
-      }
-    } catch (error) {
-      console.error("Error in goToNextStep:", error);
-      Alert.alert(
-        t("error", "Error"),
-        t("unexpectedError", "Ocurrió un error inesperado"),
-        [{ text: t("ok", "OK") }]
-      );
-    }
-  };
-
-  // Verificar o crear perfil de usuario
-  const ensureUserProfile = async (userId: string, email: string) => {
-    const { data: existingProfile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", userId)
-      .single();
-
-    if (profileError && profileError.code !== "PGRST116") {
-      console.error("Error checking profile:", profileError);
-      throw new Error("Error checking user profile");
-    }
-
-    if (!existingProfile) {
-      const username = email.split("@")[0];
-      const { error: insertError } = await supabase.from("profiles").insert({
-        id: userId,
-        email: email,
-        username: username,
-        is_active: true,
-        is_verified: false,
-        subscription_type: "free",
+      const trickId = uuidv4();
+      const { error } = await supabase.from("magic_tricks").insert({
+        id: trickId,
+        user_id: user.id,
+        title: trickData.title,
+        effect: trickData.effect,
+        secret: trickData.secret,
+        duration: trickData.duration,
+        angles: trickData.angles,
+        notes: trickData.notes,
+        special_materials: trickData.special_materials,
+        is_public: trickData.is_public,
+        status: trickData.status,
+        price: trickData.price,
+        photo_url: uploads.photo_url,
+        effect_video_url: uploads.effect_video_url,
+        secret_video_url: uploads.secret_video_url,
+        views_count: 0,
+        likes_count: 0,
+        dislikes_count: 0,
+        version: 1,
+        parent_trick_id: null,
+        reset: trickData.reset,
+        difficulty: trickData.difficulty,
+        is_encrypted: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
 
-      if (insertError) {
-        console.error("Error creating profile:", insertError);
-        throw new Error("Could not create user profile");
-      }
-    }
-
-    return userId;
-  };
-
-  // Cifrar todos los campos sensibles
-  const encryptAllSensitiveFields = async (
-    data: EncryptedMagicTrick
-  ): Promise<EncryptedMagicTrick> => {
-    if (!keyPair) {
-      throw new Error("Claves de cifrado no disponibles");
-    }
-
-    const encryptedData = { ...data };
-    const encryptedFields: any = {};
-
-    try {
-      // Solo cifrar si el campo tiene contenido
-      if (data.title?.trim()) {
-        encryptedFields.title = await encryptForSelf(data.title.trim());
-        encryptedData.title = "[ENCRYPTED]";
-      } else {
-        encryptedData.title = ""; // Valor vacío en lugar de [ENCRYPTED]
-      }
-
-      if (data.effect?.trim()) {
-        encryptedFields.effect = await encryptForSelf(data.effect.trim());
-        encryptedData.effect = "[ENCRYPTED]";
-      } else {
-        encryptedData.effect = "";
-      }
-
-      if (data.secret?.trim()) {
-        encryptedFields.secret = await encryptForSelf(data.secret.trim());
-        encryptedData.secret = "[ENCRYPTED]";
-      } else {
-        encryptedData.secret = "";
-      }
-
-      if (data.notes?.trim()) {
-        encryptedFields.notes = await encryptForSelf(data.notes.trim());
-        encryptedData.notes = "[ENCRYPTED]";
-      } else {
-        encryptedData.notes = "";
-      }
-
-      encryptedData.encryptedFields = encryptedFields;
-      return encryptedData;
-    } catch (error) {
-      console.error("Error cifrando campos del truco:", error);
-      throw new Error("Error al cifrar información del truco");
-    }
-  };
-
-  // Enviar el truco cifrado a la base de datos
-  const handleSubmit = async () => {
-    try {
-      setIsSubmitting(true);
-      console.log("🚀 INICIANDO GUARDADO DE TRUCO");
-
-      // Verificar cifrado
-      if (!keyPair) {
-        Alert.alert(
-          t("security.encryptionRequired", "Cifrado Requerido"),
-          t(
-            "security.setupEncryptionFirst",
-            "Configura el cifrado antes de guardar el truco"
-          ),
-          [
-            { text: t("actions.cancel", "Cancelar"), style: "cancel" },
-            {
-              text: t("security.setupNow", "Configurar"),
-              onPress: () => setShowEncryptionSetup(true),
-            },
-          ]
-        );
-        return;
-      }
-
-      // Obtener usuario
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert(t("error"), t("userNotFound", "Usuario no encontrado"));
-        return;
-      }
-
-      const profileId = await ensureUserProfile(user.id, user.email || "");
-
-      // Cifrar campos sensibles
-      const encryptedTrickData = await encryptAllSensitiveFields(trickData);
-
-      // DEBUG: Verificar archivos locales
-      console.log("📁 ARCHIVOS LOCALES:");
-      console.log("- Effect Video:", trickData.localFiles?.effectVideo);
-      console.log("- Secret Video:", trickData.localFiles?.secretVideo);
-      console.log("- Photos:", trickData.localFiles?.photos);
-
-      // Preparar archivos cifrados
-      const encryptedFileIds: { [key: string]: any } = {};
-
-      // Prepare all files for batch upload
-      const allFiles: Array<{
-        uri: string;
-        fileName: string;
-        mimeType: string;
-        originalType: "effect" | "secret" | "photo";
-        photoIndex?: number;
-      }> = [];
-
-      // Add effect video if exists
-      if (trickData.localFiles?.effectVideo) {
-        allFiles.push({
-          uri: trickData.localFiles.effectVideo,
-          fileName: `effect_video_${Date.now()}.mp4`,
-          mimeType: "video/mp4",
-          originalType: "effect",
-        });
-        console.log("✅ Video de efecto agregado a la cola");
-      }
-
-      // Add secret video if exists
-      if (trickData.localFiles?.secretVideo) {
-        allFiles.push({
-          uri: trickData.localFiles.secretVideo,
-          fileName: `secret_video_${Date.now()}.mp4`,
-          mimeType: "video/mp4",
-          originalType: "secret",
-        });
-        console.log("✅ Video secreto agregado a la cola");
-      }
-
-      // Add photos if exist
-      if (
-        trickData.localFiles?.photos &&
-        trickData.localFiles.photos.length > 0
-      ) {
-        trickData.localFiles.photos.forEach((photoUri, index) => {
-          allFiles.push({
-            uri: photoUri,
-            fileName: `trick_photo_${Date.now()}_${index}.jpg`,
-            mimeType: "image/jpeg",
-            originalType: "photo",
-            photoIndex: index,
-          });
-        });
-        console.log(
-          `✅ ${trickData.localFiles.photos.length} fotos agregadas a la cola`
-        );
-      }
-
-      console.log("\n📊 RESUMEN DE ARCHIVOS A SUBIR:");
-      allFiles.forEach((file, index) => {
-        console.log(`${index}. ${file.originalType} - ${file.fileName}`);
-      });
-
-      // Upload all files with optimized batch processing
-      if (allFiles.length > 0) {
-        console.log("\n🔐 INICIANDO CIFRADO Y UPLOAD...");
-
-        try {
-          const uploadMetadata =
-            await fileEncryptionService.batchEncryptAndUploadFilesOptimized(
-              allFiles.map((f) => ({
-                uri: f.uri,
-                fileName: f.fileName,
-                mimeType: f.mimeType,
-              })),
-              profileId,
-              [profileId],
-              getPublicKey,
-              () => keyPair.privateKey,
-              (progress, fileName) => {
-                console.log(
-                  `📤 Progreso: ${progress.toFixed(0)}% - ${fileName}`
-                );
-                if (trickData.uploadProgressCallback) {
-                  trickData.uploadProgressCallback(progress, fileName);
-                }
-              }
-            );
-
-          console.log("\n✅ UPLOADS COMPLETADOS:");
-          console.log("Metadatos recibidos:", uploadMetadata.length);
-
-          // DEBUG: Verificar resultados
-          uploadMetadata.forEach((meta, index) => {
-            console.log(`\n📦 Archivo ${index}:`);
-            console.log(`- ID: ${meta.fileId}`);
-            console.log(`- Nombre: ${meta.originalName}`);
-            console.log(`- Tipo: ${meta.mimeType}`);
-            console.log(`- Tamaño: ${meta.size}`);
-          });
-
-          // Process upload results CON VERIFICACIÓN
-          const photoIds: string[] = [];
-
-          uploadMetadata.forEach((metadata, index) => {
-            const originalFile = allFiles[index];
-
-            console.log(`\n🔍 Asignando archivo ${index}:`);
-            console.log(
-              `- Original: ${originalFile.originalType} - ${originalFile.fileName}`
-            );
-            console.log(
-              `- Metadata: ${metadata.fileId} - ${metadata.mimeType}`
-            );
-
-            // Asignar según el tipo ORIGINAL, no el metadata
-            switch (originalFile.originalType) {
-              case "effect":
-                encryptedFileIds.effect_video = metadata.fileId;
-                console.log(
-                  `✅ Asignado como VIDEO DE EFECTO: ${metadata.fileId}`
-                );
-                break;
-
-              case "secret":
-                encryptedFileIds.secret_video = metadata.fileId;
-                console.log(
-                  `✅ Asignado como VIDEO SECRETO: ${metadata.fileId}`
-                );
-                break;
-
-              case "photo":
-                photoIds.push(metadata.fileId);
-                console.log(
-                  `✅ Asignado como FOTO ${originalFile.photoIndex}: ${metadata.fileId}`
-                );
-                break;
-            }
-          });
-
-          // Set photo IDs if any
-          if (photoIds.length > 0) {
-            encryptedFileIds.photos = photoIds;
-            encryptedFileIds.photo = photoIds[0]; // First photo as main
-            setSavedPhotos(photoIds);
-            console.log(`\n📸 Total fotos guardadas: ${photoIds.length}`);
-          }
-
-          console.log("\n📊 ASIGNACIONES FINALES:");
-          console.log("- effect_video:", encryptedFileIds.effect_video);
-          console.log("- secret_video:", encryptedFileIds.secret_video);
-          console.log("- photos:", encryptedFileIds.photos);
-        } catch (error) {
-          console.error("❌ Error en batch file upload:", error);
-          throw new Error("Error al subir archivos");
-        }
-      }
-
-      // Generar ID único
-      const trickId = uuidv4();
-      console.log("\n🆔 ID del truco:", trickId);
-
-      // Preparar datos para RPC
-      const rpcData = {
-        trick_id: trickId,
-        trick_data: {
-          user_id: profileId,
-          title: encryptedTrickData.title,
-          effect: encryptedTrickData.effect,
-          secret: encryptedTrickData.secret,
-          duration: encryptedTrickData.duration,
-          angles: encryptedTrickData.angles,
-          notes: encryptedTrickData.notes,
-          special_materials: encryptedTrickData.special_materials,
-          is_public: encryptedTrickData.is_public,
-          status: encryptedTrickData.status,
-          price: encryptedTrickData.price,
-          photo_url:
-            encryptedFileIds.photos?.[0] ||
-            encryptedFileIds.photo ||
-            encryptedTrickData.photo_url,
-          effect_video_url:
-            encryptedFileIds.effect_video ||
-            encryptedTrickData.effect_video_url,
-          secret_video_url:
-            encryptedFileIds.secret_video ||
-            encryptedTrickData.secret_video_url,
-          views_count: 0,
-          likes_count: 0,
-          dislikes_count: 0,
-          version: 1,
-          parent_trick_id: null,
-          reset: encryptedTrickData.reset,
-          difficulty: encryptedTrickData.difficulty,
-          is_encrypted: true,
-        },
-        encryption_metadata: {
-          content_type: "magic_tricks",
-          user_id: profileId,
-          encrypted_fields: encryptedTrickData.encryptedFields,
-          encrypted_files: encryptedFileIds,
-        },
-      };
-
-      console.log("\n📝 RPC DATA:");
-      console.log("- effect_video_url:", rpcData.trick_data.effect_video_url);
-      console.log("- secret_video_url:", rpcData.trick_data.secret_video_url);
-      console.log("- photo_url:", rpcData.trick_data.photo_url);
-      console.log(
-        "- encrypted_files:",
-        rpcData.encryption_metadata.encrypted_files
-      );
-
-      const { data, error } = await supabase.rpc(
-        "create_encrypted_magic_trick",
-        rpcData
-      );
-
-      if (error) {
-        console.error("❌ Error al crear el truco:", error);
-        Alert.alert(
-          t("error"),
-          t("errorCreatingTrick", "Error creando el truco")
-        );
-        return;
-      }
-
-      console.log("\n✅ TRUCO CREADO EXITOSAMENTE");
-      console.log("- ID:", trickId);
-      console.log("- Data:", data);
-
-      // Asociar categoría
-      if (trickData.selectedCategoryId) {
-        try {
-          await supabase.from("trick_categories").insert({
-            trick_id: trickId,
-            category_id: trickData.selectedCategoryId,
-            created_at: new Date().toISOString(),
-          });
-        } catch (error) {
-          console.error("Error asociando categoría:", error);
-        }
-      }
-
-      // Asociar etiquetas
-      if (trickData.tags.length > 0) {
-        try {
-          const tagInserts = trickData.tags.map((tagId) => ({
-            trick_id: trickId,
-            tag_id: tagId,
-            created_at: new Date().toISOString(),
-          }));
-
-          await supabase.from("trick_tags").insert(tagInserts);
-
-          // Actualizar contador de uso
-          await updateTagsUsageCount(trickData.tags);
-        } catch (error) {
-          console.error("Error asociando etiquetas:", error);
-        }
-      }
-
-      // Guardar script si existe
-      if (trickData.script?.trim()) {
-        try {
-          await supabase.from("scripts").insert({
-            user_id: profileId,
-            trick_id: trickId,
-            title: `Script for ${trickData.title}`,
-            content: trickData.script.trim(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
-        } catch (error) {
-          console.error("Error creando script:", error);
-        }
-      }
-
-      // Asociar técnicas
-      if (trickData.techniqueIds && trickData.techniqueIds.length > 0) {
-        try {
-          const techniqueInserts = trickData.techniqueIds.map(
-            (techniqueId) => ({
-              trick_id: trickId,
-              technique_id: techniqueId,
-              created_at: new Date().toISOString(),
-            })
-          );
-
-          await supabase.from("trick_techniques").insert(techniqueInserts);
-        } catch (error) {
-          console.error("Error asociando técnicas:", error);
-        }
-      }
-
-      // Asociar gimmicks
-      if (trickData.gimmickIds && trickData.gimmickIds.length > 0) {
-        try {
-          const gimmickInserts = trickData.gimmickIds.map((gimmickId) => ({
-            trick_id: trickId,
-            gimmick_id: gimmickId,
-            created_at: new Date().toISOString(),
-          }));
-
-          await supabase.from("trick_gimmicks").insert(gimmickInserts);
-        } catch (error) {
-          console.error("Error asociando gimmicks:", error);
-        }
-      }
-
-      // Éxito
+      if (error) throw error;
       setCreatedItemId(trickId);
       setShowSuccessModal(true);
-    } catch (error) {
-      console.error("❌ Error durante el guardado:", error);
-      Alert.alert(
-        t("error", "Error"),
-        error instanceof Error
-          ? error.message
-          : t("unexpectedError", "Ocurrió un error inesperado")
-      );
+    } catch (err) {
+      console.error(err);
+      Alert.alert(t("error", "Error"), err instanceof Error ? err.message : "");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Modal handlers
-  const handleCloseSuccessModal = () => {
-    setShowSuccessModal(false);
-    if (onComplete && createdItemId) {
-      onComplete(createdItemId);
-    }
-  };
-
-  const handleViewItem = async () => {
-    setShowSuccessModal(false);
-    if (createdItemId) {
-      try {
-        // Obtener los datos del truco creado con información de categorías
-        const { data: trickData } = await supabase
-          .from("magic_tricks")
-          .select(
-            `
-            *,
-            trick_categories!inner(category_id)
-          `
-          )
-          .eq("id", createdItemId)
-          .single();
-
-        if (trickData) {
-          // Obtener el nombre de la categoría
-          let categoryName = "Unknown";
-          if (
-            trickData.trick_categories &&
-            trickData.trick_categories.length > 0
-          ) {
-            const { data: categoryData } = await supabase
-              .from("user_categories")
-              .select("name")
-              .eq("id", trickData.trick_categories[0].category_id)
-              .single();
-
-            if (categoryData) {
-              categoryName = categoryData.name;
-            }
-          }
-
-          // Preparar datos para la navegación
-          const navigationData = {
-            id: trickData.id,
-            title: trickData.title,
-            category: categoryName,
-            effect: trickData.effect || "",
-            secret: trickData.secret || "",
-            effect_video_url: trickData.effect_video_url,
-            secret_video_url: trickData.secret_video_url,
-            photo_url: trickData.photo_url,
-            photos: savedPhotos || [], // Usar las fotos cifradas guardadas
-            script: trickData.script || "",
-            angles: trickData.angles || [],
-            duration: trickData.duration || 0,
-            reset: trickData.reset || 0,
-            difficulty: trickData.difficulty || 0,
-            is_encrypted: trickData.is_encrypted,
-            notes: trickData.notes,
-          };
-
-          // Navegar a la página del truco
-          router.push({
-            pathname: "/trick/[id]",
-            params: {
-              id: createdItemId,
-              trick: JSON.stringify(navigationData),
-            },
-          });
-        }
-      } catch (error) {
-        console.error("Error loading trick data:", error);
-        // Si falla, llamar al callback original si existe
-        if (onViewItem) {
-          onViewItem(createdItemId);
-        }
-      }
-    }
-  };
-
-  const handleAddAnother = () => {
-    setShowSuccessModal(false);
-    // Reset form data
-    setTrickData({
-      title: "",
-      categories: [],
-      tags: [],
-      selectedCategoryId: null,
-      effect: "",
-      effect_video_url: null,
-      angles: [],
-      duration: null,
-      reset: null,
-      difficulty: 5,
-      secret: "",
-      secret_video_url: null,
-      special_materials: [],
-      notes: "",
-      script: "",
-      photo_url: null,
-      techniqueIds: [],
-      gimmickIds: [],
-      is_public: false,
-      status: "draft",
-      price: null,
-      isEncryptionEnabled: true,
-      encryptedFields: {},
-      encryptedFiles: {},
-      localFiles: {
-        effectVideo: null,
-        secretVideo: null,
-        photos: [],
-      },
-    });
-    setCurrentStep(0);
-  };
-
-  // Renderizar el componente del paso actual
-  const StepComponent = steps[currentStep].component;
-
+  const StepComponent = (steps[currentStep].component as any);
   return (
     <>
       <StepComponent
         trickData={trickData}
         updateTrickData={updateTrickData}
-        encryptionTasks={encryptionTasks}
-        setEncryptionTasks={setEncryptionTasks}
-        onNext={goToNextStep}
-        onCancel={goToPreviousStep}
-        onSave={handleSubmit}
+        onNext={() => {
+          if (currentStep === steps.length - 1) {
+            handleSubmit();
+          } else {
+            setCurrentStep(currentStep + 1);
+          }
+        }}
+        onCancel={() => {
+          if (currentStep === 0) {
+            onCancel?.();
+          } else {
+            setCurrentStep(currentStep - 1);
+          }
+        }}
         currentStep={currentStep + 1}
         totalSteps={steps.length}
         isSubmitting={isSubmitting}
-        isNextButtonDisabled={isNextButtonDisabled}
         isLastStep={currentStep === steps.length - 1}
       />
-
-      {/* Modal de configuración de cifrado */}
-      <EncryptionSetup
-        visible={showEncryptionSetup}
-        onClose={() => setShowEncryptionSetup(false)}
-        onSetupComplete={() => {}}
-      />
-
-      {/* Success Modal */}
       <SuccessCreationModal
         visible={showSuccessModal}
-        onClose={handleCloseSuccessModal}
-        onViewItem={handleViewItem}
-        onAddAnother={handleAddAnother}
+        onClose={() => {
+          setShowSuccessModal(false);
+          if (onComplete && createdItemId) onComplete(createdItemId);
+        }}
+        onViewItem={() => {
+          setShowSuccessModal(false);
+          if (onViewItem && createdItemId) onViewItem(createdItemId);
+        }}
+        onAddAnother={() => {
+          setShowSuccessModal(false);
+          setTrickData({
+            ...trickData,
+            title: "",
+            effect: "",
+            secret: "",
+            localFiles: { effectVideo: null, secretVideo: null, photos: [] },
+          });
+          setCurrentStep(0);
+        }}
         itemName={trickData.title || t("common.trick", "Trick")}
         itemType="trick"
       />
