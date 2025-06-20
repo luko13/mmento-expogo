@@ -1,7 +1,7 @@
 // components/home/LibrariesSection.tsx
 "use client";
 
-import { useState, useCallback, memo, useEffect } from "react";
+import { useState, useCallback, memo } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
-import { AntDesign, Feather, Ionicons } from "@expo/vector-icons";
+import { AntDesign, Feather } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { supabase } from "../../lib/supabase";
 import {
@@ -25,10 +25,6 @@ import {
 import TrickViewScreen from "../TrickViewScreen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import type { SearchFilters } from "./CompactSearchBar";
-import { useEncryption } from "../../hooks/useEncryption";
-import { FileEncryptionService } from "../../utils/fileEncryption";
-import * as FileSystem from "expo-file-system";
-import { getTrickWithEncryptedPhotos } from "../../utils/trickHelpers";
 import DeleteModal from "../ui/DeleteModal";
 import CantDeleteModal from "../ui/CantDeleteModal";
 import CategoryActionsModal from "../ui/CategoryActionsModal";
@@ -36,7 +32,6 @@ import CategoryModal from "../ui/CategoryModal";
 import { useRouter } from "expo-router";
 import { usePaginatedContent } from "../../hooks/usePaginatedContent";
 import CollapsibleCategoryOptimized from "./CollapsibleCategoryOptimized";
-import { EncryptedContentService } from "../../services/encryptedContentService";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -66,7 +61,6 @@ const LibrariesSection = memo(function LibrariesSection({
   const [newCategoryName, setNewCategoryName] = useState("");
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [selectedTrickData, setSelectedTrickData] = useState<any>(null);
-  const [showKeyRefreshBanner, setShowKeyRefreshBanner] = useState(false);
 
   // Delete modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -80,12 +74,6 @@ const LibrariesSection = memo(function LibrariesSection({
   const [selectedCategoryForActions, setSelectedCategoryForActions] =
     useState<Category | null>(null);
 
-  // Encryption services
-  const { decryptForSelf, keyPair, getPublicKey } = useEncryption();
-  const encryptedService = new EncryptedContentService();
-  const fileEncryptionService = new FileEncryptionService();
-  const { debugKeys, isReady } = useEncryption();
-
   // Use paginated content hook
   const {
     sections,
@@ -95,48 +83,10 @@ const LibrariesSection = memo(function LibrariesSection({
     error,
     loadMore,
     refresh,
-    allCategories, // Todas las categorías para el header
+    allCategories,
   } = usePaginatedContent(searchQuery, searchFilters);
 
-  // Helper function to handle encrypted files
-  const handleEncryptedFile = async (
-    fileId: string,
-    fileName: string,
-    mimeType: string,
-    userId: string
-  ): Promise<string | null> => {
-    try {
-      const result = await fileEncryptionService.downloadAndDecryptFile(
-        fileId,
-        userId,
-        getPublicKey,
-        () => keyPair!.privateKey
-      );
-
-      // Convert Uint8Array to base64
-      let binaryString = "";
-      const chunkSize = 8192;
-      for (let i = 0; i < result.data.length; i += chunkSize) {
-        const chunk = result.data.slice(i, i + chunkSize);
-        binaryString += String.fromCharCode.apply(null, Array.from(chunk));
-      }
-      const base64Data = btoa(binaryString);
-
-      // Save temporarily
-      const tempUri = `${FileSystem.cacheDirectory}${fileId}_${fileName}`;
-      await FileSystem.writeAsStringAsync(tempUri, base64Data, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      console.log("📹 Video guardado en:", tempUri);
-      console.log("📹 Existe?", await FileSystem.getInfoAsync(tempUri));
-      return tempUri;
-    } catch (error) {
-      console.error("Error downloading encrypted file:", error);
-      return null;
-    }
-  };
-
-  // Fetch item data
+  // Fetch item data - simplified without encryption
   const fetchItemData = async (item: any) => {
     try {
       const {
@@ -145,127 +95,76 @@ const LibrariesSection = memo(function LibrariesSection({
       if (!user) return null;
 
       if (item.type === "magic") {
-        const data = await getTrickWithEncryptedPhotos(item.id);
-        if (!data) return null;
+        // Get trick data directly
+        const { data, error } = await supabase
+          .from("magic_tricks")
+          .select(
+            `
+            *,
+            trick_categories!inner(category_id),
+            scripts(id, title, content)
+          `
+          )
+          .eq("id", item.id)
+          .single();
 
-        let decryptedData = data;
-        if (data.is_encrypted && decryptForSelf && keyPair) {
-          if (item.is_shared) {
-            const decrypted = await encryptedService.getSharedContent(
-              data.id,
-              "magic_tricks",
-              user.id,
-              decryptForSelf
-            );
-            if (decrypted) {
-              decryptedData = { ...decrypted, photos: data.photos } as any;
-            }
-          } else {
-            const decrypted = await encryptedService.getOwnContent(
-              data.id,
-              "magic_tricks",
-              decryptForSelf,
-              () => keyPair.privateKey
-            );
-            if (decrypted) {
-              decryptedData = { ...decrypted, photos: data.photos } as any;
-            }
-          }
+        if (error || !data) return null;
 
-          // Handle encrypted files
-          if (decryptedData.photo_encrypted && decryptedData.photo_url) {
-            const photoUrl = await handleEncryptedFile(
-              decryptedData.photo_url,
-              "photo.jpg",
-              "image/jpeg",
-              user.id
-            );
-            if (photoUrl) decryptedData.photo_url = photoUrl;
-          }
-
-          if (
-            decryptedData.effect_video_encrypted &&
-            decryptedData.effect_video_url
-          ) {
-            const videoUrl = await handleEncryptedFile(
-              decryptedData.effect_video_url,
-              "effect_video.mp4",
-              "video/mp4",
-              user.id
-            );
-            if (videoUrl) decryptedData.effect_video_url = videoUrl;
-          }
-
-          if (
-            decryptedData.secret_video_encrypted &&
-            decryptedData.secret_video_url
-          ) {
-            const videoUrl = await handleEncryptedFile(
-              decryptedData.secret_video_url,
-              "secret_video.mp4",
-              "video/mp4",
-              user.id
-            );
-            if (videoUrl) decryptedData.secret_video_url = videoUrl;
-          }
-        }
-
-        // Parse angles
-        if (decryptedData.angles && typeof decryptedData.angles === "string") {
+        // Parse angles if necessary
+        let angles = data.angles;
+        if (angles && typeof angles === "string") {
           try {
-            decryptedData.angles = JSON.parse(decryptedData.angles);
+            angles = JSON.parse(angles);
           } catch (e) {
-            decryptedData.angles = [];
+            angles = [];
           }
-        } else if (!decryptedData.angles) {
-          decryptedData.angles = [];
         }
-
-        const trickData = {
-          id: decryptedData.id,
-          title: decryptedData.title,
-          category: "Unknown",
-          effect: decryptedData.effect || "",
-          secret: decryptedData.secret || "",
-          effect_video_url: decryptedData.effect_video_url,
-          secret_video_url: decryptedData.secret_video_url,
-          photo_url: decryptedData.photo_url,
-          photos: decryptedData.photos || [],
-          script: decryptedData.script || "",
-          angles: decryptedData.angles,
-          duration: decryptedData.duration || 0,
-          reset: decryptedData.reset || 0,
-          difficulty: decryptedData.difficulty
-            ? Number.parseInt(decryptedData.difficulty)
-            : 0,
-          is_encrypted: data.is_encrypted,
-          is_shared: item.is_shared,
-          owner_info: item.is_shared ? item.owner_id : null,
-        };
 
         // Get category name
-        const { data: categoryData } = await supabase
-          .from("trick_categories")
-          .select("category_id")
-          .eq("trick_id", item.id)
-          .limit(1);
-
-        if (categoryData && categoryData.length > 0) {
-          const categoryId = categoryData[0].category_id;
-          const { data: category } = await supabase
+        let categoryName = "Unknown";
+        if (data.trick_categories && data.trick_categories.length > 0) {
+          const categoryId = data.trick_categories[0].category_id;
+          const { data: categoryData } = await supabase
             .from("user_categories")
             .select("name")
             .eq("id", categoryId)
             .single();
 
-          if (category) {
-            trickData.category = category.name;
+          if (categoryData) {
+            categoryName = categoryData.name;
           }
         }
 
-        return trickData;
+        // Get photos if any (assuming you have a trick_photos table)
+        const { data: photosData } = await supabase
+          .from("trick_photos")
+          .select("photo_url")
+          .eq("trick_id", item.id);
+
+        const photos = photosData?.map((p) => p.photo_url) || [];
+
+        return {
+          id: data.id,
+          title: data.title,
+          category: categoryName,
+          effect: data.effect || "",
+          secret: data.secret || "",
+          effect_video_url: data.effect_video_url,
+          secret_video_url: data.secret_video_url,
+          photo_url: data.photo_url,
+          photos: photos,
+          script: data.scripts?.[0]?.content || "",
+          angles: angles || [],
+          duration: data.duration || 0,
+          reset: data.reset || 0,
+          difficulty: data.difficulty || 0,
+          notes: data.notes || "",
+          is_shared: item.is_shared || false,
+          owner_info: item.is_shared ? item.owner_id : null,
+        };
       }
 
+      // Handle other types (technique, gimmick) similarly if needed
       return null;
     } catch (error) {
       console.error("Error in fetchItemData:", error);
@@ -286,7 +185,7 @@ const LibrariesSection = memo(function LibrariesSection({
       const newCategory = await createCategory(user.id, newCategoryName.trim());
 
       if (newCategory) {
-        refresh(); // Refresh the list
+        refresh();
       }
 
       setNewCategoryName("");
@@ -306,7 +205,7 @@ const LibrariesSection = memo(function LibrariesSection({
       );
 
       if (success) {
-        refresh(); // Refresh the list
+        refresh();
       }
 
       setEditingCategory(null);
@@ -316,13 +215,6 @@ const LibrariesSection = memo(function LibrariesSection({
       console.error("Error updating category:", error);
     }
   }, [editingCategory, newCategoryName, refresh]);
-  //DEBUG
-  useEffect(() => {
-    // Solo ejecutar cuando las claves estén listas
-    if (isReady) {
-      debugKeys();
-    }
-  }, [isReady]);
 
   const handleDeleteCategory = useCallback(
     async (categoryId: string) => {
@@ -355,7 +247,7 @@ const LibrariesSection = memo(function LibrariesSection({
     try {
       const success = await deleteCategory(categoryToDelete.id);
       if (success) {
-        refresh(); // Refresh the list
+        refresh();
       }
     } catch (error) {
       console.error("Error deleting category:", error);
@@ -378,11 +270,6 @@ const LibrariesSection = memo(function LibrariesSection({
 
   const handleItemPress = useCallback(
     async (item: any) => {
-      if (item.decryption_error) {
-        setShowKeyRefreshBanner(true);
-        return;
-      }
-
       const itemData = await fetchItemData(item);
       if (itemData) {
         router.push({
@@ -493,27 +380,6 @@ const LibrariesSection = memo(function LibrariesSection({
   // Main render
   return (
     <StyledView className="flex-1">
-      {/* Key Refresh Banner */}
-      {showKeyRefreshBanner && (
-        <StyledView className="bg-red-500/20 border border-red-500/50 p-3 rounded-lg mb-3 mx-4">
-          <StyledView className="flex-row items-center">
-            <Ionicons name="warning" size={20} color="#ef4444" />
-            <StyledText className="text-white ml-2 flex-1">
-              {t(
-                "decryptionError",
-                "Some items couldn't be decrypted. Please re-enter your password."
-              )}
-            </StyledText>
-            <StyledTouchableOpacity
-              onPress={() => setShowKeyRefreshBanner(false)}
-              className="p-1"
-            >
-              <AntDesign name="close" size={18} color="white" />
-            </StyledTouchableOpacity>
-          </StyledView>
-        </StyledView>
-      )}
-
       <ListHeader />
 
       {error ? (

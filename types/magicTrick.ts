@@ -1,61 +1,30 @@
-// types/encryptedMagicTrick.ts
+// types/magicTrick.ts
 
-export interface EncryptedMagicTrick {
-  // Campos básicos
+export interface MagicTrick {
   id?: string;
   user_id?: string;
   title: string;
-  categories: any[];
+  categories: string[];
   tags: string[];
   selectedCategoryId: string | null;
-  uploadProgressCallback?: (progress: number, fileName: string) => void;
-  
-  // Contenido del efecto
   effect: string;
   effect_video_url: string | null;
-  
-  // Estadísticas
   angles: string[];
   duration: number | null;
   reset: number | null;
-  difficulty: number;
-  
-  // Contenido del secreto
+  difficulty: number | null;
   secret: string;
   secret_video_url: string | null;
   special_materials: string[];
-  
-  // Extras
   notes: string;
   script: string;
+  scriptId?: string;
   photo_url: string | null;
   techniqueIds: string[];
   gimmickIds: string[];
-  scriptId?: string;
-  
-  // Publicación
   is_public: boolean;
-  status: 'draft' | 'published';
+  status: "draft" | "published" | "archived";
   price: number | null;
-  
-  // Cifrado
-  isEncryptionEnabled: boolean;
-  encryptedFields?: Record<string, string>;
-  encryptedFiles?: {
-    effect_video?: string;
-    secret_video?: string;
-    photo?: string;
-    photos?: string[];
-  };
-  
-  // Archivos locales (para subida diferida)
-  localFiles?: {
-    effectVideo?: string | null;
-    secretVideo?: string | null;
-    photos?: string[];
-  };
-  
-  // Metadatos
   created_at?: string;
   updated_at?: string;
   views_count?: number;
@@ -63,7 +32,16 @@ export interface EncryptedMagicTrick {
   dislikes_count?: number;
   version?: number;
   parent_trick_id?: string | null;
-  is_encrypted?: boolean;
+
+  // Archivos locales temporales (no se guardan en DB)
+  localFiles?: {
+    effectVideo: string | null;
+    secretVideo: string | null;
+    photos: string[];
+  };
+
+  // Para el callback de progreso (temporal)
+  uploadProgressCallback?: (progress: number, fileName: string) => void;
 }
 
 export interface MagicTrickDBRecord {
@@ -73,11 +51,11 @@ export interface MagicTrickDBRecord {
   effect: string;
   secret: string;
   duration: number | null;
-  angles: string[];
+  angles: any;
   notes: string;
   special_materials: string[];
   is_public: boolean;
-  status: 'draft' | 'published';
+  status: string;
   price: number | null;
   photo_url: string | null;
   effect_video_url: string | null;
@@ -85,11 +63,10 @@ export interface MagicTrickDBRecord {
   views_count: number;
   likes_count: number;
   dislikes_count: number;
+  created_at?: string;
+  updated_at?: string;
   version: number;
   parent_trick_id: string | null;
   reset: number | null;
-  difficulty: number;
-  is_encrypted: boolean;
-  created_at: string;
-  updated_at: string;
+  difficulty: number | null;
 }

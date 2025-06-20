@@ -1,3 +1,4 @@
+// components/add-magic/steps/TitleCategoryStep.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -19,7 +20,7 @@ import {
   AntDesign,
 } from "@expo/vector-icons";
 import { supabase } from "../../../lib/supabase";
-import type { EncryptedMagicTrick } from "../../../types/encryptedMagicTrick";
+import type { MagicTrick } from "../../../types/magicTrick";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TagSelector from "../../../components/ui/TagSelector";
 import CategorySelector from "../../../components/ui/CategorySelector";
@@ -31,8 +32,8 @@ const StyledTextInput = styled(TextInput);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 
 interface StepProps {
-  trickData: EncryptedMagicTrick;
-  updateTrickData: (data: Partial<EncryptedMagicTrick>) => void;
+  trickData: MagicTrick;
+  updateTrickData: (data: Partial<MagicTrick>) => void;
   onNext?: () => void;
   onCancel?: () => void;
   onSave?: () => void;
@@ -45,7 +46,7 @@ interface StepProps {
 
 const { width } = Dimensions.get("window");
 
-export default function TitleCategoryStepEncrypted({
+export default function TitleCategoryStep({
   trickData,
   updateTrickData,
   onNext,
@@ -166,11 +167,11 @@ export default function TitleCategoryStepEncrypted({
           </StyledView>
 
           <StyledTouchableOpacity className="p-2 opacity-0">
-            <MaterialIcons name="security" size={24} color="#10b981" />
+            <Feather name="x" size={24} color="white" />
           </StyledTouchableOpacity>
         </StyledView>
 
-        {/* Form Container - Flex con espacio entre elementos */}
+        {/* Form Container */}
         <StyledView className="flex-1 px-6">
           {/* Título de sección */}
           <StyledText className="text-white/60 text-lg font-semibold mb-4">
@@ -181,7 +182,7 @@ export default function TitleCategoryStepEncrypted({
           <StyledView className="flex-1 justify-between">
             {/* Grupo de campos del formulario */}
             <StyledView className="flex-1 justify-evenly">
-              {/* Magic Title Field - Envuelto en View con altura fija */}
+              {/* Magic Title Field */}
               <StyledView style={{ minHeight: 88 }}>
                 <StyledView>
                   <StyledView className="flex-row items-center">
@@ -218,7 +219,7 @@ export default function TitleCategoryStepEncrypted({
                 </StyledView>
               </StyledView>
 
-              {/* Category Selector - Con altura mínima para carrusel */}
+              {/* Category Selector */}
               <StyledView style={{ minHeight: 132 }}>
                 <CategorySelector
                   selectedCategories={
@@ -245,7 +246,7 @@ export default function TitleCategoryStepEncrypted({
                 />
               </StyledView>
 
-              {/* Tag Selector - Con altura mínima para carrusel */}
+              {/* Tag Selector */}
               <StyledView style={{ minHeight: 132 }}>
                 <TagSelector
                   selectedTags={trickData.tags}
@@ -268,22 +269,26 @@ export default function TitleCategoryStepEncrypted({
               </StyledView>
             </StyledView>
 
-            {/* Shield Icon - Separado pero dentro del contenedor flexible */}
+            {/* Info Message */}
             <StyledView className="items-center py-6">
               <StyledView className="mb-2">
-                <Feather name="shield" size={32} color="#10b9813b" />
+                <MaterialIcons
+                  name="cloud-upload"
+                  size={32}
+                  color="#10b9813b"
+                />
               </StyledView>
 
               <StyledText className="text-[#10b981]/40 text-xs mt-2 text-center">
                 {t(
-                  "security.magicSecretsSafe",
-                  "Tus secretos están protegidos"
+                  "info.filesCompressed",
+                  "Los archivos se comprimen automáticamente"
                 )}
               </StyledText>
               <StyledText className="text-[#10b981]/40 text-xs text-center">
                 {t(
-                  "security.endToEndEncrypted",
-                  "Cifrado de extremo a extremo"
+                  "info.savingStorage",
+                  "para ahorrar espacio de almacenamiento"
                 )}
               </StyledText>
             </StyledView>

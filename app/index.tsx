@@ -1,4 +1,4 @@
-// app/index.tsx - Complete version with legacy check and precache
+// app/index.tsx - Version without encryption
 "use client";
 
 import { View, Text, TouchableOpacity, Image, Dimensions } from "react-native";
@@ -8,7 +8,6 @@ import { router } from "expo-router";
 import { useEffect, useState, useRef } from "react";
 import { checkSession } from "../utils/storage";
 import { supabase } from "../lib/supabase";
-import { CryptoService } from "../utils/cryptoService";
 import { getAllUserContent, getUserCategories } from "../utils/categoryService";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -51,45 +50,12 @@ const precacheHomeData = async () => {
   }
 };
 
-// Check if user needs encryption migration
-const checkNeedsEncryptionMigration = async (): Promise<boolean> => {
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return false;
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("public_key, encrypted_private_key, encryption_initialized_at")
-      .eq("id", user.id)
-      .single();
-
-    // Check if user has local private key stored
-    const hasLocalPrivateKey = await CryptoService.getInstance().getPrivateKey(
-      user.id
-    );
-
-    // Legacy user: has public key but no encrypted private key in cloud
-    // AND no local private key (hasn't generated keys yet)
-    return !!(
-      profile?.public_key &&
-      !profile.encrypted_private_key &&
-      !hasLocalPrivateKey
-    );
-  } catch (error) {
-    console.error("Error checking encryption status:", error);
-    return false;
-  }
-};
-
 export default function Home() {
   const { t } = useTranslation();
   const [transition, setTransition] = useState<"normal" | "auth" | "hidden">(
     "normal"
   );
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [needsMigration, setNeedsMigration] = useState(false);
   const [precacheStarted, setPrecacheStarted] = useState(false);
   const [precacheCompleted, setPrecacheCompleted] = useState(false);
   const isMounted = useRef(true);
@@ -103,13 +69,8 @@ export default function Home() {
       setIsAuthenticated(hasSession);
 
       if (hasSession) {
-        // Check if legacy user needs migration
-        const migrationNeeded = await checkNeedsEncryptionMigration();
-        if (!isMounted.current) return;
-        setNeedsMigration(migrationNeeded);
-
-        // Start precaching if not a legacy user
-        if (!migrationNeeded && !precacheStarted) {
+        // Start precaching immediately
+        if (!precacheStarted) {
           setPrecacheStarted(true);
 
           precacheHomeData().then((success) => {
@@ -135,14 +96,7 @@ export default function Home() {
       setTransition("hidden");
 
       setTimeout(() => {
-        if (hasSession && needsMigration) {
-          // Forzar a reloguearse a los usariso que necesitan generar claves de cifrado
-          supabase.auth.signOut().then(() => {
-            router.replace("/auth/login?legacy=true");
-          });
-        } else {
-          router.replace(hasSession ? "/(app)/home" : "/auth/login");
-        }
+        router.replace(hasSession ? "/(app)/home" : "/auth/login");
       }, 50);
     }, 100);
   };
@@ -152,7 +106,7 @@ export default function Home() {
   }
 
   return (
-    <SafeAreaView  style={{ flex: 1 }}> 
+    <SafeAreaView style={{ flex: 1 }}>
       <TouchableOpacity onPress={handlePress} style={{ flex: 1 }}>
         <Image
           source={require("../assets/Index.png")}

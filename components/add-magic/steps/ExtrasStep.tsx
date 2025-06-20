@@ -1,41 +1,25 @@
+// components/add-magic/steps/ExtrasStep.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   Alert,
-  Platform,
   ScrollView,
-  Modal,
-  ActivityIndicator,
-  Image,
   Animated,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import {
-  Entypo,
   Feather,
-  Ionicons,
   MaterialCommunityIcons,
   MaterialIcons,
-  EvilIcons,
 } from "@expo/vector-icons";
-import type { EncryptedMagicTrick } from "../../../types/encryptedMagicTrick";
-import * as ImagePicker from "expo-image-picker";
+import type { MagicTrick } from "../../../types/magicTrick";
 import { supabase } from "../../../lib/supabase";
-import * as FileSystem from "expo-file-system";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
-import Slider from "@react-native-community/slider";
-import { useEncryption } from "../../../hooks/useEncryption";
-import { FileEncryptionService } from "../../../utils/fileEncryption";
 import CustomTooltip from "../../ui/Tooltip";
 
 // Importar modales
@@ -47,11 +31,8 @@ import TimePickerModal from "../ui/TimePickerModal";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
-const StyledTextInput = styled(TextInput);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledScrollView = styled(ScrollView);
-const StyledImage = styled(Image);
-const StyledModal = styled(Modal);
 
 // Definir interfaces para técnica y gimmick
 interface Technique {
@@ -73,8 +54,8 @@ interface ScriptData {
 }
 
 interface StepProps {
-  trickData: EncryptedMagicTrick;
-  updateTrickData: (data: Partial<EncryptedMagicTrick>) => void;
+  trickData: MagicTrick;
+  updateTrickData: (data: Partial<MagicTrick>) => void;
   onNext?: () => void;
   onCancel?: () => void;
   currentStep?: number;
@@ -84,7 +65,7 @@ interface StepProps {
   isLastStep?: boolean;
 }
 
-// Componente de Modal de Progreso
+// Componente de Modal de Progreso (actualizado sin referencias a cifrado)
 const UploadProgressModal = ({
   visible,
   progress,
@@ -123,94 +104,108 @@ const UploadProgressModal = ({
   });
 
   return (
-    <StyledModal visible={visible} transparent={true} animationType="fade">
-      <StyledView className="flex-1 justify-center items-center bg-black/80">
-        <StyledView className="bg-[#1a3a32] rounded-2xl p-6 mx-6 w-full max-w-sm">
-          {/* Header */}
-          <StyledView className="items-center mb-6">
-            <StyledView className="w-16 h-16 bg-emerald-500/20 rounded-full items-center justify-center mb-4">
-              <MaterialIcons name="cloud-upload" size={32} color="#10b981" />
-            </StyledView>
-            <StyledText className="text-white text-lg font-semibold mb-2">
-              {t("uploadingFiles", "Subiendo archivos")}
+    <View
+      style={{
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
+        justifyContent: "center",
+        alignItems: "center",
+        display: visible ? "flex" : "none",
+      }}
+    >
+      <StyledView className="bg-[#1a3a32] rounded-2xl p-6 mx-6 w-full max-w-sm">
+        {/* Header */}
+        <StyledView className="items-center mb-6">
+          <StyledView className="w-16 h-16 bg-emerald-500/20 rounded-full items-center justify-center mb-4">
+            <MaterialIcons name="cloud-upload" size={32} color="#10b981" />
+          </StyledView>
+          <StyledText className="text-white text-lg font-semibold mb-2">
+            {t("uploadingFiles", "Subiendo archivos")}
+          </StyledText>
+          <StyledText className="text-white/60 text-sm text-center">
+            {t(
+              "compressingAndUploading",
+              "Comprimiendo y subiendo tus archivos"
+            )}
+          </StyledText>
+        </StyledView>
+
+        {/* Progress Info */}
+        <StyledView className="mb-4">
+          <StyledView className="flex-row justify-between mb-2">
+            <StyledText className="text-white/80 text-sm">
+              {t("file", "Archivo")} {processedFiles}/{totalFiles}
             </StyledText>
-            <StyledText className="text-white/60 text-sm text-center">
-              {t(
-                "encryptingAndUploading",
-                "Cifrando y subiendo tus archivos de forma segura"
-              )}
+            <StyledText className="text-emerald-400 text-sm font-medium">
+              {progress.toFixed(0)}%
             </StyledText>
           </StyledView>
 
-          {/* Progress Info */}
-          <StyledView className="mb-4">
-            <StyledView className="flex-row justify-between mb-2">
-              <StyledText className="text-white/80 text-sm">
-                {t("file", "Archivo")} {processedFiles}/{totalFiles}
-              </StyledText>
-              <StyledText className="text-emerald-400 text-sm font-medium">
-                {progress.toFixed(0)}%
-              </StyledText>
-            </StyledView>
-
-            {/* Progress Bar */}
-            <StyledView className="h-2 bg-white/10 rounded-full overflow-hidden mb-3">
-              <Animated.View
-                style={{
-                  height: "100%",
-                  width: progressWidth,
-                  backgroundColor: "#10b981",
-                  borderRadius: 4,
-                }}
-              />
-            </StyledView>
-
-            {/* Current File */}
-            <StyledView className="bg-black/20 rounded-lg px-3 py-2 mb-3">
-              <StyledText className="text-white/50 text-xs mb-1">
-                {t("processing", "Procesando")}:
-              </StyledText>
-              <StyledText className="text-white/80 text-sm" numberOfLines={1}>
-                {currentFile || t("preparingFiles", "Preparando archivos...")}
-              </StyledText>
-            </StyledView>
-
-            {/* Timer */}
-            <StyledView className="flex-row items-center justify-center">
-              <Feather name="clock" size={16} color="rgba(255,255,255,0.6)" />
-              <StyledText className="text-white/60 text-sm ml-2">
-                {t("elapsedTime", "Tiempo transcurrido")}:{" "}
-                {formatTime(elapsedTime)}
-              </StyledText>
-            </StyledView>
+          {/* Progress Bar */}
+          <StyledView className="h-2 bg-white/10 rounded-full overflow-hidden mb-3">
+            <Animated.View
+              style={{
+                height: "100%",
+                width: progressWidth,
+                backgroundColor: "#10b981",
+                borderRadius: 4,
+              }}
+            />
           </StyledView>
 
-          {/* Estimated Time (opcional) */}
-          {progress > 10 && (
-            <StyledView className="border-t border-white/10 pt-4">
-              <StyledText className="text-white/40 text-xs text-center">
-                {t("estimatedRemaining", "Tiempo estimado restante")}:{" "}
-                {formatTime(
-                  Math.round((elapsedTime / progress) * (100 - progress))
-                )}
-              </StyledText>
-            </StyledView>
-          )}
+          {/* Current File */}
+          <StyledView className="bg-black/20 rounded-lg px-3 py-2 mb-3">
+            <StyledText className="text-white/50 text-xs mb-1">
+              {t("processing", "Procesando")}:
+            </StyledText>
+            <StyledText className="text-white/80 text-sm" numberOfLines={1}>
+              {currentFile || t("preparingFiles", "Preparando archivos...")}
+            </StyledText>
+          </StyledView>
 
-          {/* Security Note */}
-          <StyledView className="flex-row items-center justify-center mt-4">
-            <Feather name="shield" size={12} color="rgba(16, 185, 129, 0.6)" />
-            <StyledText className="text-emerald-500/60 text-xs ml-1">
-              {t("endToEndEncrypted", "Cifrado de extremo a extremo")}
+          {/* Timer */}
+          <StyledView className="flex-row items-center justify-center">
+            <Feather name="clock" size={16} color="rgba(255,255,255,0.6)" />
+            <StyledText className="text-white/60 text-sm ml-2">
+              {t("elapsedTime", "Tiempo transcurrido")}:{" "}
+              {formatTime(elapsedTime)}
             </StyledText>
           </StyledView>
         </StyledView>
+
+        {/* Estimated Time (opcional) */}
+        {progress > 10 && (
+          <StyledView className="border-t border-white/10 pt-4">
+            <StyledText className="text-white/40 text-xs text-center">
+              {t("estimatedRemaining", "Tiempo estimado restante")}:{" "}
+              {formatTime(
+                Math.round((elapsedTime / progress) * (100 - progress))
+              )}
+            </StyledText>
+          </StyledView>
+        )}
+
+        {/* Compression Note */}
+        <StyledView className="flex-row items-center justify-center mt-4">
+          <MaterialIcons
+            name="compress"
+            size={12}
+            color="rgba(16, 185, 129, 0.6)"
+          />
+          <StyledText className="text-emerald-500/60 text-xs ml-1">
+            {t("automaticCompression", "Compresión automática")}
+          </StyledText>
+        </StyledView>
       </StyledView>
-    </StyledModal>
+    </View>
   );
 };
 
-export default function ExtrasStepEncrypted({
+export default function ExtrasStep({
   trickData,
   updateTrickData,
   onNext,
@@ -218,15 +213,9 @@ export default function ExtrasStepEncrypted({
   currentStep = 2,
   totalSteps = 2,
   isSubmitting = false,
-  isNextButtonDisabled = false,
   isLastStep = true,
 }: StepProps) {
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
-
-  // Estados para archivos locales
-  const [localPhotos, setLocalPhotos] = useState<string[]>([]);
 
   // Estados para el progreso de carga
   const [showUploadProgress, setShowUploadProgress] = useState(false);
@@ -236,17 +225,6 @@ export default function ExtrasStepEncrypted({
   const [totalFiles, setTotalFiles] = useState(0);
   const [processedFiles, setProcessedFiles] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Hooks de cifrado
-  const {
-    isReady: encryptionReady,
-    keyPair,
-    encryptForSelf,
-    getPublicKey,
-    error: encryptionError,
-  } = useEncryption();
-
-  const fileEncryptionService = new FileEncryptionService();
 
   // Estados para modales
   const [techniquesModalVisible, setTechniquesModalVisible] = useState(false);
@@ -266,18 +244,6 @@ export default function ExtrasStepEncrypted({
     title: "",
     content: "",
   });
-
-  // Verificar que el cifrado esté listo
-  useEffect(() => {
-    if (!encryptionReady && !encryptionError) {
-    } else if (encryptionError) {
-      console.error("Error en el cifrado:", encryptionError);
-      Alert.alert(
-        t("security.error", "Error de Seguridad"),
-        t("security.encryptionNotReady", "El sistema de cifrado no está listo")
-      );
-    }
-  }, [encryptionReady, encryptionError, t]);
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -318,7 +284,7 @@ export default function ExtrasStepEncrypted({
   const handleNext = async () => {
     if (onNext) {
       // Calcular total de archivos
-      const photoCount = localPhotos.length;
+      const photoCount = trickData.localFiles?.photos?.length || 0;
       const videoCount =
         (trickData.localFiles?.effectVideo ? 1 : 0) +
         (trickData.localFiles?.secretVideo ? 1 : 0);
@@ -357,16 +323,6 @@ export default function ExtrasStepEncrypted({
     updateTrickData({ angles: updatedAngles });
   };
 
-  // Mostrar selector de tiempo de duración
-  const openDurationPicker = () => {
-    setShowDurationPicker(true);
-  };
-
-  // Mostrar selector de tiempo de reinicio
-  const openResetTimePicker = () => {
-    setShowResetPicker(true);
-  };
-
   // Manejar cambio de duración
   const handleDurationChange = (totalSeconds: number) => {
     updateTrickData({ duration: totalSeconds });
@@ -388,11 +344,6 @@ export default function ExtrasStepEncrypted({
   useEffect(() => {
     fetchTechniques();
     fetchGimmicks();
-
-    // Inicializar fotos locales desde trickData si existen
-    if (trickData.localFiles?.photos) {
-      setLocalPhotos(trickData.localFiles.photos);
-    }
 
     // Inicializar elementos seleccionados si los datos del truco los tienen
     if (trickData.techniqueIds && trickData.techniqueIds.length > 0) {
@@ -514,188 +465,20 @@ export default function ExtrasStepEncrypted({
     }
   };
 
-  // Guardar técnicas en el truco
-  const saveTechniques = () => {
-    const techniqueIds = selectedTechniques.map((t) => t.id);
+  // Manejar datos de componentes modales
+  const handleSaveTechniques = (techniqueIds: string[]) => {
     updateTrickData({ techniqueIds });
     setTechniquesModalVisible(false);
   };
 
-  // Guardar gimmicks en el truco
-  const saveGimmicks = () => {
-    const gimmickIds = selectedGimmicks.map((g) => g.id);
+  const handleSaveGimmicks = (gimmickIds: string[]) => {
     updateTrickData({ gimmickIds });
     setGimmicksModalVisible(false);
   };
 
-  // Guardar script para el truco
-  const saveScript = async () => {
-    try {
-      if (!scriptData.title || !scriptData.content) {
-        Alert.alert(
-          t("missingFields", "Campos faltantes"),
-          t(
-            "pleaseCompleteTitleAndContent",
-            "Por favor completa tanto el título como el contenido"
-          )
-        );
-        return;
-      }
-
-      // Actualizar el script en el estado del truco
-      updateTrickData({ script: scriptData.content });
-      setScriptModalVisible(false);
-    } catch (error) {
-      console.error("Error al guardar script:", error);
-      Alert.alert(
-        t("error", "Error"),
-        t("errorSavingScript", "Error al guardar el script")
-      );
-    }
-  };
-
-  // Seleccionar imagen para el truco (solo guardar localmente)
-  const pickImage = async () => {
-    try {
-      if (!encryptionReady || !keyPair) {
-        Alert.alert(
-          t("security.error", "Error de Seguridad"),
-          t(
-            "security.encryptionNotReady",
-            "El sistema de cifrado no está listo"
-          )
-        );
-        return;
-      }
-
-      // Solicitar permisos primero
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          t("permissionRequired", "Permiso Requerido"),
-          t(
-            "mediaLibraryPermission",
-            "Necesitamos acceso a tu galería de medios para subir fotos."
-          ),
-          [{ text: t("ok", "OK") }]
-        );
-        return;
-      }
-
-      const options: ImagePicker.ImagePickerOptions = {
-        mediaTypes: ["images"],
-        allowsEditing: false,
-        allowsMultipleSelection: true,
-        quality: 0.4,
-      };
-
-      const result = await ImagePicker.launchImageLibraryAsync(options);
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const newPhotos: string[] = [];
-
-        // Procesar múltiples imágenes
-        for (const asset of result.assets) {
-          const uri = asset.uri;
-
-          // Verificar tamaño del archivo
-          try {
-            const fileInfo = await FileSystem.getInfoAsync(uri);
-
-            if (fileInfo.exists && "size" in fileInfo) {
-              if (fileInfo.size > 10 * 1024 * 1024) {
-                Alert.alert(
-                  t("fileTooLarge", "Archivo Demasiado Grande"),
-                  t(
-                    "imageSizeWarning",
-                    "Una o más imágenes son demasiado grandes. El límite es 10MB por imagen."
-                  ),
-                  [{ text: t("ok", "OK") }]
-                );
-                continue;
-              }
-            }
-          } catch (error) {
-            console.error("Error al verificar tamaño del archivo:", error);
-          }
-
-          newPhotos.push(uri);
-        }
-
-        // Actualizar estado local y trickData
-        const updatedPhotos = [...localPhotos, ...newPhotos];
-        setLocalPhotos(updatedPhotos);
-        updateTrickData({
-          localFiles: {
-            ...trickData.localFiles,
-            photos: updatedPhotos,
-          },
-        });
-      }
-    } catch (error) {
-      console.error("Error al seleccionar imagen:", error);
-      Alert.alert(
-        t("error", "Error"),
-        t(
-          "imagePickError",
-          "Hubo un error al seleccionar las imágenes. Por favor intenta de nuevo."
-        ),
-        [{ text: t("ok", "OK") }]
-      );
-    }
-  };
-
-  // Eliminar foto
-  const removePhoto = (index: number) => {
-    const updatedPhotos = localPhotos.filter((_, i) => i !== index);
-    setLocalPhotos(updatedPhotos);
-    updateTrickData({
-      localFiles: {
-        ...trickData.localFiles,
-        photos: updatedPhotos,
-      },
-    });
-  };
-
-  // Eliminar todas las fotos
-  /* const removeAllPhotos = () => {
-    Alert.alert(
-      t("confirmDelete", "Confirmar eliminación"),
-      t(
-        "deleteAllPhotosConfirm",
-        "¿Estás seguro de que quieres eliminar todas las fotos?"
-      ),
-      [
-        { text: t("cancel", "Cancelar"), style: "cancel" },
-        {
-          text: t("delete", "Eliminar"),
-          style: "destructive",
-          onPress: () => {
-            setLocalPhotos([]);
-            updateTrickData({
-              localFiles: {
-                ...trickData.localFiles,
-                photos: [],
-              },
-            });
-          },
-        },
-      ]
-    );
-  }; */
-
-  // Manejar datos de componentes modales
-  const handleSaveTechniques = (techniqueIds: string[]) => {
-    updateTrickData({ techniqueIds });
-  };
-
-  const handleSaveGimmicks = (gimmickIds: string[]) => {
-    updateTrickData({ gimmickIds });
-  };
-
-  const handleSaveScript = (newScriptId: string) => {
-    updateTrickData({ scriptId: newScriptId });
+  const handleSaveScript = (scriptContent: string) => {
+    updateTrickData({ script: scriptContent });
+    setScriptModalVisible(false);
   };
 
   // Formatear tiempo de duración para mostrar
@@ -734,7 +517,6 @@ export default function ExtrasStepEncrypted({
 
   // Actualizar el contexto padre con el callback de progreso
   useEffect(() => {
-    // Si el padre (AddMagicWizard) necesita el callback de progreso
     if (updateTrickData) {
       updateTrickData({
         uploadProgressCallback: handleUploadProgress,
@@ -839,7 +621,7 @@ export default function ExtrasStepEncrypted({
             <StyledView className="flex-1">
               <StyledTouchableOpacity
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#5bb9a3] flex-row items-center justify-between"
-                onPress={openDurationPicker}
+                onPress={() => setShowDurationPicker(true)}
               >
                 <StyledText className="text-white/70">
                   {formatDuration(trickData.duration)}
@@ -863,7 +645,7 @@ export default function ExtrasStepEncrypted({
             <StyledView className="flex-1">
               <StyledTouchableOpacity
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#5bb9a3] flex-row items-center justify-between"
-                onPress={openResetTimePicker}
+                onPress={() => setShowResetPicker(true)}
               >
                 <StyledText className="text-white/70">
                   {formatReset(trickData.reset)}
@@ -963,7 +745,7 @@ export default function ExtrasStepEncrypted({
             </StyledView>
           </StyledView>
 
-          {/* Escritura de Script con Cifrado */}
+          {/* Escritura de Script */}
           <StyledView className="flex-row mb-2">
             <CustomTooltip
               text={t("tooltips.script")}
@@ -1004,9 +786,9 @@ export default function ExtrasStepEncrypted({
         {/* Botón de Registro de Magia */}
         <StyledTouchableOpacity
           className={`w-full py-4 rounded-lg items-center justify-center flex-row mb-6 ${
-            isSubmitting || !encryptionReady ? "bg-white/10" : "bg-emerald-700"
+            isSubmitting ? "bg-white/10" : "bg-emerald-700"
           }`}
-          disabled={isSubmitting || !encryptionReady}
+          disabled={isSubmitting}
           onPress={handleNext}
         >
           <StyledText className="text-white font-semibold text-base">

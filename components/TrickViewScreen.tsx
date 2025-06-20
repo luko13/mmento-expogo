@@ -25,12 +25,7 @@ import TopNavigationBar from "./trick-viewer/TopNavigationBar";
 import TrickViewerBottomSection from "./trick-viewer/TrickViewerBottomSection";
 import type { Tag } from "./trick-viewer/TagPillsSection";
 import type { StageType } from "./trick-viewer/StageInfoSection";
-import { EncryptedContentService } from "../services/encryptedContentService";
-import { useEncryption } from "../hooks/useEncryption";
-import { FileEncryptionService } from "../utils/fileEncryption";
 import { supabase } from "../lib/supabase";
-import { OptimizedBase64 } from "../utils/optimizedBase64";
-import * as FileSystem from "expo-file-system";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -58,7 +53,6 @@ interface TrickViewScreenProps {
     notes?: string;
     tags?: Tag[];
     photos?: string[];
-    is_encrypted?: boolean;
     user_id?: string;
   };
   onClose?: () => void;
@@ -79,16 +73,30 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const [overlayOpacity] = useState(new Animated.Value(0));
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
-  // Estados para videos descifrados
+  // Estados para videos
   const [effectVideoUrl, setEffectVideoUrl] = useState<string | null>(null);
   const [secretVideoUrl, setSecretVideoUrl] = useState<string | null>(null);
   const [isLoadingVideos, setIsLoadingVideos] = useState(true);
   const [videoLoadError, setVideoLoadError] = useState<string | null>(null);
 
-  // Estados para fotos descifradas
+  // Estados para fotos
   const [decryptedPhotos, setDecryptedPhotos] = useState<string[]>([]);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(true);
   const [photoLoadError, setPhotoLoadError] = useState<string | null>(null);
+
+  // Función helper para construir URL pública desde un path
+  const getPublicUrl = (path: string, bucket: string = "magic_trick_media") => {
+    if (!path) return null;
+
+    // Si ya es una URL completa, devolverla
+    if (path.startsWith("http://") || path.startsWith("https://")) {
+      return path;
+    }
+
+    // Si es un path relativo, construir la URL completa
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
+  };
 
   // Referencias para los videos
   const effectPlayer = useVideoPlayer(effectVideoUrl || "", (player) => {
@@ -104,15 +112,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       player.play();
     }
   });
-
-  // Hooks de cifrado
-  const { decryptForSelf, getPublicKey, keyPair } = useEncryption();
-  const encryptedContentService = new EncryptedContentService();
-  const fileEncryption = new FileEncryptionService();
-
-  // Ref para evitar cargas múltiples
-  const videosLoadedRef = useRef(false);
-  const photosLoadedRef = useRef(false);
 
   // Usar las fotos proporcionadas o crear un array con la foto principal si existe
   const photos = trick.photos || (trick.photo_url ? [trick.photo_url] : []);
@@ -133,312 +132,28 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     }
   };
 
-  // Función helper para construir URL pública desde un path
-  const getPublicUrl = (path: string, bucket: string = "magic_trick_media") => {
-    if (!path) return null;
-
-    // Si ya es una URL completa, devolverla
-    if (path.startsWith("http://") || path.startsWith("https://")) {
-      return path;
-    }
-
-    // Si es un path relativo, construir la URL completa
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-    return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
-  };
-
-  // Función helper para retry de descargas
-  const retryDownload = async (
-    downloadFunction: () => Promise<any>,
-    maxRetries = 3
-  ): Promise<any> => {
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        return await downloadFunction();
-      } catch (error) {
-        if (i === maxRetries - 1) throw error;
-        await new Promise((resolve) =>
-          setTimeout(resolve, 1000 * Math.pow(2, i))
-        );
-      }
-    }
-  };
-
   // useEffect para cargar videos
   useEffect(() => {
     const loadVideos = async () => {
       try {
         console.log("\n🎬 INICIANDO CARGA DE VIDEOS");
         console.log("- Trick ID:", trick.id);
-        console.log("- Is Encrypted:", trick.is_encrypted);
         console.log("- Effect Video URL:", trick.effect_video_url);
         console.log("- Secret Video URL:", trick.secret_video_url);
-        if (videosLoadedRef.current) {
-          return;
-        }
 
         setIsLoadingVideos(true);
         setVideoLoadError(null);
 
-        // Array temporal para fotos mal clasificadas
-        const misplacedPhotos: string[] = [];
+        // Usar URLs directamente
+        const effectUrl = getPublicUrl(trick.effect_video_url);
+        const secretUrl = getPublicUrl(trick.secret_video_url);
 
-        // Si no está cifrado, usar URLs directamente
-        if (!trick.is_encrypted) {
-          const effectUrl = getPublicUrl(trick.effect_video_url);
-          const secretUrl = getPublicUrl(trick.secret_video_url);
-
-          setEffectVideoUrl(effectUrl);
-          setSecretVideoUrl(secretUrl);
-          videosLoadedRef.current = true;
-          setIsLoadingVideos(false);
-          return;
-        }
-
-        // Verificar que tengamos las claves necesarias
-        if (!keyPair) {
-          console.log("⏳ Esperando claves de cifrado...");
-          return;
-        }
-
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) {
-          throw new Error("Usuario no autenticado");
-        }
-        console.log("👤 Usuario:", user.id);
-
-        console.log("\n📊 VERIFICANDO BASE DE DATOS:");
-        const { data: trickData, error: trickError } = await supabase
-          .from("magic_tricks")
-          .select("*")
-          .eq("id", trick.id)
-          .single();
-
-        if (trickData) {
-          console.log("📝 Datos del truco:");
-          console.log("- effect_video_url:", trickData.effect_video_url);
-          console.log("- secret_video_url:", trickData.secret_video_url);
-          console.log("- photo_url:", trickData.photo_url);
-          console.log("- is_encrypted:", trickData.is_encrypted);
-        }
-
-        // Verificar tabla encrypted_content
-        const { data: encryptedMeta, error: metaError } = await supabase
-          .from("encrypted_content")
-          .select("*")
-          .eq("content_id", trick.id)
-          .eq("content_type", "magic_tricks")
-          .single();
-
-        if (encryptedMeta) {
-          console.log("\n🔐 Metadatos cifrados:");
-          console.log("- encrypted_fields:", encryptedMeta.encrypted_fields);
-          console.log("- encrypted_files:", encryptedMeta.encrypted_files);
-        } else {
-          console.error("❌ No se encontraron metadatos cifrados");
-        }
-
-        // Obtener contenido descifrado
-        const decryptedContent = await encryptedContentService.getContent(
-          trick.id,
-          "magic_tricks",
-          user.id,
-          decryptForSelf,
-          () => keyPair.privateKey
-        );
-
-        if (!decryptedContent) {
-          throw new Error("No se pudo obtener el contenido");
-        }
-        console.log("\n📦 Contenido descifrado:");
-        console.log("- effect_video_url:", decryptedContent.effect_video_url);
-        console.log(
-          "- effect_video_encrypted:",
-          decryptedContent.effect_video_encrypted
-        );
-        console.log("- secret_video_url:", decryptedContent.secret_video_url);
-        console.log(
-          "- secret_video_encrypted:",
-          decryptedContent.secret_video_encrypted
-        );
-        // Variables para almacenar las URLs finales
-        let finalEffectUrl = null;
-        let finalSecretUrl = null;
-
-        // Procesar video de efecto
-        if (decryptedContent.effect_video_url) {
-          console.log("\n🎥 Procesando video de efecto...");
-          if (
-            decryptedContent.effect_video_encrypted ||
-            decryptedContent.effect_video_url.startsWith("enc_")
-          ) {
-            try {
-              console.log(
-                "📹 ID del archivo cifrado:",
-                decryptedContent.effect_video_url
-              );
-              const { data: fileCheck } = await supabase
-                .from("encrypted_files")
-                .select("file_id, original_name, mime_type, size")
-                .eq("file_id", decryptedContent.effect_video_url)
-                .single();
-
-              if (fileCheck) {
-                console.log("✅ Archivo encontrado en DB:");
-                console.log("- Nombre:", fileCheck.original_name);
-                console.log("- Tipo:", fileCheck.mime_type);
-                console.log("- Tamaño:", fileCheck.size);
-              } else {
-                console.error("❌ Archivo no encontrado en encrypted_files");
-              }
-              const decryptedVideo = await retryDownload(async () =>
-                fileEncryption.downloadAndDecryptFile(
-                  decryptedContent.effect_video_url,
-                  user.id,
-                  getPublicKey,
-                  () => keyPair.privateKey
-                )
-              );
-              console.log("📹 Archivo descifrado:");
-              console.log("- Tipo:", decryptedVideo.mimeType);
-              console.log("- Tamaño:", decryptedVideo.data.length);
-              // PARCHE: Verificar si es realmente un video
-              if (!decryptedVideo.mimeType.includes("video")) {
-                console.warn(
-                  `⚠️ El video de efecto es en realidad ${decryptedVideo.mimeType}`
-                );
-
-                if (decryptedVideo.mimeType.includes("image")) {
-                  // Es una imagen, guardarla para las fotos
-                  const tempPhotoUri = `${
-                    FileSystem.cacheDirectory
-                  }misplaced_effect_${Date.now()}.jpg`;
-                  const base64Data = await OptimizedBase64.uint8ArrayToBase64(
-                    decryptedVideo.data
-                  );
-                  await FileSystem.writeAsStringAsync(
-                    tempPhotoUri,
-                    base64Data,
-                    {
-                      encoding: FileSystem.EncodingType.Base64,
-                    }
-                  );
-                  misplacedPhotos.push(tempPhotoUri);
-                  console.log("📸 Imagen guardada como foto:", tempPhotoUri);
-                }
-
-                // No establecer URL de video
-                finalEffectUrl = null;
-              } else {
-                // Es un video real
-                const tempUri = `${
-                  FileSystem.cacheDirectory
-                }effect_${Date.now()}.mp4`;
-                const base64Data = await OptimizedBase64.uint8ArrayToBase64(
-                  decryptedVideo.data
-                );
-                await FileSystem.writeAsStringAsync(tempUri, base64Data, {
-                  encoding: FileSystem.EncodingType.Base64,
-                });
-
-                console.log("✅ Video de efecto guardado en:", tempUri);
-
-                const fileInfo = await FileSystem.getInfoAsync(tempUri);
-                console.log("📁 Info del archivo guardado:", fileInfo);
-
-                finalEffectUrl = tempUri;
-              }
-            } catch (error) {
-              console.error("❌ Error descargando video de efecto:", error);
-              finalEffectUrl = null;
-            }
-          } else {
-            // Video no cifrado
-            finalEffectUrl = getPublicUrl(decryptedContent.effect_video_url);
-            console.log("📹 Video no cifrado, URL pública:", finalEffectUrl);
-          }
-        }
-
-        // Procesar video secreto
-        if (decryptedContent.secret_video_url) {
-          if (
-            decryptedContent.secret_video_encrypted ||
-            decryptedContent.secret_video_url.startsWith("enc_")
-          ) {
-            try {
-              console.log("📹 Descargando video secreto cifrado...");
-              const decryptedVideo = await retryDownload(async () =>
-                fileEncryption.downloadAndDecryptFile(
-                  decryptedContent.secret_video_url,
-                  user.id,
-                  getPublicKey,
-                  () => keyPair.privateKey
-                )
-              );
-
-              // Verificar tipo MIME
-              if (!decryptedVideo.mimeType.includes("video")) {
-                console.warn(
-                  `⚠️ El video secreto es en realidad ${decryptedVideo.mimeType}`
-                );
-
-                if (decryptedVideo.mimeType.includes("image")) {
-                  const tempPhotoUri = `${
-                    FileSystem.cacheDirectory
-                  }misplaced_secret_${Date.now()}.jpg`;
-                  const base64Data = await OptimizedBase64.uint8ArrayToBase64(
-                    decryptedVideo.data
-                  );
-                  await FileSystem.writeAsStringAsync(
-                    tempPhotoUri,
-                    base64Data,
-                    {
-                      encoding: FileSystem.EncodingType.Base64,
-                    }
-                  );
-                  misplacedPhotos.push(tempPhotoUri);
-                }
-
-                finalSecretUrl = null;
-              } else {
-                const tempUri = `${
-                  FileSystem.cacheDirectory
-                }secret_${Date.now()}.mp4`;
-                const base64Data = await OptimizedBase64.uint8ArrayToBase64(
-                  decryptedVideo.data
-                );
-                await FileSystem.writeAsStringAsync(tempUri, base64Data, {
-                  encoding: FileSystem.EncodingType.Base64,
-                });
-
-                console.log("✅ Video secreto guardado en:", tempUri);
-                finalSecretUrl = tempUri;
-              }
-            } catch (error) {
-              console.error("❌ Error descargando video secreto:", error);
-              finalSecretUrl = null;
-            }
-          } else {
-            finalSecretUrl = getPublicUrl(decryptedContent.secret_video_url);
-          }
-        }
-
-        // Actualizar las URLs de estado
         console.log("\n📊 URLS FINALES:");
-        console.log("- Effect Video:", finalEffectUrl);
-        console.log("- Secret Video:", finalSecretUrl);
-        console.log("- Fotos mal clasificadas:", misplacedPhotos.length);
-        setEffectVideoUrl(finalEffectUrl);
-        setSecretVideoUrl(finalSecretUrl);
+        console.log("- Effect Video:", effectUrl);
+        console.log("- Secret Video:", secretUrl);
 
-        // Si encontramos fotos mal clasificadas, agregarlas
-        if (misplacedPhotos.length > 0) {
-          setDecryptedPhotos((prev) => [...prev, ...misplacedPhotos]);
-        }
-
-        videosLoadedRef.current = true;
+        setEffectVideoUrl(effectUrl);
+        setSecretVideoUrl(secretUrl);
       } catch (error) {
         console.error("❌ Error general cargando videos:", error);
         setVideoLoadError(
@@ -450,195 +165,25 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     };
 
     loadVideos();
-
-    return () => {
-      videosLoadedRef.current = false;
-    };
-  }, [trick.id, keyPair]);
+  }, [trick.id, trick.effect_video_url, trick.secret_video_url]);
 
   // useEffect para cargar fotos
   useEffect(() => {
     const loadPhotos = async () => {
       try {
-        if (photosLoadedRef.current) {
-          return;
-        }
-
         console.log("📸 Iniciando carga de fotos...");
         console.log("📸 trick.photos:", trick.photos);
         console.log("📸 trick.photo_url:", trick.photo_url);
 
-        // Si no está cifrado, usar fotos originales
-        if (!trick.is_encrypted) {
-          // Convertir las URLs a URLs públicas si es necesario
-          const publicPhotos = photos.map(
-            (photo) => getPublicUrl(photo) || photo
-          );
-          setDecryptedPhotos(publicPhotos);
-          photosLoadedRef.current = true;
-          setIsLoadingPhotos(false);
-          return;
-        }
-
-        // Si aún no tenemos las claves, esperamos
-        if (!keyPair) {
-          return;
-        }
-
         setIsLoadingPhotos(true);
         setPhotoLoadError(null);
 
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) throw new Error("Usuario no autenticado");
+        // Convertir las URLs a URLs públicas si es necesario
+        const publicPhotos = photos.map(
+          (photo) => getPublicUrl(photo) || photo
+        );
 
-        const processedPhotos: string[] = [];
-
-        // Procesar las fotos del prop
-        if (
-          trick.photos &&
-          Array.isArray(trick.photos) &&
-          trick.photos.length > 0
-        ) {
-          const photoPromises = trick.photos.map(
-            async (photoIdOrUrl: string, index: number) => {
-              try {
-                console.log(`📸 Procesando foto ${index + 1}:`, photoIdOrUrl);
-
-                // Si ya es una URL completa o ruta local, usarla directamente
-                if (
-                  photoIdOrUrl.startsWith("http") ||
-                  photoIdOrUrl.startsWith("file://")
-                ) {
-                  return { index, dataUri: photoIdOrUrl };
-                }
-
-                // Si es un ID de archivo cifrado (enc_*)
-                if (photoIdOrUrl.startsWith("enc_")) {
-                  const decryptedPhoto = await retryDownload(async () =>
-                    fileEncryption.downloadAndDecryptFile(
-                      photoIdOrUrl,
-                      user.id,
-                      getPublicKey,
-                      () => keyPair.privateKey
-                    )
-                  );
-
-                  // Verificar que la imagen se descifró correctamente
-                  if (
-                    !decryptedPhoto.data ||
-                    decryptedPhoto.data.length === 0
-                  ) {
-                    console.error(
-                      `❌ Foto ${index} vacía después de descifrar`
-                    );
-                    return null;
-                  }
-
-                  console.log(
-                    `✅ Foto ${index + 1} descifrada, tamaño:`,
-                    decryptedPhoto.data.length
-                  );
-                  console.log(`📸 MimeType: ${decryptedPhoto.mimeType}`);
-
-                  // Para fotos muy grandes, crear archivo temporal
-                  if (decryptedPhoto.data.length > 1000000) {
-                    // 1MB
-                    const tempUri = `${
-                      FileSystem.cacheDirectory
-                    }photo_${Date.now()}_${index}.jpg`;
-
-                    // Intentar comprimir si es muy grande
-                    if (decryptedPhoto.data.length > 3000000) {
-                      // 3MB
-                      try {
-                        // Crear data URI temporal para comprimir
-                        const base64Data =
-                          await OptimizedBase64.uint8ArrayToBase64(
-                            decryptedPhoto.data
-                          );
-                        const dataUri = `data:${decryptedPhoto.mimeType};base64,${base64Data}`;
-
-                        // Comprimir con expo-image-manipulator
-                        const { manipulateAsync, SaveFormat } = await import(
-                          "expo-image-manipulator"
-                        );
-                        const compressed = await manipulateAsync(
-                          dataUri,
-                          [{ resize: { width: 1920 } }],
-                          { compress: 0.8, format: SaveFormat.JPEG }
-                        );
-
-                        console.log(
-                          `✅ Foto comprimida de ${decryptedPhoto.data.length} a archivo temporal`
-                        );
-                        return { index, dataUri: compressed.uri };
-                      } catch (compressionError) {
-                        console.warn(
-                          "No se pudo comprimir, usando original:",
-                          compressionError
-                        );
-                      }
-                    }
-
-                    // Guardar sin comprimir
-                    const base64Data = await OptimizedBase64.uint8ArrayToBase64(
-                      decryptedPhoto.data
-                    );
-                    await FileSystem.writeAsStringAsync(tempUri, base64Data, {
-                      encoding: FileSystem.EncodingType.Base64,
-                    });
-                    console.log(`📸 Foto guardada en: ${tempUri}`);
-                    return { index, dataUri: tempUri };
-                  } else {
-                    // Foto pequeña, usar data URI
-                    const base64Data = await OptimizedBase64.uint8ArrayToBase64(
-                      decryptedPhoto.data
-                    );
-                    const dataUri = `data:${decryptedPhoto.mimeType};base64,${base64Data}`;
-                    return { index, dataUri };
-                  }
-                }
-
-                // Si es un path relativo, construir URL pública
-                const publicUrl = getPublicUrl(photoIdOrUrl, "encrypted_media");
-                return { index, dataUri: publicUrl };
-              } catch (err) {
-                console.error(`❌ Error procesando foto ${index}:`, err);
-                return null;
-              }
-            }
-          );
-
-          const results = await Promise.all(photoPromises);
-
-          const orderedPhotos = results
-            .filter(
-              (result): result is { index: number; dataUri: string } =>
-                result !== null
-            )
-            .sort((a, b) => a.index - b.index)
-            .map((result) => result.dataUri);
-
-          processedPhotos.push(...orderedPhotos);
-        }
-
-        // Si no hay fotos procesadas, intentar con la foto principal
-        if (processedPhotos.length === 0 && trick.photo_url) {
-          const publicUrl = getPublicUrl(trick.photo_url);
-          if (publicUrl) {
-            processedPhotos.push(publicUrl);
-          }
-        }
-
-        console.log(`📸 Total fotos procesadas: ${processedPhotos.length}`);
-        setDecryptedPhotos((prev) => {
-          // Combinar con fotos mal clasificadas de videos
-          const combined = [...processedPhotos, ...prev];
-          return [...new Set(combined)]; // Eliminar duplicados
-        });
-        photosLoadedRef.current = true;
+        setDecryptedPhotos(publicPhotos);
       } catch (error) {
         console.error("❌ Error general cargando fotos:", error);
         setPhotoLoadError(
@@ -655,11 +200,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     };
 
     loadPhotos();
-
-    return () => {
-      photosLoadedRef.current = false;
-    };
-  }, [trick.id, trick.photos, keyPair]);
+  }, [trick.id, trick.photos, trick.photo_url]);
 
   // Pausar/reproducir videos según la sección actual
   useEffect(() => {
@@ -682,33 +223,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       if (secretPlayer) secretPlayer.pause();
     }
   }, [currentSection, isEffectPlaying, isSecretPlaying]);
-
-  // Limpiar archivos temporales al desmontar
-  useEffect(() => {
-    return () => {
-      const cleanupFiles = async () => {
-        const filesToDelete = [
-          effectVideoUrl,
-          secretVideoUrl,
-          ...decryptedPhotos.filter((photo) =>
-            photo.startsWith(FileSystem.cacheDirectory || "")
-          ),
-        ].filter(Boolean);
-
-        for (const file of filesToDelete) {
-          if (file) {
-            try {
-              await FileSystem.deleteAsync(file, { idempotent: true });
-            } catch (error) {
-              console.warn("Error limpiando archivo:", error);
-            }
-          }
-        }
-      };
-
-      cleanupFiles();
-    };
-  }, [effectVideoUrl, secretVideoUrl, decryptedPhotos]);
 
   // Función para manejar el cambio de sección al deslizar
   const handleScroll = useCallback(
@@ -801,9 +315,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         >
           <ActivityIndicator size="large" color="white" />
           <Text style={{ color: "white", fontSize: 18, marginTop: 16 }}>
-            {trick.is_encrypted
-              ? t("decryptingVideo", "Descifrando video...")
-              : t("loadingVideo", "Cargando video...")}
+            {t("loadingVideo", "Cargando video...")}
           </Text>
         </View>
       );
@@ -938,9 +450,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
           <ActivityIndicator size="large" color="white" />
           <StyledText className="text-white text-lg mt-4">
-            {trick.is_encrypted
-              ? t("decryptingPhotos", "Descifrando fotos...")
-              : t("loadingPhotos", "Cargando fotos...")}
+            {t("loadingPhotos", "Cargando fotos...")}
           </StyledText>
         </StyledView>
       );

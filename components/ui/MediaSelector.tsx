@@ -14,17 +14,13 @@ import {
   Text,
   Alert,
   ScrollView,
-  Animated,
 } from "react-native";
 import { styled } from "nativewind";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { Feather } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { useEncryption } from "../../hooks/useEncryption";
-import { BackgroundEncryptionService } from "../../utils/backgroundEncryption";
 import CustomTooltip from "../ui/Tooltip";
-import { backgroundEncryptionService } from "../../utils/backgroundEncryption";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -34,18 +30,8 @@ const StyledImage = styled(Image);
 
 interface MediaFile {
   uri: string;
-  taskId: string;
   fileName: string;
-  isEncrypting: boolean;
-  progress: number;
 }
-
-interface GlobalMediaStateValue {
-  files: MediaFile[];
-  progress: { [key: string]: number };
-}
-
-const globalMediaState = new Map<string, GlobalMediaStateValue>();
 
 interface MediaSelectorProps {
   type: "photo" | "video";
@@ -54,14 +40,13 @@ interface MediaSelectorProps {
   maxFileSize?: number; // en MB
   quality?: number;
   onFilesSelected?: (files: MediaFile[]) => void;
-  onProgress?: (progress: number) => void;
   tooltip?: string;
   placeholder?: string;
-  disableEncryption?: boolean; // Nueva prop
+  disableEncryption?: boolean; // Mantenemos por compatibilidad pero no se usa
 }
 
 export interface MediaSelectorRef {
-  getEncryptedFileIds: () => Promise<string[]>;
+  getSelectedFiles: () => MediaFile[];
   clearSelection: () => void;
 }
 
@@ -74,129 +59,24 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
       maxFileSize = 50,
       quality = 0.8,
       onFilesSelected,
-      onProgress,
       tooltip,
       placeholder,
-      disableEncryption = false,
     } = props;
 
-    const selectorId = useRef(`${type}_${Date.now()}`).current;
     const { t } = useTranslation();
-    const [selectedFiles, setSelectedFiles] = useState<MediaFile[]>(() => {
-      const saved = globalMediaState.get(selectorId);
-      return saved?.files || [];
-    });
-    const [encryptionProgress, setEncryptionProgress] = useState<{
-      [key: string]: number;
-    }>(() => {
-      const saved = globalMediaState.get(selectorId);
-      return saved?.progress || {};
-    });
-    const { keyPair, getPublicKey, isReady: encryptionReady } = useEncryption();
-    const progressAnimation = useRef(new Animated.Value(0)).current;
-
-    // Guardar estado cuando cambie
-    useEffect(() => {
-      globalMediaState.set(selectorId, {
-        files: selectedFiles,
-        progress: encryptionProgress,
-      });
-    }, [selectedFiles, encryptionProgress, selectorId]);
-
-    // Limpiar al desmontar el componente principal
-    useEffect(() => {
-      return () => {
-        // Solo limpiar si el componente se desmonta definitivamente
-        // (no durante navegación entre steps)
-        setTimeout(() => {
-          globalMediaState.delete(selectorId);
-        }, 60000); // Mantener por 1 minuto
-      };
-    }, [selectorId]);
-
-    // Cleanup ongoing encryption tasks when component unmounts
-    useEffect(() => {
-      return () => {
-        if (!disableEncryption && selectedFiles.some((f) => f.isEncrypting)) {
-          selectedFiles.forEach((file) => {
-            if (file.isEncrypting) {
-              backgroundEncryptionService.cancelTask(file.taskId);
-            }
-          });
-        }
-      };
-    }, [selectedFiles, disableEncryption]);
+    const [selectedFiles, setSelectedFiles] = useState<MediaFile[]>([]);
 
     // Exposición de métodos al padre
     useImperativeHandle(ref, () => ({
-      getEncryptedFileIds: async () => {
-        // Si el cifrado está deshabilitado, devolver array vacío
-        if (disableEncryption) {
-          return [];
-        }
-
-        const fileIds: string[] = [];
-
-        // Obtener IDs de archivos completados
-        for (const file of selectedFiles) {
-          if (!file.isEncrypting) {
-            // Archivo ya completado - obtener el resultado de la tarea
-            const task = backgroundEncryptionService.getTask(file.taskId);
-            if (task?.status === "completed" && task.result) {
-              fileIds.push(task.result);
-            }
-          }
-        }
-
-        // Esperar por cualquier cifrado en progreso si es necesario
-        const encryptingFiles = selectedFiles.filter((f) => f.isEncrypting);
-        if (encryptingFiles.length > 0) {
-          const encryptingIds = encryptingFiles.map((f) => f.taskId);
-          try {
-            const results =
-              await backgroundEncryptionService.waitForSpecificTasks(
-                encryptingIds
-              );
-            fileIds.push(...results);
-          } catch (error) {
-            console.error("Error esperando archivos:", error);
-          }
-        }
-
-        return fileIds;
-      },
+      getSelectedFiles: () => selectedFiles,
       clearSelection: () => {
-        // Cancelar todas las tareas en progreso
-        if (!disableEncryption) {
-          selectedFiles.forEach((file) => {
-            if (file.isEncrypting) {
-              backgroundEncryptionService.cancelTask(file.taskId);
-            }
-          });
-        }
-
         setSelectedFiles([]);
-        setEncryptionProgress({});
-
-        // Limpiar estado global
-        globalMediaState.delete(selectorId);
+        onFilesSelected?.([]);
       },
     }));
 
     const selectMedia = async () => {
       try {
-        // Si el cifrado está deshabilitado, no verificar encryptionReady
-        if (!disableEncryption && (!encryptionReady || !keyPair)) {
-          Alert.alert(
-            t("security.error", "Error de Seguridad"),
-            t(
-              "security.encryptionNotReady",
-              "El sistema de cifrado no está listo"
-            )
-          );
-          return;
-        }
-
         // Verificar permisos
         const { status } =
           await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -254,77 +134,21 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
                     continue;
                   }
                 }
-              } catch (error) {}
+              } catch (error) {
+                console.error("Error verificando tamaño:", error);
+              }
             }
 
-            // Si el cifrado está deshabilitado, solo agregar el archivo sin cifrar
-            if (disableEncryption) {
-              const fileName =
-                type === "photo"
-                  ? `IMG_${Date.now()}_${newFiles.length}.jpg`
-                  : `VID_${Date.now()}_${newFiles.length}.mp4`;
+            // Generar nombre de archivo
+            const fileName =
+              type === "photo"
+                ? `IMG_${Date.now()}_${newFiles.length}.jpg`
+                : `VID_${Date.now()}_${newFiles.length}.mp4`;
 
-              newFiles.push({
-                uri: asset.uri,
-                taskId: `local_${Date.now()}_${newFiles.length}`, // ID temporal
-                fileName,
-                isEncrypting: false,
-                progress: 100,
-              });
-            } else {
-              // Generar nombre de archivo
-              const fileName =
-                type === "photo"
-                  ? `IMG_${Date.now()}_${newFiles.length}.jpg`
-                  : `VID_${Date.now()}_${newFiles.length}.mp4`;
-
-              // Iniciar cifrado en background
-              const taskId = await backgroundEncryptionService.startEncryption({
-                uri: asset.uri,
-                type: asset.type || type,
-                fileName,
-                userId: keyPair!.publicKey,
-                onProgress: (progress) => {
-                  setEncryptionProgress((prev) => {
-                    const updated = { ...prev, [asset.uri]: progress };
-
-                    // Calcular progreso total
-                    const allProgress = Object.values(updated);
-                    const totalProgress =
-                      allProgress.reduce((sum, p) => sum + p, 0) /
-                      allProgress.length;
-
-                    // Animar progreso
-                    Animated.timing(progressAnimation, {
-                      toValue: totalProgress,
-                      duration: 300,
-                      useNativeDriver: false,
-                    }).start();
-
-                    onProgress?.(totalProgress);
-
-                    // Actualizar estado del archivo
-                    setSelectedFiles((prev) =>
-                      prev.map((f) =>
-                        f.uri === asset.uri
-                          ? { ...f, progress, isEncrypting: progress < 100 }
-                          : f
-                      )
-                    );
-
-                    return updated;
-                  });
-                },
-              });
-
-              newFiles.push({
-                uri: asset.uri,
-                taskId,
-                fileName,
-                isEncrypting: true,
-                progress: 0,
-              });
-            }
+            newFiles.push({
+              uri: asset.uri,
+              fileName,
+            });
           }
 
           const updatedFiles = [...selectedFiles, ...newFiles];
@@ -342,46 +166,18 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
     };
 
     const removeFile = (index: number) => {
-      const file = selectedFiles[index];
-
-      // Cancelar cifrado si está en progreso
-      if (!disableEncryption && file.isEncrypting) {
-        backgroundEncryptionService.cancelTask(file.taskId);
-      }
-
       const updatedFiles = selectedFiles.filter((_, i) => i !== index);
       setSelectedFiles(updatedFiles);
-
-      // Actualizar progreso
-      const { [file.uri]: _, ...restProgress } = encryptionProgress;
-      setEncryptionProgress(restProgress);
-
-      // Limpiar del estado global también
-      const saved = globalMediaState.get(selectorId);
-      if (saved) {
-        globalMediaState.set(selectorId, {
-          files: updatedFiles,
-          progress: restProgress,
-        });
-      }
-
       onFilesSelected?.(updatedFiles);
     };
 
     const getButtonText = () => {
       if (selectedFiles.length > 0) {
         if (type === "video") {
-          // Para videos, mostrar el nombre del archivo o estado
-          const file = selectedFiles[0];
-          if (!disableEncryption && file.isEncrypting) {
-            return t(
-              "videoEncrypting",
-              `Cifrando video... ${Math.round(file.progress)}%`
-            );
-          }
-          return file.fileName;
+          // Para videos, mostrar el nombre del archivo
+          return selectedFiles[0].fileName;
         } else {
-          // Para fotos, mantener el comportamiento actual
+          // Para fotos, mostrar cantidad
           return t(
             "photosSelected",
             `${selectedFiles.length} fotos seleccionadas`
@@ -395,17 +191,6 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
           ? t("uploadPhotos", "Subir Fotos")
           : t("uploadVideos", "Subir Videos"))
       );
-    };
-
-    const getIcon = () => {
-      if (
-        !disableEncryption &&
-        selectedFiles.length > 0 &&
-        selectedFiles.some((f) => f.isEncrypting)
-      ) {
-        return <Feather name="lock" size={16} color="white" />;
-      }
-      return <Feather name="upload" size={16} color="white" />;
     };
 
     return (
@@ -443,7 +228,6 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
                   ? () => removeFile(0)
                   : selectMedia
               }
-              disabled={!disableEncryption && !encryptionReady}
               className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[15px] border border-[#5bb9a3] flex-row items-center justify-between"
             >
               <StyledView className="flex-1 flex-row items-center">
@@ -460,47 +244,11 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
                       style={{ marginLeft: 4 }}
                     />
                   ) : (
-                    getIcon()
+                    <Feather name="upload" size={16} color="white" />
                   )}
                 </StyledView>
               </StyledView>
             </StyledTouchableOpacity>
-
-            {/* Barra de progreso para videos */}
-            {!disableEncryption &&
-              type === "video" &&
-              selectedFiles.length > 0 &&
-              selectedFiles[0].isEncrypting && (
-                <StyledView className="mt-2 bg-white/10 rounded-full h-2 overflow-hidden">
-                  <Animated.View
-                    style={{
-                      height: "100%",
-                      backgroundColor: "#10b981",
-                      width: `${
-                        encryptionProgress[selectedFiles[0].uri] || 0
-                      }%`,
-                    }}
-                  />
-                </StyledView>
-              )}
-
-            {/* Barra de progreso global para fotos */}
-            {!disableEncryption &&
-              type === "photo" &&
-              selectedFiles.some((f) => f.isEncrypting) && (
-                <StyledView className="mt-2 bg-white/10 rounded-full h-2 overflow-hidden">
-                  <Animated.View
-                    style={{
-                      height: "100%",
-                      backgroundColor: "#10b981",
-                      width: progressAnimation.interpolate({
-                        inputRange: [0, 100],
-                        outputRange: ["0%", "100%"],
-                      }),
-                    }}
-                  />
-                </StyledView>
-              )}
           </StyledView>
         </StyledView>
 
@@ -514,7 +262,7 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
             >
               {selectedFiles.map((file, index) => (
                 <StyledView
-                  key={file.uri}
+                  key={`${file.uri}_${index}`}
                   className="mr-2 bg-white/5 border border-emerald-500/20 rounded-full flex-row items-center px-2 py-1"
                 >
                   {/* Thumbnail */}
@@ -523,13 +271,6 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
                       source={{ uri: file.uri }}
                       className="w-6 h-6 rounded-full mr-2"
                     />
-
-                    {/* Indicador de cifrado */}
-                    {!disableEncryption && file.isEncrypting && (
-                      <StyledView className="absolute inset-0 rounded-full bg-black/50 items-center justify-center">
-                        <Feather name="lock" size={10} color="white" />
-                      </StyledView>
-                    )}
                   </StyledView>
 
                   {/* Nombre del archivo */}
@@ -540,44 +281,16 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
                     {file.fileName}
                   </StyledText>
 
-                  {/* Progreso o botón de eliminar */}
-                  {!disableEncryption && file.isEncrypting ? (
-                    <StyledText className="text-emerald-400/60 text-xs mr-2">
-                      {Math.round(file.progress)}%
-                    </StyledText>
-                  ) : (
-                    <StyledTouchableOpacity
-                      onPress={() => removeFile(index)}
-                      className="p-1"
-                    >
-                      <Feather
-                        name="x"
-                        size={12}
-                        color="rgba(255,255,255,0.5)"
-                      />
-                    </StyledTouchableOpacity>
-                  )}
+                  {/* Botón de eliminar */}
+                  <StyledTouchableOpacity
+                    onPress={() => removeFile(index)}
+                    className="p-1"
+                  >
+                    <Feather name="x" size={12} color="rgba(255,255,255,0.5)" />
+                  </StyledTouchableOpacity>
                 </StyledView>
               ))}
             </StyledScrollView>
-
-            {/* Indicador de cifrado en progreso */}
-            {!disableEncryption &&
-              selectedFiles.some((f) => f.isEncrypting) && (
-                <StyledView className="flex-row items-center justify-center mt-2">
-                  <Feather
-                    name="shield"
-                    size={12}
-                    color="rgba(16, 185, 129, 0.6)"
-                  />
-                  <StyledText className="text-emerald-500/60 text-xs ml-1">
-                    {t(
-                      "encryptingInBackground",
-                      "Cifrando en segundo plano..."
-                    )}
-                  </StyledText>
-                </StyledView>
-              )}
           </StyledView>
         )}
       </StyledView>

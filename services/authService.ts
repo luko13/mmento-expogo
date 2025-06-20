@@ -1,6 +1,5 @@
+// services/authService.ts
 import { supabase } from "../lib/supabase";
-import { CryptoService } from "../utils/cryptoService";
-
 
 /**
  * Interface para el resultado del login
@@ -8,8 +7,6 @@ import { CryptoService } from "../utils/cryptoService";
 export interface SignInResult {
   user: any;
   session: any;
-  keysInitialized: boolean;
-  needsPasswordForKeys?: boolean;
 }
 
 /**
@@ -18,7 +15,6 @@ export interface SignInResult {
  */
 export class AuthService {
   private static instance: AuthService;
-  private cryptoService = CryptoService.getInstance();
 
   /**
    * Constructor privado para el patrón Singleton
@@ -36,7 +32,7 @@ export class AuthService {
   }
 
   /**
-   * Registra un nuevo usuario con cifrado habilitado
+   * Registra un nuevo usuario
    *
    * @param email - Email del usuario
    * @param password - Contraseña del usuario
@@ -45,7 +41,7 @@ export class AuthService {
    */
   async signUp(email: string, password: string, username?: string) {
     try {
-      console.log("🔐 Iniciando registro con cifrado...");
+      console.log("📧 Iniciando registro...");
 
       // Validar parámetros de entrada
       if (!email || !password) {
@@ -58,14 +54,6 @@ export class AuthService {
 
       if (!email.includes("@") || !email.includes(".")) {
         throw new Error("El email no es válido");
-      }
-
-      // Verificar que el servicio de criptografía funcione
-      const cryptoWorking = await this.cryptoService.testCryptoService();
-      if (!cryptoWorking) {
-        console.warn(
-          "⚠️ Crypto service no funciona correctamente, continuando sin cifrado..."
-        );
       }
 
       console.log("📧 Creando cuenta en Supabase...");
@@ -92,30 +80,9 @@ export class AuthService {
 
       console.log("✅ Usuario creado:", authData.user.id);
 
-      // Generar claves de cifrado solo si crypto funciona
-      let keysInitialized = false;
-      if (cryptoWorking) {
-        try {
-          console.log("🔑 Generando claves de cifrado...");
-          await this.cryptoService.generateKeyPairWithCloudBackup(
-            authData.user.id,
-            password
-          );
-          keysInitialized = true;
-          console.log("✅ Claves generadas y guardadas");
-        } catch (cryptoError) {
-          console.warn(
-            "⚠️ Error generando claves, pero el usuario fue creado:",
-            cryptoError
-          );
-          // No fallar el registro completo por errores de cifrado
-        }
-      }
-
       return {
         user: authData.user,
         session: authData.session,
-        keysInitialized,
       };
     } catch (error) {
       console.error("❌ Error en registro:", error);
@@ -138,27 +105,19 @@ export class AuthService {
   }
 
   /**
-   * Inicia sesión y recupera las claves de cifrado automáticamente
+   * Inicia sesión del usuario
    *
    * @param email - Email del usuario
    * @param password - Contraseña del usuario
-   * @returns Resultado del login con estado de claves
+   * @returns Resultado del login
    */
   async signIn(email: string, password: string): Promise<SignInResult> {
     try {
-      console.log("🔐 Iniciando login con cifrado...");
+      console.log("🔑 Iniciando login...");
 
       // Validar parámetros
       if (!email || !password) {
         throw new Error("Email y contraseña son requeridos");
-      }
-
-      // Verificar servicio de criptografía
-      const cryptoWorking = await this.cryptoService.testCryptoService();
-      if (!cryptoWorking) {
-        console.warn(
-          "⚠️ Crypto service no funciona, continuando con login básico..."
-        );
       }
 
       console.log("🔑 Autenticando en Supabase...");
@@ -181,27 +140,10 @@ export class AuthService {
 
       console.log("✅ Usuario autenticado:", authData.user.id);
 
-      // Inicializar respuesta
-      const result: SignInResult = {
+      return {
         user: authData.user,
         session: authData.session,
-        keysInitialized: false,
-        needsPasswordForKeys: false,
       };
-
-      // Intentar recuperar claves de cifrado si crypto funciona
-      if (cryptoWorking) {
-        const keysStatus = await this.initializeUserKeys(
-          authData.user.id,
-          password
-        );
-        result.keysInitialized = keysStatus.initialized;
-        result.needsPasswordForKeys = keysStatus.needsPassword;
-      }
-      console.log(
-        "🧪 TEST: Intentando recuperar claves con todos los métodos..."
-      );
-      return result;
     } catch (error) {
       console.error("❌ Error en login:", error);
       throw error;
@@ -209,163 +151,11 @@ export class AuthService {
   }
 
   /**
-   * Inicializa las claves del usuario de forma inteligente
-   *
-   * @param userId - ID del usuario
-   * @param password - Contraseña del usuario
-   * @returns Estado de las claves
-   */
-  private async initializeUserKeys(
-    userId: string,
-    password: string
-  ): Promise<{
-    initialized: boolean;
-    needsPassword: boolean;
-  }> {
-    try {
-      console.log("🔄 Inicializando claves del usuario...");
-
-      // Primero verificar si hay claves locales
-      const localPrivateKey = await this.cryptoService.getPrivateKey(userId);
-      if (localPrivateKey) {
-        console.log("✅ Claves ya presentes en almacenamiento local");
-        return { initialized: true, needsPassword: false };
-      }
-
-      // Verificar si el usuario tiene claves en la nube
-      const hasCloudKeys = await this.hasEncryptionSetup(userId);
-
-      if (hasCloudKeys) {
-        console.log(
-          "☁️ Usuario tiene claves en la nube, intentando recuperar..."
-        );
-
-        // Intentar recuperar claves de la nube
-        const keyPair = await this.cryptoService.initializeFromCloud(
-          userId,
-          password
-        );
-
-        if (keyPair) {
-          console.log("✅ Claves recuperadas exitosamente de la nube");
-          return { initialized: true, needsPassword: false };
-        } else {
-          console.warn(
-            "⚠️ Las claves existen pero no se pudieron recuperar con el método estándar"
-          );
-
-          // Intentar migración con múltiples métodos
-          console.log(
-            "🔄 Intentando recuperación con múltiples métodos de derivación..."
-          );
-          const { tryRecoverKeysWithMultipleMethods } = await import(
-            "../utils/keyMigration"
-          );
-          const recovered = await tryRecoverKeysWithMultipleMethods(
-            userId,
-            password
-          );
-
-          if (recovered) {
-            console.log(
-              "✅ Claves recuperadas con método alternativo y migradas"
-            );
-            return { initialized: true, needsPassword: false };
-          }
-
-          console.error(
-            "❌ No se pudieron recuperar las claves con ningún método"
-          );
-
-          // Las claves existen pero necesitamos la contraseña correcta
-          return { initialized: false, needsPassword: true };
-        }
-      } else {
-        console.log(
-          "🆕 Usuario sin cifrado configurado, generando nuevas claves..."
-        );
-
-        // Generar nuevas claves
-        try {
-          await this.cryptoService.generateKeyPairWithCloudBackup(
-            userId,
-            password
-          );
-          console.log("✅ Nuevas claves generadas y respaldadas");
-          return { initialized: true, needsPassword: false };
-        } catch (error) {
-          console.error("❌ Error generando nuevas claves:", error);
-          return { initialized: false, needsPassword: false };
-        }
-      }
-    } catch (error) {
-      console.error("❌ Error inicializando claves:", error);
-      return { initialized: false, needsPassword: false };
-    }
-  }
-
-  /**
-   * Intenta recuperar las claves con una contraseña diferente
-   * Se usa cuando el usuario tiene claves pero la contraseña del login no funcionó
-   *
-   * @param password - Contraseña alternativa
-   * @returns true si las claves se recuperaron exitosamente
-   */
-  async retryKeysWithPassword(password: string): Promise<boolean> {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error("Usuario no autenticado");
-      }
-
-      console.log(
-        "🔄 Reintentando recuperar claves con contraseña alternativa..."
-      );
-
-      const keyPair = await this.cryptoService.initializeFromCloud(
-        user.id,
-        password
-      );
-
-      if (keyPair) {
-        console.log("✅ Claves recuperadas exitosamente");
-        return true;
-      } else {
-        console.log(
-          "❌ No se pudieron recuperar las claves con esta contraseña"
-        );
-        return false;
-      }
-    } catch (error) {
-      console.error("❌ Error recuperando claves:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Cierra la sesión del usuario y limpia datos locales
+   * Cierra la sesión del usuario
    */
   async signOut() {
     try {
       console.log("🚪 Cerrando sesión...");
-
-      // Obtener usuario actual antes de cerrar sesión
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        try {
-          // Limpiar claves locales
-          await this.cryptoService.clearLocalKeys(user.id);
-          console.log("🗑️ Claves locales limpiadas");
-        } catch (error) {
-          console.warn("⚠️ Error limpiando claves locales:", error);
-          // No fallar el logout por esto
-        }
-      }
 
       // Cerrar sesión en Supabase
       await supabase.auth.signOut();
@@ -373,59 +163,6 @@ export class AuthService {
     } catch (error) {
       console.error("❌ Error en logout:", error);
       throw error;
-    }
-  }
-
-  /**
-   * Verifica si un usuario tiene cifrado configurado
-   *
-   * @param userId - ID del usuario
-   * @returns true si tiene cifrado configurado
-   */
-  async hasEncryptionSetup(userId: string): Promise<boolean> {
-    try {
-      const { data } = await supabase
-        .from("profiles")
-        .select("public_key, encrypted_private_key")
-        .eq("id", userId)
-        .single();
-
-      // Verificar que ambas claves existan
-      return !!(data?.public_key && data?.encrypted_private_key);
-    } catch (error) {
-      console.error("Error verificando cifrado:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Configura cifrado para un usuario existente que no lo tenía
-   * Se usa para migrar usuarios antiguos al sistema de cifrado
-   *
-   * @param userId - ID del usuario
-   * @param password - Contraseña del usuario
-   * @returns true si se configuró exitosamente
-   */
-  async setupEncryptionForExistingUser(
-    userId: string,
-    password: string
-  ): Promise<boolean> {
-    try {
-      console.log("🔧 Configurando cifrado para usuario existente...");
-
-      // Verificar que crypto funcione
-      const cryptoWorking = await this.cryptoService.testCryptoService();
-      if (!cryptoWorking) {
-        throw new Error("El servicio de cifrado no está funcionando");
-      }
-
-      // Generar y guardar claves
-      await this.cryptoService.generateKeyPairWithCloudBackup(userId, password);
-      console.log("✅ Cifrado configurado exitosamente");
-      return true;
-    } catch (error) {
-      console.error("❌ Error configurando cifrado:", error);
-      return false;
     }
   }
 
