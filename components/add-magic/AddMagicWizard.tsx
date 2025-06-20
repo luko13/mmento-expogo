@@ -213,7 +213,7 @@ export default function AddMagicWizard({
 
       // Subir archivo (comprimido o original)
       const uploadUrl = await uploadFileToStorage(
-        compressionResult.uri,
+        uri,
         userId,
         folder,
         fileType,

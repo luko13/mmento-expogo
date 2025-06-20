@@ -11,9 +11,9 @@ class VideoService {
     quality: "low" | "medium" | "high" = "medium"
   ): Promise<string> {
     const compressionOptions = {
-      low: { bitrate: 1000000, minimumBitrate: 500000 },
-      medium: { bitrate: 2000000, minimumBitrate: 1000000 },
-      high: { bitrate: 4000000, minimumBitrate: 2000000 },
+      low: { bitrate: 2000000, minimumBitrate: 1000000 }, // 2 Mbps
+      medium: { bitrate: 3500000, minimumBitrate: 2000000 }, // 3.5 Mbps
+      high: { bitrate: 5000000, minimumBitrate: 3000000 }, // 5 Mbps
     };
 
     const options = compressionOptions[quality];

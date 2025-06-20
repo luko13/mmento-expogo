@@ -3,6 +3,7 @@ import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import * as VideoThumbnails from "expo-video-thumbnails";
 import pako from "pako";
 import { performanceOptimizer } from "./performanceOptimizer";
+import videoService from "../services/videoService";
 
 export interface CompressionResult {
   uri: string;
@@ -58,9 +59,7 @@ export class CompressionService {
     if (mimeType.startsWith("image/")) {
       return this.compressImage(uri, originalSize, options);
     } else if (mimeType.startsWith("video/")) {
-      // Para videos en Expo, no podemos comprimir fácilmente
-      // Retornamos sin comprimir por ahora
-      return this.handleVideoWithoutCompression(uri, originalSize);
+      return this.compressVideo(uri, originalSize, options);
     } else if (this.shouldCompressData(mimeType, originalSize)) {
       return this.compressData(uri, originalSize, mimeType);
     }
@@ -75,7 +74,47 @@ export class CompressionService {
       wasCompressed: false,
     };
   }
+  private async compressVideo(
+    uri: string,
+    originalSize: number,
+    options: CompressionOptions
+  ): Promise<CompressionResult> {
+    try {
+      // Compresión dinámica según tamaño
+      let quality: "low" | "medium" | "high";
 
+      if (originalSize > 50 * 1024 * 1024) {
+        // > 50MB
+        quality = "low";
+      } else if (originalSize > 20 * 1024 * 1024) {
+        // > 20MB
+        quality = "medium";
+      } else {
+        // < 20MB
+        quality = "high";
+      }
+
+      const compressedUri = await videoService.compressVideo(uri, quality);
+
+      const compressedInfo = await FileSystem.getInfoAsync(compressedUri);
+      const compressedSize =
+        compressedInfo.exists && "size" in compressedInfo
+          ? compressedInfo.size
+          : originalSize;
+
+      return {
+        uri: compressedUri,
+        originalSize,
+        compressedSize,
+        ratio: compressedSize / originalSize,
+        algorithm: "h264",
+        wasCompressed: true,
+      };
+    } catch (error) {
+      console.error("Error comprimiendo video:", error);
+      return this.handleVideoWithoutCompression(uri, originalSize);
+    }
+  }
   /**
    * Comprimir imagen usando expo-image-manipulator
    */
@@ -123,7 +162,7 @@ export class CompressionService {
           : originalSize;
 
       const ratio = compressedSize / originalSize;
-      
+
       return {
         uri: compressed.uri,
         originalSize,
@@ -152,7 +191,6 @@ export class CompressionService {
     uri: string,
     originalSize: number
   ): Promise<CompressionResult> {
-    
     // Opcionalmente, podemos generar un thumbnail para preview
     try {
       const { uri: thumbnailUri } = await VideoThumbnails.getThumbnailAsync(
@@ -161,8 +199,7 @@ export class CompressionService {
           time: 1000, // 1 segundo
         }
       );
-          } catch (error) {
-          }
+    } catch (error) {}
 
     return {
       uri,
@@ -183,7 +220,6 @@ export class CompressionService {
     mimeType: string
   ): Promise<CompressionResult> {
     try {
-      
       // Leer archivo
       const data = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.UTF8,
@@ -220,7 +256,6 @@ export class CompressionService {
         };
       }
 
-      
       return {
         uri: compressedUri,
         originalSize,
@@ -321,8 +356,7 @@ export class CompressionService {
           FileSystem.deleteAsync(`${cacheDir}${file}`, { idempotent: true })
         )
       );
-
-          } catch (error) {
+    } catch (error) {
       console.error("Error limpiando archivos temporales:", error);
     }
   }

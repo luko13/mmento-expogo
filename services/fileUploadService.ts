@@ -15,7 +15,7 @@ export type MediaType = "video" | "image";
 
 // Límites de tamaño en MB
 export const FILE_SIZE_LIMITS = {
-  VIDEO_SMALL: 5,  // Límite para subida directa en la app (MB)
+  VIDEO_SMALL: 2,  // Límite para subida directa en la app (MB)
   VIDEO_LARGE: 50, // Límite máximo para videos (MB)
   IMAGE_SMALL: 2,  // Límite para imágenes sin compresión obligatoria (MB)
   IMAGE_LARGE: 10  // Límite máximo para imágenes (MB)
