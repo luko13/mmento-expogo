@@ -1,4 +1,4 @@
-// Exportación centralizada de fuentes para la aplicación
+//styles/fonts.ts
 import { StyleSheet } from "react-native"
 
 // Nombres de las fuentes para usar en fontFamily

@@ -23,6 +23,19 @@ import i18n from "./i18n";
 // Mantener la pantalla de splash visible mientras se cargan las fuentes
 SplashScreen.preventAutoHideAsync();
 
+// Exportar nombres de fuentes para uso global
+export const fontNames = {
+  thin: "Outfit-Thin",
+  extraLight: "Outfit-ExtraLight",
+  light: "Outfit-Light",
+  regular: "Outfit-Regular",
+  medium: "Outfit-Medium",
+  semiBold: "Outfit-SemiBold",
+  bold: "Outfit-Bold",
+  extraBold: "Outfit-ExtraBold",
+  black: "Outfit-Black",
+};
+
 /**
  * Componente principal de la aplicación
  * Gestiona:
@@ -44,54 +57,25 @@ export default function App() {
   useEffect(() => {
     async function loadFonts() {
       try {
-        setFontInfo((prev) => [...prev, "📝 Cargando fuentes..."]);
+        setFontInfo((prev) => [...prev, "📝 Cargando fuentes Outfit..."]);
 
-        // Método 1: Intentar cargar fuentes desde assets locales
-        try {
-          await Font.loadAsync({
-            "Outfit-Regular": require("./assets/fonts/Outfit-Regular.ttf"),
-            "Outfit-Bold": require("./assets/fonts/Outfit-Bold.ttf"),
-          });
+        // Cargar todas las variantes de Outfit
+        await Font.loadAsync({
+          "Outfit-Thin": require("./assets/fonts/Outfit-Thin.ttf"),
+          "Outfit-ExtraLight": require("./assets/fonts/Outfit-ExtraLight.ttf"),
+          "Outfit-Light": require("./assets/fonts/Outfit-Light.ttf"),
+          "Outfit-Regular": require("./assets/fonts/Outfit-Regular.ttf"),
+          "Outfit-Medium": require("./assets/fonts/Outfit-Medium.ttf"),
+          "Outfit-SemiBold": require("./assets/fonts/Outfit-SemiBold.ttf"),
+          "Outfit-Bold": require("./assets/fonts/Outfit-Bold.ttf"),
+          "Outfit-ExtraBold": require("./assets/fonts/Outfit-ExtraBold.ttf"),
+          "Outfit-Black": require("./assets/fonts/Outfit-Black.ttf"),
+        });
 
-          setFontInfo((prev) => [
-            ...prev,
-            "✅ Fuentes cargadas desde assets locales",
-          ]);
-        } catch (error) {
-          console.error("Error cargando fuentes desde assets:", error);
-          setFontInfo((prev) => [
-            ...prev,
-            `❌ Error cargando desde assets: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          ]);
-
-          // Método 2: Fallback a @expo-google-fonts si falla el método 1
-          try {
-            const Outfit = require("@expo-google-fonts/outfit");
-            await Font.loadAsync({
-              "Outfit-Regular": Outfit.Outfit_400Regular,
-              "Outfit-Bold": Outfit.Outfit_700Bold,
-            });
-
-            setFontInfo((prev) => [
-              ...prev,
-              "✅ Fuentes cargadas desde @expo-google-fonts",
-            ]);
-          } catch (error) {
-            console.error(
-              "Error cargando fuentes desde @expo-google-fonts:",
-              error
-            );
-            setFontInfo((prev) => [
-              ...prev,
-              `❌ Error con @expo-google-fonts: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            ]);
-            throw error;
-          }
-        }
+        setFontInfo((prev) => [
+          ...prev,
+          "✅ Todas las fuentes Outfit cargadas correctamente",
+        ]);
 
         // Verificar que las fuentes estén disponibles
         const fontNames = await Font.getLoadedFonts();
@@ -106,7 +90,7 @@ export default function App() {
         setFontError(error instanceof Error ? error.message : String(error));
         setFontInfo((prev) => [
           ...prev,
-          `❌ Error final: ${
+          `❌ Error: ${
             error instanceof Error ? error.message : String(error)
           }`,
         ]);
@@ -202,19 +186,19 @@ export default function App() {
     },
     fonts: {
       regular: {
-        fontFamily: "Outfit-Regular",
+        fontFamily: fontNames.regular,
         fontWeight: "normal" as const,
       },
       medium: {
-        fontFamily: "Outfit-Regular",
+        fontFamily: fontNames.medium,
         fontWeight: "500" as const,
       },
       bold: {
-        fontFamily: "Outfit-Bold",
+        fontFamily: fontNames.bold,
         fontWeight: "bold" as const,
       },
       heavy: {
-        fontFamily: "Outfit-Bold",
+        fontFamily: fontNames.black,
         fontWeight: "900" as const,
       },
     },
