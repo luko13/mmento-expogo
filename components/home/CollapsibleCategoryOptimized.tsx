@@ -11,9 +11,9 @@ import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons, Entypo, Feather } from "@expo/vector-icons";
 import type { SearchFilters } from "./CompactSearchBar";
+import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
-const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 
 interface LibraryItem {
@@ -50,9 +50,19 @@ const LibraryItemRow = memo(
         onPress={onPress}
       >
         <StyledView className="flex-row items-center flex-1">
-          <StyledText className="text-white ml-2 flex-1" numberOfLines={1}>
+          <Text
+            style={{
+              fontFamily: fontNames.light,
+              fontSize: 16,
+              color: "white",
+              marginLeft: 8,
+              flex: 1,
+              includeFontPadding: false,
+            }}
+            numberOfLines={1}
+          >
             {item.title}
-          </StyledText>
+          </Text>
           <StyledView className="flex-row items-center">
             {item.is_shared && (
               <Feather
@@ -183,14 +193,30 @@ const CollapsibleCategoryOptimized = ({
           >
             <MaterialIcons name="chevron-right" size={20} color="white" />
           </Animated.View>
-          <StyledText className="text-white font-bold ml-2">
+          <Text
+            style={{
+              fontFamily: fontNames.regular,
+              fontSize: 16,
+              color: "white",
+              marginLeft: 8,
+              includeFontPadding: false,
+            }}
+          >
             {section.category.name}
-          </StyledText>
+          </Text>
         </StyledView>
         <StyledView className="flex-row items-center">
-          <StyledText className="text-white mr-2">
+          <Text
+            style={{
+              fontFamily: fontNames.regular,
+              fontSize: 14,
+              color: "white",
+              marginRight: 8,
+              includeFontPadding: false,
+            }}
+          >
             {filteredItems.length}
-          </StyledText>
+          </Text>
           <StyledTouchableOpacity onPress={handleMoreOptions} className="p-2">
             <Entypo name="dots-three-horizontal" size={16} color="white" />
           </StyledTouchableOpacity>
@@ -217,9 +243,17 @@ const CollapsibleCategoryOptimized = ({
           ))
         ) : (
           <StyledView className="border-b border-white/20 p-3 rounded-lg">
-            <StyledText className="text-white/50 text-center">
+            <Text
+              style={{
+                fontFamily: fontNames.light,
+                fontSize: 14,
+                color: "rgba(255, 255, 255, 0.5)",
+                textAlign: "center",
+                includeFontPadding: false,
+              }}
+            >
               {t("noItems", "No items in this category")}
-            </StyledText>
+            </Text>
           </StyledView>
         )}
       </Animated.View>

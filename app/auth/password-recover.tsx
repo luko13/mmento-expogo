@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Dimensions } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+} from "react-native";
 import { styled } from "nativewind";
 import { router } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { fontNames } from "../_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -39,25 +48,20 @@ export default function PasswordRecoverScreen() {
 
       if (error) throw error;
 
-      Alert.alert(
-        t("passwordResetSent"),
-        t("passwordResetInstructions"),
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              // Ocultar la pantalla antes de navegar
-              setIsNavigating(true);
-              
-              // Pequeño delay para asegurar que la UI se ha actualizado
-              setTimeout(() => {
-                router.replace("/auth/login");
-              }, 10);
-            }
-          }
-        ]
-      );
-      
+      Alert.alert(t("passwordResetSent"), t("passwordResetInstructions"), [
+        {
+          text: "OK",
+          onPress: () => {
+            // Ocultar la pantalla antes de navegar
+            setIsNavigating(true);
+
+            // Pequeño delay para asegurar que la UI se ha actualizado
+            setTimeout(() => {
+              router.replace("/auth/login");
+            }, 10);
+          },
+        },
+      ]);
     } catch (error: any) {
       Alert.alert(t("error"), error.message || t("unexpectedError"));
     } finally {
@@ -70,7 +74,7 @@ export default function PasswordRecoverScreen() {
   const goBack = () => {
     // Ocultar la pantalla actual antes de navegar
     setIsNavigating(true);
-    
+
     // Pequeño delay para asegurar que la UI se ha actualizado
     setTimeout(() => {
       router.replace("/auth/login");
@@ -79,21 +83,36 @@ export default function PasswordRecoverScreen() {
 
   // Si estamos navegando, no mostramos ningún contenido
   if (isNavigating) {
-    return <View style={{ flex: 1, backgroundColor: 'transparent' }} />;
+    return <View style={{ flex: 1, backgroundColor: "transparent" }} />;
   }
 
   return (
-    <StyledSafeAreaView className="flex-1" style={{ backgroundColor: "transparent" }}>
+    <StyledSafeAreaView
+      className="flex-1"
+      style={{ backgroundColor: "transparent" }}
+    >
       <StyledView className="flex-1 justify-center items-center px-6">
         {/* Tarjeta de recuperación de contraseña */}
         <StyledView className="w-full bg-black/20 backdrop-blur-sm rounded-xl p-6 border border-emerald-100/50">
-          <StyledText className="text-white text-xl font-semibold mb-6">
+          <StyledText
+            className="text-white text-xl font-semibold mb-6"
+            style={{
+              fontFamily: fontNames.semiBold,
+              fontSize: 20,
+              includeFontPadding: false,
+            }}
+          >
             {t("passwordRecover")}
           </StyledText>
 
           {/* Campo de correo electrónico */}
           <StyledTextInput
             className="w-full bg-white/10 border border-white/20 rounded-md h-12 px-4 text-white mb-6"
+            style={{
+              fontFamily: fontNames.regular,
+              fontSize: 16,
+              includeFontPadding: false,
+            }}
             placeholder={t("email")}
             placeholderTextColor="rgba(255, 255, 255, 0.5)"
             keyboardType="email-address"
@@ -112,7 +131,14 @@ export default function PasswordRecoverScreen() {
             {isLoading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <StyledText className="text-white font-semibold">
+              <StyledText
+                className="text-white font-semibold"
+                style={{
+                  fontFamily: fontNames.semiBold,
+                  fontSize: 16,
+                  includeFontPadding: false,
+                }}
+              >
                 {t("recoverViaEmail")}
               </StyledText>
             )}
@@ -120,11 +146,15 @@ export default function PasswordRecoverScreen() {
         </StyledView>
 
         {/* Enlace para volver */}
-        <StyledTouchableOpacity 
-          className="mt-6" 
-          onPress={goBack}
-        >
-          <StyledText className="text-white/70">
+        <StyledTouchableOpacity className="mt-6" onPress={goBack}>
+          <StyledText
+            className="text-white/70"
+            style={{
+              fontFamily: fontNames.regular,
+              fontSize: 14,
+              includeFontPadding: false,
+            }}
+          >
             {t("goBack")}
           </StyledText>
         </StyledTouchableOpacity>

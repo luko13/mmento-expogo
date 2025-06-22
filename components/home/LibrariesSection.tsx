@@ -32,9 +32,9 @@ import CategoryModal from "../ui/CategoryModal";
 import { useRouter } from "expo-router";
 import { usePaginatedContent } from "../../hooks/usePaginatedContent";
 import CollapsibleCategoryOptimized from "./CollapsibleCategoryOptimized";
+import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
-const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 
 // Calculate safe area for navigation bar
@@ -290,11 +290,19 @@ const LibrariesSection = memo(function LibrariesSection({
       <StyledView className="flex-row justify-between items-center mb-2 px-4">
         <StyledView className="flex-row items-center">
           <Feather name="book" size={24} color="white" />
-          <StyledText className="text-white text-xl ml-2">
+          <Text 
+            style={{ 
+              fontFamily: fontNames.regular,
+              fontSize: 20,
+              color: "white",
+              marginLeft: 8,
+              includeFontPadding: false,
+            }}
+          >
             {t("librariesCount", {
               count: allCategories?.length || sections.length,
             })}
-          </StyledText>
+          </Text>
         </StyledView>
         <StyledTouchableOpacity
           className="p-2"
@@ -328,17 +336,35 @@ const LibrariesSection = memo(function LibrariesSection({
 
     return (
       <StyledView className="bg-white/5 p-6 rounded-lg items-center mx-4">
-        <StyledText className="text-white/50 text-center text-lg mb-2">
+        <Text 
+          style={{ 
+            fontFamily: fontNames.light,
+            fontSize: 18,
+            color: "rgba(255, 255, 255, 0.5)",
+            textAlign: "center",
+            marginBottom: 8,
+            includeFontPadding: false,
+          }}
+        >
           {searchQuery.trim() || searchFilters?.categories?.length
             ? t("noSearchResults", "No results found")
             : t("noCategories", "No categories found")}
-        </StyledText>
+        </Text>
         {!searchQuery.trim() && !searchFilters?.categories?.length && (
           <StyledTouchableOpacity
             className="bg-emerald-700 px-4 py-2 rounded-lg mt-2"
             onPress={() => setAddCategoryModalVisible(true)}
           >
-            <StyledText className="text-white">{t("addCategory")}</StyledText>
+            <Text 
+              style={{ 
+                fontFamily: fontNames.light,
+                fontSize: 16,
+                color: "white",
+                includeFontPadding: false,
+              }}
+            >
+              {t("addCategory")}
+            </Text>
           </StyledTouchableOpacity>
         )}
       </StyledView>
@@ -384,16 +410,32 @@ const LibrariesSection = memo(function LibrariesSection({
 
       {error ? (
         <StyledView className="flex-1 justify-center items-center p-4">
-          <StyledText className="text-red-500 text-center mb-4">
+          <Text 
+            style={{ 
+              fontFamily: fontNames.medium,
+              fontSize: 16,
+              color: "#ef4444",
+              textAlign: "center",
+              marginBottom: 16,
+              includeFontPadding: false,
+            }}
+          >
             {error}
-          </StyledText>
+          </Text>
           <StyledTouchableOpacity
             className="bg-emerald-700 px-4 py-2 rounded-lg"
             onPress={refresh}
           >
-            <StyledText className="text-white">
+            <Text 
+              style={{ 
+                fontFamily: fontNames.medium,
+                fontSize: 16,
+                color: "white",
+                includeFontPadding: false,
+              }}
+            >
               {t("retry", "Retry")}
-            </StyledText>
+            </Text>
           </StyledTouchableOpacity>
         </StyledView>
       ) : (

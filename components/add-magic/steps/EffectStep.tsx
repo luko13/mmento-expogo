@@ -20,6 +20,7 @@ import type { MagicTrick } from "../../../types/magicTrick";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomTooltip from "../../ui/Tooltip";
 import { MediaSelector, MediaSelectorRef } from "../../ui/MediaSelector";
+import { fontNames } from "../../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -84,10 +85,24 @@ export default function EffectStep({
         </StyledTouchableOpacity>
 
         <StyledView className="flex-1 items-center">
-          <StyledText className="text-white text-lg font-semibold">
+          <StyledText
+            className="text-white text-lg font-semibold"
+            style={{
+              fontFamily: fontNames.semiBold,
+              fontSize: 18,
+              includeFontPadding: false,
+            }}
+          >
             {trickData.title || t("trickTitle", "[Title Magic]")}
           </StyledText>
-          <StyledText className="text-emerald-200 text-sm opacity-70">
+          <StyledText
+            className="text-emerald-200 text-sm opacity-70"
+            style={{
+              fontFamily: fontNames.light,
+              fontSize: 14,
+              includeFontPadding: false,
+            }}
+          >
             {t("content", "Contenido")}
           </StyledText>
         </StyledView>
@@ -100,7 +115,14 @@ export default function EffectStep({
       <StyledScrollView className="flex-1 px-6">
         {/* Effect Section */}
         <StyledView className="mt-6">
-          <StyledText className="text-white/60 text-lg font-semibold mb-4">
+          <StyledText
+            className="text-white/60 text-lg font-semibold mb-4"
+            style={{
+              fontFamily: fontNames.semiBold,
+              fontSize: 18,
+              includeFontPadding: false,
+            }}
+          >
             {t("effect", "Efecto")}
           </StyledText>
 
@@ -145,6 +167,11 @@ export default function EffectStep({
               <StyledView className="flex-1 ">
                 <StyledTextInput
                   className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[80px]"
+                  style={{
+                    fontFamily: fontNames.regular,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
                   placeholder={t(
                     "effectShortDescription",
                     "Descripción corta del efecto"
@@ -163,7 +190,14 @@ export default function EffectStep({
 
         {/* Secret Section */}
         <StyledView className="mb-6">
-          <StyledText className="text-white/60 text-lg font-semibold mb-4">
+          <StyledText
+            className="text-white/60 text-lg font-semibold mb-4"
+            style={{
+              fontFamily: fontNames.semiBold,
+              fontSize: 18,
+              includeFontPadding: false,
+            }}
+          >
             {t("secret", "Secreto")}
           </StyledText>
 
@@ -204,6 +238,11 @@ export default function EffectStep({
               <StyledView className="flex-1 ">
                 <StyledTextInput
                   className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[80px]"
+                  style={{
+                    fontFamily: fontNames.regular,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
                   placeholder={t(
                     "effectSecretDescription",
                     "Descripción del secreto del efecto"
@@ -222,7 +261,14 @@ export default function EffectStep({
 
         {/* Photos Section */}
         <StyledView className="mb-16">
-          <StyledText className="text-white/60 text-lg font-semibold mb-4">
+          <StyledText
+            className="text-white/60 text-lg font-semibold mb-4"
+            style={{
+              fontFamily: fontNames.semiBold,
+              fontSize: 18,
+              includeFontPadding: false,
+            }}
+          >
             {t("photos", "Fotos")}
           </StyledText>
 
@@ -252,7 +298,14 @@ export default function EffectStep({
 
       <StyledView className="justify-end px-6 pb-6">
         {/* Step indicator */}
-        <StyledText className="text-center text-white/60 mb-4">
+        <StyledText
+          className="text-center text-white/60 mb-4"
+          style={{
+            fontFamily: fontNames.regular,
+            fontSize: 14,
+            includeFontPadding: false,
+          }}
+        >
           {`${currentStep} de ${totalSteps}`}
         </StyledText>
 
@@ -261,10 +314,24 @@ export default function EffectStep({
           className="w-full py-4 rounded-lg items-center justify-center flex-row border border-[#2C6B5C] bg-transparent mb-4"
           onPress={goToExtrasStep}
         >
-          <StyledText className="text-white font-semibold text-base">
+          <StyledText
+            className="text-white font-semibold text-base"
+            style={{
+              fontFamily: fontNames.semiBold,
+              fontSize: 16,
+              includeFontPadding: false,
+            }}
+          >
             {t("statistics", "Estadísticas")}
           </StyledText>
-          <StyledText className="text-white/60 text-base ml-1">
+          <StyledText
+            className="text-white/60 text-base ml-1"
+            style={{
+              fontFamily: fontNames.regular,
+              fontSize: 16,
+              includeFontPadding: false,
+            }}
+          >
             {t("optional", "(Opcional)")}
           </StyledText>
           <Feather
@@ -283,7 +350,14 @@ export default function EffectStep({
           disabled={isSubmitting}
           onPress={onSave}
         >
-          <StyledText className="text-white font-semibold text-base">
+          <StyledText
+            className="text-white font-semibold text-base"
+            style={{
+              fontFamily: fontNames.semiBold,
+              fontSize: 16,
+              includeFontPadding: false,
+            }}
+          >
             {isSubmitting
               ? t("saving", "Guardando...")
               : t("registerMagic", "Registrar Magia")}

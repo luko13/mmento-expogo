@@ -20,6 +20,7 @@ import {
 import { useRouter } from "expo-router";
 import { signOut } from "../../../utils/auth";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { fontNames } from "../../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -102,7 +103,7 @@ export default function Profile() {
   }
 
   return (
-    <SafeAreaView  style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1 }}>
       <StyledScrollView className="flex-1">
         <StyledView className="p-4">
           {/* Profile Header */}
@@ -110,15 +111,45 @@ export default function Profile() {
             <StyledView className="w-24 h-24 rounded-full overflow-hidden mb-4 bg-emerald-600 justify-center items-center">
               <FontAwesome name="user" size={40} color="white" />
             </StyledView>
-            <StyledText className="text-white text-2xl font-bold">
+            <StyledText
+              className="text-white text-2xl font-bold"
+              style={{
+                fontFamily: fontNames.bold,
+                fontSize: 24,
+                includeFontPadding: false,
+              }}
+            >
               {profile?.username}
             </StyledText>
-            <StyledText className="text-gray-400">{profile?.email}</StyledText>
-            <StyledText className="text-gray-400">
+            <StyledText
+              className="text-gray-400"
+              style={{
+                fontFamily: fontNames.regular,
+                fontSize: 16,
+                includeFontPadding: false,
+              }}
+            >
+              {profile?.email}
+            </StyledText>
+            <StyledText
+              className="text-gray-400"
+              style={{
+                fontFamily: fontNames.light,
+                fontSize: 14,
+                includeFontPadding: false,
+              }}
+            >
               {t("memberSince")}:{" "}
               {new Date(profile?.created_at || "").toLocaleDateString()}
             </StyledText>
-            <StyledText className="text-gray-400">
+            <StyledText
+              className="text-gray-400"
+              style={{
+                fontFamily: fontNames.light,
+                fontSize: 14,
+                includeFontPadding: false,
+              }}
+            >
               {t("subscriptionType")}: {profile?.subscription_type}
             </StyledText>
           </StyledView>
@@ -128,26 +159,68 @@ export default function Profile() {
             <StyledBlurView intensity={20} tint="dark" className="rounded-xl">
               <StyledView className="flex-row justify-around p-4">
                 <StyledView className="items-center">
-                  <StyledText className="text-white text-lg font-bold">
+                  <StyledText
+                    className="text-white text-lg font-bold"
+                    style={{
+                      fontFamily: fontNames.bold,
+                      fontSize: 18,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {stats?.tricks_created || 0}
                   </StyledText>
-                  <StyledText className="text-gray-400">
+                  <StyledText
+                    className="text-gray-400"
+                    style={{
+                      fontFamily: fontNames.regular,
+                      fontSize: 12,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {t("tricksCreated")}
                   </StyledText>
                 </StyledView>
                 <StyledView className="items-center">
-                  <StyledText className="text-white text-lg font-bold">
+                  <StyledText
+                    className="text-white text-lg font-bold"
+                    style={{
+                      fontFamily: fontNames.bold,
+                      fontSize: 18,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {stats?.tricks_viewed || 0}
                   </StyledText>
-                  <StyledText className="text-gray-400">
+                  <StyledText
+                    className="text-gray-400"
+                    style={{
+                      fontFamily: fontNames.regular,
+                      fontSize: 12,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {t("tricksViewed")}
                   </StyledText>
                 </StyledView>
                 <StyledView className="items-center">
-                  <StyledText className="text-white text-lg font-bold">
+                  <StyledText
+                    className="text-white text-lg font-bold"
+                    style={{
+                      fontFamily: fontNames.bold,
+                      fontSize: 18,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {stats?.tricks_favorited || 0}
                   </StyledText>
-                  <StyledText className="text-gray-400">
+                  <StyledText
+                    className="text-gray-400"
+                    style={{
+                      fontFamily: fontNames.regular,
+                      fontSize: 12,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {t("tricksFavorited")}
                   </StyledText>
                 </StyledView>
@@ -159,7 +232,14 @@ export default function Profile() {
           <StyledView className="space-y-4">
             <StyledTouchableOpacity className="flex-row items-center bg-emerald-700 p-4 rounded-xl">
               <MaterialIcons name="edit" size={24} color="white" />
-              <StyledText className="text-white ml-4">
+              <StyledText
+                className="text-white ml-4"
+                style={{
+                  fontFamily: fontNames.medium,
+                  fontSize: 16,
+                  includeFontPadding: false,
+                }}
+              >
                 {t("editProfile")}
               </StyledText>
             </StyledTouchableOpacity>
@@ -170,14 +250,28 @@ export default function Profile() {
                 size={24}
                 color="white"
               />
-              <StyledText className="text-white ml-4">
+              <StyledText
+                className="text-white ml-4"
+                style={{
+                  fontFamily: fontNames.medium,
+                  fontSize: 16,
+                  includeFontPadding: false,
+                }}
+              >
                 {t("achievements")}
               </StyledText>
             </StyledTouchableOpacity>
 
             <StyledTouchableOpacity className="flex-row items-center bg-emerald-700 p-4 rounded-xl">
               <Ionicons name="time" size={24} color="white" />
-              <StyledText className="text-white ml-4">
+              <StyledText
+                className="text-white ml-4"
+                style={{
+                  fontFamily: fontNames.medium,
+                  fontSize: 16,
+                  includeFontPadding: false,
+                }}
+              >
                 {t("activityHistory")}
               </StyledText>
             </StyledTouchableOpacity>
@@ -187,7 +281,16 @@ export default function Profile() {
               className="flex-row items-center bg-red-700 p-4 rounded-xl"
             >
               <MaterialIcons name="logout" size={24} color="white" />
-              <StyledText className="text-white ml-4">{t("logout")}</StyledText>
+              <StyledText
+                className="text-white ml-4"
+                style={{
+                  fontFamily: fontNames.medium,
+                  fontSize: 16,
+                  includeFontPadding: false,
+                }}
+              >
+                {t("logout")}
+              </StyledText>
             </StyledTouchableOpacity>
           </StyledView>
         </StyledView>

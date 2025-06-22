@@ -24,6 +24,7 @@ import LibrariesSection from "../../../components/home/LibrariesSection";
 import CompactSearchBar, {
   type SearchFilters,
 } from "../../../components/home/CompactSearchBar";
+import { fontNames } from "../../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -382,7 +383,6 @@ export default function Home() {
             />
           </StyledView>
 
-
           {/* Swipe Indicator / Search Bar Container */}
           <StyledView
             className="mb-4 h-12 justify-center "
@@ -411,7 +411,14 @@ export default function Home() {
                     color="white"
                     style={{ marginRight: 8 }}
                   />
-                  <StyledText className="text-white opacity-60">
+                  <StyledText
+                    className="text-white opacity-60"
+                    style={{
+                      fontFamily: fontNames.regular,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {t("search", "Buscar")}
                   </StyledText>
                 </View>

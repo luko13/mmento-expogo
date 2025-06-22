@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TagSelector from "../../../components/ui/TagSelector";
 import CategorySelector from "../../../components/ui/CategorySelector";
 import CustomTooltip from "../../ui/Tooltip";
+import { fontNames } from "../../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -158,10 +159,24 @@ export default function TitleCategoryStep({
           </StyledTouchableOpacity>
 
           <StyledView className="flex-1 items-center">
-            <StyledText className="text-white text-lg font-semibold">
+            <StyledText
+              className="text-white text-lg font-semibold"
+              style={{
+                fontFamily: fontNames.semiBold,
+                fontSize: 18,
+                includeFontPadding: false,
+              }}
+            >
               {t("forms.registerMagic")}
             </StyledText>
-            <StyledText className="text-emerald-200 text-sm opacity-70">
+            <StyledText
+              className="text-emerald-200 text-sm opacity-70"
+              style={{
+                fontFamily: fontNames.light,
+                fontSize: 14,
+                includeFontPadding: false,
+              }}
+            >
               {getCurrentDate()}
             </StyledText>
           </StyledView>
@@ -174,7 +189,14 @@ export default function TitleCategoryStep({
         {/* Form Container */}
         <StyledView className="flex-1 px-6">
           {/* Título de sección */}
-          <StyledText className="text-white/60 text-lg font-semibold mb-4">
+          <StyledText
+            className="text-white/60 text-lg font-semibold mb-4"
+            style={{
+              fontFamily: fontNames.semiBold,
+              fontSize: 18,
+              includeFontPadding: false,
+            }}
+          >
             {t("clasify", "Clasificar")}
           </StyledText>
 
@@ -201,6 +223,11 @@ export default function TitleCategoryStep({
                     </CustomTooltip>
                     <StyledTextInput
                       className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]"
+                      style={{
+                        fontFamily: fontNames.regular,
+                        fontSize: 16,
+                        includeFontPadding: false,
+                      }}
                       placeholder={t("forms.magicTitlePlaceholder")}
                       placeholderTextColor="rgba(255, 255, 255, 0.5)"
                       value={trickData.title}
@@ -212,7 +239,14 @@ export default function TitleCategoryStep({
                     />
                   </StyledView>
                   {trickData.title && !titleValidation.isValid && (
-                    <StyledText className="text-red-400 text-xs ml-11 mt-1">
+                    <StyledText
+                      className="text-red-400 text-xs ml-11 mt-1"
+                      style={{
+                        fontFamily: fontNames.regular,
+                        fontSize: 12,
+                        includeFontPadding: false,
+                      }}
+                    >
                       {titleValidation.message}
                     </StyledText>
                   )}
@@ -279,13 +313,27 @@ export default function TitleCategoryStep({
                 />
               </StyledView>
 
-              <StyledText className="text-[#10b981]/40 text-xs mt-2 text-center">
+              <StyledText
+                className="text-[#10b981]/40 text-xs mt-2 text-center"
+                style={{
+                  fontFamily: fontNames.light,
+                  fontSize: 12,
+                  includeFontPadding: false,
+                }}
+              >
                 {t(
                   "info.filesCompressed",
                   "Los archivos se comprimen automáticamente"
                 )}
               </StyledText>
-              <StyledText className="text-[#10b981]/40 text-xs text-center">
+              <StyledText
+                className="text-[#10b981]/40 text-xs text-center"
+                style={{
+                  fontFamily: fontNames.light,
+                  fontSize: 12,
+                  includeFontPadding: false,
+                }}
+              >
                 {t(
                   "info.savingStorage",
                   "para ahorrar espacio de almacenamiento"
@@ -301,7 +349,14 @@ export default function TitleCategoryStep({
           style={{ paddingBottom: insets.bottom + 12 }}
         >
           {/* Step indicator */}
-          <StyledText className="text-white/60 text-center text-sm mb-4">
+          <StyledText
+            className="text-white/60 text-center text-sm mb-4"
+            style={{
+              fontFamily: fontNames.regular,
+              fontSize: 14,
+              includeFontPadding: false,
+            }}
+          >
             {t("navigation.stepIndicator", {
               current: currentStep,
               total: totalSteps,
@@ -326,14 +381,28 @@ export default function TitleCategoryStep({
             >
               {isSubmitting ? (
                 <>
-                  <StyledText className="text-white font-semibold text-base mr-2">
+                  <StyledText
+                    className="text-white font-semibold text-base mr-2"
+                    style={{
+                      fontFamily: fontNames.semiBold,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {t("actions.saving")}
                   </StyledText>
                   <Ionicons name="refresh" size={20} color="white" />
                 </>
               ) : (
                 <>
-                  <StyledText className="text-white font-semibold text-base mr-2">
+                  <StyledText
+                    className="text-white font-semibold text-base mr-2"
+                    style={{
+                      fontFamily: fontNames.semiBold,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {t("actions.save")}
                   </StyledText>
                   <AntDesign name="check" size={20} color="white" />
@@ -353,7 +422,14 @@ export default function TitleCategoryStep({
                 }
               }}
             >
-              <StyledText className="text-white font-semibold text-base mr-2">
+              <StyledText
+                className="text-white font-semibold text-base mr-2"
+                style={{
+                  fontFamily: fontNames.semiBold,
+                  fontSize: 16,
+                  includeFontPadding: false,
+                }}
+              >
                 {t("actions.content", "Content")}
               </StyledText>
               <Feather name="chevron-right" size={20} color="white" />

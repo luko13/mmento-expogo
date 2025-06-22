@@ -1,17 +1,89 @@
+// app/_layout.tsx
 import { Stack } from "expo-router";
 import { I18nextProvider } from "react-i18next";
-import { View, Image, Dimensions } from "react-native";
+import { View, Image, Dimensions, ActivityIndicator, Text } from "react-native";
 import { styled } from "nativewind";
 import { usePathname } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import i18n from "../i18n";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useEffect, useState } from "react";
+import * as Font from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
 
 const StyledView = styled(View);
 const { width, height } = Dimensions.get("window");
 
-export default function AuthLayout() {
+// Prevenir que la splash screen se oculte automáticamente
+SplashScreen.preventAutoHideAsync();
+
+// Exportar nombres de fuentes para uso global
+export const fontNames = {
+  thin: "Outfit-Thin",
+  extraLight: "Outfit-ExtraLight",
+  light: "Outfit-Light",
+  regular: "Outfit-Regular",
+  medium: "Outfit-Medium",
+  semiBold: "Outfit-SemiBold",
+  bold: "Outfit-Bold",
+  extraBold: "Outfit-ExtraBold",
+  black: "Outfit-Black",
+};
+
+export default function RootLayout() {
   const pathname = usePathname();
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+
+  useEffect(() => {
+    async function loadFonts() {
+      try {
+        console.log("🚀 Cargando fuentes en _layout.tsx...");
+
+        await Font.loadAsync({
+          "Outfit-Thin": require("../assets/fonts/Outfit-Thin.ttf"),
+          "Outfit-ExtraLight": require("../assets/fonts/Outfit-ExtraLight.ttf"),
+          "Outfit-Light": require("../assets/fonts/Outfit-Light.ttf"),
+          "Outfit-Regular": require("../assets/fonts/Outfit-Regular.ttf"),
+          "Outfit-Medium": require("../assets/fonts/Outfit-Medium.ttf"),
+          "Outfit-SemiBold": require("../assets/fonts/Outfit-SemiBold.ttf"),
+          "Outfit-Bold": require("../assets/fonts/Outfit-Bold.ttf"),
+          "Outfit-ExtraBold": require("../assets/fonts/Outfit-ExtraBold.ttf"),
+          "Outfit-Black": require("../assets/fonts/Outfit-Black.ttf"),
+        });
+
+        console.log("✅ Fuentes cargadas en _layout.tsx");
+        setFontsLoaded(true);
+      } catch (error) {
+        console.error("❌ Error cargando fuentes en _layout.tsx:", error);
+        setFontsLoaded(true); // Continuar aunque falle
+      } finally {
+        await SplashScreen.hideAsync();
+      }
+    }
+
+    loadFonts();
+  }, []);
+
+  // Mostrar loading mientras cargan las fuentes
+  if (!fontsLoaded) {
+    return (
+      <SafeAreaProvider>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "#0A0E11",
+          }}
+        >
+          <ActivityIndicator size="large" color="#10b981" />
+          <Text style={{ color: "white", marginTop: 10 }}>
+            Cargando fuentes...
+          </Text>
+        </View>
+      </SafeAreaProvider>
+    );
+  }
 
   // Verificar si estamos en la ruta de add-magic
   const isAddMagicRoute = pathname.includes("/add-magic");
@@ -109,10 +181,10 @@ export default function AuthLayout() {
                 presentation: "card",
                 gestureEnabled: false,
                 headerTitleStyle: {
-                  fontFamily: "Outfit_400Regular",
+                  fontFamily: fontNames.regular,
                 },
                 headerLargeTitleStyle: {
-                  fontFamily: "Outfit_700Bold",
+                  fontFamily: fontNames.bold,
                 },
               }}
             >

@@ -8,8 +8,8 @@ import { useTranslation } from "react-i18next";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "expo-router";
-// Importar los nombres de fuentes desde App.tsx
-import { fontNames } from "../../App";
+// Importar los nombres de fuentes desde _layout.tsx
+import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
@@ -147,9 +147,9 @@ export default function UserProfile({
           style={{
             color: "white",
             fontSize: 18,
-            fontFamily: fontNames.bold,
-            includeFontPadding: false, // Mejora el spacing en Android
-            textAlignVertical: "center", // Mejor alineación vertical
+            fontFamily: fontNames.medium,
+            includeFontPadding: false,
+            textAlignVertical: "center",
           }}
         >
           {greeting}, {userName}

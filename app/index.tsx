@@ -10,6 +10,7 @@ import { checkSession } from "../utils/storage";
 import { supabase } from "../lib/supabase";
 import { getAllUserContent, getUserCategories } from "../utils/categoryService";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { fontNames } from "./_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -127,7 +128,14 @@ export default function Home() {
             </StyledView>
           )}
 
-          <StyledText className="text-lg text-white/60 absolute bottom-8">
+          <StyledText
+            className="text-lg text-white/60 absolute bottom-8"
+            style={{
+              fontFamily: fontNames.light,
+              fontSize: 18,
+              includeFontPadding: false,
+            }}
+          >
             {t("tapAnywhere")}
           </StyledText>
         </StyledView>
