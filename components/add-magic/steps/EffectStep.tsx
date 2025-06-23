@@ -88,18 +88,18 @@ export default function EffectStep({
           <StyledText
             className="text-white text-lg font-semibold"
             style={{
-              fontFamily: fontNames.semiBold,
-              fontSize: 18,
+              fontFamily: fontNames.light,
+              fontSize: 20,
               includeFontPadding: false,
             }}
           >
             {trickData.title || t("trickTitle", "[Title Magic]")}
           </StyledText>
           <StyledText
-            className="text-emerald-200 text-sm opacity-70"
+            className="text-[#FFFFFF]/50 text-sm opacity-70"
             style={{
               fontFamily: fontNames.light,
-              fontSize: 14,
+              fontSize: 16,
               includeFontPadding: false,
             }}
           >
@@ -118,8 +118,8 @@ export default function EffectStep({
           <StyledText
             className="text-white/60 text-lg font-semibold mb-4"
             style={{
-              fontFamily: fontNames.semiBold,
-              fontSize: 18,
+              fontFamily: fontNames.light,
+              fontSize: 20,
               includeFontPadding: false,
             }}
           >
@@ -168,7 +168,7 @@ export default function EffectStep({
                 <StyledTextInput
                   className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[80px]"
                   style={{
-                    fontFamily: fontNames.regular,
+                    fontFamily: fontNames.light,
                     fontSize: 16,
                     includeFontPadding: false,
                   }}
@@ -193,8 +193,8 @@ export default function EffectStep({
           <StyledText
             className="text-white/60 text-lg font-semibold mb-4"
             style={{
-              fontFamily: fontNames.semiBold,
-              fontSize: 18,
+              fontFamily: fontNames.light,
+              fontSize: 20,
               includeFontPadding: false,
             }}
           >
@@ -239,7 +239,7 @@ export default function EffectStep({
                 <StyledTextInput
                   className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[80px]"
                   style={{
-                    fontFamily: fontNames.regular,
+                    fontFamily: fontNames.light,
                     fontSize: 16,
                     includeFontPadding: false,
                   }}
@@ -264,8 +264,8 @@ export default function EffectStep({
           <StyledText
             className="text-white/60 text-lg font-semibold mb-4"
             style={{
-              fontFamily: fontNames.semiBold,
-              fontSize: 18,
+              fontFamily: fontNames.light,
+              fontSize: 20,
               includeFontPadding: false,
             }}
           >
@@ -301,7 +301,7 @@ export default function EffectStep({
         <StyledText
           className="text-center text-white/60 mb-4"
           style={{
-            fontFamily: fontNames.regular,
+            fontFamily: fontNames.light,
             fontSize: 14,
             includeFontPadding: false,
           }}
@@ -317,8 +317,8 @@ export default function EffectStep({
           <StyledText
             className="text-white font-semibold text-base"
             style={{
-              fontFamily: fontNames.semiBold,
-              fontSize: 16,
+              fontFamily: fontNames.light,
+              fontSize: 18,
               includeFontPadding: false,
             }}
           >
@@ -327,8 +327,8 @@ export default function EffectStep({
           <StyledText
             className="text-white/60 text-base ml-1"
             style={{
-              fontFamily: fontNames.regular,
-              fontSize: 16,
+              fontFamily: fontNames.extraLight,
+              fontSize: 18,
               includeFontPadding: false,
             }}
           >
@@ -353,8 +353,8 @@ export default function EffectStep({
           <StyledText
             className="text-white font-semibold text-base"
             style={{
-              fontFamily: fontNames.semiBold,
-              fontSize: 16,
+              fontFamily: fontNames.light,
+              fontSize: 18,
               includeFontPadding: false,
             }}
           >

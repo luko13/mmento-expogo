@@ -127,18 +127,18 @@ const UploadProgressModal = ({
           <StyledText 
             className="text-white text-lg font-semibold mb-2"
             style={{
-              fontFamily: fontNames.semiBold,
-              fontSize: 18,
+              fontFamily: fontNames.light,
+              fontSize: 20,
               includeFontPadding: false,
             }}
           >
             {t("uploadingFiles", "Subiendo archivos")}
           </StyledText>
           <StyledText 
-            className="text-white/60 text-sm text-center"
+            className="text-[#FFFFFF]/50 text-sm text-center"
             style={{
-              fontFamily: fontNames.regular,
-              fontSize: 14,
+              fontFamily: fontNames.light,
+              fontSize: 16,
               includeFontPadding: false,
             }}
           >
@@ -155,7 +155,7 @@ const UploadProgressModal = ({
             <StyledText 
               className="text-white/80 text-sm"
               style={{
-                fontFamily: fontNames.regular,
+                fontFamily: fontNames.light,
                 fontSize: 14,
                 includeFontPadding: false,
               }}
@@ -165,7 +165,7 @@ const UploadProgressModal = ({
             <StyledText 
               className="text-emerald-400 text-sm font-medium"
               style={{
-                fontFamily: fontNames.medium,
+                fontFamily: fontNames.light,
                 fontSize: 14,
                 includeFontPadding: false,
               }}
@@ -202,7 +202,7 @@ const UploadProgressModal = ({
               className="text-white/80 text-sm" 
               numberOfLines={1}
               style={{
-                fontFamily: fontNames.regular,
+                fontFamily: fontNames.light,
                 fontSize: 14,
                 includeFontPadding: false,
               }}
@@ -217,7 +217,7 @@ const UploadProgressModal = ({
             <StyledText 
               className="text-white/60 text-sm ml-2"
               style={{
-                fontFamily: fontNames.regular,
+                fontFamily: fontNames.light,
                 fontSize: 14,
                 includeFontPadding: false,
               }}
@@ -613,18 +613,18 @@ export default function ExtrasStep({
           <StyledText 
             className="text-white text-lg font-semibold"
             style={{
-              fontFamily: fontNames.semiBold,
-              fontSize: 18,
+              fontFamily: fontNames.light,
+              fontSize: 20,
               includeFontPadding: false,
             }}
           >
             {trickData.title || t("trickTitle", "[Título Magia]")}
           </StyledText>
           <StyledText 
-            className="text-emerald-200 text-sm opacity-70"
+            className="text-[#FFFFFF]/50 text-sm opacity-70"
             style={{
               fontFamily: fontNames.light,
-              fontSize: 14,
+              fontSize: 16,
               includeFontPadding: false,
             }}
           >
@@ -642,8 +642,8 @@ export default function ExtrasStep({
           <StyledText 
             className="text-white/60 text-lg font-semibold mb-4"
             style={{
-              fontFamily: fontNames.semiBold,
-              fontSize: 18,
+              fontFamily: fontNames.light,
+              fontSize: 20,
               includeFontPadding: false,
             }}
           >
@@ -687,7 +687,7 @@ export default function ExtrasStep({
                     <StyledText 
                       className="text-white"
                       style={{
-                        fontFamily: fontNames.regular,
+                        fontFamily: fontNames.light,
                         fontSize: 14,
                         includeFontPadding: false,
                       }}
@@ -719,7 +719,7 @@ export default function ExtrasStep({
                 <StyledText 
                   className="text-white/70"
                   style={{
-                    fontFamily: fontNames.regular,
+                    fontFamily: fontNames.light,
                     fontSize: 16,
                     includeFontPadding: false,
                   }}
@@ -750,7 +750,7 @@ export default function ExtrasStep({
                 <StyledText 
                   className="text-white/70"
                   style={{
-                    fontFamily: fontNames.regular,
+                    fontFamily: fontNames.light,
                     fontSize: 16,
                     includeFontPadding: false,
                   }}
@@ -793,8 +793,8 @@ export default function ExtrasStep({
           <StyledText 
             className="text-white/60 text-lg font-semibold mb-2"
             style={{
-              fontFamily: fontNames.semiBold,
-              fontSize: 18,
+              fontFamily: fontNames.light,
+              fontSize: 20,
               includeFontPadding: false,
             }}
           >
@@ -820,7 +820,7 @@ export default function ExtrasStep({
                 <StyledText 
                   className="text-white/70"
                   style={{
-                    fontFamily: fontNames.regular,
+                    fontFamily: fontNames.light,
                     fontSize: 16,
                     includeFontPadding: false,
                   }}
@@ -856,7 +856,7 @@ export default function ExtrasStep({
                 <StyledText 
                   className="text-white/70"
                   style={{
-                    fontFamily: fontNames.regular,
+                    fontFamily: fontNames.light,
                     fontSize: 16,
                     includeFontPadding: false,
                   }}
@@ -897,7 +897,7 @@ export default function ExtrasStep({
                   <StyledText 
                     className="text-white/70 flex-1"
                     style={{
-                      fontFamily: fontNames.regular,
+                      fontFamily: fontNames.light,
                       fontSize: 16,
                       includeFontPadding: false,
                     }}
@@ -917,7 +917,7 @@ export default function ExtrasStep({
         <StyledText 
           className="text-center text-white/60 mb-4"
           style={{
-            fontFamily: fontNames.regular,
+            fontFamily: fontNames.light,
             fontSize: 14,
             includeFontPadding: false,
           }}
@@ -928,7 +928,7 @@ export default function ExtrasStep({
         {/* Botón de Registro de Magia */}
         <StyledTouchableOpacity
           className={`w-full py-4 rounded-lg items-center justify-center flex-row mb-6 ${
-            isSubmitting ? "bg-white/10" : "bg-emerald-700"
+            isSubmitting ? "bg-[white]" : "bg-[#2C6B5C]"
           }`}
           disabled={isSubmitting}
           onPress={handleNext}
@@ -936,8 +936,8 @@ export default function ExtrasStep({
           <StyledText 
             className="text-white font-semibold text-base"
             style={{
-              fontFamily: fontNames.semiBold,
-              fontSize: 16,
+              fontFamily: fontNames.light,
+              fontSize: 18,
               includeFontPadding: false,
             }}
           >

@@ -292,10 +292,10 @@ const LibrariesSection = memo(function LibrariesSection({
           <Feather name="book" size={24} color="white" />
           <Text 
             style={{ 
-              fontFamily: fontNames.regular,
+              fontFamily: fontNames.light,
               fontSize: 20,
               color: "white",
-              marginLeft: 8,
+              marginLeft: 10,
               includeFontPadding: false,
             }}
           >
@@ -412,7 +412,7 @@ const LibrariesSection = memo(function LibrariesSection({
         <StyledView className="flex-1 justify-center items-center p-4">
           <Text 
             style={{ 
-              fontFamily: fontNames.medium,
+              fontFamily: fontNames.light,
               fontSize: 16,
               color: "#ef4444",
               textAlign: "center",
@@ -428,7 +428,7 @@ const LibrariesSection = memo(function LibrariesSection({
           >
             <Text 
               style={{ 
-                fontFamily: fontNames.medium,
+                fontFamily: fontNames.light,
                 fontSize: 16,
                 color: "white",
                 includeFontPadding: false,

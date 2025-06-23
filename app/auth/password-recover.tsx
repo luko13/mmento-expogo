@@ -95,9 +95,9 @@ export default function PasswordRecoverScreen() {
         {/* Tarjeta de recuperación de contraseña */}
         <StyledView className="w-full bg-black/20 backdrop-blur-sm rounded-xl p-6 border border-emerald-100/50">
           <StyledText
-            className="text-white text-xl font-semibold mb-6"
+            className="text-white text-xl mb-6"
             style={{
-              fontFamily: fontNames.semiBold,
+              fontFamily: fontNames.light,
               fontSize: 20,
               includeFontPadding: false,
             }}
@@ -124,7 +124,7 @@ export default function PasswordRecoverScreen() {
 
           {/* Botón de recuperación */}
           <StyledTouchableOpacity
-            className="w-full bg-emerald-700 rounded-md h-12 items-center justify-center"
+            className="w-full bg-[#2C6B5C] rounded-md h-12 items-center justify-center"
             disabled={isLoading}
             onPress={handleRecover}
           >
@@ -132,9 +132,9 @@ export default function PasswordRecoverScreen() {
               <ActivityIndicator color="white" />
             ) : (
               <StyledText
-                className="text-white font-semibold"
+                className="text-white"
                 style={{
-                  fontFamily: fontNames.semiBold,
+                  fontFamily: fontNames.light,
                   fontSize: 16,
                   includeFontPadding: false,
                 }}

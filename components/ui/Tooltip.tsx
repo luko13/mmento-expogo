@@ -182,7 +182,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
   const textStyle: TextStyle = {
     color: textColor,
     fontSize: 14,
-    fontFamily: fontNames.medium,
+    fontFamily: fontNames.light,
     textAlign: 'center',
     includeFontPadding: false,
   };

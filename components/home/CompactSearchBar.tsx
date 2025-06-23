@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   searchInput: {
-    fontFamily: fontNames.regular,
+    fontFamily: fontNames.light,
     fontSize: 16,
     includeFontPadding: false,
   },
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
     marginBottom: 8,
-    fontFamily: fontNames.medium,
+    fontFamily: fontNames.light,
     includeFontPadding: false,
   },
   filtersContainer: {
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   filterChipText: {
     color: "white",
     fontSize: 13,
-    fontFamily: fontNames.regular,
+    fontFamily: fontNames.light,
     includeFontPadding: false,
   },
   emptyChip: {

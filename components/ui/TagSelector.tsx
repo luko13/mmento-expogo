@@ -216,7 +216,7 @@ export default function TagSelector({
             <StyledTextInput
               className="flex-1 text-white text-base bg-transparent"
               style={{
-                fontFamily: fontNames.regular,
+                fontFamily: fontNames.light,
                 fontSize: 16,
                 includeFontPadding: false,
               }}
@@ -292,8 +292,8 @@ export default function TagSelector({
                         textAlign: "center",
                         fontWeight: isSelected ? "500" : "400",
                         fontFamily: isSelected
-                          ? fontNames.medium
-                          : fontNames.regular,
+                          ? fontNames.light
+                          : fontNames.light,
                         includeFontPadding: false,
                       }}
                     >

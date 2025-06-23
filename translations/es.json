@@ -99,7 +99,7 @@
   "finalStep": "¡Ya casi has terminado! Revisa los detalles de tu truco y haz clic en Guardar para finalizar.",
   "back_": "Atrás",
   "next": "Siguiente",
-  "save": "Guardar",
+  "save": "Registrar",
   "tapAnywhere": "Toca en cualquier lugar para continuar",
   "searchTricks": "Buscar trucos...",
   "filterBy": "Filtrar por",
@@ -195,7 +195,7 @@
     "categoryNameRequired": "El nombre de la categoría es obligatorio"
   },
   "actions": {
-    "save": "Guardar",
+    "save": "Registar",
     "next": "Siguiente",
     "cancel": "Cancelar",
     "create": "Crear",

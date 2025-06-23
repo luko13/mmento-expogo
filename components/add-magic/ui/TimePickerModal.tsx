@@ -110,7 +110,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
           isSelected ? "text-white font-semibold" : "text-white/40"
         }`}
         style={{
-          fontFamily: isSelected ? fontNames.semiBold : fontNames.regular,
+          fontFamily: isSelected ? fontNames.semiBold : fontNames.light,
           fontSize: 24,
           includeFontPadding: false,
         }}
@@ -190,8 +190,8 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
               <StyledText
                 className="text-white text-lg font-medium text-center"
                 style={{
-                  fontFamily: fontNames.medium,
-                  fontSize: 18,
+                  fontFamily: fontNames.light,
+                  fontSize: 20,
                   includeFontPadding: false,
                 }}
               >
@@ -200,7 +200,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
               <StyledText
                 className="text-white/60 text-sm text-center mt-2"
                 style={{
-                  fontFamily: fontNames.regular,
+                  fontFamily: fontNames.light,
                   fontSize: 14,
                   includeFontPadding: false,
                 }}
@@ -224,7 +224,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
                   <StyledText
                     className="text-white/60 text-sm text-center mb-2"
                     style={{
-                      fontFamily: fontNames.regular,
+                      fontFamily: fontNames.light,
                       fontSize: 14,
                       includeFontPadding: false,
                     }}
@@ -243,7 +243,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
                 <StyledText
                   className="text-white text-2xl font-semibold mx-4"
                   style={{
-                    fontFamily: fontNames.semiBold,
+                    fontFamily: fontNames.light,
                     fontSize: 24,
                     includeFontPadding: false,
                   }}
@@ -256,7 +256,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
                   <StyledText
                     className="text-white/60 text-sm text-center mb-2"
                     style={{
-                      fontFamily: fontNames.regular,
+                      fontFamily: fontNames.light,
                       fontSize: 14,
                       includeFontPadding: false,
                     }}
@@ -298,7 +298,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
                 <StyledText
                   className="text-white/60 text-base font-medium"
                   style={{
-                    fontFamily: fontNames.medium,
+                    fontFamily: fontNames.light,
                     fontSize: 16,
                     includeFontPadding: false,
                   }}
@@ -324,7 +324,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
                 <StyledText
                   className="text-white/60 text-base font-medium"
                   style={{
-                    fontFamily: fontNames.medium,
+                    fontFamily: fontNames.light,
                     fontSize: 16,
                     includeFontPadding: false,
                   }}

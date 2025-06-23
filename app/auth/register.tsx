@@ -126,9 +126,9 @@ export default function Register() {
             {/* Card Container */}
             <StyledView className="w-full bg-black/20 backdrop-blur-sm rounded-xl p-6 border border-emerald-100/50">
               <StyledText
-                className="text-white text-xl font-semibold mb-6"
+                className="text-white text-xl mb-6"
                 style={{
-                  fontFamily: fontNames.semiBold,
+                  fontFamily: fontNames.light,
                   fontSize: 20,
                   includeFontPadding: false,
                 }}
@@ -224,7 +224,7 @@ export default function Register() {
                 <StyledText
                   className="text-white/70 text-sm"
                   style={{
-                    fontFamily: fontNames.regular,
+                    fontFamily: fontNames.extraLight,
                     fontSize: 14,
                     includeFontPadding: false,
                   }}
@@ -235,7 +235,7 @@ export default function Register() {
                   <StyledText
                     className="text-white text-sm ml-1"
                     style={{
-                      fontFamily: fontNames.medium,
+                      fontFamily: fontNames.light,
                       fontSize: 14,
                       includeFontPadding: false,
                     }}
@@ -247,7 +247,7 @@ export default function Register() {
 
               {/* Register Button */}
               <StyledTouchableOpacity
-                className="w-full bg-emerald-700 rounded-md h-12 items-center justify-center"
+                className="w-full bg-[#2C6B5C] rounded-md h-12 items-center justify-center"
                 onPress={handleRegister}
                 disabled={loading}
               >
@@ -255,9 +255,9 @@ export default function Register() {
                   <ActivityIndicator color="white" />
                 ) : (
                   <StyledText
-                    className="text-white font-semibold"
+                    className="text-white"
                     style={{
-                      fontFamily: fontNames.semiBold,
+                      fontFamily: fontNames.light,
                       fontSize: 16,
                       includeFontPadding: false,
                     }}

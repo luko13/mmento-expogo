@@ -186,7 +186,7 @@ export default function CategorySelector({
             <StyledTextInput
               className="flex-1 text-white text-base bg-transparent"
               style={{
-                fontFamily: fontNames.regular,
+                fontFamily: fontNames.light,
                 fontSize: 16,
                 includeFontPadding: false,
               }}
@@ -263,7 +263,7 @@ export default function CategorySelector({
                           ? "white"
                           : "rgba(255, 255, 255, 0.7)",
                         fontSize: 14,
-                        fontFamily: fontNames.regular,
+                        fontFamily: fontNames.light,
                         includeFontPadding: false,
                         textAlign: "center",
                       }}

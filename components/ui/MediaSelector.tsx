@@ -235,7 +235,7 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
                 <StyledText
                   className="text-white/70 flex-1"
                   style={{
-                    fontFamily: fontNames.regular,
+                    fontFamily: fontNames.light,
                     fontSize: 16,
                     includeFontPadding: false,
                   }}

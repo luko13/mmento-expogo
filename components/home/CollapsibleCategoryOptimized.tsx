@@ -195,7 +195,7 @@ const CollapsibleCategoryOptimized = ({
           </Animated.View>
           <Text
             style={{
-              fontFamily: fontNames.regular,
+              fontFamily: fontNames.light,
               fontSize: 16,
               color: "white",
               marginLeft: 8,
@@ -208,8 +208,8 @@ const CollapsibleCategoryOptimized = ({
         <StyledView className="flex-row items-center">
           <Text
             style={{
-              fontFamily: fontNames.regular,
-              fontSize: 14,
+              fontFamily: fontNames.light,
+              fontSize: 16,
               color: "white",
               marginRight: 8,
               includeFontPadding: false,

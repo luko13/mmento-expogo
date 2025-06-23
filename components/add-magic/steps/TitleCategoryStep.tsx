@@ -162,18 +162,18 @@ export default function TitleCategoryStep({
             <StyledText
               className="text-white text-lg font-semibold"
               style={{
-                fontFamily: fontNames.semiBold,
-                fontSize: 18,
+                fontFamily: fontNames.light,
+                fontSize: 20,
                 includeFontPadding: false,
               }}
             >
               {t("forms.registerMagic")}
             </StyledText>
             <StyledText
-              className="text-emerald-200 text-sm opacity-70"
+              className="text-[#FFFFFF]/50 text-sm opacity-70"
               style={{
                 fontFamily: fontNames.light,
-                fontSize: 14,
+                fontSize: 16,
                 includeFontPadding: false,
               }}
             >
@@ -190,10 +190,10 @@ export default function TitleCategoryStep({
         <StyledView className="flex-1 px-6">
           {/* Título de sección */}
           <StyledText
-            className="text-white/60 text-lg font-semibold mb-4"
+            className="text-white text-lg"
             style={{
-              fontFamily: fontNames.semiBold,
-              fontSize: 18,
+              fontFamily: fontNames.light,
+              fontSize: 20,
               includeFontPadding: false,
             }}
           >
@@ -224,7 +224,7 @@ export default function TitleCategoryStep({
                     <StyledTextInput
                       className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]"
                       style={{
-                        fontFamily: fontNames.regular,
+                        fontFamily: fontNames.light,
                         fontSize: 16,
                         includeFontPadding: false,
                       }}
@@ -242,7 +242,7 @@ export default function TitleCategoryStep({
                     <StyledText
                       className="text-red-400 text-xs ml-11 mt-1"
                       style={{
-                        fontFamily: fontNames.regular,
+                        fontFamily: fontNames.light,
                         fontSize: 12,
                         includeFontPadding: false,
                       }}
@@ -352,7 +352,7 @@ export default function TitleCategoryStep({
           <StyledText
             className="text-white/60 text-center text-sm mb-4"
             style={{
-              fontFamily: fontNames.regular,
+              fontFamily: fontNames.light,
               fontSize: 14,
               includeFontPadding: false,
             }}
@@ -384,7 +384,7 @@ export default function TitleCategoryStep({
                   <StyledText
                     className="text-white font-semibold text-base mr-2"
                     style={{
-                      fontFamily: fontNames.semiBold,
+                      fontFamily: fontNames.light,
                       fontSize: 16,
                       includeFontPadding: false,
                     }}
@@ -398,8 +398,8 @@ export default function TitleCategoryStep({
                   <StyledText
                     className="text-white font-semibold text-base mr-2"
                     style={{
-                      fontFamily: fontNames.semiBold,
-                      fontSize: 16,
+                      fontFamily: fontNames.light,
+                      fontSize: 18,
                       includeFontPadding: false,
                     }}
                   >
@@ -425,8 +425,8 @@ export default function TitleCategoryStep({
               <StyledText
                 className="text-white font-semibold text-base mr-2"
                 style={{
-                  fontFamily: fontNames.semiBold,
-                  fontSize: 16,
+                  fontFamily: fontNames.light,
+                  fontSize: 18,
                   includeFontPadding: false,
                 }}
               >
