@@ -10,6 +10,7 @@ import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
 import { modalStyles, blurConfig, modalClasses } from "../../styles/modalStyles";
+import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -71,7 +72,14 @@ const CategoryActionsModal: React.FC<CategoryActionsModalProps> = ({
                     }}
                     onPress={handleEdit}
                   >
-                    <StyledText className={modalClasses.buttonText}>
+                    <StyledText 
+                      className={modalClasses.buttonText}
+                      style={{
+                        fontFamily: fontNames.regular,
+                        fontSize: 17,
+                        includeFontPadding: false,
+                      }}
+                    >
                       {t("common.edit", "Edit")}
                     </StyledText>
                   </StyledTouchableOpacity>
@@ -84,7 +92,14 @@ const CategoryActionsModal: React.FC<CategoryActionsModalProps> = ({
                     }}
                     onPress={handleDelete}
                   >
-                    <StyledText className={modalClasses.deleteButtonTextLight}>
+                    <StyledText 
+                      className={modalClasses.deleteButtonTextLight}
+                      style={{
+                        fontFamily: fontNames.regular,
+                        fontSize: 17,
+                        includeFontPadding: false,
+                      }}
+                    >
                       {t("common.delete", "Delete")}
                     </StyledText>
                   </StyledTouchableOpacity>
@@ -107,7 +122,14 @@ const CategoryActionsModal: React.FC<CategoryActionsModalProps> = ({
                   }}
                   onPress={onClose}
                 >
-                  <StyledText className={modalClasses.cancelButtonText}>
+                  <StyledText 
+                    className={modalClasses.cancelButtonText}
+                    style={{
+                      fontFamily: fontNames.medium,
+                      fontSize: 17,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {t("common.cancel", "Cancel")}
                   </StyledText>
                 </StyledTouchableOpacity>

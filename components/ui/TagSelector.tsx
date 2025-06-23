@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "../../lib/supabase";
 import { BlurView } from "expo-blur";
 import TagModal from "../ui/TagModal";
+import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -214,6 +215,11 @@ export default function TagSelector({
           <StyledView className="flex-1 flex-row items-center text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40">
             <StyledTextInput
               className="flex-1 text-white text-base bg-transparent"
+              style={{
+                fontFamily: fontNames.regular,
+                fontSize: 16,
+                includeFontPadding: false,
+              }}
               placeholder={placeholder}
               placeholderTextColor="rgba(255, 255, 255, 0.5)"
               value={newTag}
@@ -285,6 +291,10 @@ export default function TagSelector({
                         fontSize: 14,
                         textAlign: "center",
                         fontWeight: isSelected ? "500" : "400",
+                        fontFamily: isSelected
+                          ? fontNames.medium
+                          : fontNames.regular,
+                        includeFontPadding: false,
                       }}
                     >
                       {tag.name}

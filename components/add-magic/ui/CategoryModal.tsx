@@ -14,6 +14,7 @@ import {
   createCategory,
   type Category,
 } from "../../../utils/categoryService"
+import { fontNames } from "../../../app/_layout"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -198,7 +199,14 @@ export default function CategoryModal({
               </StyledTouchableOpacity>
               
               <StyledView className="flex-1 items-center mx-4">
-                <StyledText className="text-white text-lg font-semibold">
+                <StyledText 
+                  className="text-white text-lg font-semibold"
+                  style={{
+                    fontFamily: fontNames.semiBold,
+                    fontSize: 18,
+                    includeFontPadding: false,
+                  }}
+                >
                   {t('modals.createCategory', 'Create Category')}
                 </StyledText>
               </StyledView>
@@ -207,13 +215,25 @@ export default function CategoryModal({
             </StyledView>
 
             <StyledView className="mt-4">
-              <StyledText className="text-white mb-2 font-medium">
+              <StyledText 
+                className="text-white mb-2 font-medium"
+                style={{
+                  fontFamily: fontNames.medium,
+                  fontSize: 16,
+                  includeFontPadding: false,
+                }}
+              >
                 {t('forms.categoryName', 'Category Name')}
                 <StyledText className="text-red-400"> *</StyledText>
               </StyledText>
               <StyledView className="bg-white/10 rounded-lg border border-white/20 mb-4">
                 <StyledTextInput
                   className="text-white p-3 text-base"
+                  style={{
+                    fontFamily: fontNames.regular,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
                   placeholder={t('forms.categoryNamePlaceholder', 'Enter category name')}
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={newCategoryName}
@@ -224,12 +244,33 @@ export default function CategoryModal({
                 />
               </StyledView>
 
-              <StyledText className="text-white mb-2 font-medium">
-                {t('forms.description', 'Description')} ({t('forms.optional', 'Optional')})
+              <StyledText 
+                className="text-white mb-2 font-medium"
+                style={{
+                  fontFamily: fontNames.medium,
+                  fontSize: 16,
+                  includeFontPadding: false,
+                }}
+              >
+                {t('forms.description', 'Description')} 
+                <StyledText 
+                  style={{
+                    fontFamily: fontNames.regular,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
+                  ({t('forms.optional', 'Optional')})
+                </StyledText>
               </StyledText>
               <StyledView className="bg-white/10 rounded-lg border border-white/20 mb-8">
                 <StyledTextInput
                   className="text-white p-3 text-base"
+                  style={{
+                    fontFamily: fontNames.regular,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
                   placeholder={t('forms.descriptionPlaceholder', 'Enter description (optional)')}
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={newCategoryDescription}
@@ -251,13 +292,27 @@ export default function CategoryModal({
               >
                 {creating ? (
                   <>
-                    <StyledText className="text-white font-semibold text-base mr-2">
+                    <StyledText 
+                      className="text-white font-semibold text-base mr-2"
+                      style={{
+                        fontFamily: fontNames.semiBold,
+                        fontSize: 16,
+                        includeFontPadding: false,
+                      }}
+                    >
                       {t('actions.creating', 'Creating...')}
                     </StyledText>
                     <ActivityIndicator size="small" color="white" />
                   </>
                 ) : (
-                  <StyledText className="text-white font-semibold text-base">
+                  <StyledText 
+                    className="text-white font-semibold text-base"
+                    style={{
+                      fontFamily: fontNames.semiBold,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {t('actions.create', 'Create')}
                   </StyledText>
                 )}
@@ -277,10 +332,24 @@ export default function CategoryModal({
               </StyledTouchableOpacity>
               
               <StyledView className="flex-1 items-center mx-4">
-                <StyledText className="text-white text-lg font-semibold">
+                <StyledText 
+                  className="text-white text-lg font-semibold"
+                  style={{
+                    fontFamily: fontNames.semiBold,
+                    fontSize: 18,
+                    includeFontPadding: false,
+                  }}
+                >
                   {t('modals.selectCategory', 'Select Category')}
                 </StyledText>
-                <StyledText className="text-emerald-200 text-sm opacity-70">
+                <StyledText 
+                  className="text-emerald-200 text-sm opacity-70"
+                  style={{
+                    fontFamily: fontNames.light,
+                    fontSize: 14,
+                    includeFontPadding: false,
+                  }}
+                >
                   {trickTitle ? `[${trickTitle}]` : ''}
                 </StyledText>
               </StyledView>
@@ -294,6 +363,11 @@ export default function CategoryModal({
                 <Feather name="search" size={20} color="rgba(255, 255, 255, 0.7)" />
                 <StyledTextInput
                   className="flex-1 text-white ml-2 h-10"
+                  style={{
+                    fontFamily: fontNames.regular,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
                   placeholder={t('searchCategories', 'Search categories...')}
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={searchQuery}
@@ -318,7 +392,14 @@ export default function CategoryModal({
                 {/* User Categories */}
                 {filteredUserCategories.length > 0 && (
                   <StyledView className="mb-6">
-                    <StyledText className="text-emerald-300 text-base font-semibold mb-3">
+                    <StyledText 
+                      className="text-emerald-300 text-base font-semibold mb-3"
+                      style={{
+                        fontFamily: fontNames.semiBold,
+                        fontSize: 16,
+                        includeFontPadding: false,
+                      }}
+                    >
                       {t('categorie.yourCategories', 'Your Categories')}
                     </StyledText>
                     <StyledView className="flex-row flex-wrap">
@@ -332,7 +413,16 @@ export default function CategoryModal({
                               : "bg-white/10 border border-white/20"
                           }`}
                         >
-                          <StyledText className="text-white text-sm">{category.name}</StyledText>
+                          <StyledText 
+                            className="text-white text-sm"
+                            style={{
+                              fontFamily: fontNames.regular,
+                              fontSize: 14,
+                              includeFontPadding: false,
+                            }}
+                          >
+                            {category.name}
+                          </StyledText>
                         </StyledTouchableOpacity>
                       ))}
                     </StyledView>
@@ -342,7 +432,14 @@ export default function CategoryModal({
                 {/* Predefined Categories */}
                 {filteredPredefinedCategories.length > 0 && (
                   <StyledView className="mb-6">
-                    <StyledText className="text-blue-300 text-base font-semibold mb-3">
+                    <StyledText 
+                      className="text-blue-300 text-base font-semibold mb-3"
+                      style={{
+                        fontFamily: fontNames.semiBold,
+                        fontSize: 16,
+                        includeFontPadding: false,
+                      }}
+                    >
                       {t('categorie.suggestedCategories', 'Suggested Categories')}
                     </StyledText>
                     <StyledView className="flex-row flex-wrap">
@@ -356,7 +453,16 @@ export default function CategoryModal({
                               : "bg-white/10 border border-white/20"
                           }`}
                         >
-                          <StyledText className="text-white text-sm">{category.name}</StyledText>
+                          <StyledText 
+                            className="text-white text-sm"
+                            style={{
+                              fontFamily: fontNames.regular,
+                              fontSize: 14,
+                              includeFontPadding: false,
+                            }}
+                          >
+                            {category.name}
+                          </StyledText>
                         </StyledTouchableOpacity>
                       ))}
                     </StyledView>
@@ -367,7 +473,14 @@ export default function CategoryModal({
                 {filteredUserCategories.length === 0 && filteredPredefinedCategories.length === 0 && (
                   <StyledView className="flex-1 justify-center items-center py-12">
                     <Feather name="folder" size={48} color="rgba(255, 255, 255, 0.5)" />
-                    <StyledText className="text-white/70 mt-4 text-center">
+                    <StyledText 
+                      className="text-white/70 mt-4 text-center"
+                      style={{
+                        fontFamily: fontNames.regular,
+                        fontSize: 16,
+                        includeFontPadding: false,
+                      }}
+                    >
                       {searchQuery 
                         ? t('noMatchingCategories', 'No categories match your search')
                         : t('noCategoriesFound', 'No categories found')
@@ -381,7 +494,14 @@ export default function CategoryModal({
                   className="w-full py-4 rounded-lg items-center justify-center flex-row mb-6 bg-emerald-600"
                   onPress={() => setIsCreateCategoryVisible(true)}
                 >
-                  <StyledText className="text-white font-semibold text-base">
+                  <StyledText 
+                    className="text-white font-semibold text-base"
+                    style={{
+                      fontFamily: fontNames.semiBold,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {t('actions.createNewCategory', 'Create New Category')}
                   </StyledText>
                 </StyledTouchableOpacity>

@@ -21,6 +21,7 @@ import {
   type Category,
 } from "../../utils/categoryService";
 import CategoryModal from "../ui/CategoryModal";
+import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -184,6 +185,11 @@ export default function CategorySelector({
           <StyledView className="flex-1 flex-row items-center text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]">
             <StyledTextInput
               className="flex-1 text-white text-base bg-transparent"
+              style={{
+                fontFamily: fontNames.regular,
+                fontSize: 16,
+                includeFontPadding: false,
+              }}
               placeholder={placeholder}
               placeholderTextColor="rgba(255, 255, 255, 0.5)"
               value={newCategory}
@@ -257,6 +263,8 @@ export default function CategorySelector({
                           ? "white"
                           : "rgba(255, 255, 255, 0.7)",
                         fontSize: 14,
+                        fontFamily: fontNames.regular,
+                        includeFontPadding: false,
                         textAlign: "center",
                       }}
                     >

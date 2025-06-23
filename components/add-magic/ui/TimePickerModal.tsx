@@ -10,6 +10,7 @@ import {
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
+import { fontNames } from "../../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -43,10 +44,10 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
   const { t } = useTranslation();
   const [selectedMinutes, setSelectedMinutes] = useState(initialMinutes);
   const [selectedSeconds, setSelectedSeconds] = useState(initialSeconds);
-  
+
   const minutesScrollRef = useRef<ScrollView>(null);
   const secondsScrollRef = useRef<ScrollView>(null);
-  
+
   // Generate arrays for minutes (0-59) and seconds (0-59)
   const minutes = Array.from({ length: 60 }, (_, i) => i);
   const seconds = Array.from({ length: 60 }, (_, i) => i);
@@ -56,7 +57,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
       // Reset to initial values when modal opens
       setSelectedMinutes(initialMinutes);
       setSelectedSeconds(initialSeconds);
-      
+
       // Scroll to initial positions after a short delay
       setTimeout(() => {
         minutesScrollRef.current?.scrollTo({
@@ -71,18 +72,21 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
     }
   }, [visible, initialMinutes, initialSeconds]);
 
-  const handleScroll = (event: any, type: 'minutes' | 'seconds') => {
+  const handleScroll = (event: any, type: "minutes" | "seconds") => {
     const y = event.nativeEvent.contentOffset.y;
     const index = Math.round(y / ITEM_HEIGHT);
-    
-    if (type === 'minutes') {
+
+    if (type === "minutes") {
       setSelectedMinutes(Math.max(0, Math.min(59, index)));
     } else {
       setSelectedSeconds(Math.max(0, Math.min(59, index)));
     }
   };
 
-  const scrollToIndex = (scrollRef: React.RefObject<ScrollView | null>, index: number) => {
+  const scrollToIndex = (
+    scrollRef: React.RefObject<ScrollView | null>,
+    index: number
+  ) => {
     scrollRef.current?.scrollTo({
       y: index * ITEM_HEIGHT,
       animated: true,
@@ -103,10 +107,15 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
     >
       <StyledText
         className={`text-2xl ${
-          isSelected ? 'text-white font-semibold' : 'text-white/40'
+          isSelected ? "text-white font-semibold" : "text-white/40"
         }`}
+        style={{
+          fontFamily: isSelected ? fontNames.semiBold : fontNames.regular,
+          fontSize: 24,
+          includeFontPadding: false,
+        }}
       >
-        {value.toString().padStart(2, '0')}
+        {value.toString().padStart(2, "0")}
       </StyledText>
     </StyledView>
   );
@@ -115,7 +124,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
     values: number[],
     selectedValue: number,
     scrollRef: React.RefObject<ScrollView | null>,
-    type: 'minutes' | 'seconds'
+    type: "minutes" | "seconds"
   ) => (
     <StyledView className="flex-1">
       <StyledScrollView
@@ -129,9 +138,11 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
           paddingVertical: ITEM_HEIGHT * 2,
         }}
       >
-        {values.map((value) => renderPickerItem(value, value === selectedValue))}
+        {values.map((value) =>
+          renderPickerItem(value, value === selectedValue)
+        )}
       </StyledScrollView>
-      
+
       {/* Selection indicator lines */}
       <StyledView
         className="absolute left-0 right-0"
@@ -140,7 +151,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
           height: ITEM_HEIGHT,
           borderTopWidth: 1,
           borderBottomWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.2)',
+          borderColor: "rgba(255, 255, 255, 0.2)",
         }}
         pointerEvents="none"
       />
@@ -176,13 +187,29 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
           >
             {/* Title */}
             <StyledView className="px-6 pt-6 pb-4">
-              <StyledText className="text-white text-lg font-medium text-center">
+              <StyledText
+                className="text-white text-lg font-medium text-center"
+                style={{
+                  fontFamily: fontNames.medium,
+                  fontSize: 18,
+                  includeFontPadding: false,
+                }}
+              >
                 {title || t("selectTime", "Select Time")}
               </StyledText>
-              <StyledText className="text-white/60 text-sm text-center mt-2">
-                {`${selectedMinutes.toString().padStart(2, '0')}:${selectedSeconds
+              <StyledText
+                className="text-white/60 text-sm text-center mt-2"
+                style={{
+                  fontFamily: fontNames.regular,
+                  fontSize: 14,
+                  includeFontPadding: false,
+                }}
+              >
+                {`${selectedMinutes
                   .toString()
-                  .padStart(2, '0')}`}
+                  .padStart(2, "0")}:${selectedSeconds
+                  .toString()
+                  .padStart(2, "0")}`}
               </StyledText>
             </StyledView>
 
@@ -194,23 +221,54 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
               >
                 {/* Minutes Picker */}
                 <StyledView className="flex-1">
-                  <StyledText className="text-white/60 text-sm text-center mb-2">
+                  <StyledText
+                    className="text-white/60 text-sm text-center mb-2"
+                    style={{
+                      fontFamily: fontNames.regular,
+                      fontSize: 14,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {t("minutes", "Minutes")}
                   </StyledText>
-                  {renderPicker(minutes, selectedMinutes, minutesScrollRef, 'minutes')}
+                  {renderPicker(
+                    minutes,
+                    selectedMinutes,
+                    minutesScrollRef,
+                    "minutes"
+                  )}
                 </StyledView>
 
                 {/* Separator */}
-                <StyledText className="text-white text-2xl font-semibold mx-4">
+                <StyledText
+                  className="text-white text-2xl font-semibold mx-4"
+                  style={{
+                    fontFamily: fontNames.semiBold,
+                    fontSize: 24,
+                    includeFontPadding: false,
+                  }}
+                >
                   :
                 </StyledText>
 
                 {/* Seconds Picker */}
                 <StyledView className="flex-1">
-                  <StyledText className="text-white/60 text-sm text-center mb-2">
+                  <StyledText
+                    className="text-white/60 text-sm text-center mb-2"
+                    style={{
+                      fontFamily: fontNames.regular,
+                      fontSize: 14,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {t("seconds", "Seconds")}
                   </StyledText>
-                  {renderPicker(seconds, selectedSeconds, secondsScrollRef, 'seconds')}
+                  {renderPicker(
+                    seconds,
+                    selectedSeconds,
+                    secondsScrollRef,
+                    "seconds"
+                  )}
                 </StyledView>
               </StyledView>
             </StyledView>
@@ -237,7 +295,14 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
                 }}
                 onPress={onClose}
               >
-                <StyledText className="text-white/60 text-base font-medium">
+                <StyledText
+                  className="text-white/60 text-base font-medium"
+                  style={{
+                    fontFamily: fontNames.medium,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {t("common.cancel", "Cancel")}
                 </StyledText>
               </StyledTouchableOpacity>
@@ -256,7 +321,14 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
                 }}
                 onPress={handleConfirm}
               >
-                <StyledText className="text-white/60 text-base font-medium">
+                <StyledText
+                  className="text-white/60 text-base font-medium"
+                  style={{
+                    fontFamily: fontNames.medium,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {t("common.confirm", "Confirm")}
                 </StyledText>
               </StyledTouchableOpacity>

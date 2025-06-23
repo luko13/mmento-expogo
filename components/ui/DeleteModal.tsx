@@ -1,14 +1,14 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Modal,
-} from "react-native";
+import { View, Text, TouchableOpacity, Modal } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
-import { modalStyles, blurConfig, modalClasses } from "../../styles/modalStyles";
+import {
+  modalStyles,
+  blurConfig,
+  modalClasses,
+} from "../../styles/modalStyles";
+import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -37,11 +37,11 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
 
   const getDeleteMessage = () => {
     if (customMessage) return customMessage;
-    
+
     if (itemName && itemType) {
       return `${t("common.delete", "Delete")} ${itemName}?`;
     }
-    
+
     return t("common.confirmDelete", "This action can't be undone.");
   };
 
@@ -59,19 +59,49 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
           >
             {/* Content */}
             <StyledView className="px-6 py-5">
-              <StyledText className={modalClasses.titleTextWithOpacity}>
-                {getDeleteMessage().split('?')[0]}
+              <StyledText
+                className={modalClasses.titleTextWithOpacity}
+                style={{
+                  fontFamily: fontNames.semiBold,
+                  fontSize: 18,
+                  includeFontPadding: false,
+                }}
+              >
+                {getDeleteMessage().split("?")[0]}
                 {itemName && itemType && (
                   <>
-                    <StyledText className="text-white font-medium">
+                    <StyledText
+                      className="text-white font-medium"
+                      style={{
+                        fontFamily: fontNames.medium,
+                        fontSize: 18,
+                        includeFontPadding: false,
+                      }}
+                    >
                       {itemName}
                     </StyledText>
-                    <StyledText className="text-white/90">?</StyledText>
+                    <StyledText
+                      className="text-white/90"
+                      style={{
+                        fontFamily: fontNames.semiBold,
+                        fontSize: 18,
+                        includeFontPadding: false,
+                      }}
+                    >
+                      ?
+                    </StyledText>
                   </>
                 )}
               </StyledText>
-              
-              <StyledText className={`${modalClasses.subtitleTextSmall} mt-2`}>
+
+              <StyledText
+                className={`${modalClasses.subtitleTextSmall} mt-2`}
+                style={{
+                  fontFamily: fontNames.regular,
+                  fontSize: 14,
+                  includeFontPadding: false,
+                }}
+              >
                 {t("common.cantUndo", "This action can't be undone.")}
               </StyledText>
             </StyledView>
@@ -86,17 +116,31 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
                 style={modalStyles.buttonLeft}
                 onPress={onClose}
               >
-                <StyledText className={modalClasses.cancelButtonText}>
+                <StyledText
+                  className={modalClasses.cancelButtonText}
+                  style={{
+                    fontFamily: fontNames.medium,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {t("common.cancel", "Cancel")}
                 </StyledText>
               </StyledTouchableOpacity>
-              
+
               <StyledTouchableOpacity
                 className={modalClasses.centerContent}
                 style={modalStyles.buttonRight}
                 onPress={onConfirm}
               >
-                <StyledText className={modalClasses.deleteButtonText}>
+                <StyledText
+                  className={modalClasses.deleteButtonText}
+                  style={{
+                    fontFamily: fontNames.medium,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {t("common.delete", "Delete")}
                 </StyledText>
               </StyledTouchableOpacity>

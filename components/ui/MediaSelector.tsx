@@ -21,6 +21,7 @@ import * as FileSystem from "expo-file-system";
 import { Feather } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import CustomTooltip from "../ui/Tooltip";
+import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -231,7 +232,14 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
               className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[15px] border border-[#5bb9a3] flex-row items-center justify-between"
             >
               <StyledView className="flex-1 flex-row items-center">
-                <StyledText className="text-white/70 flex-1">
+                <StyledText
+                  className="text-white/70 flex-1"
+                  style={{
+                    fontFamily: fontNames.regular,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {getButtonText()}
                 </StyledText>
                 <StyledView className="flex-row items-center">
@@ -277,6 +285,11 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
                   <StyledText
                     className="text-white/50 text-xs mr-2"
                     numberOfLines={1}
+                    style={{
+                      fontFamily: fontNames.light,
+                      fontSize: 12,
+                      includeFontPadding: false,
+                    }}
                   >
                     {file.fileName}
                   </StyledText>

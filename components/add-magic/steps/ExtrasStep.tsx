@@ -21,6 +21,7 @@ import type { MagicTrick } from "../../../types/magicTrick";
 import { supabase } from "../../../lib/supabase";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomTooltip from "../../ui/Tooltip";
+import { fontNames } from "../../../app/_layout";
 
 // Importar modales
 import TechniquesModal from "../../../components/add-magic/ui/TechniquesModal";
@@ -123,10 +124,24 @@ const UploadProgressModal = ({
           <StyledView className="w-16 h-16 bg-emerald-500/20 rounded-full items-center justify-center mb-4">
             <MaterialIcons name="cloud-upload" size={32} color="#10b981" />
           </StyledView>
-          <StyledText className="text-white text-lg font-semibold mb-2">
+          <StyledText 
+            className="text-white text-lg font-semibold mb-2"
+            style={{
+              fontFamily: fontNames.semiBold,
+              fontSize: 18,
+              includeFontPadding: false,
+            }}
+          >
             {t("uploadingFiles", "Subiendo archivos")}
           </StyledText>
-          <StyledText className="text-white/60 text-sm text-center">
+          <StyledText 
+            className="text-white/60 text-sm text-center"
+            style={{
+              fontFamily: fontNames.regular,
+              fontSize: 14,
+              includeFontPadding: false,
+            }}
+          >
             {t(
               "compressingAndUploading",
               "Comprimiendo y subiendo tus archivos"
@@ -137,10 +152,24 @@ const UploadProgressModal = ({
         {/* Progress Info */}
         <StyledView className="mb-4">
           <StyledView className="flex-row justify-between mb-2">
-            <StyledText className="text-white/80 text-sm">
+            <StyledText 
+              className="text-white/80 text-sm"
+              style={{
+                fontFamily: fontNames.regular,
+                fontSize: 14,
+                includeFontPadding: false,
+              }}
+            >
               {t("file", "Archivo")} {processedFiles}/{totalFiles}
             </StyledText>
-            <StyledText className="text-emerald-400 text-sm font-medium">
+            <StyledText 
+              className="text-emerald-400 text-sm font-medium"
+              style={{
+                fontFamily: fontNames.medium,
+                fontSize: 14,
+                includeFontPadding: false,
+              }}
+            >
               {progress.toFixed(0)}%
             </StyledText>
           </StyledView>
@@ -159,10 +188,25 @@ const UploadProgressModal = ({
 
           {/* Current File */}
           <StyledView className="bg-black/20 rounded-lg px-3 py-2 mb-3">
-            <StyledText className="text-white/50 text-xs mb-1">
+            <StyledText 
+              className="text-white/50 text-xs mb-1"
+              style={{
+                fontFamily: fontNames.light,
+                fontSize: 12,
+                includeFontPadding: false,
+              }}
+            >
               {t("processing", "Procesando")}:
             </StyledText>
-            <StyledText className="text-white/80 text-sm" numberOfLines={1}>
+            <StyledText 
+              className="text-white/80 text-sm" 
+              numberOfLines={1}
+              style={{
+                fontFamily: fontNames.regular,
+                fontSize: 14,
+                includeFontPadding: false,
+              }}
+            >
               {currentFile || t("preparingFiles", "Preparando archivos...")}
             </StyledText>
           </StyledView>
@@ -170,7 +214,14 @@ const UploadProgressModal = ({
           {/* Timer */}
           <StyledView className="flex-row items-center justify-center">
             <Feather name="clock" size={16} color="rgba(255,255,255,0.6)" />
-            <StyledText className="text-white/60 text-sm ml-2">
+            <StyledText 
+              className="text-white/60 text-sm ml-2"
+              style={{
+                fontFamily: fontNames.regular,
+                fontSize: 14,
+                includeFontPadding: false,
+              }}
+            >
               {t("elapsedTime", "Tiempo transcurrido")}:{" "}
               {formatTime(elapsedTime)}
             </StyledText>
@@ -180,7 +231,14 @@ const UploadProgressModal = ({
         {/* Estimated Time (opcional) */}
         {progress > 10 && (
           <StyledView className="border-t border-white/10 pt-4">
-            <StyledText className="text-white/40 text-xs text-center">
+            <StyledText 
+              className="text-white/40 text-xs text-center"
+              style={{
+                fontFamily: fontNames.light,
+                fontSize: 12,
+                includeFontPadding: false,
+              }}
+            >
               {t("estimatedRemaining", "Tiempo estimado restante")}:{" "}
               {formatTime(
                 Math.round((elapsedTime / progress) * (100 - progress))
@@ -196,7 +254,14 @@ const UploadProgressModal = ({
             size={12}
             color="rgba(16, 185, 129, 0.6)"
           />
-          <StyledText className="text-emerald-500/60 text-xs ml-1">
+          <StyledText 
+            className="text-emerald-500/60 text-xs ml-1"
+            style={{
+              fontFamily: fontNames.light,
+              fontSize: 12,
+              includeFontPadding: false,
+            }}
+          >
             {t("automaticCompression", "Compresión automática")}
           </StyledText>
         </StyledView>
@@ -545,10 +610,24 @@ export default function ExtrasStep({
         </StyledTouchableOpacity>
 
         <StyledView className="flex-1 items-center">
-          <StyledText className="text-white text-lg font-semibold">
+          <StyledText 
+            className="text-white text-lg font-semibold"
+            style={{
+              fontFamily: fontNames.semiBold,
+              fontSize: 18,
+              includeFontPadding: false,
+            }}
+          >
             {trickData.title || t("trickTitle", "[Título Magia]")}
           </StyledText>
-          <StyledText className="text-emerald-200 text-sm opacity-70">
+          <StyledText 
+            className="text-emerald-200 text-sm opacity-70"
+            style={{
+              fontFamily: fontNames.light,
+              fontSize: 14,
+              includeFontPadding: false,
+            }}
+          >
             {t("statistics", "Estadísticas")}
           </StyledText>
         </StyledView>
@@ -560,7 +639,14 @@ export default function ExtrasStep({
       <StyledScrollView className="flex-1 px-6">
         {/* Sección de Estadísticas */}
         <StyledView className="mt-3">
-          <StyledText className="text-white/60 text-lg font-semibold mb-4">
+          <StyledText 
+            className="text-white/60 text-lg font-semibold mb-4"
+            style={{
+              fontFamily: fontNames.semiBold,
+              fontSize: 18,
+              includeFontPadding: false,
+            }}
+          >
             {t("statistics", "Estadísticas")}
           </StyledText>
 
@@ -598,7 +684,14 @@ export default function ExtrasStep({
                         <StyledView className="w-3 h-3 rounded-full bg-emerald-800 m-auto" />
                       )}
                     </StyledView>
-                    <StyledText className="text-white">
+                    <StyledText 
+                      className="text-white"
+                      style={{
+                        fontFamily: fontNames.regular,
+                        fontSize: 14,
+                        includeFontPadding: false,
+                      }}
+                    >
                       {angle.label}
                     </StyledText>
                   </StyledTouchableOpacity>
@@ -623,7 +716,14 @@ export default function ExtrasStep({
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#5bb9a3] flex-row items-center justify-between"
                 onPress={() => setShowDurationPicker(true)}
               >
-                <StyledText className="text-white/70">
+                <StyledText 
+                  className="text-white/70"
+                  style={{
+                    fontFamily: fontNames.regular,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {formatDuration(trickData.duration)}
                 </StyledText>
                 <Feather name="plus" size={20} color="white" />
@@ -647,7 +747,14 @@ export default function ExtrasStep({
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#5bb9a3] flex-row items-center justify-between"
                 onPress={() => setShowResetPicker(true)}
               >
-                <StyledText className="text-white/70">
+                <StyledText 
+                  className="text-white/70"
+                  style={{
+                    fontFamily: fontNames.regular,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {formatReset(trickData.reset)}
                 </StyledText>
                 <Feather name="plus" size={20} color="white" />
@@ -683,7 +790,14 @@ export default function ExtrasStep({
 
         {/* Sección de Extras */}
         <StyledView className="mb-2">
-          <StyledText className="text-white/60 text-lg font-semibold mb-2">
+          <StyledText 
+            className="text-white/60 text-lg font-semibold mb-2"
+            style={{
+              fontFamily: fontNames.semiBold,
+              fontSize: 18,
+              includeFontPadding: false,
+            }}
+          >
             {t("extras", "Extras")}
           </StyledText>
 
@@ -703,7 +817,14 @@ export default function ExtrasStep({
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13px] border border-[#5bb9a3] flex-row items-center justify-between"
                 onPress={() => setTechniquesModalVisible(true)}
               >
-                <StyledText className="text-white/70">
+                <StyledText 
+                  className="text-white/70"
+                  style={{
+                    fontFamily: fontNames.regular,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {selectedTechniques.length > 0
                     ? `${selectedTechniques.length} ${t(
                         "techniquesSelected",
@@ -732,7 +853,14 @@ export default function ExtrasStep({
                 className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13px] border border-[#5bb9a3] flex-row items-center justify-between"
                 onPress={() => setGimmicksModalVisible(true)}
               >
-                <StyledText className="text-white/70">
+                <StyledText 
+                  className="text-white/70"
+                  style={{
+                    fontFamily: fontNames.regular,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {selectedGimmicks.length > 0
                     ? `${selectedGimmicks.length} ${t(
                         "gimmicksSelected",
@@ -766,7 +894,14 @@ export default function ExtrasStep({
                 onPress={() => setScriptModalVisible(true)}
               >
                 <StyledView className="flex-row items-center flex-1">
-                  <StyledText className="text-white/70 flex-1">
+                  <StyledText 
+                    className="text-white/70 flex-1"
+                    style={{
+                      fontFamily: fontNames.regular,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {scriptData.title
                       ? scriptData.title
                       : t("writeScript", "Escribir Script")}
@@ -779,7 +914,14 @@ export default function ExtrasStep({
       </StyledScrollView>
       <StyledView className="justify-end px-6 pb-6">
         {/* Indicador de paso */}
-        <StyledText className="text-center text-white/60 mb-4">
+        <StyledText 
+          className="text-center text-white/60 mb-4"
+          style={{
+            fontFamily: fontNames.regular,
+            fontSize: 14,
+            includeFontPadding: false,
+          }}
+        >
           {`${currentStep} de ${totalSteps}`}
         </StyledText>
 
@@ -791,7 +933,14 @@ export default function ExtrasStep({
           disabled={isSubmitting}
           onPress={handleNext}
         >
-          <StyledText className="text-white font-semibold text-base">
+          <StyledText 
+            className="text-white font-semibold text-base"
+            style={{
+              fontFamily: fontNames.semiBold,
+              fontSize: 16,
+              includeFontPadding: false,
+            }}
+          >
             {isSubmitting
               ? t("saving", "Guardando...")
               : t("registerMagic", "Registrar Magia")}

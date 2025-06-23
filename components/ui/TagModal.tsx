@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Modal,
-} from "react-native";
+import { View, Text, TextInput, TouchableOpacity, Modal } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
 import ColorPicker from "./ColorPicker";
-import { modalStyles, blurConfig, modalClasses, getTagPillStyle, getTagPillTextStyle } from "../../styles/modalStyles";
+import {
+  modalStyles,
+  blurConfig,
+  modalClasses,
+  getTagPillStyle,
+  getTagPillTextStyle,
+} from "../../styles/modalStyles";
+import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -95,15 +96,27 @@ const TagModal: React.FC<TagModalProps> = ({
             <StyledView className="p-6">
               {/* Header with editable tag pill */}
               <StyledView className="flex-row items-center justify-center mb-6">
-                <StyledText className={`${modalClasses.titleText} mr-3`}>
-                  {mode === "create" ? t("forms.create", "Create") : t("forms.edit", "Edit")}
+                <StyledText
+                  className={`${modalClasses.titleText} mr-3`}
+                  style={{
+                    fontFamily: fontNames.semiBold,
+                    fontSize: 18,
+                    includeFontPadding: false,
+                  }}
+                >
+                  {mode === "create"
+                    ? t("forms.create", "Create")
+                    : t("forms.edit", "Edit")}
                 </StyledText>
 
                 {/* Editable Tag Pill */}
                 <StyledTouchableOpacity
                   onPress={() => setIsEditingName(true)}
                   className="px-4 py-2 rounded-full"
-                  style={getTagPillStyle(selectedColor, COLOR_MAPPINGS[selectedColor])}
+                  style={getTagPillStyle(
+                    selectedColor,
+                    COLOR_MAPPINGS[selectedColor]
+                  )}
                 >
                   {isEditingName ? (
                     <StyledTextInput
@@ -111,15 +124,26 @@ const TagModal: React.FC<TagModalProps> = ({
                       onChangeText={setTagName}
                       onBlur={() => setIsEditingName(false)}
                       autoFocus
-                      style={getTagPillTextStyle(selectedColor, COLOR_MAPPINGS[selectedColor])}
+                      style={{
+                        ...getTagPillTextStyle(
+                          selectedColor,
+                          COLOR_MAPPINGS[selectedColor]
+                        ),
+                        fontFamily: fontNames.regular,
+                        includeFontPadding: false,
+                      }}
                       className="text-base"
                       placeholder={t("tagName", "Tag name")}
-                      placeholderTextColor={COLOR_MAPPINGS[selectedColor] || selectedColor}
+                      placeholderTextColor={
+                        COLOR_MAPPINGS[selectedColor] || selectedColor
+                      }
                     />
                   ) : (
                     <StyledText
                       style={{
                         color: COLOR_MAPPINGS[selectedColor] || selectedColor,
+                        fontFamily: fontNames.medium,
+                        includeFontPadding: false,
                       }}
                       className="font-medium"
                     >
@@ -131,7 +155,14 @@ const TagModal: React.FC<TagModalProps> = ({
 
               {/* Color Picker Section */}
               <StyledView className="mb-6 -m-3">
-                <StyledText className={modalClasses.subtitleTextSmall}>
+                <StyledText
+                  className={modalClasses.subtitleTextSmall}
+                  style={{
+                    fontFamily: fontNames.regular,
+                    fontSize: 14,
+                    includeFontPadding: false,
+                  }}
+                >
                   {t("forms.selectColor", "Select a color")}
                 </StyledText>
 
@@ -152,7 +183,14 @@ const TagModal: React.FC<TagModalProps> = ({
                 style={modalStyles.buttonLeft}
                 onPress={handleClose}
               >
-                <StyledText className={modalClasses.cancelButtonText}>
+                <StyledText
+                  className={modalClasses.cancelButtonText}
+                  style={{
+                    fontFamily: fontNames.medium,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {t("common.cancel", "Cancel")}
                 </StyledText>
               </StyledTouchableOpacity>
@@ -162,13 +200,20 @@ const TagModal: React.FC<TagModalProps> = ({
                 onPress={handleConfirm}
                 disabled={!tagName.trim()}
               >
-                <StyledText 
+                <StyledText
                   className="text-base font-medium"
                   style={{
-                    color: tagName.trim() ? "#ffffff" : "rgba(255, 255, 255, 0.4)"
+                    color: tagName.trim()
+                      ? "#ffffff"
+                      : "rgba(255, 255, 255, 0.4)",
+                    fontFamily: fontNames.medium,
+                    fontSize: 16,
+                    includeFontPadding: false,
                   }}
                 >
-                  {mode === "create" ? t("common.create", "Create") : t("common.save", "Save")}
+                  {mode === "create"
+                    ? t("common.create", "Create")
+                    : t("common.save", "Save")}
                 </StyledText>
               </StyledTouchableOpacity>
             </StyledView>

@@ -10,6 +10,7 @@ import {
   TextStyle,
   Dimensions,
 } from 'react-native';
+import { fontNames } from '../../app/_layout';
 
 interface CustomTooltipProps {
   children: ReactNode;
@@ -181,8 +182,9 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
   const textStyle: TextStyle = {
     color: textColor,
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: fontNames.medium,
     textAlign: 'center',
+    includeFontPadding: false,
   };
 
   // Calcular la posición del triángulo

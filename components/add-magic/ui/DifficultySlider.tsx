@@ -5,6 +5,7 @@ import { View, Text, TouchableOpacity, LayoutChangeEvent, TouchableWithoutFeedba
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
 import Slider from '@react-native-community/slider'
+import { fontNames } from "../../../app/_layout"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -121,7 +122,16 @@ export default function DifficultySlider({
           }}
         >
           <StyledView className="h-0.5 w-0.5 bg-white/30 mb-1" />
-          <StyledText className="text-white/70 text-xs">{value}</StyledText>
+          <StyledText 
+            className="text-white/70 text-xs"
+            style={{
+              fontFamily: fontNames.light,
+              fontSize: 12,
+              includeFontPadding: false,
+            }}
+          >
+            {value}
+          </StyledText>
         </StyledView>
       )
     }

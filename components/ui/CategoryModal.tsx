@@ -10,6 +10,7 @@ import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
 import { modalStyles, blurConfig, modalClasses } from "../../styles/modalStyles";
+import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -70,7 +71,14 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
             {/* Encabezado + Input */}
             <StyledView className="pt-6 pb-4 px-6">
               <StyledView className="flex-row items-center justify-center mb-4">
-                <StyledText className={`${modalClasses.titleText} mr-3`}>
+                <StyledText 
+                  className={`${modalClasses.titleText} mr-3`}
+                  style={{
+                    fontFamily: fontNames.semiBold,
+                    fontSize: 18,
+                    includeFontPadding: false,
+                  }}
+                >
                   {mode === "create"
                     ? t("forms.create", "Create")
                     : t("forms.edit", "Edit")}
@@ -88,13 +96,24 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
                       onChangeText={setCategoryName}
                       onBlur={() => setIsEditingName(false)}
                       autoFocus
-                      style={modalStyles.pillInput}
+                      style={{
+                        ...modalStyles.pillInput,
+                        fontFamily: fontNames.regular,
+                        includeFontPadding: false,
+                      }}
                       className="text-base"
                       placeholder={t("categoryName", "Category name")}
                       placeholderTextColor="rgba(255, 255, 255, 0.5)"
                     />
                   ) : (
-                    <StyledText style={modalStyles.pillText} className="font-medium">
+                    <StyledText 
+                      style={{
+                        ...modalStyles.pillText,
+                        fontFamily: fontNames.medium,
+                        includeFontPadding: false,
+                      }} 
+                      className="font-medium"
+                    >
                       {categoryName || t("categoryName", "Category name")}
                     </StyledText>
                   )}
@@ -109,7 +128,14 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
                 style={modalStyles.buttonLeft}
                 onPress={handleClose}
               >
-                <StyledText className={modalClasses.cancelButtonText}>
+                <StyledText 
+                  className={modalClasses.cancelButtonText}
+                  style={{
+                    fontFamily: fontNames.medium,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {t("common.cancel", "Cancel")}
                 </StyledText>
               </StyledTouchableOpacity>
@@ -126,6 +152,9 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
                     color: categoryName.trim()
                       ? "#ffffff"
                       : "rgba(255, 255, 255, 1)",
+                    fontFamily: fontNames.medium,
+                    fontSize: 16,
+                    includeFontPadding: false,
                   }}
                 >
                   {mode === "create"

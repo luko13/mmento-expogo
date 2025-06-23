@@ -5,6 +5,7 @@ import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
 import { Feather } from "@expo/vector-icons";
 import { modalStyles, blurConfig, modalClasses } from "../../styles/modalStyles";
+import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -66,14 +67,35 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
               </StyledView>
 
               {/* Success Message */}
-              <StyledText className="text-white/90 text-xl text-center -mb-1">
-                <StyledText className={`font-medium ${modalClasses.successButtonText}`}>
+              <StyledText 
+                className="text-white/90 text-xl text-center -mb-1"
+                style={{
+                  fontFamily: fontNames.regular,
+                  fontSize: 20,
+                  includeFontPadding: false,
+                }}
+              >
+                <StyledText 
+                  className={`font-medium ${modalClasses.successButtonText}`}
+                  style={{
+                    fontFamily: fontNames.medium,
+                    fontSize: 20,
+                    includeFontPadding: false,
+                  }}
+                >
                   {itemName}
                 </StyledText>{" "}
                 {t("successCreation.hasBeenCreated", "has been created")}
               </StyledText>
 
-              <StyledText className={modalClasses.subtitleText}>
+              <StyledText 
+                className={modalClasses.subtitleText}
+                style={{
+                  fontFamily: fontNames.regular,
+                  fontSize: 16,
+                  includeFontPadding: false,
+                }}
+              >
                 {t(
                   "successCreation.andEncrypted",
                   "and encrypted successfully"
@@ -92,9 +114,23 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
                 style={modalStyles.actionButton}
                 onPress={onViewItem}
               >
-                <StyledText className={modalClasses.buttonTextBold}>
+                <StyledText 
+                  className={modalClasses.buttonTextBold}
+                  style={{
+                    fontFamily: fontNames.semiBold,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {t("successCreation.view", "View")}{" "}
-                  <StyledText className={`font-medium text-base ${modalClasses.successButtonText}`}>
+                  <StyledText 
+                    className={`font-medium text-base ${modalClasses.successButtonText}`}
+                    style={{
+                      fontFamily: fontNames.medium,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                    }}
+                  >
                     {itemName}
                   </StyledText>
                 </StyledText>
@@ -106,7 +142,14 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
                 style={modalStyles.actionButton}
                 onPress={onAddAnother}
               >
-                <StyledText className={modalClasses.buttonText}>
+                <StyledText 
+                  className={modalClasses.buttonText}
+                  style={{
+                    fontFamily: fontNames.regular,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {t("successCreation.registerMore", "Register more")}
                 </StyledText>
               </StyledTouchableOpacity>
@@ -116,7 +159,14 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
                 className="py-3 items-center"
                 onPress={onClose}
               >
-                <StyledText className="text-white/50 text-base font-light">
+                <StyledText 
+                  className="text-white/50 text-base font-light"
+                  style={{
+                    fontFamily: fontNames.light,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {t("successCreation.done", "Done")}
                 </StyledText>
               </StyledTouchableOpacity>

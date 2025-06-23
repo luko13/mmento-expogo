@@ -9,6 +9,7 @@ import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
 import { modalStyles, blurConfig, modalClasses } from "../../styles/modalStyles";
+import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -51,11 +52,25 @@ const CantDeleteModal: React.FC<CategoryNotEmptyModalProps> = ({
           >
             {/* Contenido: título y mensaje */}
             <StyledView style={modalStyles.contentContainer}>
-              <StyledText className={modalClasses.titleTextWithOpacity}>
+              <StyledText 
+                className={modalClasses.titleTextWithOpacity}
+                style={{
+                  fontFamily: fontNames.semiBold,
+                  fontSize: 18,
+                  includeFontPadding: false,
+                }}
+              >
                 {t("categoryNotEmpty.title", "Can't delete category")}
               </StyledText>
 
-              <StyledText className={`${modalClasses.subtitleText} mt-3`}>
+              <StyledText 
+                className={`${modalClasses.subtitleText} mt-3`}
+                style={{
+                  fontFamily: fontNames.regular,
+                  fontSize: 16,
+                  includeFontPadding: false,
+                }}
+              >
                 {t(
                   "categoryNotEmpty.message",
                   "You need to move or delete all items in this category first."
@@ -63,7 +78,14 @@ const CantDeleteModal: React.FC<CategoryNotEmptyModalProps> = ({
               </StyledText>
 
               {itemCount !== undefined && itemCount > 0 && (
-                <StyledText className="text-white/40 text-sm text-center mt-2">
+                <StyledText 
+                  className="text-white/40 text-sm text-center mt-2"
+                  style={{
+                    fontFamily: fontNames.light,
+                    fontSize: 14,
+                    includeFontPadding: false,
+                  }}
+                >
                   {itemCount}{" "}
                   {itemCount === 1
                     ? t("common.item", "item")
@@ -80,7 +102,14 @@ const CantDeleteModal: React.FC<CategoryNotEmptyModalProps> = ({
                 style={modalStyles.buttonFull}
                 onPress={handleClose}
               >
-                <StyledText className="text-white/80 text-base font-medium">
+                <StyledText 
+                  className="text-white/80 text-base font-medium"
+                  style={{
+                    fontFamily: fontNames.medium,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
                   {t("common.ok", "OK")}
                 </StyledText>
               </StyledTouchableOpacity>
