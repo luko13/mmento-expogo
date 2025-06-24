@@ -103,7 +103,7 @@ export default function AppLayout() {
       {!shouldHideNavbar && (
         <StyledView
           className="absolute bottom-0 left-0 right-0"
-          style={{ bottom: -15 }}
+          style={{ bottom: -4 }}
         >
           <StyledBlurView
             intensity={40}
