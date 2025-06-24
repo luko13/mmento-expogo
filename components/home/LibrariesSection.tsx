@@ -40,7 +40,6 @@ const StyledTouchableOpacity = styled(TouchableOpacity);
 // Calculate safe area for navigation bar
 const NAVBAR_HEIGHT = 60;
 const BOTTOM_SPACING = Platform.select({ ios: 20, default: 10 });
-
 interface LibrariesSectionProps {
   searchQuery?: string;
   searchFilters?: SearchFilters;
@@ -290,8 +289,8 @@ const LibrariesSection = memo(function LibrariesSection({
       <StyledView className="flex-row justify-between items-center mb-2 px-4">
         <StyledView className="flex-row items-center">
           <Feather name="book" size={24} color="white" />
-          <Text 
-            style={{ 
+          <Text
+            style={{
               fontFamily: fontNames.light,
               fontSize: 20,
               color: "white",
@@ -336,8 +335,8 @@ const LibrariesSection = memo(function LibrariesSection({
 
     return (
       <StyledView className="bg-white/5 p-6 rounded-lg items-center mx-4">
-        <Text 
-          style={{ 
+        <Text
+          style={{
             fontFamily: fontNames.light,
             fontSize: 18,
             color: "rgba(255, 255, 255, 0.5)",
@@ -355,8 +354,8 @@ const LibrariesSection = memo(function LibrariesSection({
             className="bg-emerald-700 px-4 py-2 rounded-lg mt-2"
             onPress={() => setAddCategoryModalVisible(true)}
           >
-            <Text 
-              style={{ 
+            <Text
+              style={{
                 fontFamily: fontNames.light,
                 fontSize: 16,
                 color: "white",
@@ -410,8 +409,8 @@ const LibrariesSection = memo(function LibrariesSection({
 
       {error ? (
         <StyledView className="flex-1 justify-center items-center p-4">
-          <Text 
-            style={{ 
+          <Text
+            style={{
               fontFamily: fontNames.light,
               fontSize: 16,
               color: "#ef4444",
@@ -426,8 +425,8 @@ const LibrariesSection = memo(function LibrariesSection({
             className="bg-emerald-700 px-4 py-2 rounded-lg"
             onPress={refresh}
           >
-            <Text 
-              style={{ 
+            <Text
+              style={{
                 fontFamily: fontNames.light,
                 fontSize: 16,
                 color: "white",

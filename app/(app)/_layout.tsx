@@ -59,14 +59,14 @@ export default function AppLayout() {
       icon: "home",
       route: "/(app)/home",
       library: "antdesign",
-      size: 30,
+      size: 24,
     },
     {
       id: "notifications",
       icon: "notifications-outline",
       route: "/(app)/notifications",
       library: "ionicons",
-      size: 30,
+      size: 24,
     },
     {
       id: "add",
@@ -74,21 +74,21 @@ export default function AppLayout() {
       route: "/(app)/add-magic",
       special: true,
       library: "fontawesome",
-      size: 30,
+      size: 24,
     },
     {
       id: "video",
       icon: "play-circle-outline",
       route: "/(app)/videos",
       library: "ionicons",
-      size: 30,
+      size: 24,
     },
     {
       id: "ai",
       icon: "robot-angry-outline",
       route: "/(app)/ai",
       library: "materialcommunity",
-      size: 30,
+      size: 24,
     },
   ];
 
@@ -99,7 +99,10 @@ export default function AppLayout() {
 
       {/* Glass morphism navbar */}
       {!shouldHideNavbar && (
-        <StyledView className="absolute bottom-0 left-0 right-0">
+        <StyledView
+          className="absolute bottom-0 left-0 right-0"
+          style={{ bottom: -15 }}
+        >
           <StyledBlurView
             intensity={40}
             tint="dark"
@@ -111,12 +114,12 @@ export default function AppLayout() {
               paddingBottom: insets.bottom,
             }}
           >
-            <StyledView className="flex-row justify-evenly items-center py-3">
+            <StyledView className="flex-row justify-evenly items-center py-2">
               {navItems.map((item) => (
                 <StyledTouchableOpacity
                   key={item.id}
                   onPress={() => router.push(item.route)}
-                  className="p-3"
+                  className="px-3 py-1"
                   style={{
                     opacity: getActiveRoute() === item.id ? 1 : 0.6,
                     ...(item.special

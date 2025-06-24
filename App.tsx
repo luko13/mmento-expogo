@@ -1,6 +1,10 @@
-// App.tsx
 import { useEffect, useState } from "react";
-import { useColorScheme, NativeModules, Platform } from "react-native";
+import {
+  useColorScheme,
+  NativeModules,
+  Platform,
+  StatusBar,
+} from "react-native";
 import { ExpoRoot } from "expo-router";
 import {
   ThemeProvider,
@@ -8,6 +12,7 @@ import {
   DefaultTheme,
 } from "@react-navigation/native";
 import i18n from "./i18n";
+import * as NavigationBar from "expo-navigation-bar";
 
 export default function App() {
   const colorScheme = useColorScheme();
@@ -41,6 +46,21 @@ export default function App() {
   }, []);
 
   /**
+   * Configurar StatusBar y NavigationBar para Android
+   */
+  useEffect(() => {
+    if (Platform.OS === "android") {
+      StatusBar.setTranslucent(true);
+      StatusBar.setBackgroundColor("transparent");
+      StatusBar.setBarStyle("light-content");
+
+      // Hacer la barra de navegación transparente
+      NavigationBar.setBackgroundColorAsync("#00000001");
+      NavigationBar.setButtonStyleAsync("light");
+    }
+  }, []);
+
+  /**
    * Configuración del tema de la aplicación
    */
   const theme = {
@@ -52,10 +72,14 @@ export default function App() {
 
   /**
    * Renderizado principal de la aplicación
-   * Las fuentes ahora se cargan en app/_layout.tsx
    */
   return (
     <ThemeProvider value={theme}>
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="light-content"
+      />
       <ExpoRoot context={require("./app")} />
     </ThemeProvider>
   );

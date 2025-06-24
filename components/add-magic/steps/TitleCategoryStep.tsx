@@ -18,6 +18,7 @@ import {
   FontAwesome6,
   MaterialIcons,
   AntDesign,
+  FontAwesome5,
 } from "@expo/vector-icons";
 import { supabase } from "../../../lib/supabase";
 import type { MagicTrick } from "../../../types/magicTrick";
@@ -184,7 +185,7 @@ export default function TitleCategoryStep({
               {isSubmitting ? (
                 <Ionicons name="refresh" size={24} color="white" />
               ) : (
-                <Feather name="check" size={24} color="white" />
+                <Feather name="save" size={24} color="white" />
               )}
             </StyledTouchableOpacity>
           </StyledView>

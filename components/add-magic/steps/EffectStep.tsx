@@ -109,7 +109,7 @@ export default function EffectStep({
             {isSubmitting ? (
               <Ionicons name="refresh" size={24} color="white" />
             ) : (
-              <Feather name="check" size={24} color="white" />
+              <Feather name="save" size={24} color="white" />
             )}
           </StyledTouchableOpacity>
         </StyledView>
@@ -130,7 +130,7 @@ export default function EffectStep({
         {/* Effect Section */}
         <StyledView className="mt-1">
           <StyledText
-            className="text-white/60 text-lg mb-2"
+            className="text-white text-lg mb-2"
             style={{
               fontFamily: fontNames.light,
               fontSize: 20,
@@ -205,7 +205,7 @@ export default function EffectStep({
         {/* Secret Section */}
         <StyledView className="mb-2">
           <StyledText
-            className="text-white/60 text-lg mb-2"
+            className="text-white text-lg mb-2"
             style={{
               fontFamily: fontNames.light,
               fontSize: 20,
@@ -274,9 +274,9 @@ export default function EffectStep({
         </StyledView>
 
         {/* Photos Section */}
-        <StyledView className="mt-4 mb-16">
+        <StyledView className="mb-16">
           <StyledText
-            className="text-white/60 text-lg mb-2"
+            className="text-white text-lg mb-2"
             style={{
               fontFamily: fontNames.light,
               fontSize: 20,

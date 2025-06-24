@@ -66,7 +66,9 @@
     "tweetnacl": "^1.0.3",
     "tweetnacl-util": "^0.15.1",
     "util": "^0.12.5",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "expo-navigation-bar": "~4.2.6",
+    "expo-build-properties": "~0.14.6"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

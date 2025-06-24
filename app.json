@@ -25,7 +25,16 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.yourcompany.mmento"
+      "package": "com.yourcompany.mmento",
+      "softwareKeyboardLayoutMode": "pan",
+      "navigationBarColor": "transparent",
+      "statusBarColor": "transparent",
+      "statusBarTranslucent": true
+    },
+    "androidStatusBar": {
+      "backgroundColor": "transparent",
+      "translucent": true,
+      "barStyle": "light-content"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -42,7 +51,16 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-navigation-bar",
+        {
+          "position": "absolute",
+          "visibility": "visible",
+          "behavior": "overlay-swipe",
+          "backgroundColor": "#00000001"
+        }
+      ]
     ],
     "extra": {
       "router": {
