@@ -15,6 +15,7 @@ import {
   Feather,
   MaterialIcons,
   MaterialCommunityIcons,
+  Ionicons,
 } from "@expo/vector-icons";
 import type { MagicTrick } from "../../../types/magicTrick";
 import { LinearGradient } from "expo-linear-gradient";
@@ -79,12 +80,12 @@ export default function EffectStep({
       />
 
       {/* Header */}
-      <StyledView className="flex-row items-center px-6 pt-4 pb-4">
-        <StyledTouchableOpacity onPress={onCancel} className="p-2">
-          <Feather name="chevron-left" size={24} color="white" />
-        </StyledTouchableOpacity>
+      <StyledView className="px-6 pt-4 pb-4">
+        <StyledView className="flex-row items-center justify-between">
+          <StyledTouchableOpacity onPress={onCancel} className="p-2">
+            <Feather name="chevron-left" size={24} color="white" />
+          </StyledTouchableOpacity>
 
-        <StyledView className="flex-1 items-center">
           <StyledText
             className="text-white text-lg font-semibold"
             style={{
@@ -95,28 +96,41 @@ export default function EffectStep({
           >
             {trickData.title || t("trickTitle", "[Title Magic]")}
           </StyledText>
-          <StyledText
-            className="text-[#FFFFFF]/50 text-sm opacity-70"
-            style={{
-              fontFamily: fontNames.light,
-              fontSize: 16,
-              includeFontPadding: false,
+
+          <StyledTouchableOpacity
+            className={`p-2 ${isSubmitting ? "opacity-30" : ""}`}
+            onPress={() => {
+              if (onSave && !isSubmitting) {
+                onSave();
+              }
             }}
+            disabled={isSubmitting}
           >
-            {t("content", "Contenido")}
-          </StyledText>
+            {isSubmitting ? (
+              <Ionicons name="refresh" size={24} color="white" />
+            ) : (
+              <Feather name="check" size={24} color="white" />
+            )}
+          </StyledTouchableOpacity>
         </StyledView>
 
-        <StyledTouchableOpacity className="p-2 opacity-0">
-          <MaterialIcons name="compress" size={24} color="#10b981" />
-        </StyledTouchableOpacity>
+        <StyledText
+          className="text-[#FFFFFF]/50 text-sm opacity-70 text-center"
+          style={{
+            fontFamily: fontNames.light,
+            fontSize: 16,
+            includeFontPadding: false,
+          }}
+        >
+          {t("content", "Contenido")}
+        </StyledText>
       </StyledView>
 
       <StyledScrollView className="flex-1 px-6">
         {/* Effect Section */}
-        <StyledView className="mt-6">
+        <StyledView className="mt-1">
           <StyledText
-            className="text-white/60 text-lg font-semibold mb-4"
+            className="text-white/60 text-lg mb-2"
             style={{
               fontFamily: fontNames.light,
               fontSize: 20,
@@ -149,7 +163,7 @@ export default function EffectStep({
           />
 
           {/* Effect Description */}
-          <StyledView className="mb-6 mt-6">
+          <StyledView className="mb-4 mt-4">
             <StyledView className="flex-row items-center">
               <CustomTooltip
                 text={t("tooltips.effectDescription")}
@@ -189,9 +203,9 @@ export default function EffectStep({
         </StyledView>
 
         {/* Secret Section */}
-        <StyledView className="mb-6">
+        <StyledView className="mb-2">
           <StyledText
-            className="text-white/60 text-lg font-semibold mb-4"
+            className="text-white/60 text-lg mb-2"
             style={{
               fontFamily: fontNames.light,
               fontSize: 20,
@@ -224,7 +238,7 @@ export default function EffectStep({
           />
 
           {/* Secret Description */}
-          <StyledView className="mb-6 mt-6">
+          <StyledView className="mb-4 mt-4">
             <StyledView className="flex-row items-center">
               <CustomTooltip
                 text={t("tooltips.secretDescription")}
@@ -260,9 +274,9 @@ export default function EffectStep({
         </StyledView>
 
         {/* Photos Section */}
-        <StyledView className="mb-16">
+        <StyledView className="mt-4 mb-16">
           <StyledText
-            className="text-white/60 text-lg font-semibold mb-4"
+            className="text-white/60 text-lg mb-2"
             style={{
               fontFamily: fontNames.light,
               fontSize: 20,
@@ -311,7 +325,7 @@ export default function EffectStep({
 
         {/* Statistics Button */}
         <StyledTouchableOpacity
-          className="w-full py-4 rounded-lg items-center justify-center flex-row border border-[#2C6B5C] bg-transparent mb-4"
+          className="w-full py-4 rounded-lg items-center justify-center flex-row bg-[#2C6B5C]"
           onPress={goToExtrasStep}
         >
           <StyledText
@@ -340,28 +354,6 @@ export default function EffectStep({
             color="white"
             style={{ position: "absolute", right: 16 }}
           />
-        </StyledTouchableOpacity>
-
-        {/* Register Magic Button */}
-        <StyledTouchableOpacity
-          className={`w-full py-4 rounded-lg items-center justify-center flex-row mb-6 ${
-            isSubmitting ? "bg-white/10" : "bg-emerald-700"
-          }`}
-          disabled={isSubmitting}
-          onPress={onSave}
-        >
-          <StyledText
-            className="text-white font-semibold text-base"
-            style={{
-              fontFamily: fontNames.light,
-              fontSize: 18,
-              includeFontPadding: false,
-            }}
-          >
-            {isSubmitting
-              ? t("saving", "Guardando...")
-              : t("registerMagic", "Registrar Magia")}
-          </StyledText>
         </StyledTouchableOpacity>
       </StyledView>
     </StyledView>

@@ -1,9 +1,34 @@
+// utils/compressionService.ts
 import * as FileSystem from "expo-file-system";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import * as VideoThumbnails from "expo-video-thumbnails";
 import pako from "pako";
 import { performanceOptimizer } from "./performanceOptimizer";
-import videoService from "../services/videoService";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+
+// Detectar si estamos en Expo Go
+const isExpoGo =
+  Constants.appOwnership === "expo" ||
+  (Platform.OS === "ios" &&
+    __DEV__ &&
+    !(global as any).nativeModulesProxy?.RNCVideoCompressor);
+
+// Importar videoService condicionalmente
+let videoService: any;
+if (isExpoGo) {
+  // Fallback para Expo Go
+  videoService = {
+    compressVideo: async (uri: string) => {
+      console.warn("Compresión de video no disponible en Expo Go");
+      return uri;
+    },
+    isCompressionAvailable: () => false,
+  };
+} else {
+  // Usar el servicio real
+  videoService = require("../services/videoService").default;
+}
 
 export interface CompressionResult {
   uri: string;
@@ -74,11 +99,25 @@ export class CompressionService {
       wasCompressed: false,
     };
   }
+
   private async compressVideo(
     uri: string,
     originalSize: number,
     options: CompressionOptions
   ): Promise<CompressionResult> {
+    // Si no hay compresión disponible, devolver sin comprimir
+    if (!videoService.isCompressionAvailable()) {
+      console.log("Compresión de video no disponible - usando original");
+      return {
+        uri,
+        originalSize,
+        compressedSize: originalSize,
+        ratio: 1,
+        algorithm: "none",
+        wasCompressed: false,
+      };
+    }
+
     try {
       // Compresión dinámica según tamaño
       let quality: "low" | "medium" | "high";
@@ -115,6 +154,7 @@ export class CompressionService {
       return this.handleVideoWithoutCompression(uri, originalSize);
     }
   }
+
   /**
    * Comprimir imagen usando expo-image-manipulator
    */
@@ -372,6 +412,13 @@ export class CompressionService {
       dataCompression:
         performanceOptimizer.getAverageMetrics("data-compression"),
     };
+  }
+
+  /**
+   * Verificar si la compresión de video está disponible
+   */
+  isVideoCompressionAvailable(): boolean {
+    return videoService.isCompressionAvailable();
   }
 }
 

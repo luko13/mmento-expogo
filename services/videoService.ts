@@ -1,15 +1,43 @@
 // services/videoService.ts
-import { Video } from "react-native-compressor";
 import * as VideoThumbnails from "expo-video-thumbnails";
 import * as FileSystem from "expo-file-system";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+
+// Detectar si estamos en Expo Go
+const isExpoGo =
+  Constants.appOwnership === "expo" ||
+  (Platform.OS === "ios" &&
+    __DEV__ &&
+    !(global as any).nativeModulesProxy?.RNCVideoCompressor);
+
+// Intentar cargar react-native-compressor solo si no estamos en Expo Go
+let Video: any = null;
+if (!isExpoGo) {
+  import("react-native-compressor")
+    .then((module) => {
+      Video = module.Video;
+    })
+    .catch(() => {
+      console.log("react-native-compressor no disponible");
+    });
+}
 
 class VideoService {
-  // Comprimir video usando react-native-compressor
+  // Comprimir video usando react-native-compressor o fallback
   async compressVideo(
     inputUri: string,
     quality: "low" | "medium" | "high" = "medium"
   ): Promise<string> {
+    // Si no tenemos el módulo nativo, devolver el URI original
+    if (!Video) {
+      console.warn(
+        "Compresión de video no disponible en Expo Go - usando video original"
+      );
+      return inputUri;
+    }
+
     const compressionOptions = {
       low: { bitrate: 2000000, minimumBitrate: 1000000 }, // 2 Mbps
       medium: { bitrate: 3500000, minimumBitrate: 2000000 }, // 3.5 Mbps
@@ -28,8 +56,14 @@ class VideoService {
       return result;
     } catch (error) {
       console.error("Error compressing video:", error);
-      throw error;
+      // En caso de error, devolver el URI original
+      return inputUri;
     }
+  }
+
+  // Verificar si la compresión está disponible
+  isCompressionAvailable(): boolean {
+    return !!Video;
   }
 
   // Extraer thumbnail del video
@@ -111,6 +145,11 @@ class VideoService {
     inputUri: string,
     targetSize: { width?: number; height?: number }
   ): Promise<string> {
+    if (!Video) {
+      console.warn("Conversión de video no disponible en Expo Go");
+      return inputUri;
+    }
+
     try {
       const result = await Video.compress(inputUri, {
         compressionMethod: "manual",
@@ -120,7 +159,7 @@ class VideoService {
       return result;
     } catch (error) {
       console.error("Error converting video:", error);
-      throw error;
+      return inputUri;
     }
   }
 

@@ -197,14 +197,14 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
     return (
       <StyledView>
         {/* Selector principal */}
-        <StyledView className="flex-row mb-6">
+        <StyledView className="flex-row">
           {tooltip ? (
             <CustomTooltip
               text={tooltip}
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30  border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <Feather
                   name={type === "photo" ? "image" : "video"}
                   size={28}
@@ -213,7 +213,7 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
               </StyledView>
             </CustomTooltip>
           ) : (
-            <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+            <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
               <Feather
                 name={type === "photo" ? "image" : "video"}
                 size={28}
@@ -229,7 +229,7 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
                   ? () => removeFile(0)
                   : selectMedia
               }
-              className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[15px] border border-[#5bb9a3] flex-row items-center justify-between"
+              className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[15px] border border-[#eafffb]/40 flex-row items-center justify-between"
             >
               <StyledView className="flex-1 flex-row items-center">
                 <StyledText
@@ -262,7 +262,7 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
 
         {/* Preview en estilo pills SOLO PARA FOTOS */}
         {type === "photo" && selectedFiles.length > 0 && (
-          <StyledView className="mb-6 -mt-3">
+          <StyledView className="mb-6 mt-3">
             <StyledScrollView
               horizontal
               showsHorizontalScrollIndicator={false}

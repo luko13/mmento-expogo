@@ -221,6 +221,10 @@
   "navigation": {
     "stepIndicator": "{{current}} of {{total}}"
   },
+  "info": {
+    "secureMagic": "Your magic is",
+    "safeEncryption": "Secure & Encrypted"
+  },
   "security": {
     "identitySafe": "Your identity is safe",
     "endToEndEncrypted": "*End-to-end Encrypted*",

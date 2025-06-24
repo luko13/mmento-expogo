@@ -153,12 +153,12 @@ export default function TitleCategoryStep({
     <StyledView className="flex-1">
       <StyledView className="flex-1" style={{ paddingTop: 15 }}>
         {/* Header */}
-        <StyledView className="flex-row items-center justify-between px-6 mb-4">
-          <StyledTouchableOpacity className="p-2" onPress={onCancel}>
-            <Feather name="x" size={24} color="white" />
-          </StyledTouchableOpacity>
+        <StyledView className="px-6 mb-4">
+          <StyledView className="flex-row items-center justify-between">
+            <StyledTouchableOpacity className="p-2" onPress={onCancel}>
+              <Feather name="x" size={24} color="white" />
+            </StyledTouchableOpacity>
 
-          <StyledView className="flex-1 items-center">
             <StyledText
               className="text-white text-lg font-semibold"
               style={{
@@ -169,21 +169,36 @@ export default function TitleCategoryStep({
             >
               {t("forms.registerMagic")}
             </StyledText>
-            <StyledText
-              className="text-[#FFFFFF]/50 text-sm opacity-70"
-              style={{
-                fontFamily: fontNames.light,
-                fontSize: 16,
-                includeFontPadding: false,
+
+            <StyledTouchableOpacity
+              className={`p-2 ${
+                !isFormValid || isSubmitting ? "opacity-30" : ""
+              }`}
+              onPress={() => {
+                if (isFormValid && onSave) {
+                  onSave();
+                }
               }}
+              disabled={!isFormValid || isSubmitting}
             >
-              {getCurrentDate()}
-            </StyledText>
+              {isSubmitting ? (
+                <Ionicons name="refresh" size={24} color="white" />
+              ) : (
+                <Feather name="check" size={24} color="white" />
+              )}
+            </StyledTouchableOpacity>
           </StyledView>
 
-          <StyledTouchableOpacity className="p-2 opacity-0">
-            <Feather name="x" size={24} color="white" />
-          </StyledTouchableOpacity>
+          <StyledText
+            className="text-[#FFFFFF]/50 text-sm opacity-70 text-center"
+            style={{
+              fontFamily: fontNames.light,
+              fontSize: 16,
+              includeFontPadding: false,
+            }}
+          >
+            {getCurrentDate()}
+          </StyledText>
         </StyledView>
 
         {/* Form Container */}
@@ -306,15 +321,15 @@ export default function TitleCategoryStep({
             {/* Info Message */}
             <StyledView className="items-center py-6">
               <StyledView className="mb-2">
-                <MaterialIcons
-                  name="cloud-upload"
+                <AntDesign
+                  name="Safety"
                   size={32}
-                  color="#10b9813b"
+                  color="#5BB9A3"
                 />
               </StyledView>
 
               <StyledText
-                className="text-[#10b981]/40 text-xs mt-2 text-center"
+                className="text-[#5BB9A3] text-xs mt-2 text-center"
                 style={{
                   fontFamily: fontNames.light,
                   fontSize: 12,
@@ -322,12 +337,12 @@ export default function TitleCategoryStep({
                 }}
               >
                 {t(
-                  "info.filesCompressed",
-                  "Los archivos se comprimen automáticamente"
+                  "info.secureMagic",
+                  "Tu magia está"
                 )}
               </StyledText>
               <StyledText
-                className="text-[#10b981]/40 text-xs text-center"
+                className="text-[#5BB9A3] text-xs text-center"
                 style={{
                   fontFamily: fontNames.light,
                   fontSize: 12,
@@ -335,8 +350,8 @@ export default function TitleCategoryStep({
                 }}
               >
                 {t(
-                  "info.savingStorage",
-                  "para ahorrar espacio de almacenamiento"
+                  "info.safeEncryption",
+                  "Segura & Encriptada"
                 )}
               </StyledText>
             </StyledView>
@@ -344,97 +359,45 @@ export default function TitleCategoryStep({
         </StyledView>
 
         {/* Bottom Section */}
-        <StyledView
-          className="px-6"
-          style={{ paddingBottom: insets.bottom + 12 }}
-        >
+        <StyledView className="justify-end pt-6 px-6 pb-6">
           {/* Step indicator */}
           <StyledText
-            className="text-white/60 text-center text-sm mb-4"
+            className="text-center text-white/60 mb-4"
             style={{
               fontFamily: fontNames.light,
               fontSize: 14,
               includeFontPadding: false,
             }}
           >
-            {t("navigation.stepIndicator", {
-              current: currentStep,
-              total: totalSteps,
-            })}
+            {`${currentStep} de ${totalSteps}`}
           </StyledText>
 
-          {/* Buttons Container */}
-          <StyledView className="flex-row space-x-3">
-            {/* Save Button */}
-            <StyledTouchableOpacity
-              className={`flex-1 py-4 rounded-lg items-center justify-center flex-row ${
-                isFormValid && !isSubmitting
-                  ? "bg-white/10 "
-                  : "bg-transparent border border-[#5bb9a3]/50"
-              }`}
-              disabled={!isFormValid || isSubmitting}
-              onPress={() => {
-                if (isFormValid && onSave) {
-                  onSave();
-                }
+          {/* Next Step Button */}
+          <StyledTouchableOpacity
+            className={`w-full py-4 rounded-lg items-center justify-center flex-row ${
+              isFormValid && !isSubmitting && !isLastStep
+                ? "bg-[#2C6B5C]"
+                : "bg-transparent border border-[#2C6B5C]"
+            }`}
+            disabled={!isFormValid || isSubmitting || isLastStep}
+            onPress={() => {
+              if (isFormValid && onNext) {
+                onNext();
+              }
+            }}
+          >
+            <StyledText
+              className="text-white text-base mr-2"
+              style={{
+                fontFamily: fontNames.light,
+                fontSize: 18,
+                includeFontPadding: false,
               }}
             >
-              {isSubmitting ? (
-                <>
-                  <StyledText
-                    className="text-white font-semibold text-base mr-2"
-                    style={{
-                      fontFamily: fontNames.light,
-                      fontSize: 16,
-                      includeFontPadding: false,
-                    }}
-                  >
-                    {t("actions.saving")}
-                  </StyledText>
-                  <Ionicons name="refresh" size={20} color="white" />
-                </>
-              ) : (
-                <>
-                  <StyledText
-                    className="text-white font-semibold text-base mr-2"
-                    style={{
-                      fontFamily: fontNames.light,
-                      fontSize: 18,
-                      includeFontPadding: false,
-                    }}
-                  >
-                    {t("actions.save")}
-                  </StyledText>
-                  <AntDesign name="check" size={20} color="white" />
-                </>
-              )}
-            </StyledTouchableOpacity>
-
-            {/* Next Button */}
-            <StyledTouchableOpacity
-              className={`flex-1 py-4 rounded-lg items-center justify-center flex-row ${
-                isFormValid && !isSubmitting ? "bg-emerald-700" : "bg-white/10"
-              }`}
-              disabled={!isFormValid || isSubmitting || isLastStep}
-              onPress={() => {
-                if (isFormValid && onNext) {
-                  onNext();
-                }
-              }}
-            >
-              <StyledText
-                className="text-white font-semibold text-base mr-2"
-                style={{
-                  fontFamily: fontNames.light,
-                  fontSize: 18,
-                  includeFontPadding: false,
-                }}
-              >
-                {t("actions.content", "Content")}
-              </StyledText>
-              <Feather name="chevron-right" size={20} color="white" />
-            </StyledTouchableOpacity>
-          </StyledView>
+              {t("actions.content", "Content")}
+            </StyledText>
+            <Feather name="chevron-right" size={20} color="white" />
+          </StyledTouchableOpacity>
         </StyledView>
       </StyledView>
     </StyledView>

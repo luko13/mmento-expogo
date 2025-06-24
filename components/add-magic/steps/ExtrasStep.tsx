@@ -9,6 +9,7 @@ import {
   Alert,
   ScrollView,
   Animated,
+  TextInput,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -34,6 +35,7 @@ const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledScrollView = styled(ScrollView);
+const StyledTextInput = styled(TextInput);
 
 // Definir interfaces para técnica y gimmick
 interface Technique {
@@ -124,7 +126,7 @@ const UploadProgressModal = ({
           <StyledView className="w-16 h-16 bg-emerald-500/20 rounded-full items-center justify-center mb-4">
             <MaterialIcons name="cloud-upload" size={32} color="#10b981" />
           </StyledView>
-          <StyledText 
+          <StyledText
             className="text-white text-lg font-semibold mb-2"
             style={{
               fontFamily: fontNames.light,
@@ -134,7 +136,7 @@ const UploadProgressModal = ({
           >
             {t("uploadingFiles", "Subiendo archivos")}
           </StyledText>
-          <StyledText 
+          <StyledText
             className="text-[#FFFFFF]/50 text-sm text-center"
             style={{
               fontFamily: fontNames.light,
@@ -152,7 +154,7 @@ const UploadProgressModal = ({
         {/* Progress Info */}
         <StyledView className="mb-4">
           <StyledView className="flex-row justify-between mb-2">
-            <StyledText 
+            <StyledText
               className="text-white/80 text-sm"
               style={{
                 fontFamily: fontNames.light,
@@ -162,7 +164,7 @@ const UploadProgressModal = ({
             >
               {t("file", "Archivo")} {processedFiles}/{totalFiles}
             </StyledText>
-            <StyledText 
+            <StyledText
               className="text-emerald-400 text-sm font-medium"
               style={{
                 fontFamily: fontNames.light,
@@ -188,7 +190,7 @@ const UploadProgressModal = ({
 
           {/* Current File */}
           <StyledView className="bg-black/20 rounded-lg px-3 py-2 mb-3">
-            <StyledText 
+            <StyledText
               className="text-white/50 text-xs mb-1"
               style={{
                 fontFamily: fontNames.light,
@@ -198,8 +200,8 @@ const UploadProgressModal = ({
             >
               {t("processing", "Procesando")}:
             </StyledText>
-            <StyledText 
-              className="text-white/80 text-sm" 
+            <StyledText
+              className="text-white/80 text-sm"
               numberOfLines={1}
               style={{
                 fontFamily: fontNames.light,
@@ -214,7 +216,7 @@ const UploadProgressModal = ({
           {/* Timer */}
           <StyledView className="flex-row items-center justify-center">
             <Feather name="clock" size={16} color="rgba(255,255,255,0.6)" />
-            <StyledText 
+            <StyledText
               className="text-white/60 text-sm ml-2"
               style={{
                 fontFamily: fontNames.light,
@@ -231,7 +233,7 @@ const UploadProgressModal = ({
         {/* Estimated Time (opcional) */}
         {progress > 10 && (
           <StyledView className="border-t border-white/10 pt-4">
-            <StyledText 
+            <StyledText
               className="text-white/40 text-xs text-center"
               style={{
                 fontFamily: fontNames.light,
@@ -254,7 +256,7 @@ const UploadProgressModal = ({
             size={12}
             color="rgba(16, 185, 129, 0.6)"
           />
-          <StyledText 
+          <StyledText
             className="text-emerald-500/60 text-xs ml-1"
             style={{
               fontFamily: fontNames.light,
@@ -275,8 +277,8 @@ export default function ExtrasStep({
   updateTrickData,
   onNext,
   onCancel,
-  currentStep = 2,
-  totalSteps = 2,
+  currentStep = 3,
+  totalSteps = 3,
   isSubmitting = false,
   isLastStep = true,
 }: StepProps) {
@@ -379,13 +381,9 @@ export default function ExtrasStep({
     { value: "360", label: "360°" },
   ];
 
-  // Seleccionar ángulo (estilo botón de radio)
+  // Seleccionar ángulo (estilo botón de radio) - OPCIÓN ÚNICA
   const selectAngle = (angle: string): void => {
-    const updatedAngles = trickData.angles.includes(angle)
-      ? trickData.angles.filter((a) => a !== angle)
-      : [...trickData.angles, angle];
-
-    updateTrickData({ angles: updatedAngles });
+    updateTrickData({ angles: [angle] });
   };
 
   // Manejar cambio de duración
@@ -604,13 +602,13 @@ export default function ExtrasStep({
       />
 
       {/* Encabezado */}
-      <StyledView className="flex-row items-center px-6 pt-4">
-        <StyledTouchableOpacity onPress={onCancel} className="p-2">
-          <Feather name="chevron-left" size={24} color="white" />
-        </StyledTouchableOpacity>
+      <StyledView className="px-6 pt-4">
+        <StyledView className="flex-row items-center justify-between">
+          <StyledTouchableOpacity onPress={onCancel} className="p-2">
+            <Feather name="chevron-left" size={24} color="white" />
+          </StyledTouchableOpacity>
 
-        <StyledView className="flex-1 items-center">
-          <StyledText 
+          <StyledText
             className="text-white text-lg font-semibold"
             style={{
               fontFamily: fontNames.light,
@@ -620,26 +618,28 @@ export default function ExtrasStep({
           >
             {trickData.title || t("trickTitle", "[Título Magia]")}
           </StyledText>
-          <StyledText 
-            className="text-[#FFFFFF]/50 text-sm opacity-70"
-            style={{
-              fontFamily: fontNames.light,
-              fontSize: 16,
-              includeFontPadding: false,
-            }}
-          >
-            {t("statistics", "Estadísticas")}
-          </StyledText>
+
+          <StyledView className="p-2 opacity-0">
+            <Feather name="chevron-left" size={24} color="white" />
+          </StyledView>
         </StyledView>
-        <StyledView className="p-2 opacity-0">
-          <Feather name="chevron-left" size={24} color="white" />
-        </StyledView>
+
+        <StyledText
+          className="text-[#FFFFFF]/50 text-sm opacity-70 text-center"
+          style={{
+            fontFamily: fontNames.light,
+            fontSize: 16,
+            includeFontPadding: false,
+          }}
+        >
+          {t("statistics", "Estadísticas")}
+        </StyledText>
       </StyledView>
 
       <StyledScrollView className="flex-1 px-6">
         {/* Sección de Estadísticas */}
         <StyledView className="mt-3">
-          <StyledText 
+          <StyledText
             className="text-white/60 text-lg font-semibold mb-4"
             style={{
               fontFamily: fontNames.light,
@@ -657,7 +657,7 @@ export default function ExtrasStep({
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <MaterialCommunityIcons
                   name="angle-acute"
                   size={32}
@@ -666,7 +666,7 @@ export default function ExtrasStep({
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
-              <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#5bb9a3] flex-row items-center justify-between">
+              <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between">
                 {angles.map((angle) => (
                   <StyledTouchableOpacity
                     key={angle.value}
@@ -684,7 +684,7 @@ export default function ExtrasStep({
                         <StyledView className="w-3 h-3 rounded-full bg-emerald-800 m-auto" />
                       )}
                     </StyledView>
-                    <StyledText 
+                    <StyledText
                       className="text-white"
                       style={{
                         fontFamily: fontNames.light,
@@ -707,16 +707,16 @@ export default function ExtrasStep({
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <Feather name="clock" size={24} color="white" />
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#5bb9a3] flex-row items-center justify-between"
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between"
                 onPress={() => setShowDurationPicker(true)}
               >
-                <StyledText 
+                <StyledText
                   className="text-white/70"
                   style={{
                     fontFamily: fontNames.light,
@@ -738,16 +738,16 @@ export default function ExtrasStep({
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <Feather name="refresh-cw" size={24} color="white" />
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTouchableOpacity
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#5bb9a3] flex-row items-center justify-between"
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between"
                 onPress={() => setShowResetPicker(true)}
               >
-                <StyledText 
+                <StyledText
                   className="text-white/70"
                   style={{
                     fontFamily: fontNames.light,
@@ -763,18 +763,18 @@ export default function ExtrasStep({
           </StyledView>
 
           {/* Deslizador de dificultad */}
-          <StyledView className="flex-row mb-3">
+          <StyledView className="flex-row mb-6">
             <CustomTooltip
               text={t("tooltips.difficulty")}
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-[48px] h-[70px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[70px] bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <Feather name="bar-chart" size={28} color="white" />
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
-              <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg pb-3 border border-[#5bb9a3]">
+              <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg pb-3 border border-[#eafffb]/40">
                 {/* Componente DifficultySlider */}
                 <DifficultySlider
                   value={trickData.difficulty || 5}
@@ -786,101 +786,15 @@ export default function ExtrasStep({
               </StyledView>
             </StyledView>
           </StyledView>
-        </StyledView>
 
-        {/* Sección de Extras */}
-        <StyledView className="mb-2">
-          <StyledText 
-            className="text-white/60 text-lg font-semibold mb-2"
-            style={{
-              fontFamily: fontNames.light,
-              fontSize: 20,
-              includeFontPadding: false,
-            }}
-          >
-            {t("extras", "Extras")}
-          </StyledText>
-
-          {/* Selección de Técnicas */}
+          {/* Notes Field */}
           <StyledView className="flex-row mb-6">
             <CustomTooltip
-              text={t("tooltips.techniques")}
+              text={t("tooltips.notes")}
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                <MaterialIcons name="animation" size={30} color="white" />
-              </StyledView>
-            </CustomTooltip>
-            <StyledView className="flex-1">
-              <StyledTouchableOpacity
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13px] border border-[#5bb9a3] flex-row items-center justify-between"
-                onPress={() => setTechniquesModalVisible(true)}
-              >
-                <StyledText 
-                  className="text-white/70"
-                  style={{
-                    fontFamily: fontNames.light,
-                    fontSize: 16,
-                    includeFontPadding: false,
-                  }}
-                >
-                  {selectedTechniques.length > 0
-                    ? `${selectedTechniques.length} ${t(
-                        "techniquesSelected",
-                        "técnicas seleccionadas"
-                      )}`
-                    : t("technique", "Técnica")}
-                </StyledText>
-                <Feather name="link" size={20} color="white" />
-              </StyledTouchableOpacity>
-            </StyledView>
-          </StyledView>
-
-          {/* Selección de Gimmicks */}
-          <StyledView className="flex-row mb-6">
-            <CustomTooltip
-              text={t("tooltips.gimmicks")}
-              backgroundColor="rgba(91, 185, 163, 0.95)"
-              textColor="white"
-            >
-              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                <Feather name="box" size={28} color="white" />
-              </StyledView>
-            </CustomTooltip>
-            <StyledView className="flex-1">
-              <StyledTouchableOpacity
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13px] border border-[#5bb9a3] flex-row items-center justify-between"
-                onPress={() => setGimmicksModalVisible(true)}
-              >
-                <StyledText 
-                  className="text-white/70"
-                  style={{
-                    fontFamily: fontNames.light,
-                    fontSize: 16,
-                    includeFontPadding: false,
-                  }}
-                >
-                  {selectedGimmicks.length > 0
-                    ? `${selectedGimmicks.length} ${t(
-                        "gimmicksSelected",
-                        "gimmicks seleccionados"
-                      )}`
-                    : t("gimmicks", "Gimmicks")}
-                </StyledText>
-                <Feather name="link" size={20} color="white" />
-              </StyledTouchableOpacity>
-            </StyledView>
-          </StyledView>
-
-          {/* Escritura de Script */}
-          <StyledView className="flex-row mb-2">
-            <CustomTooltip
-              text={t("tooltips.script")}
-              backgroundColor="rgba(91, 185, 163, 0.95)"
-              textColor="white"
-            >
-              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[80px] bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <MaterialCommunityIcons
                   name="text-box-outline"
                   size={28}
@@ -889,32 +803,29 @@ export default function ExtrasStep({
               </StyledView>
             </CustomTooltip>
             <StyledView className="flex-1">
-              <StyledTouchableOpacity
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#5bb9a3] flex-row items-center justify-between"
-                onPress={() => setScriptModalVisible(true)}
-              >
-                <StyledView className="flex-row items-center flex-1">
-                  <StyledText 
-                    className="text-white/70 flex-1"
-                    style={{
-                      fontFamily: fontNames.light,
-                      fontSize: 16,
-                      includeFontPadding: false,
-                    }}
-                  >
-                    {scriptData.title
-                      ? scriptData.title
-                      : t("writeScript", "Escribir Script")}
-                  </StyledText>
-                </StyledView>
-              </StyledTouchableOpacity>
+              <StyledTextInput
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[80px]"
+                style={{
+                  fontFamily: fontNames.light,
+                  fontSize: 16,
+                  includeFontPadding: false,
+                }}
+                placeholder={t("notes", "Notas")}
+                placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                value={trickData.notes || ""}
+                onChangeText={(text) => updateTrickData({ notes: text })}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
             </StyledView>
           </StyledView>
         </StyledView>
       </StyledScrollView>
+
       <StyledView className="justify-end px-6 pb-6">
         {/* Indicador de paso */}
-        <StyledText 
+        <StyledText
           className="text-center text-white/60 mb-4"
           style={{
             fontFamily: fontNames.light,
@@ -927,13 +838,13 @@ export default function ExtrasStep({
 
         {/* Botón de Registro de Magia */}
         <StyledTouchableOpacity
-          className={`w-full py-4 rounded-lg items-center justify-center flex-row mb-6 ${
-            isSubmitting ? "bg-[white]" : "bg-[#2C6B5C]"
+          className={`w-full py-4 rounded-lg items-center justify-center flex-row ${
+            isSubmitting ? "bg-white/10" : "bg-[#2C6B5C]"
           }`}
           disabled={isSubmitting}
           onPress={handleNext}
         >
-          <StyledText 
+          <StyledText
             className="text-white font-semibold text-base"
             style={{
               fontFamily: fontNames.light,
