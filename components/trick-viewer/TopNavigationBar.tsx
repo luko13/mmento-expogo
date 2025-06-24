@@ -1,20 +1,21 @@
-import type React from "react"
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
-import { styled } from "nativewind"
-import { BlurView } from "expo-blur"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons, Feather, AntDesign } from "@expo/vector-icons"
+import type React from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { styled } from "nativewind";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons, Feather, AntDesign } from "@expo/vector-icons";
+import { fontNames } from "../../app/_layout";
 
-const StyledView = styled(View)
-const StyledText = styled(Text)
-const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledView = styled(View);
+const StyledText = styled(Text);
+const StyledTouchableOpacity = styled(TouchableOpacity);
 
 interface TopNavigationBarProps {
-  title: string
-  onBackPress: () => void
-  onLikePress?: () => void
-  onEditPress?: () => void
-  isLiked?: boolean
+  title: string;
+  onBackPress: () => void;
+  onLikePress?: () => void;
+  onEditPress?: () => void;
+  isLiked?: boolean;
 }
 
 const TopNavigationBar: React.FC<TopNavigationBarProps> = ({
@@ -34,7 +35,10 @@ const TopNavigationBar: React.FC<TopNavigationBarProps> = ({
           style={styles.gradient}
         >
           {/* Icono de flecha hacia atrás */}
-          <StyledTouchableOpacity onPress={onBackPress} style={styles.iconButton}>
+          <StyledTouchableOpacity
+            onPress={onBackPress}
+            style={styles.iconButton}
+          >
             <Ionicons name="chevron-back" color="white" size={20} />
           </StyledTouchableOpacity>
 
@@ -44,20 +48,30 @@ const TopNavigationBar: React.FC<TopNavigationBarProps> = ({
           {/* Contenedor de iconos derechos */}
           <StyledView style={styles.rightIconsContainer}>
             {/* Icono de corazón */}
-            <StyledTouchableOpacity onPress={onLikePress} style={styles.iconButton}>
-              <AntDesign name="heart" color={isLiked ? "#ff4d6d" : "white"} size={20} />
+            <StyledTouchableOpacity
+              onPress={onLikePress}
+              style={styles.iconButton}
+            >
+              <AntDesign
+                name="heart"
+                color={isLiked ? "#ff4d6d" : "white"}
+                size={20}
+              />
             </StyledTouchableOpacity>
 
             {/* Icono de editar */}
-            <StyledTouchableOpacity onPress={onEditPress} style={styles.iconButton}>
+            <StyledTouchableOpacity
+              onPress={onEditPress}
+              style={styles.iconButton}
+            >
               <Feather name="edit" color="white" size={20} />
             </StyledTouchableOpacity>
           </StyledView>
         </LinearGradient>
       </BlurView>
     </StyledView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -85,20 +99,20 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "white",
-    fontFamily: "Outfit_700Bold",
+    fontFamily: fontNames.semiBold,
     fontSize: 16,
-    fontWeight: "600", // Medium
     textAlign: "center",
     textShadowColor: "#00000026",
     textShadowOffset: { width: 0.5, height: 0.5 },
     textShadowRadius: 1,
     flex: 1,
+    includeFontPadding: false,
   },
   rightIconsContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12, // Espacio entre iconos
   },
-})
+});
 
-export default TopNavigationBar
+export default TopNavigationBar;

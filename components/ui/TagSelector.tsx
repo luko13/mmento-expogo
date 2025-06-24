@@ -292,7 +292,7 @@ export default function TagSelector({
                         textAlign: "center",
                         fontWeight: isSelected ? "500" : "400",
                         fontFamily: isSelected
-                          ? fontNames.light
+                          ? fontNames.medium
                           : fontNames.light,
                         includeFontPadding: false,
                       }}

@@ -23,9 +23,9 @@ import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TopNavigationBar from "./trick-viewer/TopNavigationBar";
 import TrickViewerBottomSection from "./trick-viewer/TrickViewerBottomSection";
-import type { Tag } from "./trick-viewer/TagPillsSection";
 import type { StageType } from "./trick-viewer/StageInfoSection";
 import { supabase } from "../lib/supabase";
+import { fontNames } from "../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -51,15 +51,17 @@ interface TrickViewScreenProps {
     reset: number | null;
     difficulty: number | null;
     notes?: string;
-    tags?: Tag[];
+    tagIds?: string[]; // Cambio: IDs en lugar de objetos Tag
     photos?: string[];
     user_id?: string;
   };
+  userId?: string; // Nuevo: para pasar al TrickViewerBottomSection
   onClose?: () => void;
 }
 
 const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   trick,
+  userId,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -116,12 +118,8 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   // Usar las fotos proporcionadas o crear un array con la foto principal si existe
   const photos = trick.photos || (trick.photo_url ? [trick.photo_url] : []);
 
-  // Crear tags de ejemplo si no existen
-  const tags = trick.tags || [
-    { id: "1", name: "Card Magic" },
-    { id: "2", name: "Sleight of Hand" },
-    { id: "3", name: "Beginner" },
-  ];
+  // Usar tagIds del trick o array vacío
+  const tagIds = trick.tagIds || [];
 
   // Función para cerrar
   const handleClose = () => {
@@ -288,9 +286,40 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     }
   };
 
+  // Estado local para tags
+  const [localTagIds, setLocalTagIds] = useState(tagIds);
+
+  // Actualizar estado local cuando cambian las props
+  useEffect(() => {
+    setLocalTagIds(tagIds);
+  }, [tagIds]);
+
   // Manejar la eliminación de etiquetas
-  const handleRemoveTag = (tagId: string) => {
-    // Implementar lógica para eliminar la etiqueta
+  const handleRemoveTag = async (tagId: string) => {
+    try {
+      // Actualizar estado local inmediatamente
+      const updatedTagIds = localTagIds.filter((id) => id !== tagId);
+      setLocalTagIds(updatedTagIds);
+
+      // Actualizar en la base de datos
+      const { error } = await supabase
+        .from("magic_tricks")
+        .update({ tags: updatedTagIds })
+        .eq("id", trick.id);
+
+      if (error) {
+        console.error("Error removing tag:", error);
+        // Revertir cambio local si falla
+        setLocalTagIds(localTagIds);
+        return;
+      }
+
+      console.log("Tag removed successfully");
+    } catch (error) {
+      console.error("Error removing tag:", error);
+      // Revertir cambio local si falla
+      setLocalTagIds(localTagIds);
+    }
   };
 
   // Renderizar video
@@ -314,7 +343,15 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           }}
         >
           <ActivityIndicator size="large" color="white" />
-          <Text style={{ color: "white", fontSize: 18, marginTop: 16 }}>
+          <Text
+            style={{
+              color: "white",
+              fontSize: 18,
+              marginTop: 16,
+              fontFamily: fontNames.light,
+              includeFontPadding: false,
+            }}
+          >
             {t("loadingVideo", "Cargando video...")}
           </Text>
         </View>
@@ -332,7 +369,15 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           }}
         >
           <Ionicons name="alert-circle-outline" size={50} color="white" />
-          <Text style={{ color: "white", fontSize: 18, marginTop: 16 }}>
+          <Text
+            style={{
+              color: "white",
+              fontSize: 18,
+              marginTop: 16,
+              fontFamily: fontNames.light,
+              includeFontPadding: false,
+            }}
+          >
             {t("videoLoadError", "Error al cargar el video")}
           </Text>
           <Text
@@ -340,6 +385,8 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
               color: "rgba(255,255,255,0.7)",
               fontSize: 14,
               marginTop: 8,
+              fontFamily: fontNames.light,
+              includeFontPadding: false,
             }}
           >
             {videoLoadError}
@@ -369,7 +416,14 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
                 backgroundColor: "rgba(0,0,0,0.3)",
               }}
             >
-              <Text style={{ color: "white", fontSize: 18 }}>
+              <Text
+                style={{
+                  color: "white",
+                  fontSize: 18,
+                  fontFamily: fontNames.light,
+                  includeFontPadding: false,
+                }}
+              >
                 {t("noVideoButPhoto", "Sin video - Ver fotos abajo")}
               </Text>
             </View>
@@ -386,7 +440,14 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             backgroundColor: "rgba(0,0,0,0.8)",
           }}
         >
-          <Text style={{ color: "white", fontSize: 20 }}>
+          <Text
+            style={{
+              color: "white",
+              fontSize: 20,
+              fontFamily: fontNames.light,
+              includeFontPadding: false,
+            }}
+          >
             {t("noVideoAvailable", "No video available")}
           </Text>
         </View>
@@ -449,7 +510,13 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       return (
         <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
           <ActivityIndicator size="large" color="white" />
-          <StyledText className="text-white text-lg mt-4">
+          <StyledText
+            className="text-white text-lg mt-4"
+            style={{
+              fontFamily: fontNames.light,
+              includeFontPadding: false,
+            }}
+          >
             {t("loadingPhotos", "Cargando fotos...")}
           </StyledText>
         </StyledView>
@@ -460,10 +527,22 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       return (
         <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
           <Ionicons name="alert-circle-outline" size={50} color="white" />
-          <StyledText className="text-white text-lg mt-4">
+          <StyledText
+            className="text-white text-lg mt-4"
+            style={{
+              fontFamily: fontNames.light,
+              includeFontPadding: false,
+            }}
+          >
             {t("photoLoadError", "Error al cargar las fotos")}
           </StyledText>
-          <StyledText className="text-white/70 text-sm mt-2">
+          <StyledText
+            className="text-white/70 text-sm mt-2"
+            style={{
+              fontFamily: fontNames.light,
+              includeFontPadding: false,
+            }}
+          >
             {photoLoadError}
           </StyledText>
         </StyledView>
@@ -476,7 +555,13 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     if (photosToDisplay.length === 0) {
       return (
         <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
-          <StyledText className="text-white text-xl">
+          <StyledText
+            className="text-white text-xl"
+            style={{
+              fontFamily: fontNames.light,
+              includeFontPadding: false,
+            }}
+          >
             {t("noPhotosAvailable", "No photos available")}
           </StyledText>
         </StyledView>
@@ -509,7 +594,15 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
                     alignItems: "center",
                   }}
                 >
-                  <Text style={{ color: "white" }}>Error loading image</Text>
+                  <Text
+                    style={{
+                      color: "white",
+                      fontFamily: fontNames.light,
+                      includeFontPadding: false,
+                    }}
+                  >
+                    Error loading image
+                  </Text>
                 </View>
               );
             }
@@ -643,7 +736,8 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         }}
       >
         <TrickViewerBottomSection
-          tags={tags}
+          tagIds={localTagIds}
+          userId={userId}
           stage={currentSection}
           category={trick.category}
           description={getCurrentDescription()}

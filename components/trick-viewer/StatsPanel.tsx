@@ -1,43 +1,55 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
-import { styled } from "nativewind"
-import { BlurView } from "expo-blur"
-import { LinearGradient } from "expo-linear-gradient"
-import { MaterialIcons, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
+import type React from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { styled } from "nativewind";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  MaterialIcons,
+  Ionicons,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
+import { fontNames } from "../../app/_layout";
 
-const StyledView = styled(View)
-const StyledText = styled(Text)
-const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledView = styled(View);
+const StyledText = styled(Text);
+const StyledTouchableOpacity = styled(TouchableOpacity);
 
 interface StatsPanelProps {
-  visible: boolean
-  onToggle: () => void
-  angle?: number
-  resetTime?: number
-  duration?: number
-  difficulty?: number
+  visible: boolean;
+  onToggle: () => void;
+  angle?: number;
+  resetTime?: number;
+  duration?: number;
+  difficulty?: number;
 }
 
-const StatsPanel: React.FC<StatsPanelProps> = ({ visible, onToggle, angle, resetTime, duration, difficulty }) => {
+const StatsPanel: React.FC<StatsPanelProps> = ({
+  visible,
+  onToggle,
+  angle,
+  resetTime,
+  duration,
+  difficulty,
+}) => {
   // Función para convertir dificultad numérica a texto
   const getDifficultyText = (level = 0) => {
-    if (level <= 2) return "Beginner"
-    if (level <= 4) return "Easy"
-    if (level <= 6) return "Intermediate"
-    if (level <= 8) return "Advanced"
-    return "Expert"
-  }
+    if (level <= 2) return "Beginner";
+    if (level <= 4) return "Easy";
+    if (level <= 6) return "Intermediate";
+    if (level <= 8) return "Advanced";
+    return "Expert";
+  };
 
   // Función para convertir dificultad numérica a color
   const getDifficultyColor = (level = 0) => {
-    if (level <= 2) return "#4ade80" // green-400
-    if (level <= 4) return "#22d3ee" // cyan-400
-    if (level <= 6) return "#facc15" // yellow-400
-    if (level <= 8) return "#fb923c" // orange-400
-    return "#ef4444" // red-400
-  }
+    if (level <= 2) return "#4ade80"; // green-400
+    if (level <= 4) return "#22d3ee"; // cyan-400
+    if (level <= 6) return "#facc15"; // yellow-400
+    if (level <= 8) return "#fb923c"; // orange-400
+    return "#ef4444"; // red-400
+  };
 
   return (
     <StyledView style={styles.container}>
@@ -51,7 +63,11 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ visible, onToggle, angle, reset
           >
             <MaterialIcons name="bar-chart" size={20} color="white" />
             <StyledText style={styles.toggleText}>Stats</StyledText>
-            <Ionicons name={visible ? "chevron-down" : "chevron-up"} size={20} color="white" />
+            <Ionicons
+              name={visible ? "chevron-down" : "chevron-up"}
+              size={20}
+              color="white"
+            />
           </LinearGradient>
         </BlurView>
       </StyledTouchableOpacity>
@@ -68,29 +84,48 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ visible, onToggle, angle, reset
               <StyledView style={styles.statsGrid}>
                 {/* Ángulo */}
                 <StyledView style={styles.statItem}>
-                  <MaterialCommunityIcons name="angle-acute" size={24} color="white" />
-                  <StyledText style={styles.statValue}>{angle || 0}°</StyledText>
+                  <MaterialCommunityIcons
+                    name="angle-acute"
+                    size={24}
+                    color="white"
+                  />
+                  <StyledText style={styles.statValue}>
+                    {angle || 0}°
+                  </StyledText>
                   <StyledText style={styles.statLabel}>Angle</StyledText>
                 </StyledView>
 
                 {/* Tiempo de reset */}
                 <StyledView style={styles.statItem}>
                   <Ionicons name="refresh" size={24} color="white" />
-                  <StyledText style={styles.statValue}>{resetTime || 0}s</StyledText>
+                  <StyledText style={styles.statValue}>
+                    {resetTime || 0}s
+                  </StyledText>
                   <StyledText style={styles.statLabel}>Reset</StyledText>
                 </StyledView>
 
                 {/* Duración */}
                 <StyledView style={styles.statItem}>
                   <Ionicons name="time" size={24} color="white" />
-                  <StyledText style={styles.statValue}>{duration || 0}s</StyledText>
+                  <StyledText style={styles.statValue}>
+                    {duration || 0}s
+                  </StyledText>
                   <StyledText style={styles.statLabel}>Duration</StyledText>
                 </StyledView>
 
                 {/* Dificultad */}
                 <StyledView style={styles.statItem}>
-                  <MaterialIcons name="bar-chart" size={24} color={getDifficultyColor(difficulty)} />
-                  <StyledText style={[styles.statValue, { color: getDifficultyColor(difficulty) }]}>
+                  <MaterialIcons
+                    name="bar-chart"
+                    size={24}
+                    color={getDifficultyColor(difficulty)}
+                  />
+                  <StyledText
+                    style={[
+                      styles.statValue,
+                      { color: getDifficultyColor(difficulty) },
+                    ]}
+                  >
                     {getDifficultyText(difficulty)}
                   </StyledText>
                   <StyledText style={styles.statLabel}>Difficulty</StyledText>
@@ -101,8 +136,8 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ visible, onToggle, angle, reset
         </StyledView>
       )}
     </StyledView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -130,7 +165,8 @@ const styles = StyleSheet.create({
   toggleText: {
     color: "white",
     fontSize: 14,
-    fontWeight: "500",
+    fontFamily: fontNames.medium,
+    includeFontPadding: false,
   },
   statsContainer: {
     marginTop: 12,
@@ -160,14 +196,17 @@ const styles = StyleSheet.create({
   statValue: {
     color: "white",
     fontSize: 16,
-    fontWeight: "600",
+    fontFamily: fontNames.semiBold,
     marginTop: 4,
+    includeFontPadding: false,
   },
   statLabel: {
     color: "rgba(255, 255, 255, 0.7)",
     fontSize: 12,
+    fontFamily: fontNames.regular,
     marginTop: 2,
+    includeFontPadding: false,
   },
-})
+});
 
-export default StatsPanel
+export default StatsPanel;

@@ -1,29 +1,30 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import { View, StyleSheet } from "react-native"
-import { styled } from "nativewind"
-import TagPillsSection, { type Tag } from "../trick-viewer/TagPillsSection"
-import StageInfoSection, { type StageType } from "./StageInfoSection"
-import StatsPanel from "./StatsPanel"
+import type React from "react";
+import { useState } from "react";
+import { View, StyleSheet } from "react-native";
+import { styled } from "nativewind";
+import TagPillsSection from "../trick-viewer/TagPillsSection";
+import StageInfoSection, { type StageType } from "./StageInfoSection";
+import StatsPanel from "./StatsPanel";
 
-const StyledView = styled(View)
+const StyledView = styled(View);
 
 interface TrickViewerBottomSectionProps {
-  tags: Tag[]
-  stage: StageType
-  category: string
-  description?: string
-  angle?: number
-  resetTime?: number
-  duration?: number
-  difficulty?: number
-  onRemoveTag?: (tagId: string) => void
+  tagIds: string[]; // Cambio: ahora recibe IDs en lugar de objetos Tag
+  stage: StageType;
+  category: string;
+  description?: string;
+  angle?: number;
+  resetTime?: number;
+  duration?: number;
+  difficulty?: number;
+  userId?: string; // Nuevo: necesario para TagPillsSection
+  onRemoveTag?: (tagId: string) => void;
 }
 
 const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
-  tags,
+  tagIds,
   stage,
   category,
   description,
@@ -31,21 +32,31 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
   resetTime,
   duration,
   difficulty,
+  userId,
   onRemoveTag,
 }) => {
-  const [statsVisible, setStatsVisible] = useState(false)
+  const [statsVisible, setStatsVisible] = useState(false);
 
   const toggleStats = () => {
-    setStatsVisible(!statsVisible)
-  }
+    setStatsVisible(!statsVisible);
+  };
 
   return (
     <StyledView style={styles.container}>
       {/* Sección de etiquetas */}
-      <TagPillsSection tags={tags} onRemoveTag={onRemoveTag} />
+      <TagPillsSection
+        tagIds={tagIds}
+        userId={userId}
+        onRemoveTag={onRemoveTag}
+        editable={!!onRemoveTag} // Solo editable si se proporciona onRemoveTag
+      />
 
       {/* Información de etapa y categoría */}
-      <StageInfoSection stage={stage} category={category} description={description} />
+      <StageInfoSection
+        stage={stage}
+        category={category}
+        description={description}
+      />
 
       {/* Panel de estadísticas */}
       <StatsPanel
@@ -57,14 +68,14 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
         difficulty={difficulty}
       />
     </StyledView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     position: "relative",
     paddingBottom: 16,
   },
-})
+});
 
-export default TrickViewerBottomSection
+export default TrickViewerBottomSection;
