@@ -80,7 +80,7 @@ export default function EffectStep({
       />
 
       {/* Header */}
-      <StyledView className="px-6 pt-4 pb-4">
+      <StyledView className="px-3 pt-4 pb-4">
         <StyledView className="flex-row items-center justify-between">
           <StyledTouchableOpacity onPress={onCancel} className="p-2">
             <Feather name="chevron-left" size={24} color="white" />
@@ -170,7 +170,7 @@ export default function EffectStep({
                 backgroundColor="rgba(91, 185, 163, 0.95)"
                 textColor="white"
               >
-                <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+                <StyledView className="w-12 h-20 bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                   <MaterialCommunityIcons
                     name="creation"
                     size={24}
@@ -245,7 +245,7 @@ export default function EffectStep({
                 backgroundColor="rgba(91, 185, 163, 0.95)"
                 textColor="white"
               >
-                <StyledView className="w-12 h-20 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+                <StyledView className="w-12 h-20 bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                   <Feather name="lock" size={24} color="white" />
                 </StyledView>
               </CustomTooltip>

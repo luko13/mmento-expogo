@@ -2,7 +2,7 @@
 
 import { useRouter } from "expo-router";
 import type React from "react";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -116,10 +116,13 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   });
 
   // Usar las fotos proporcionadas o crear un array con la foto principal si existe
-  const photos = trick.photos || (trick.photo_url ? [trick.photo_url] : []);
+  const photos = useMemo(
+    () => trick.photos || (trick.photo_url ? [trick.photo_url] : []),
+    [trick.photos, trick.photo_url]
+  );
 
   // Usar tagIds del trick o array vacío
-  const tagIds = trick.tagIds || [];
+  const tagIds = useMemo(() => trick.tagIds || [], [trick.tagIds]);
 
   // Función para cerrar
   const handleClose = () => {
@@ -198,7 +201,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     };
 
     loadPhotos();
-  }, [trick.id, trick.photos, trick.photo_url]);
+  }, [trick.id, photos]);
 
   // Pausar/reproducir videos según la sección actual
   useEffect(() => {
@@ -220,7 +223,13 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       if (effectPlayer) effectPlayer.pause();
       if (secretPlayer) secretPlayer.pause();
     }
-  }, [currentSection, isEffectPlaying, isSecretPlaying]);
+  }, [
+    currentSection,
+    isEffectPlaying,
+    isSecretPlaying,
+    effectPlayer,
+    secretPlayer,
+  ]);
 
   // Función para manejar el cambio de sección al deslizar
   const handleScroll = useCallback(
@@ -287,11 +296,16 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   };
 
   // Estado local para tags
-  const [localTagIds, setLocalTagIds] = useState(tagIds);
+  const [localTagIds, setLocalTagIds] = useState(() => tagIds);
 
   // Actualizar estado local cuando cambian las props
   useEffect(() => {
-    setLocalTagIds(tagIds);
+    // Only update if the arrays are actually different
+    const tagIdsString = (tagIds || []).sort().join(",");
+    const localTagIdsString = (localTagIds || []).sort().join(",");
+    if (tagIdsString !== localTagIdsString) {
+      setLocalTagIds(tagIds);
+    }
   }, [tagIds]);
 
   // Manejar la eliminación de etiquetas
