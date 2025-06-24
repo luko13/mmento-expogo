@@ -1,74 +1,82 @@
 {
-  "expo": {
-    "name": "mmento",
-    "slug": "mmento",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "scheme": "mmento",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
+  "name": "mmento",
+  "slug": "mmento",
+  "version": "1.0.0",
+  "orientation": "portrait",
+  "icon": "./assets/icon.png",
+  "userInterfaceStyle": "light",
+  "newArchEnabled": true,
+  "scheme": "mmento",
+  "splash": {
+    "image": "./assets/splash-icon.png",
+    "resizeMode": "contain",
+    "backgroundColor": "#ffffff"
+  },
+  "ios": {
+    "supportsTablet": true,
+    "bundleIdentifier": "com.yourcompany.mmento",
+    "infoPlist": {
+      "ITSAppUsesNonExemptEncryption": false
+    }
+  },
+  "android": {
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/adaptive-icon.png",
       "backgroundColor": "#ffffff"
     },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.mmento",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+    "package": "com.yourcompany.mmento",
+    "softwareKeyboardLayoutMode": "pan"
+  },
+  "androidStatusBar": {
+    "backgroundColor": "#000000",
+    "translucent": true,
+    "barStyle": "light-content"
+  },
+  "web": {
+    "favicon": "./assets/favicon.png"
+  },
+  "plugins": [
+    "expo-router",
+    "expo-font",
+    [
+      "react-native-compressor",
+      {
+        "video": {
+          "ios": true,
+          "android": true
+        }
       }
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "package": "com.yourcompany.mmento",
-      "softwareKeyboardLayoutMode": "pan",
-      "navigationBarColor": "transparent",
-      "statusBarColor": "transparent",
-      "statusBarTranslucent": true
-    },
-    "androidStatusBar": {
-      "backgroundColor": "transparent",
-      "translucent": true,
-      "barStyle": "light-content"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      "expo-router",
-      "expo-font",
-      [
-        "react-native-compressor",
-        {
-          "video": {
-            "ios": true,
-            "android": true
+    ],
+    "expo-secure-store",
+    [
+      "expo-navigation-bar",
+      {
+        "position": "absolute",
+        "visibility": "visible",
+        "behavior": "overlay-swipe",
+        "backgroundColor": "#00000001"
+      }
+    ],
+    [
+      "expo-build-properties",
+      {
+        "android": {
+          "compileSdkVersion": 34,
+          "targetSdkVersion": 34,
+          "minSdkVersion": 24,
+          "packagingOptions": {
+            "pickFirst": ["**/libc++_shared.so", "**/libjsc.so"]
           }
         }
-      ],
-      "expo-secure-store",
-      [
-        "expo-navigation-bar",
-        {
-          "position": "absolute",
-          "visibility": "visible",
-          "behavior": "overlay-swipe",
-          "backgroundColor": "#00000001"
-        }
-      ]
-    ],
-    "extra": {
-      "router": {
-        "origin": false
-      },
-      "eas": {
-        "projectId": "bfcdcd96-b7c6-404e-8cd6-7ae9356ab4a8"
       }
+    ]
+  ],
+  "extra": {
+    "router": {
+      "origin": false
+    },
+    "eas": {
+      "projectId": "bfcdcd96-b7c6-404e-8cd6-7ae9356ab4a8"
     }
   }
 }

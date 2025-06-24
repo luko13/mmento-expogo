@@ -11,6 +11,9 @@ import {
 } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
+import { SvgXml } from 'react-native-svg';
+const mmentoAISvg = `<svg id="Capa_1" data-name="Capa 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 228.72 231.6"><title>mmento AI</title><image width="953" height="965" transform="scale(0.24)" xlink:href="../../Downloads/mmneotlogo%2010%20blanco%20(1).png"/></svg>`;
+
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
