@@ -204,7 +204,7 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10  border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30  border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <Feather
                   name={type === "photo" ? "image" : "video"}
                   size={28}
@@ -213,7 +213,7 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
               </StyledView>
             </CustomTooltip>
           ) : (
-            <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+            <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
               <Feather
                 name={type === "photo" ? "image" : "video"}
                 size={28}

@@ -49,7 +49,7 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
     } else {
       setTags([]);
     }
-  }, [userId, tagIds.join(",")]); 
+  }, [userId, tagIds]);
 
   const fetchUserTags = async () => {
     if (!userId || !tagIds || tagIds.length === 0) return;

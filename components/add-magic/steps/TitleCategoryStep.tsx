@@ -154,7 +154,7 @@ export default function TitleCategoryStep({
     <StyledView className="flex-1">
       <StyledView className="flex-1" style={{ paddingTop: 15 }}>
         {/* Header */}
-        <StyledView className="px-3 mb-4">
+        <StyledView className="px-6 mb-4">
           <StyledView className="flex-row items-center justify-between">
             <StyledTouchableOpacity className="p-2" onPress={onCancel}>
               <Feather name="x" size={24} color="white" />
@@ -229,7 +229,7 @@ export default function TitleCategoryStep({
                       backgroundColor="rgba(91, 185, 163, 0.95)"
                       textColor="white"
                     >
-                      <StyledView className="w-12 h-12 bg-[#D4D4D4]/10 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                      <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
                         <FontAwesome6
                           name="wand-magic-sparkles"
                           size={18}
@@ -288,7 +288,7 @@ export default function TitleCategoryStep({
                       backgroundColor="rgba(91, 185, 163, 0.95)"
                       textColor="white"
                     >
-                      <StyledView className="w-12 h-12 bg-[#D4D4D4]/10 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                      <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
                         <Feather name="folder" size={24} color="white" />
                       </StyledView>
                     </CustomTooltip>
@@ -310,7 +310,7 @@ export default function TitleCategoryStep({
                       backgroundColor="rgba(91, 185, 163, 0.95)"
                       textColor="white"
                     >
-                      <StyledView className="w-12 h-12 bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+                      <StyledView className="w-12 h-12 bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                         <Feather name="tag" size={24} color="white" />
                       </StyledView>
                     </CustomTooltip>

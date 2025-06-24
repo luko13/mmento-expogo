@@ -602,7 +602,7 @@ export default function ExtrasStep({
       />
 
       {/* Encabezado */}
-      <StyledView className="px-2 pt-4">
+      <StyledView className="px-6 pt-4">
         <StyledView className="flex-row items-center justify-between">
           <StyledTouchableOpacity onPress={onCancel} className="p-2">
             <Feather name="chevron-left" size={24} color="white" />
@@ -657,7 +657,7 @@ export default function ExtrasStep({
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <MaterialCommunityIcons
                   name="angle-acute"
                   size={32}
@@ -707,7 +707,7 @@ export default function ExtrasStep({
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <Feather name="clock" size={24} color="white" />
               </StyledView>
             </CustomTooltip>
@@ -738,7 +738,7 @@ export default function ExtrasStep({
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[48px] bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <Feather name="refresh-cw" size={24} color="white" />
               </StyledView>
             </CustomTooltip>
@@ -769,7 +769,7 @@ export default function ExtrasStep({
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-[48px] h-[70px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[70px] bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <Feather name="bar-chart" size={28} color="white" />
               </StyledView>
             </CustomTooltip>
@@ -794,7 +794,7 @@ export default function ExtrasStep({
               backgroundColor="rgba(91, 185, 163, 0.95)"
               textColor="white"
             >
-              <StyledView className="w-[48px] h-[180px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+              <StyledView className="w-[48px] h-[80px] bg-[#5bb9a3]/30 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
                 <MaterialCommunityIcons
                   name="text-box-outline"
                   size={28}
@@ -804,7 +804,7 @@ export default function ExtrasStep({
             </CustomTooltip>
             <StyledView className="flex-1">
               <StyledTextInput
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[180px]"
+                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[80px]"
                 style={{
                   fontFamily: fontNames.light,
                   fontSize: 16,
