@@ -25,12 +25,19 @@
       "backgroundColor": "#ffffff"
     },
     "package": "com.yourcompany.mmento",
-    "softwareKeyboardLayoutMode": "pan"
+    "softwareKeyboardLayoutMode": "pan",
+    "windowSoftInputMode": "adjustResize"
   },
   "androidStatusBar": {
-    "backgroundColor": "#000000",
+    "backgroundColor": "#00000000",
     "translucent": true,
-    "barStyle": "light-content"
+    "barStyle": "light-content",
+    "hidden": false
+  },
+  "androidNavigationBar": {
+    "backgroundColor": "#00000001",
+    "barStyle": "light-content",
+    "visible": "immersive"
   },
   "web": {
     "favicon": "./assets/favicon.png"
