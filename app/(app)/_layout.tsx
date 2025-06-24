@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { Platform } from "react-native";
+import * as NavigationBar from "expo-navigation-bar";
 import { View, TouchableOpacity, Dimensions } from "react-native";
 import { styled } from "nativewind";
 import { Slot, useRouter, usePathname } from "expo-router";
@@ -93,7 +96,12 @@ export default function AppLayout() {
       size: 24,
     },
   ];
-
+  useEffect(() => {
+    if (Platform.OS === "android") {
+      NavigationBar.setBehaviorAsync("overlay-swipe");
+      NavigationBar.setVisibilityAsync("hidden");
+    }
+  }, []);
   return (
     <StyledView className="flex-1">
       {/* Contenido principal */}
@@ -110,13 +118,24 @@ export default function AppLayout() {
             tint="dark"
             className="overflow-hidden"
             style={{
-              backgroundColor: "rgba(255, 255, 255, 0.15)",
+              backgroundColor: "rgba(255,255,255,0.15)",
               borderTopWidth: 1,
-              borderTopColor: "rgba(255, 255, 255, 0.2)",
+              borderTopColor: "rgba(255,255,255,0.2)",
+              // Siempre reserva el inset inferior…
               paddingBottom: insets.bottom,
+              //espacio arriba SOLO en Android
+              paddingTop: Platform.OS === "android" ? 0 : 0,
+              // altura fija mínima
+              minHeight: Platform.OS === "android" ? 80 : undefined,
             }}
           >
-            <StyledView className="flex-row justify-evenly items-center py-2">
+            <StyledView
+              className="flex-row justify-evenly items-center"
+              // Ajusta un poco también el padding vertical de los iconos
+              style={{
+                paddingVertical: Platform.OS === "android" ? 16 : 8,
+              }}
+            >
               {navItems.map((item) => (
                 <StyledTouchableOpacity
                   key={item.id}

@@ -10,6 +10,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
 import * as Font from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
 
 const StyledView = styled(View);
 const { width, height } = Dimensions.get("window");
@@ -101,6 +102,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <I18nextProvider i18n={i18n}>
+      <StatusBar translucent backgroundColor="transparent" style="light" />
         <StyledView className="flex-1">
           {/* Background condicional en el layout principal */}
           {isAddMagicRoute ||
