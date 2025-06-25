@@ -43,6 +43,12 @@ interface LibraryItem {
   angles?: string[];
   is_shared?: boolean;
   owner_id?: string;
+  is_favorite?: boolean;
+  // Progress tracking fields
+  effect_video_url?: string;
+  effect?: string;
+  secret_video_url?: string;
+  secret?: string;
 }
 
 interface CategorySection {
@@ -75,6 +81,9 @@ export function usePaginatedContent(
   const [page, setPage] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [favoritesCategoryId, setFavoritesCategoryId] = useState<string | null>(
+    null
+  );
 
   // --------------------------------------------------------------------------
   // Refs para controlar el estado de montaje
@@ -85,7 +94,7 @@ export function usePaginatedContent(
   // Convertir datos crudos a secciones organizadas por categoría
   // --------------------------------------------------------------------------
   const processContentIntoSections = useCallback(
-    (
+    async (
       content: {
         categories: any[];
         tricks: any[];
@@ -93,19 +102,49 @@ export function usePaginatedContent(
         nextPage: number;
       },
       query?: string,
-      filters?: SearchFilters
-    ): CategorySection[] => {
+      filters?: SearchFilters,
+      userId?: string
+    ): Promise<CategorySection[]> => {
       const sectionsMap = new Map<string, CategorySection>();
 
-      content.categories.forEach((category) => {
+      // Get user favorites to mark items
+      let userFavorites: Set<string> = new Set();
+      if (userId) {
+        const { data: favorites } = await supabase
+          .from("user_favorites")
+          .select("content_id")
+          .eq("user_id", userId)
+          .eq("content_type", "magic");
+
+        if (favorites) {
+          userFavorites = new Set(favorites.map((f) => f.content_id));
+        }
+      }
+
+      // Sort categories to ensure Favoritos is first
+      const sortedCategories = [...content.categories].sort((a, b) => {
+        if (a.name === "Favoritos") return -1;
+        if (b.name === "Favoritos") return 1;
+        return 0;
+      });
+
+      sortedCategories.forEach((category) => {
         sectionsMap.set(category.id, {
           category,
           items: [],
         });
       });
 
-      // Solo procesar trucos
+      // Store favorites category ID
+      const favCat = sortedCategories.find((c) => c.name === "Favoritos");
+      if (favCat) {
+        setFavoritesCategoryId(favCat.id);
+      }
+
+      // Process tricks
       content.tricks.forEach((trick) => {
+        const isFavorite = userFavorites.has(trick.id);
+
         const item: LibraryItem = {
           id: trick.id,
           title: trick.title || "Sin título",
@@ -119,16 +158,32 @@ export function usePaginatedContent(
           notes: trick.notes,
           angles: parseJsonSafely(trick.angles, []),
           owner_id: trick.user_id,
+          is_favorite: isFavorite,
+          // Add progress tracking fields
+          category_id: trick.trick_categories?.[0]?.category_id,
+          effect_video_url: trick.effect_video_url,
+          effect: trick.effect,
+          secret_video_url: trick.secret_video_url,
+          secret: trick.secret,
         };
 
         if (!matchesFilters(item, query, filters)) return;
 
+        // Add to regular categories
         trick.trick_categories?.forEach((tc: any) => {
           const section = sectionsMap.get(tc.category_id);
           if (section) {
             section.items.push(item);
           }
         });
+
+        // Also add to favorites category if it's a favorite
+        if (isFavorite && favCat) {
+          const favSection = sectionsMap.get(favCat.id);
+          if (favSection) {
+            favSection.items.push(item);
+          }
+        }
       });
 
       return Array.from(sectionsMap.values());
@@ -191,6 +246,9 @@ export function usePaginatedContent(
 
         setCurrentUserId(user.id);
 
+        // Ensure favorites category exists
+        await ensureFavoritesCategory(user.id);
+
         const selectedCategoryId: string | undefined =
           filters?.categories?.[0] ?? undefined;
 
@@ -201,7 +259,12 @@ export function usePaginatedContent(
         );
         if (!isMounted.current) return;
 
-        const newSections = processContentIntoSections(content, query, filters);
+        const newSections = await processContentIntoSections(
+          content,
+          query,
+          filters,
+          user.id
+        );
 
         if (pageToLoad === 0) {
           setAllCategories(content.categories);
@@ -233,6 +296,26 @@ export function usePaginatedContent(
   );
 
   // --------------------------------------------------------------------------
+  // Ensure favorites category exists for user
+  // --------------------------------------------------------------------------
+  const ensureFavoritesCategory = async (userId: string) => {
+    const { data: existingCategory } = await supabase
+      .from("user_categories")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("name", "Favoritos")
+      .single();
+
+    if (!existingCategory) {
+      await supabase.from("user_categories").insert({
+        user_id: userId,
+        name: "Favoritos",
+        description: "Tus trucos favoritos",
+      });
+    }
+  };
+
+  // --------------------------------------------------------------------------
   // Cargar siguiente página si hay más
   // --------------------------------------------------------------------------
   const loadMore = useCallback(() => {
@@ -258,6 +341,71 @@ export function usePaginatedContent(
   }, [loadContent, searchQuery, searchFilters]);
 
   // --------------------------------------------------------------------------
+  // Toggle favorite status and update sections
+  // --------------------------------------------------------------------------
+  const toggleFavorite = useCallback(
+    async (itemId: string, contentType: string) => {
+      if (!currentUserId || !favoritesCategoryId) return;
+
+      const item = sections
+        .flatMap((s) => s.items)
+        .find((i) => i.id === itemId);
+      if (!item) return;
+
+      try {
+        if (item.is_favorite) {
+          // Remove from favorites
+          await supabase
+            .from("user_favorites")
+            .delete()
+            .eq("user_id", currentUserId)
+            .eq("content_id", itemId)
+            .eq("content_type", contentType);
+        } else {
+          // Add to favorites
+          await supabase.from("user_favorites").insert({
+            user_id: currentUserId,
+            content_id: itemId,
+            content_type: contentType,
+          });
+        }
+
+        // Update sections locally
+        setSections((prevSections) => {
+          return prevSections.map((section) => {
+            const updatedItems = section.items.map((i) => {
+              if (i.id === itemId) {
+                return { ...i, is_favorite: !i.is_favorite };
+              }
+              return i;
+            });
+
+            // Handle favorites category
+            if (section.category.name === "Favoritos") {
+              if (!item.is_favorite) {
+                // Add to favorites
+                const newItem = { ...item, is_favorite: true };
+                return { ...section, items: [...updatedItems, newItem] };
+              } else {
+                // Remove from favorites
+                return {
+                  ...section,
+                  items: updatedItems.filter((i) => i.id !== itemId),
+                };
+              }
+            }
+
+            return { ...section, items: updatedItems };
+          });
+        });
+      } catch (error) {
+        console.error("Error toggling favorite:", error);
+      }
+    },
+    [currentUserId, favoritesCategoryId, sections]
+  );
+
+  // --------------------------------------------------------------------------
   // Devolvemos todo lo que necesita el componente que lo use
   // --------------------------------------------------------------------------
   return {
@@ -269,6 +417,7 @@ export function usePaginatedContent(
     error,
     loadMore,
     refresh,
+    toggleFavorite,
   };
 }
 

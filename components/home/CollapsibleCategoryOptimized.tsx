@@ -9,9 +9,11 @@ import {
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
-import { MaterialIcons, Entypo, Feather } from "@expo/vector-icons";
+import { MaterialIcons, Entypo } from "@expo/vector-icons";
+import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import type { SearchFilters } from "./CompactSearchBar";
 import { fontNames } from "../../app/_layout";
+import InlineProgressBar from "./TrickCompletionProgress";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
@@ -24,6 +26,15 @@ interface LibraryItem {
   is_shared?: boolean;
   tags?: string[];
   description?: string;
+  is_favorite?: boolean;
+  category_id?: string;
+  effect_video_url?: string;
+  effect?: string;
+  secret_video_url?: string;
+  secret?: string;
+  angles?: string[] | any;
+  duration?: number | null;
+  reset?: number | null;
 }
 
 interface CategorySection {
@@ -39,6 +50,7 @@ interface Props {
   onEditCategory: (category: any) => void;
   onDeleteCategory: (categoryId: string) => void;
   onMoreOptions: (category: any) => void;
+  onToggleFavorite?: (itemId: string, contentType: string) => void;
 }
 
 // Memoized library item row
@@ -46,7 +58,7 @@ const LibraryItemRow = memo(
   ({ item, onPress }: { item: LibraryItem; onPress: () => void }) => {
     return (
       <StyledTouchableOpacity
-        className="flex-row justify-between items-center p-3 rounded-lg mb-1 border-b border-white/10"
+        className="flex-row justify-between items-center p-2 rounded-lg mb-1 border-b border-white/10"
         onPress={onPress}
       >
         <StyledView className="flex-row items-center flex-1">
@@ -63,16 +75,7 @@ const LibraryItemRow = memo(
           >
             {item.title}
           </Text>
-          <StyledView className="flex-row items-center">
-            {item.is_shared && (
-              <Feather
-                name="users"
-                size={14}
-                color="#3b82f6"
-                style={{ marginRight: 8 }}
-              />
-            )}
-          </StyledView>
+          <InlineProgressBar item={item} />
         </StyledView>
       </StyledTouchableOpacity>
     );
@@ -82,7 +85,15 @@ const LibraryItemRow = memo(
     return (
       prevProps.item.id === nextProps.item.id &&
       prevProps.item.title === nextProps.item.title &&
-      prevProps.item.is_shared === nextProps.item.is_shared
+      prevProps.item.is_shared === nextProps.item.is_shared &&
+      prevProps.item.is_favorite === nextProps.item.is_favorite &&
+      prevProps.item.effect_video_url === nextProps.item.effect_video_url &&
+      prevProps.item.effect === nextProps.item.effect &&
+      prevProps.item.secret_video_url === nextProps.item.secret_video_url &&
+      prevProps.item.secret === nextProps.item.secret &&
+      prevProps.item.duration === nextProps.item.duration &&
+      prevProps.item.reset === nextProps.item.reset &&
+      prevProps.item.difficulty === nextProps.item.difficulty
     );
   }
 );
@@ -97,6 +108,7 @@ const CollapsibleCategoryOptimized = ({
   onEditCategory,
   onDeleteCategory,
   onMoreOptions,
+  onToggleFavorite,
 }: Props) => {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -180,10 +192,13 @@ const CollapsibleCategoryOptimized = ({
     outputRange: ["0deg", "90deg"],
   });
 
+  // Don't allow editing or deleting the Favorites category
+  const isFavoritesCategory = section.category.name === "Favoritos";
+
   return (
-    <StyledView className="mb-4 px-4">
+    <StyledView className="mb-2 px-4">
       <StyledTouchableOpacity
-        className="flex-row justify-between items-center bg-white/10 px-3 border border-white/40 rounded-lg mb-2"
+        className="flex-row justify-between items-center bg-[white]/10 px-3 border border-white/40 rounded-lg mb-2"
         onPress={toggleExpanded}
         activeOpacity={0.7}
       >
@@ -217,9 +232,15 @@ const CollapsibleCategoryOptimized = ({
           >
             {filteredItems.length}
           </Text>
-          <StyledTouchableOpacity onPress={handleMoreOptions} className="p-2">
-            <Entypo name="dots-three-horizontal" size={16} color="white" />
-          </StyledTouchableOpacity>
+          {isFavoritesCategory ? (
+            <StyledView className="p-2">
+              <FontAwesome5 name="star" size={16} color="#fadc91" />
+            </StyledView>
+          ) : (
+            <StyledTouchableOpacity onPress={handleMoreOptions} className="p-2">
+              <Entypo name="dots-three-horizontal" size={16} color="white" />
+            </StyledTouchableOpacity>
+          )}
         </StyledView>
       </StyledTouchableOpacity>
 
@@ -242,7 +263,7 @@ const CollapsibleCategoryOptimized = ({
             />
           ))
         ) : (
-          <StyledView className="border-b border-white/20 p-3 rounded-lg">
+          <StyledView className="border-b border-white/20 p-2 mb-1 rounded-lg">
             <Text
               style={{
                 fontFamily: fontNames.light,
@@ -252,7 +273,9 @@ const CollapsibleCategoryOptimized = ({
                 includeFontPadding: false,
               }}
             >
-              {t("noItems", "No items in this category")}
+              {isFavoritesCategory
+                ? t("noFavorites", "No tienes favoritos aún")
+                : t("noItems", "No items in this category")}
             </Text>
           </StyledView>
         )}

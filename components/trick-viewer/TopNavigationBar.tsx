@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons, Feather, AntDesign } from "@expo/vector-icons";
+import { Ionicons, Feather, FontAwesome } from "@expo/vector-icons";
 import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
@@ -47,15 +47,15 @@ const TopNavigationBar: React.FC<TopNavigationBarProps> = ({
 
           {/* Contenedor de iconos derechos */}
           <StyledView style={styles.rightIconsContainer}>
-            {/* Icono de corazón */}
+            {/* Icono de favorito */}
             <StyledTouchableOpacity
               onPress={onLikePress}
               style={styles.iconButton}
             >
-              <AntDesign
-                name="heart"
-                color={isLiked ? "#ff4d6d" : "white"}
+              <FontAwesome
+                name={isLiked ? "star" : "star-o"}
                 size={20}
+                color={isLiked ? "#fadc91" : "#fadc91"}
               />
             </StyledTouchableOpacity>
 

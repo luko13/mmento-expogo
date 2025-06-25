@@ -16,6 +16,7 @@ import {
   ActivityIndicator,
   Share,
 } from "react-native";
+import { useFavorites } from "../hooks/useFavorites";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
 import { styled } from "nativewind";
@@ -71,9 +72,11 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const scrollViewRef = useRef<ScrollView>(null);
   const [isEffectPlaying, setIsEffectPlaying] = useState(true);
   const [isSecretPlaying, setIsSecretPlaying] = useState(true);
-  const [isLiked, setIsLiked] = useState(false);
   const [overlayOpacity] = useState(new Animated.Value(0));
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+
+  // Hook de favoritos
+  const { isFavorite, toggleFavorite } = useFavorites(trick.id, "magic");
 
   // Estados para videos
   const [effectVideoUrl, setEffectVideoUrl] = useState<string | null>(null);
@@ -268,9 +271,9 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     }
   };
 
-  // Manejar el botón de like
-  const handleLikePress = () => {
-    setIsLiked(!isLiked);
+  // Manejar el botón de like/favorito
+  const handleLikePress = async () => {
+    await toggleFavorite();
   };
 
   // Manejar el botón de editar
@@ -734,7 +737,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           onBackPress={handleClose}
           onLikePress={handleLikePress}
           onEditPress={handleEditPress}
-          isLiked={isLiked}
+          isLiked={isFavorite}
         />
       </StyledView>
 
