@@ -239,6 +239,13 @@
     "categoryCreatedSuccessfully": "Category created successfully",
     "noCategoriesFound": "No categories found"
   },
+  "successCreation": {
+    "view": "View",
+    "registerMore": "Register more magic",
+    "hasBeenCreated": "has been created",
+    "andSaved": "& saved successfully",
+    "done": "Done!"
+  },
   "errors": {
     "userNotFound": "User not found",
     "errorCreatingCategory": "Error creating category",

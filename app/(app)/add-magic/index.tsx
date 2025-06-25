@@ -15,8 +15,16 @@ export default function AddMagicScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const handleComplete = (trickId: string) => {
-    router.replace("/(app)/home");
+  const handleComplete = (trickId: string, trickTitle: string) => {
+    // Navegar a home con parámetros para mostrar el modal
+    router.replace({
+      pathname: "/(app)/home",
+      params: {
+        showSuccessModal: "true",
+        trickId: trickId,
+        trickTitle: trickTitle,
+      },
+    });
   };
 
   const handleCancel = () => {

@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import {
   SafeAreaView,
@@ -24,6 +24,7 @@ import LibrariesSection from "../../../components/home/LibrariesSection";
 import CompactSearchBar, {
   type SearchFilters,
 } from "../../../components/home/CompactSearchBar";
+import SuccessCreationModal from "../../../components/ui/SuccessCreationModal";
 import { fontNames } from "../../../app/_layout";
 
 const StyledView = styled(View);
@@ -42,6 +43,7 @@ const SEARCH_SPACING = 15; // Espacio entre búsqueda y libraries
 export default function Home() {
   const { t } = useTranslation();
   const router = useRouter();
+  const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const [isReady, setIsReady] = useState(false);
   const [searchVisible, setSearchVisible] = useState(false);
@@ -59,11 +61,57 @@ export default function Home() {
   const componentMounted = useRef(true);
   const appState = useRef(AppState.currentState);
 
+  // Estados para el modal de éxito
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [createdTrickData, setCreatedTrickData] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+
   // Animation values
   const scrollY = useRef(new Animated.Value(0)).current;
   const librariesTranslateY = useRef(new Animated.Value(0)).current;
   const carouselTranslateY = useRef(new Animated.Value(0)).current;
   const carouselOpacity = useRef(new Animated.Value(1)).current;
+
+  // Detectar si venimos de crear un truco
+  useEffect(() => {
+    if (
+      params.showSuccessModal === "true" &&
+      params.trickId &&
+      params.trickTitle
+    ) {
+      setCreatedTrickData({
+        id: params.trickId as string,
+        title: params.trickTitle as string,
+      });
+      setShowSuccessModal(true);
+
+      // Limpiar los parámetros para evitar que se muestre de nuevo
+      router.setParams({
+        showSuccessModal: undefined,
+        trickId: undefined,
+        trickTitle: undefined,
+      });
+    }
+  }, [params.showSuccessModal, params.trickId, params.trickTitle, router]);
+
+  // Funciones del modal
+  const handleViewItem = () => {
+    setShowSuccessModal(false);
+    if (createdTrickData) {
+      router.push(`/(app)/tricks/${createdTrickData.id}`);
+    }
+  };
+
+  const handleAddAnother = () => {
+    setShowSuccessModal(false);
+    router.push("/(app)/add-magic");
+  };
+
+  const handleCloseModal = () => {
+    setShowSuccessModal(false);
+  };
 
   // Actualizar ambos estados a la vez
   const updateSearchVisible = (value: boolean) => {
@@ -471,6 +519,17 @@ export default function Home() {
           </StyledAnimatedView>
         </StyledView>
       </StyledView>
+
+      {/* Success Modal */}
+      <SuccessCreationModal
+        visible={showSuccessModal}
+        onClose={handleCloseModal}
+        onViewItem={handleViewItem}
+        onAddAnother={handleAddAnother}
+        itemName={createdTrickData?.title || "Trick"}
+        itemType="trick"
+        itemId={createdTrickData?.id}
+      />
     </SafeAreaView>
   );
 }

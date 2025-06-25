@@ -238,6 +238,13 @@
     "errorCreatingTag": "Error al crear la etiqueta",
     "errorAddingTag": "Error al agregar la etiqueta"
   },
+  "successCreation": {
+    "view": "Ver",
+    "registerMore": "Registrar más magia",
+    "hasBeenCreated": "ha sido creado",
+    "andSaved": "y guardado exitosamente",
+    "done": "¡Hecho!"
+  },
   "info": {
     "secureMagic": "Tu magia está",
     "safeEncryption": "Segura & Encriptada"

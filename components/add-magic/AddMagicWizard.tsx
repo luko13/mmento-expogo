@@ -14,25 +14,20 @@ import type { MagicTrick, MagicTrickDBRecord } from "../../types/magicTrick";
 import TitleCategoryStep from "./steps/TitleCategoryStep";
 import EffectStep from "./steps/EffectStep";
 import ExtrasStep from "./steps/ExtrasStep";
-import SuccessCreationModal from "../ui/SuccessCreationModal";
 
 interface AddMagicWizardProps {
-  onComplete?: (trickId: string) => void;
+  onComplete?: (trickId: string, trickTitle: string) => void;
   onCancel?: () => void;
-  onViewItem?: (trickId: string) => void;
 }
 
 export default function AddMagicWizard({
   onComplete,
   onCancel,
-  onViewItem,
 }: AddMagicWizardProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [createdItemId, setCreatedItemId] = useState<string | null>(null);
 
   // Estado del truco sin cifrado
   const [trickData, setTrickData] = useState<MagicTrick>({
@@ -392,9 +387,10 @@ export default function AddMagicWizard({
         // Por ahora solo usamos la primera foto como principal
       }
 
-      // Éxito
-      setCreatedItemId(trickId);
-      setShowSuccessModal(true);
+      // Éxito - Notificar al componente padre
+      if (onComplete) {
+        onComplete(trickId, trickData.title);
+      }
     } catch (error) {
       console.error("❌ Error durante el guardado:", error);
       Alert.alert(
@@ -408,82 +404,21 @@ export default function AddMagicWizard({
     }
   };
 
-  // Modal handlers
-  const handleCloseSuccessModal = () => {
-    setShowSuccessModal(false);
-    if (onComplete && createdItemId) {
-      onComplete(createdItemId);
-    }
-  };
-
-  const handleViewItem = async () => {
-    setShowSuccessModal(false);
-    if (createdItemId && onViewItem) {
-      onViewItem(createdItemId);
-    }
-  };
-
-  const handleAddAnother = () => {
-    setShowSuccessModal(false);
-    // Reset form data
-    setTrickData({
-      title: "",
-      categories: [],
-      tags: [],
-      selectedCategoryId: null,
-      effect: "",
-      effect_video_url: null,
-      angles: [],
-      duration: null,
-      reset: null,
-      difficulty: 5,
-      secret: "",
-      secret_video_url: null,
-      special_materials: [],
-      notes: "",
-      script: "",
-      photo_url: null,
-      techniqueIds: [],
-      gimmickIds: [],
-      is_public: false,
-      status: "draft",
-      price: null,
-      localFiles: {
-        effectVideo: null,
-        secretVideo: null,
-        photos: [],
-      },
-    });
-    setCurrentStep(0);
-  };
-
   // Renderizar el componente del paso actual
   const StepComponent = steps[currentStep].component;
 
   return (
-    <>
-      <StepComponent
-        trickData={trickData}
-        updateTrickData={updateTrickData}
-        onNext={goToNextStep}
-        onCancel={goToPreviousStep}
-        onSave={handleSubmit}
-        currentStep={currentStep + 1}
-        totalSteps={steps.length}
-        isSubmitting={isSubmitting}
-        isNextButtonDisabled={isNextButtonDisabled}
-        isLastStep={currentStep === steps.length - 1}
-      />
-
-      {/* Success Modal */}
-      <SuccessCreationModal
-        visible={showSuccessModal}
-        onClose={handleCloseSuccessModal}
-        onViewItem={handleViewItem}
-        onAddAnother={handleAddAnother}
-        itemName={trickData.title || t("common.trick", "Trick")}
-        itemType="trick"
-      />
-    </>
+    <StepComponent
+      trickData={trickData}
+      updateTrickData={updateTrickData}
+      onNext={goToNextStep}
+      onCancel={goToPreviousStep}
+      onSave={handleSubmit}
+      currentStep={currentStep + 1}
+      totalSteps={steps.length}
+      isSubmitting={isSubmitting}
+      isNextButtonDisabled={isNextButtonDisabled}
+      isLastStep={currentStep === steps.length - 1}
+    />
   );
 }
