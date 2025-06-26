@@ -172,48 +172,47 @@ const LibrariesSection = memo(function LibrariesSection({
   };
 
   // Handle category actions
-  const handleAddCategory = useCallback(async () => {
-    if (!newCategoryName.trim()) return;
+  const handleAddCategory = useCallback(
+    async (name: string) => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
 
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+        const newCategory = await createCategory(user.id, name);
 
-      const newCategory = await createCategory(user.id, newCategoryName.trim());
+        if (newCategory) {
+          refresh();
+        }
 
-      if (newCategory) {
-        refresh();
+        setAddCategoryModalVisible(false);
+      } catch (error) {
+        console.error("Error adding category:", error);
       }
+    },
+    [refresh]
+  );
 
-      setNewCategoryName("");
-      setAddCategoryModalVisible(false);
-    } catch (error) {
-      console.error("Error adding category:", error);
-    }
-  }, [newCategoryName, refresh]);
+  const handleEditCategory = useCallback(
+    async (name: string) => {
+      if (!editingCategory) return;
 
-  const handleEditCategory = useCallback(async () => {
-    if (!editingCategory || !newCategoryName.trim()) return;
+      try {
+        const success = await updateCategory(editingCategory.id, name);
 
-    try {
-      const success = await updateCategory(
-        editingCategory.id,
-        newCategoryName.trim()
-      );
+        if (success) {
+          refresh();
+        }
 
-      if (success) {
-        refresh();
+        setEditingCategory(null);
+        setEditCategoryModalVisible(false);
+      } catch (error) {
+        console.error("Error updating category:", error);
       }
-
-      setEditingCategory(null);
-      setNewCategoryName("");
-      setEditCategoryModalVisible(false);
-    } catch (error) {
-      console.error("Error updating category:", error);
-    }
-  }, [editingCategory, newCategoryName, refresh]);
+    },
+    [editingCategory, refresh]
+  );
 
   const handleDeleteCategory = useCallback(
     async (categoryId: string) => {
@@ -475,18 +474,11 @@ const LibrariesSection = memo(function LibrariesSection({
           setAddCategoryModalVisible(false);
           setEditCategoryModalVisible(false);
           setEditingCategory(null);
-          setNewCategoryName("");
         }}
-        onConfirm={(name) => {
-          setNewCategoryName(name);
-          if (editingCategory) {
-            handleEditCategory();
-          } else {
-            handleAddCategory();
-          }
-        }}
-        initialName={editingCategory ? editingCategory.name : newCategoryName}
+        onConfirm={editingCategory ? handleEditCategory : handleAddCategory}
+        initialName={editingCategory?.name || ""}
         mode={editingCategory ? "edit" : "create"}
+        currentCategoryId={editingCategory?.id}
       />
 
       {selectedTrickData && (

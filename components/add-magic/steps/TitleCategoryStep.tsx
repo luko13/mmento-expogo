@@ -44,6 +44,7 @@ interface StepProps {
   isSubmitting?: boolean;
   isNextButtonDisabled?: boolean;
   isLastStep?: boolean;
+  isEditMode?: boolean;
 }
 
 const { width } = Dimensions.get("window");
@@ -59,6 +60,7 @@ export default function TitleCategoryStep({
   isSubmitting = false,
   isNextButtonDisabled = false,
   isLastStep = false,
+  isEditMode = false,
 }: StepProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -168,7 +170,9 @@ export default function TitleCategoryStep({
                 includeFontPadding: false,
               }}
             >
-              {t("forms.registerMagic")}
+              {isEditMode
+                ? t("forms.editMagic", "Editar Magia")
+                : t("forms.registerMagic")}
             </StyledText>
 
             <StyledTouchableOpacity
@@ -322,11 +326,7 @@ export default function TitleCategoryStep({
             {/* Info Message */}
             <StyledView className="items-center py-6">
               <StyledView className="mb-2">
-                <AntDesign
-                  name="Safety"
-                  size={32}
-                  color="#5BB9A3"
-                />
+                <AntDesign name="Safety" size={32} color="#5BB9A3" />
               </StyledView>
 
               <StyledText
@@ -337,10 +337,7 @@ export default function TitleCategoryStep({
                   includeFontPadding: false,
                 }}
               >
-                {t(
-                  "info.secureMagic",
-                  "Tu magia está"
-                )}
+                {t("info.secureMagic", "Tu magia está")}
               </StyledText>
               <StyledText
                 className="text-[#5BB9A3] text-xs text-center"
@@ -350,10 +347,7 @@ export default function TitleCategoryStep({
                   includeFontPadding: false,
                 }}
               >
-                {t(
-                  "info.safeEncryption",
-                  "Segura & Encriptada"
-                )}
+                {t("info.safeEncryption", "Segura & Encriptada")}
               </StyledText>
             </StyledView>
           </StyledView>

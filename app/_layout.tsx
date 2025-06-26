@@ -90,7 +90,7 @@ export default function RootLayout() {
   const isAddMagicRoute = pathname.includes("/add-magic");
   const isAddTechniqueRoute = pathname.includes("/add-technique");
   const isAddQuickMagicRoute = pathname.includes("/add-quick-magic");
-  const isAddGimmickRoute = pathname.includes("/add-gimmick");
+  const isEditTrickRoute = pathname.includes("/edit-trick");
   const isAuthRoute = pathname.includes("/auth");
   const isTrickViewRoute =
     pathname.includes("/trick/") || pathname.includes("/tricks/");
@@ -110,6 +110,7 @@ export default function RootLayout() {
           isAddQuickMagicRoute ||
           isTrickViewRoute ||
           isTechniqueViewRoute ||
+          isEditTrickRoute ||
           isGimmickViewRoute ? (
             // Gradiente verde para add-magic que cubre TODA la pantalla
             <LinearGradient

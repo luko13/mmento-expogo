@@ -66,6 +66,7 @@ interface StepProps {
   isSubmitting?: boolean;
   isNextButtonDisabled?: boolean;
   isLastStep?: boolean;
+  isEditMode?: boolean;
 }
 
 // Componente de Modal de Progreso (actualizado sin referencias a cifrado)
@@ -281,6 +282,7 @@ export default function ExtrasStep({
   totalSteps = 3,
   isSubmitting = false,
   isLastStep = true,
+  isEditMode = false,
 }: StepProps) {
   const { t } = useTranslation();
 
@@ -854,6 +856,8 @@ export default function ExtrasStep({
           >
             {isSubmitting
               ? t("saving", "Guardando...")
+              : isEditMode
+              ? t("updateMagic", "Actualizar Magia")
               : t("registerMagic", "Registrar Magia")}
           </StyledText>
         </StyledTouchableOpacity>

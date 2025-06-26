@@ -29,7 +29,7 @@ const TopNavigationBar: React.FC<TopNavigationBarProps> = ({
     <StyledView style={styles.container}>
       <BlurView intensity={25} tint="default" style={styles.blurContainer}>
         <LinearGradient
-          colors={["#d4d4d426", "#6e6e6e14"]} // Negro a beige
+          colors={["#d4d4d426", "#6e6e6e14"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradient}
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
   },
   blurContainer: {
-    borderRadius: 9999, // Bordes completamente redondeados
+    borderRadius: 9999,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.5)",
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   iconButton: {
-    padding: 4, // Padding adicional para área de toque
+    padding: 4,
   },
   title: {
     color: "white",
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   rightIconsContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12, // Espacio entre iconos
+    gap: 12,
   },
 });
 

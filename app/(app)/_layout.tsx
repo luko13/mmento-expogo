@@ -30,7 +30,7 @@ export default function AppLayout() {
   // Verificar si estamos en rutas que no deben mostrar navbar
   const isAddMagicRoute = pathname.includes("/add-magic");
   const isAddTechniqueRoute = pathname.includes("/add-technique");
-  const isAddGimmickRoute = pathname.includes("/add-gimmick");
+  const isEditTrickRoute = pathname.includes("/edit-trick");
   const isAddQuickMagicRoute = pathname.includes("/add-quick-magic");
   const isAddScriptRoute = pathname.includes("/add-script");
   const isTrickViewRoute =
@@ -46,6 +46,7 @@ export default function AppLayout() {
     isAddQuickMagicRoute ||
     isTrickViewRoute ||
     isTechniqueViewRoute ||
+    isEditTrickRoute ||
     isGimmickViewRoute;
 
   // Determinar ruta activa
