@@ -10,6 +10,8 @@ import {
   TouchableOpacity,
   Platform,
   AppState,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -37,8 +39,8 @@ const { width, height } = Dimensions.get("window");
 // Calculate safe area for navigation bar
 const NAVBAR_HEIGHT = 90;
 const BOTTOM_SPACING = Platform.OS === "ios" ? 20 : 10;
-const SEARCH_BAR_HEIGHT = 140; // Altura más precisa de la barra de búsqueda expandida
-const SEARCH_SPACING = 15; // Espacio entre búsqueda y libraries
+const SEARCH_BAR_HEIGHT = 140;
+const SEARCH_SPACING = 15;
 
 export default function Home() {
   const { t } = useTranslation();
@@ -47,7 +49,7 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const [isReady, setIsReady] = useState(false);
   const [searchVisible, setSearchVisible] = useState(false);
-  const searchVisibleRef = useRef(false); // Referencia para el estado real
+  const searchVisibleRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     categories: [],
@@ -415,110 +417,119 @@ export default function Home() {
     extrapolate: "clamp",
   });
 
+  // Function to dismiss keyboard when tapping outside
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
+  };
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <StyledView className="flex-1" {...panResponder.panHandlers}>
-        {/* Background image que viene del layout padre */}
+      <TouchableWithoutFeedback onPress={dismissKeyboard}>
+        <StyledView className="flex-1" {...panResponder.panHandlers}>
+          {/* Background image que viene del layout padre */}
 
-        {/* Container principal con padding para todos los componentes */}
-        <StyledView className="flex-1" style={{ paddingHorizontal: 24 }}>
-          {/* User Profile - always visible */}
-          <StyledView style={{ zIndex: 10, marginBottom: 10, marginTop: 10 }}>
-            <UserProfile
-              onProfilePress={() => router.push("/(app)/profile")}
-              isSearchVisible={searchVisible}
-              onCloseSearch={() => animateSearch(false)}
-            />
-          </StyledView>
+          {/* Container principal con padding para todos los componentes */}
+          <StyledView className="flex-1" style={{ paddingHorizontal: 24 }}>
+            {/* User Profile - always visible */}
+            <StyledView style={{ zIndex: 10, marginBottom: 10, marginTop: 10 }}>
+              <UserProfile
+                onProfilePress={() => router.push("/(app)/profile")}
+                isSearchVisible={searchVisible}
+                onCloseSearch={() => animateSearch(false)}
+              />
+            </StyledView>
 
-          {/* Swipe Indicator / Search Bar Container */}
-          <StyledView
-            className="mb-4 h-12 justify-center "
-            style={{ marginTop: 0 }}
-          >
-            {/* Search Bar Compact (Solo visible cuando la búsqueda está oculta) */}
-            <StyledAnimatedView
-              className="absolute left-0 right-0"
-              style={{
-                opacity: indicatorOpacity,
-                zIndex: 5,
-                alignItems: "center",
-              }}
-              pointerEvents={isReady && indicatorInteractive ? "auto" : "none"}
+            {/* Swipe Indicator / Search Bar Container */}
+            <StyledView
+              className="mb-4 h-12 justify-center "
+              style={{ marginTop: 0 }}
             >
-              <StyledTouchableOpacity
-                className="flex-row items-center justify-between px-4 py-3 rounded-lg w-full border border-white/40"
-                onPress={() => {
-                  animateSearch(true);
+              {/* Search Bar Compact (Solo visible cuando la búsqueda está oculta) */}
+              <StyledAnimatedView
+                className="absolute left-0 right-0"
+                style={{
+                  opacity: indicatorOpacity,
+                  zIndex: 5,
+                  alignItems: "center",
                 }}
+                pointerEvents={
+                  isReady && indicatorInteractive ? "auto" : "none"
+                }
               >
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Ionicons
-                    name="search"
-                    size={16}
-                    color="white"
-                    style={{ marginRight: 8 }}
-                  />
-                  <StyledText
-                    className="text-white opacity-60"
-                    style={{
-                      fontFamily: fontNames.regular,
-                      fontSize: 16,
-                      includeFontPadding: false,
-                    }}
-                  >
-                    {t("search", "Buscar")}
-                  </StyledText>
-                </View>
-              </StyledTouchableOpacity>
-            </StyledAnimatedView>
+                <StyledTouchableOpacity
+                  className="flex-row items-center justify-between px-4 py-3 rounded-lg w-full border border-white/40"
+                  onPress={() => {
+                    animateSearch(true);
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Ionicons
+                      name="search"
+                      size={16}
+                      color="white"
+                      style={{ marginRight: 8 }}
+                    />
+                    <StyledText
+                      className="text-white opacity-60"
+                      style={{
+                        fontFamily: fontNames.regular,
+                        fontSize: 16,
+                        includeFontPadding: false,
+                      }}
+                    >
+                      {t("search", "Buscar")}
+                    </StyledText>
+                  </View>
+                </StyledTouchableOpacity>
+              </StyledAnimatedView>
 
-            {/* Compact Search Bar */}
+              {/* Compact Search Bar */}
+              <StyledAnimatedView
+                className="absolute left-0 right-0"
+                style={{
+                  opacity: searchOpacity,
+                  zIndex: 50,
+                  position: "absolute",
+                  top: -140, // Posición más cerca del UserProfile
+                }}
+                pointerEvents={
+                  isReady && searchVisibleRef.current ? "auto" : "none"
+                }
+              >
+                <CompactSearchBar
+                  value={searchQuery}
+                  onChangeText={handleSearchQueryChange}
+                  onClose={() => {
+                    animateSearch(false);
+                  }}
+                  onFiltersChange={handleFiltersChange}
+                  onSearchBarPress={() => {
+                    // Esta función se llama cuando se presiona la barra de búsqueda expandida
+                    // No necesita hacer nada adicional porque la barra ya está visible
+                  }}
+                />
+              </StyledAnimatedView>
+            </StyledView>
+
+            {/* Libraries Section - con márgenes negativos para extenderse */}
             <StyledAnimatedView
-              className="absolute left-0 right-0"
+              className="flex-1"
               style={{
-                opacity: searchOpacity,
-                zIndex: 50,
-                position: "absolute",
-                top: -140, // Posición más cerca del UserProfile
+                transform: [{ translateY: librariesTranslateY }],
+                marginTop: 5,
+                marginHorizontal: -18, // Márgenes negativos para compensar el padding del padre
+                paddingBottom: 0,
+                zIndex: 1,
               }}
-              pointerEvents={
-                isReady && searchVisibleRef.current ? "auto" : "none"
-              }
             >
-              <CompactSearchBar
-                value={searchQuery}
-                onChangeText={handleSearchQueryChange}
-                onClose={() => {
-                  animateSearch(false);
-                }}
-                onFiltersChange={handleFiltersChange}
-                onSearchBarPress={() => {
-                  // Esta función se llama cuando se presiona la barra de búsqueda expandida
-                  // No necesita hacer nada adicional porque la barra ya está visible
-                }}
+              <LibrariesSection
+                searchQuery={searchQuery}
+                searchFilters={searchFilters}
               />
             </StyledAnimatedView>
           </StyledView>
-
-          {/* Libraries Section - con márgenes negativos para extenderse */}
-          <StyledAnimatedView
-            className="flex-1"
-            style={{
-              transform: [{ translateY: librariesTranslateY }],
-              marginTop: 5,
-              marginHorizontal: -18, // Márgenes negativos para compensar el padding del padre
-              paddingBottom: 0,
-              zIndex: 1,
-            }}
-          >
-            <LibrariesSection
-              searchQuery={searchQuery}
-              searchFilters={searchFilters}
-            />
-          </StyledAnimatedView>
         </StyledView>
-      </StyledView>
+      </TouchableWithoutFeedback>
 
       {/* Success Modal */}
       <SuccessCreationModal

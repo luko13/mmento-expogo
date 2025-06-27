@@ -10,6 +10,11 @@ import {
   ScrollView,
   Animated,
   TextInput,
+  TouchableWithoutFeedback,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Dimensions,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -285,6 +290,9 @@ export default function ExtrasStep({
   isEditMode = false,
 }: StepProps) {
   const { t } = useTranslation();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const notesInputRef = useRef<View>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   // Estados para el progreso de carga
   const [showUploadProgress, setShowUploadProgress] = useState(false);
@@ -313,6 +321,72 @@ export default function ExtrasStep({
     title: "",
     content: "",
   });
+
+  // Function to dismiss keyboard
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
+  };
+
+  // Handle keyboard show/hide events
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      (e) => {
+        const height = e.endCoordinates.height;
+        setKeyboardHeight(height);
+
+        // Auto-scroll when keyboard shows if notes field is focused
+        if (notesInputRef.current) {
+          setTimeout(() => {
+            handleNotesFocus();
+          }, 100);
+        }
+      }
+    );
+
+    const keyboardDidHideListener = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
+  // Function to scroll to notes input when focused
+  const handleNotesFocus = () => {
+    setTimeout(() => {
+      if (notesInputRef.current && scrollViewRef.current) {
+        notesInputRef.current.measureLayout(
+          scrollViewRef.current as any,
+          (x, y, width, height) => {
+            // Calculate the position to scroll to
+            const screenHeight = Dimensions.get("window").height;
+            const keyboardSpace = keyboardHeight || 300; // Use default if keyboard height not yet available
+            const headerHeight = 120; // Approximate header height
+            const bottomButtonHeight = 100; // Height of bottom section
+            const visibleHeight =
+              screenHeight - keyboardSpace - headerHeight - bottomButtonHeight;
+
+            // Scroll to position the notes field in the middle of visible area
+            const targetY = y - visibleHeight / 2 + height / 2;
+
+            scrollViewRef.current?.scrollTo({
+              y: Math.max(0, targetY),
+              animated: true,
+            });
+          },
+          () => {
+            console.log("Failed to measure layout");
+          }
+        );
+      }
+    }, 300); // Increased delay to ensure keyboard is fully shown
+  };
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -590,350 +664,368 @@ export default function ExtrasStep({
   }, []);
 
   return (
-    <StyledView className="flex-1">
-      {/* Gradiente de fondo */}
-      <LinearGradient
-        colors={["#15322C", "#15322C"]}
-        style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          left: 0,
-          right: 0,
-        }}
-      />
-
-      {/* Encabezado */}
-      <StyledView className="px-2 pt-4">
-        <StyledView className="flex-row items-center justify-between">
-          <StyledTouchableOpacity onPress={onCancel} className="p-2">
-            <Feather name="chevron-left" size={24} color="white" />
-          </StyledTouchableOpacity>
-
-          <StyledText
-            className="text-white text-lg font-semibold"
-            style={{
-              fontFamily: fontNames.light,
-              fontSize: 20,
-              includeFontPadding: false,
-            }}
-          >
-            {trickData.title || t("trickTitle", "[Título Magia]")}
-          </StyledText>
-
-          <StyledView className="p-2 opacity-0">
-            <Feather name="chevron-left" size={24} color="white" />
-          </StyledView>
-        </StyledView>
-
-        <StyledText
-          className="text-[#FFFFFF]/50 text-sm opacity-70 text-center"
+    <TouchableWithoutFeedback onPress={dismissKeyboard}>
+      <StyledView className="flex-1">
+        {/* Gradiente de fondo */}
+        <LinearGradient
+          colors={["#15322C", "#15322C"]}
           style={{
-            fontFamily: fontNames.light,
-            fontSize: 16,
-            includeFontPadding: false,
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
           }}
-        >
-          {t("statistics", "Estadísticas")}
-        </StyledText>
-      </StyledView>
+        />
 
-      <StyledScrollView className="flex-1 px-6">
-        {/* Sección de Estadísticas */}
-        <StyledView className="mt-3">
+        {/* Encabezado */}
+        <StyledView className="px-2 pt-4">
+          <StyledView className="flex-row items-center justify-between">
+            <StyledTouchableOpacity onPress={onCancel} className="p-2">
+              <Feather name="chevron-left" size={24} color="white" />
+            </StyledTouchableOpacity>
+
+            <StyledText
+              className="text-white text-lg font-semibold"
+              style={{
+                fontFamily: fontNames.light,
+                fontSize: 20,
+                includeFontPadding: false,
+              }}
+            >
+              {trickData.title || t("trickTitle", "[Título Magia]")}
+            </StyledText>
+
+            <StyledView className="p-2 opacity-0">
+              <Feather name="chevron-left" size={24} color="white" />
+            </StyledView>
+          </StyledView>
+
           <StyledText
-            className="text-white/60 text-lg font-semibold mb-4"
+            className="text-[#FFFFFF]/50 text-sm opacity-70 text-center"
             style={{
               fontFamily: fontNames.light,
-              fontSize: 20,
+              fontSize: 16,
               includeFontPadding: false,
             }}
           >
             {t("statistics", "Estadísticas")}
           </StyledText>
+        </StyledView>
 
-          {/* Selección de Ángulos */}
-          <StyledView className="flex-row mb-6">
-            <CustomTooltip
-              text={t("tooltips.angle")}
-              backgroundColor="rgba(91, 185, 163, 0.95)"
-              textColor="white"
-            >
-              <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-                <MaterialCommunityIcons
-                  name="angle-acute"
-                  size={32}
-                  color="white"
-                />
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 100}
+        >
+          <StyledScrollView
+            ref={scrollViewRef}
+            className="flex-1 px-6"
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingBottom: keyboardHeight > 0 ? 20 : 100,
+            }}
+          >
+            {/* Sección de Estadísticas */}
+            <StyledView className="mt-3">
+              <StyledText
+                className="text-white/60 text-lg font-semibold mb-4"
+                style={{
+                  fontFamily: fontNames.light,
+                  fontSize: 20,
+                  includeFontPadding: false,
+                }}
+              >
+                {t("statistics", "Estadísticas")}
+              </StyledText>
+
+              {/* Selección de Ángulos */}
+              <StyledView className="flex-row mb-6">
+                <CustomTooltip
+                  text={t("tooltips.angle")}
+                  backgroundColor="rgba(91, 185, 163, 0.95)"
+                  textColor="white"
+                >
+                  <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+                    <MaterialCommunityIcons
+                      name="angle-acute"
+                      size={32}
+                      color="white"
+                    />
+                  </StyledView>
+                </CustomTooltip>
+                <StyledView className="flex-1">
+                  <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between">
+                    {angles.map((angle) => (
+                      <StyledTouchableOpacity
+                        key={angle.value}
+                        onPress={() => selectAngle(angle.value)}
+                        className="flex-row items-center"
+                      >
+                        <StyledView
+                          className={`w-5 h-5 rounded-full border ${
+                            trickData.angles.includes(angle.value)
+                              ? "border-white bg-white"
+                              : "border-white/50"
+                          } mr-2`}
+                        >
+                          {trickData.angles.includes(angle.value) && (
+                            <StyledView className="w-3 h-3 rounded-full bg-emerald-800 m-auto" />
+                          )}
+                        </StyledView>
+                        <StyledText
+                          className="text-white"
+                          style={{
+                            fontFamily: fontNames.light,
+                            fontSize: 14,
+                            includeFontPadding: false,
+                          }}
+                        >
+                          {angle.label}
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                    ))}
+                  </StyledView>
+                </StyledView>
               </StyledView>
-            </CustomTooltip>
-            <StyledView className="flex-1">
-              <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between">
-                {angles.map((angle) => (
+
+              {/* Tiempo de Duración */}
+              <StyledView className="flex-row mb-6">
+                <CustomTooltip
+                  text={t("tooltips.duration")}
+                  backgroundColor="rgba(91, 185, 163, 0.95)"
+                  textColor="white"
+                >
+                  <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+                    <Feather name="clock" size={24} color="white" />
+                  </StyledView>
+                </CustomTooltip>
+                <StyledView className="flex-1">
                   <StyledTouchableOpacity
-                    key={angle.value}
-                    onPress={() => selectAngle(angle.value)}
-                    className="flex-row items-center"
+                    className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between"
+                    onPress={() => setShowDurationPicker(true)}
                   >
-                    <StyledView
-                      className={`w-5 h-5 rounded-full border ${
-                        trickData.angles.includes(angle.value)
-                          ? "border-white bg-white"
-                          : "border-white/50"
-                      } mr-2`}
-                    >
-                      {trickData.angles.includes(angle.value) && (
-                        <StyledView className="w-3 h-3 rounded-full bg-emerald-800 m-auto" />
-                      )}
-                    </StyledView>
                     <StyledText
-                      className="text-white"
+                      className="text-white/70"
                       style={{
                         fontFamily: fontNames.light,
-                        fontSize: 14,
+                        fontSize: 16,
                         includeFontPadding: false,
                       }}
                     >
-                      {angle.label}
+                      {formatDuration(trickData.duration)}
                     </StyledText>
+                    <Feather name="plus" size={20} color="white" />
                   </StyledTouchableOpacity>
-                ))}
+                </StyledView>
               </StyledView>
-            </StyledView>
-          </StyledView>
 
-          {/* Tiempo de Duración */}
-          <StyledView className="flex-row mb-6">
-            <CustomTooltip
-              text={t("tooltips.duration")}
-              backgroundColor="rgba(91, 185, 163, 0.95)"
-              textColor="white"
-            >
-              <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-                <Feather name="clock" size={24} color="white" />
-              </StyledView>
-            </CustomTooltip>
-            <StyledView className="flex-1">
-              <StyledTouchableOpacity
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between"
-                onPress={() => setShowDurationPicker(true)}
-              >
-                <StyledText
-                  className="text-white/70"
-                  style={{
-                    fontFamily: fontNames.light,
-                    fontSize: 16,
-                    includeFontPadding: false,
-                  }}
+              {/* Tiempo de Reinicio */}
+              <StyledView className="flex-row mb-6">
+                <CustomTooltip
+                  text={t("tooltips.reset")}
+                  backgroundColor="rgba(91, 185, 163, 0.95)"
+                  textColor="white"
                 >
-                  {formatDuration(trickData.duration)}
-                </StyledText>
-                <Feather name="plus" size={20} color="white" />
-              </StyledTouchableOpacity>
-            </StyledView>
-          </StyledView>
-
-          {/* Tiempo de Reinicio */}
-          <StyledView className="flex-row mb-6">
-            <CustomTooltip
-              text={t("tooltips.reset")}
-              backgroundColor="rgba(91, 185, 163, 0.95)"
-              textColor="white"
-            >
-              <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-                <Feather name="refresh-cw" size={24} color="white" />
+                  <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+                    <Feather name="refresh-cw" size={24} color="white" />
+                  </StyledView>
+                </CustomTooltip>
+                <StyledView className="flex-1">
+                  <StyledTouchableOpacity
+                    className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between"
+                    onPress={() => setShowResetPicker(true)}
+                  >
+                    <StyledText
+                      className="text-white/70"
+                      style={{
+                        fontFamily: fontNames.light,
+                        fontSize: 16,
+                        includeFontPadding: false,
+                      }}
+                    >
+                      {formatReset(trickData.reset)}
+                    </StyledText>
+                    <Feather name="plus" size={20} color="white" />
+                  </StyledTouchableOpacity>
+                </StyledView>
               </StyledView>
-            </CustomTooltip>
-            <StyledView className="flex-1">
-              <StyledTouchableOpacity
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between"
-                onPress={() => setShowResetPicker(true)}
-              >
-                <StyledText
-                  className="text-white/70"
-                  style={{
-                    fontFamily: fontNames.light,
-                    fontSize: 16,
-                    includeFontPadding: false,
-                  }}
+
+              {/* Deslizador de dificultad */}
+              <StyledView className="flex-row mb-6">
+                <CustomTooltip
+                  text={t("tooltips.difficulty")}
+                  backgroundColor="rgba(91, 185, 163, 0.95)"
+                  textColor="white"
                 >
-                  {formatReset(trickData.reset)}
-                </StyledText>
-                <Feather name="plus" size={20} color="white" />
-              </StyledTouchableOpacity>
-            </StyledView>
-          </StyledView>
-
-          {/* Deslizador de dificultad */}
-          <StyledView className="flex-row mb-6">
-            <CustomTooltip
-              text={t("tooltips.difficulty")}
-              backgroundColor="rgba(91, 185, 163, 0.95)"
-              textColor="white"
-            >
-              <StyledView className="w-[48px] h-[70px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-                <Feather name="bar-chart" size={28} color="white" />
+                  <StyledView className="w-[48px] h-[70px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+                    <Feather name="bar-chart" size={28} color="white" />
+                  </StyledView>
+                </CustomTooltip>
+                <StyledView className="flex-1">
+                  <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg pb-3 border border-[#eafffb]/40">
+                    {/* Componente DifficultySlider */}
+                    <DifficultySlider
+                      value={trickData.difficulty || 5}
+                      onChange={handleDifficultyChange}
+                      min={1}
+                      max={10}
+                      step={1}
+                    />
+                  </StyledView>
+                </StyledView>
               </StyledView>
-            </CustomTooltip>
-            <StyledView className="flex-1">
-              <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg pb-3 border border-[#eafffb]/40">
-                {/* Componente DifficultySlider */}
-                <DifficultySlider
-                  value={trickData.difficulty || 5}
-                  onChange={handleDifficultyChange}
-                  min={1}
-                  max={10}
-                  step={1}
-                />
+
+              {/* Notes Field */}
+              <StyledView className="flex-row mb-6" ref={notesInputRef}>
+                <CustomTooltip
+                  text={t("tooltips.notes")}
+                  backgroundColor="rgba(91, 185, 163, 0.95)"
+                  textColor="white"
+                >
+                  <StyledView className="w-[48px] h-[180px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+                    <MaterialCommunityIcons
+                      name="text-box-outline"
+                      size={28}
+                      color="white"
+                    />
+                  </StyledView>
+                </CustomTooltip>
+                <StyledView className="flex-1">
+                  <StyledTextInput
+                    className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[180px]"
+                    style={{
+                      fontFamily: fontNames.light,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                    }}
+                    placeholder={t("notes", "Notas")}
+                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                    value={trickData.notes || ""}
+                    onChangeText={(text) => updateTrickData({ notes: text })}
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                    onFocus={handleNotesFocus}
+                    returnKeyType="default"
+                  />
+                </StyledView>
               </StyledView>
             </StyledView>
-          </StyledView>
+          </StyledScrollView>
+        </KeyboardAvoidingView>
 
-          {/* Notes Field */}
-          <StyledView className="flex-row mb-6">
-            <CustomTooltip
-              text={t("tooltips.notes")}
-              backgroundColor="rgba(91, 185, 163, 0.95)"
-              textColor="white"
-            >
-              <StyledView className="w-[48px] h-[180px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-                <MaterialCommunityIcons
-                  name="text-box-outline"
-                  size={28}
-                  color="white"
-                />
-              </StyledView>
-            </CustomTooltip>
-            <StyledView className="flex-1">
-              <StyledTextInput
-                className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[180px]"
-                style={{
-                  fontFamily: fontNames.light,
-                  fontSize: 16,
-                  includeFontPadding: false,
-                }}
-                placeholder={t("notes", "Notas")}
-                placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                value={trickData.notes || ""}
-                onChangeText={(text) => updateTrickData({ notes: text })}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-            </StyledView>
-          </StyledView>
-        </StyledView>
-      </StyledScrollView>
-
-      <StyledView className="justify-end px-6 pb-6">
-        {/* Indicador de paso */}
-        <StyledText
-          className="text-center text-white/60 mb-4"
-          style={{
-            fontFamily: fontNames.light,
-            fontSize: 14,
-            includeFontPadding: false,
-          }}
-        >
-          {`${currentStep} de ${totalSteps}`}
-        </StyledText>
-
-        {/* Botón de Registro de Magia */}
-        <StyledTouchableOpacity
-          className={`w-full py-4 rounded-lg items-center justify-center flex-row ${
-            isSubmitting ? "bg-white/10" : "bg-[#2C6B5C]"
-          }`}
-          disabled={isSubmitting}
-          onPress={handleNext}
-        >
+        <StyledView className="px-6 pb-6">
+          {/* Indicador de paso */}
           <StyledText
-            className="text-white font-semibold text-base"
+            className="text-center text-white/60 mb-4"
             style={{
               fontFamily: fontNames.light,
-              fontSize: 18,
+              fontSize: 14,
               includeFontPadding: false,
             }}
           >
-            {isSubmitting
-              ? t("saving", "Guardando...")
-              : isEditMode
-              ? t("updateMagic", "Actualizar Magia")
-              : t("registerMagic", "Registrar Magia")}
+            {`${currentStep} de ${totalSteps}`}
           </StyledText>
-        </StyledTouchableOpacity>
+
+          {/* Botón de Registro de Magia */}
+          <StyledTouchableOpacity
+            className={`w-full py-4 rounded-lg items-center justify-center flex-row ${
+              isSubmitting ? "bg-white/10" : "bg-[#2C6B5C]"
+            }`}
+            disabled={isSubmitting}
+            onPress={handleNext}
+          >
+            <StyledText
+              className="text-white font-semibold text-base"
+              style={{
+                fontFamily: fontNames.light,
+                fontSize: 18,
+                includeFontPadding: false,
+              }}
+            >
+              {isSubmitting
+                ? t("saving", "Guardando...")
+                : isEditMode
+                ? t("updateMagic", "Actualizar Magia")
+                : t("registerMagic", "Registrar Magia")}
+            </StyledText>
+          </StyledTouchableOpacity>
+        </StyledView>
+
+        {/* Modal de Progreso de Carga */}
+        <UploadProgressModal
+          visible={showUploadProgress}
+          progress={uploadProgress}
+          currentFile={currentUploadFile}
+          elapsedTime={elapsedTime}
+          totalFiles={totalFiles}
+          processedFiles={processedFiles}
+        />
+
+        {/* Modales */}
+        {techniquesModalVisible && (
+          <TechniquesModal
+            visible={techniquesModalVisible}
+            onClose={() => setTechniquesModalVisible(false)}
+            techniques={techniques}
+            selectedTechniques={selectedTechniques}
+            onSave={handleSaveTechniques}
+            onToggleSelection={toggleTechniqueSelection}
+          />
+        )}
+
+        {gimmicksModalVisible && (
+          <GimmicksModal
+            visible={gimmicksModalVisible}
+            onClose={() => setGimmicksModalVisible(false)}
+            gimmicks={gimmicks}
+            selectedGimmicks={selectedGimmicks}
+            onSave={handleSaveGimmicks}
+            onToggleSelection={toggleGimmickSelection}
+          />
+        )}
+
+        {scriptModalVisible && (
+          <ScriptModal
+            visible={scriptModalVisible}
+            onClose={() => setScriptModalVisible(false)}
+            scriptData={scriptData}
+            onSave={handleSaveScript}
+            trickId={trickData.id}
+            userId={trickData.user_id}
+          />
+        )}
+
+        {/* DateTimePicker nativo para duración */}
+        {showDurationPicker && (
+          <TimePickerModal
+            visible={showDurationPicker}
+            onClose={() => setShowDurationPicker(false)}
+            onConfirm={handleDurationChange}
+            initialMinutes={
+              trickData.duration ? Math.floor(trickData.duration / 60) : 0
+            }
+            initialSeconds={trickData.duration ? trickData.duration % 60 : 0}
+            title={t("setDurationTime", "Set Duration Time")}
+          />
+        )}
+
+        {/* DateTimePicker nativo para reinicio */}
+        {showResetPicker && (
+          <TimePickerModal
+            visible={showResetPicker}
+            onClose={() => setShowResetPicker(false)}
+            onConfirm={handleResetChange}
+            initialMinutes={
+              trickData.reset ? Math.floor(trickData.reset / 60) : 0
+            }
+            initialSeconds={trickData.reset ? trickData.reset % 60 : 0}
+            title={t("setResetTime", "Set Reset Time")}
+          />
+        )}
       </StyledView>
-
-      {/* Modal de Progreso de Carga */}
-      <UploadProgressModal
-        visible={showUploadProgress}
-        progress={uploadProgress}
-        currentFile={currentUploadFile}
-        elapsedTime={elapsedTime}
-        totalFiles={totalFiles}
-        processedFiles={processedFiles}
-      />
-
-      {/* Modales */}
-      {techniquesModalVisible && (
-        <TechniquesModal
-          visible={techniquesModalVisible}
-          onClose={() => setTechniquesModalVisible(false)}
-          techniques={techniques}
-          selectedTechniques={selectedTechniques}
-          onSave={handleSaveTechniques}
-          onToggleSelection={toggleTechniqueSelection}
-        />
-      )}
-
-      {gimmicksModalVisible && (
-        <GimmicksModal
-          visible={gimmicksModalVisible}
-          onClose={() => setGimmicksModalVisible(false)}
-          gimmicks={gimmicks}
-          selectedGimmicks={selectedGimmicks}
-          onSave={handleSaveGimmicks}
-          onToggleSelection={toggleGimmickSelection}
-        />
-      )}
-
-      {scriptModalVisible && (
-        <ScriptModal
-          visible={scriptModalVisible}
-          onClose={() => setScriptModalVisible(false)}
-          scriptData={scriptData}
-          onSave={handleSaveScript}
-          trickId={trickData.id}
-          userId={trickData.user_id}
-        />
-      )}
-
-      {/* DateTimePicker nativo para duración */}
-      {showDurationPicker && (
-        <TimePickerModal
-          visible={showDurationPicker}
-          onClose={() => setShowDurationPicker(false)}
-          onConfirm={handleDurationChange}
-          initialMinutes={
-            trickData.duration ? Math.floor(trickData.duration / 60) : 0
-          }
-          initialSeconds={trickData.duration ? trickData.duration % 60 : 0}
-          title={t("setDurationTime", "Set Duration Time")}
-        />
-      )}
-
-      {/* DateTimePicker nativo para reinicio */}
-      {showResetPicker && (
-        <TimePickerModal
-          visible={showResetPicker}
-          onClose={() => setShowResetPicker(false)}
-          onConfirm={handleResetChange}
-          initialMinutes={
-            trickData.reset ? Math.floor(trickData.reset / 60) : 0
-          }
-          initialSeconds={trickData.reset ? trickData.reset % 60 : 0}
-          title={t("setResetTime", "Set Reset Time")}
-        />
-      )}
-    </StyledView>
+    </TouchableWithoutFeedback>
   );
 }
