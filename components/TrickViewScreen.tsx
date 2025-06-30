@@ -52,11 +52,10 @@ interface TrickViewScreenProps {
     reset: number | null;
     difficulty: number | null;
     notes?: string;
-    tagIds?: string[]; // Cambio: IDs en lugar de objetos Tag
     photos?: string[];
     user_id?: string;
   };
-  userId?: string; // Nuevo: para pasar al TrickViewerBottomSection
+  userId?: string;
   onClose?: () => void;
 }
 
@@ -88,6 +87,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const [decryptedPhotos, setDecryptedPhotos] = useState<string[]>([]);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(true);
   const [photoLoadError, setPhotoLoadError] = useState<string | null>(null);
+
+  // Estado local para tags
+  const [localTagIds, setLocalTagIds] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Función helper para construir URL pública desde un path
   const getPublicUrl = (path: string, bucket: string = "magic_trick_media") => {
@@ -124,9 +127,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     [trick.photos, trick.photo_url]
   );
 
-  // Usar tagIds del trick o array vacío
-  const tagIds = useMemo(() => trick.tagIds || [], [trick.tagIds]);
-
   // Función para cerrar
   const handleClose = () => {
     if (onClose) {
@@ -135,6 +135,48 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       router.push("/(app)/home");
     }
   };
+
+  // Obtener usuario actual
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUserId(user.id);
+        console.log("👤 Current user:", user.id);
+      }
+    };
+    getCurrentUser();
+  }, []);
+
+  // Cargar tags del truco
+  useEffect(() => {
+    const loadTrickTags = async () => {
+      try {
+        console.log("🏷️ Loading tags for trick:", trick.id);
+        const { data, error } = await supabase
+          .from("trick_tags")
+          .select("tag_id")
+          .eq("trick_id", trick.id);
+
+        if (data && !error) {
+          const tagIds = data.map((item) => item.tag_id);
+          setLocalTagIds(tagIds);
+          console.log("✅ Tags loaded:", tagIds);
+          console.log("📌 Trick user_id:", trick.user_id);
+        } else if (error) {
+          console.error("❌ Error loading tags:", error);
+        }
+      } catch (error) {
+        console.error("Error loading trick tags:", error);
+      }
+    };
+
+    if (trick.id) {
+      loadTrickTags();
+    }
+  }, [trick.id]);
 
   // useEffect para cargar videos
   useEffect(() => {
@@ -298,19 +340,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     }
   };
 
-  // Estado local para tags
-  const [localTagIds, setLocalTagIds] = useState(() => tagIds);
-
-  // Actualizar estado local cuando cambian las props
-  useEffect(() => {
-    // Only update if the arrays are actually different
-    const tagIdsString = (tagIds || []).sort().join(",");
-    const localTagIdsString = (localTagIds || []).sort().join(",");
-    if (tagIdsString !== localTagIdsString) {
-      setLocalTagIds(tagIds);
-    }
-  }, [tagIds]);
-
   // Manejar la eliminación de etiquetas
   const handleRemoveTag = async (tagId: string) => {
     try {
@@ -318,11 +347,12 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       const updatedTagIds = localTagIds.filter((id) => id !== tagId);
       setLocalTagIds(updatedTagIds);
 
-      // Actualizar en la base de datos
+      // Eliminar de la tabla trick_tags
       const { error } = await supabase
-        .from("magic_tricks")
-        .update({ tags: updatedTagIds })
-        .eq("id", trick.id);
+        .from("trick_tags")
+        .delete()
+        .eq("trick_id", trick.id)
+        .eq("tag_id", tagId);
 
       if (error) {
         console.error("Error removing tag:", error);
@@ -356,7 +386,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             flex: 1,
             justifyContent: "center",
             alignItems: "center",
-            backgroundColor: "rgba(0,0,0,0.8)",
+            backgroundColor: "#15322C",
           }}
         >
           <ActivityIndicator size="large" color="white" />
@@ -382,7 +412,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             flex: 1,
             justifyContent: "center",
             alignItems: "center",
-            backgroundColor: "rgba(0,0,0,0.8)",
+            backgroundColor: "#15322C",
           }}
         >
           <Ionicons name="alert-circle-outline" size={50} color="white" />
@@ -430,7 +460,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
                 bottom: 0,
                 justifyContent: "center",
                 alignItems: "center",
-                backgroundColor: "rgba(0,0,0,0.3)",
+                backgroundColor: "#15322C",
               }}
             >
               <Text
@@ -454,7 +484,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             flex: 1,
             justifyContent: "center",
             alignItems: "center",
-            backgroundColor: "rgba(0,0,0,0.8)",
+            backgroundColor: "#15322C",
           }}
         >
           <Text
@@ -472,7 +502,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     }
 
     return (
-      <View style={{ flex: 1, backgroundColor: "black" }}>
+      <View style={{ flex: 1, backgroundColor: "#15322C" }}>
         <VideoView
           style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
           player={player}
@@ -571,7 +601,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
     if (photosToDisplay.length === 0) {
       return (
-        <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
+        <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-[#15322C]">
           <StyledText
             className="text-white text-xl"
             style={{
@@ -674,7 +704,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   };
 
   return (
-    <StyledView className="flex-1 bg-black">
+    <StyledView className="flex-1 bg-[#15322C]">
       <StatusBar
         translucent
         backgroundColor="transparent"
@@ -694,7 +724,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         contentInsetAdjustmentBehavior="never"
       >
         {/* Sección de Efecto */}
-        <View style={{ width, height, backgroundColor: "black" }}>
+        <View style={{ width, height, backgroundColor: '#15322C' }}>
           {renderVideo(
             effectVideoUrl,
             isEffectPlaying,
@@ -704,7 +734,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         </View>
 
         {/* Sección de Secreto */}
-        <View style={{ width, height, backgroundColor: "black" }}>
+        <View style={{ width, height, backgroundColor: '#15322C' }}>
           {renderVideo(
             secretVideoUrl,
             isSecretPlaying,
@@ -715,7 +745,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
         {/* Sección de Fotos/Detalles */}
         <StyledView style={{ width, height }}>
-          <StyledView className="flex-1 bg-black">
+          <StyledView className="flex-1 bg-[#15322C]">
             {renderPhotoGallery()}
           </StyledView>
         </StyledView>
@@ -754,7 +784,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       >
         <TrickViewerBottomSection
           tagIds={localTagIds}
-          userId={userId}
+          userId={trick.user_id || (currentUserId ?? undefined)}
           stage={currentSection}
           category={trick.category}
           description={getCurrentDescription()}
@@ -762,7 +792,9 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           resetTime={trick.reset || 10}
           duration={trick.duration || 110}
           difficulty={trick.difficulty || 7}
-          onRemoveTag={handleRemoveTag}
+          onRemoveTag={
+            currentUserId === trick.user_id ? handleRemoveTag : undefined
+          }
         />
       </StyledView>
     </StyledView>

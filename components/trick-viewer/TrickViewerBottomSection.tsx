@@ -11,7 +11,7 @@ import StatsPanel from "./StatsPanel";
 const StyledView = styled(View);
 
 interface TrickViewerBottomSectionProps {
-  tagIds: string[]; // Cambio: ahora recibe IDs en lugar de objetos Tag
+  tagIds: string[];
   stage: StageType;
   category: string;
   description?: string;
@@ -19,7 +19,7 @@ interface TrickViewerBottomSectionProps {
   resetTime?: number;
   duration?: number;
   difficulty?: number;
-  userId?: string; // Nuevo: necesario para TagPillsSection
+  userId?: string;
   onRemoveTag?: (tagId: string) => void;
 }
 
@@ -48,7 +48,7 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
         tagIds={tagIds}
         userId={userId}
         onRemoveTag={onRemoveTag}
-        editable={!!onRemoveTag} // Solo editable si se proporciona onRemoveTag
+        editable={!!onRemoveTag}
       />
 
       {/* Información de etapa y categoría */}
@@ -58,7 +58,7 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
         description={description}
       />
 
-      {/* Panel de estadísticas */}
+      {/* Panel de estadísticas posicionado encima de las tags */}
       <StatsPanel
         visible={statsVisible}
         onToggle={toggleStats}
@@ -75,6 +75,10 @@ const styles = StyleSheet.create({
   container: {
     position: "relative",
     paddingBottom: 16,
+  },
+  tagsRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 });
 

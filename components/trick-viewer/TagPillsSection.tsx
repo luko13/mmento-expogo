@@ -44,23 +44,36 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    console.log("🔍 TagPillsSection Debug:");
+    console.log("- userId:", userId);
+    console.log("- tagIds:", tagIds);
+    console.log("- tagIds length:", tagIds?.length);
+
     if (userId && tagIds && tagIds.length > 0) {
       fetchUserTags();
     } else {
       setTags([]);
     }
-  }, [userId, tagIds.join(",")]); 
+  }, [userId, tagIds.join(",")]);
 
   const fetchUserTags = async () => {
     if (!userId || !tagIds || tagIds.length === 0) return;
 
     setLoading(true);
     try {
+      console.log("📡 Fetching tags with:");
+      console.log("- userId:", userId);
+      console.log("- tagIds:", tagIds);
+
       const { data, error } = await supabase
         .from("predefined_tags")
         .select("id, name, color, usage_count")
         .eq("user_id", userId)
         .in("id", tagIds);
+
+      console.log("📦 Supabase response:");
+      console.log("- data:", data);
+      console.log("- error:", error);
 
       if (data && !error) {
         setTags(data);
@@ -98,6 +111,9 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
     "#9E9E9E": "#F5F5F5",
     "#424242": "#F5F5F5",
   };
+
+  // Debug: mostrar estado actual
+  console.log("🎨 Tags to render:", tags);
 
   // No mostrar nada si no hay tags
   if (!tags || tags.length === 0) return null;
