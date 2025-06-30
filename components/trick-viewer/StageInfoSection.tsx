@@ -35,6 +35,7 @@ interface StageInfoSectionProps {
   stage: StageType;
   category: string;
   description?: string;
+  expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
 }
 
@@ -42,14 +43,11 @@ const StageInfoSection: React.FC<StageInfoSectionProps> = ({
   stage,
   category,
   description,
+  expanded = false,
   onExpandedChange,
 }) => {
-  const [expanded, setExpanded] = useState(false);
-
   const toggleExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     const newExpanded = !expanded;
-    setExpanded(newExpanded);
     onExpandedChange?.(newExpanded);
   };
 
@@ -107,11 +105,15 @@ const StageInfoSection: React.FC<StageInfoSectionProps> = ({
             </StyledTouchableOpacity>
 
             {expanded && (
-              <StyledView style={styles.expandedContent}>
+              <StyledTouchableOpacity
+                style={styles.expandedContent}
+                activeOpacity={1}
+                onPress={toggleExpand}
+              >
                 <StyledText style={styles.description}>
                   {description || "No description available."}
                 </StyledText>
-              </StyledView>
+              </StyledTouchableOpacity>
             )}
           </LinearGradient>
         </BlurView>

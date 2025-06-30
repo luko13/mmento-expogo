@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons, Feather, FontAwesome } from "@expo/vector-icons";
+import { Ionicons, FontAwesome, Entypo } from "@expo/vector-icons";
 import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
@@ -14,7 +14,7 @@ interface TopNavigationBarProps {
   title: string;
   onBackPress: () => void;
   onLikePress?: () => void;
-  onEditPress?: () => void;
+  onMorePress?: () => void;
   isLiked?: boolean;
 }
 
@@ -22,7 +22,7 @@ const TopNavigationBar: React.FC<TopNavigationBarProps> = ({
   title,
   onBackPress,
   onLikePress,
-  onEditPress,
+  onMorePress,
   isLiked = false,
 }) => {
   return (
@@ -59,12 +59,12 @@ const TopNavigationBar: React.FC<TopNavigationBarProps> = ({
               />
             </StyledTouchableOpacity>
 
-            {/* Icono de editar */}
+            {/* Icono de tres puntos */}
             <StyledTouchableOpacity
-              onPress={onEditPress}
+              onPress={onMorePress}
               style={styles.iconButton}
             >
-              <Feather name="edit" color="white" size={20} />
+              <Entypo name="dots-three-horizontal" size={16} color="white" />
             </StyledTouchableOpacity>
           </StyledView>
         </LinearGradient>

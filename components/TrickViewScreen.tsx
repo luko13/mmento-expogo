@@ -15,6 +15,7 @@ import {
   FlatList,
   ActivityIndicator,
   Share,
+  Alert,
 } from "react-native";
 import { useFavorites } from "../hooks/useFavorites";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -23,11 +24,18 @@ import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
+import * as ImagePicker from "expo-image-picker";
 import TopNavigationBar from "./trick-viewer/TopNavigationBar";
 import TrickViewerBottomSection from "./trick-viewer/TrickViewerBottomSection";
 import type { StageType } from "./trick-viewer/StageInfoSection";
 import { supabase } from "../lib/supabase";
+import { compressionService } from "../utils/compressionService";
+import { uploadFileToStorage } from "../services/fileUploadService";
 import { fontNames } from "../app/_layout";
+import { trickService } from "../services/trickService";
+import TrickActionsModal from "../components/ui/TrickActionsModal";
+import MakePublicModal from "../components/ui/MakePublicModal";
+import DeleteModal from "../components/ui/DeleteModal";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -55,6 +63,7 @@ interface TrickViewScreenProps {
     notes?: string;
     photos?: string[];
     user_id?: string;
+    is_public?: boolean;
   };
   userId?: string;
   onClose?: () => void;
@@ -83,6 +92,15 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const [wasEffectPlaying, setWasEffectPlaying] = useState(true);
   const [wasSecretPlaying, setWasSecretPlaying] = useState(true);
 
+  // Estado para subida
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Estados para modales
+  const [showActionsModal, setShowActionsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [trickIsPublic, setTrickIsPublic] = useState(false);
+
   // Hook de favoritos
   const { isFavorite, toggleFavorite } = useFavorites(trick.id, "magic");
 
@@ -103,7 +121,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
   // Función helper para construir URL pública desde un path
   const getPublicUrl = (path: string, bucket: string = "magic_trick_media") => {
-    if (!path) return null;
+    if (!path || path === "") return null;
 
     // Si ya es una URL completa, devolverla
     if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -158,6 +176,199 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     getCurrentUser();
   }, []);
 
+  // Verificar si el usuario puede editar
+  const canEdit =
+    currentUserId && (currentUserId === trick.user_id || !trick.user_id);
+
+  // Función para subir archivo con compresión
+  const uploadFileWithCompression = async (
+    uri: string,
+    folder: string,
+    fileType: string,
+    fileName: string,
+    userId: string
+  ): Promise<string | null> => {
+    try {
+      // Comprimir
+      const compressionResult = await compressionService.compressFile(
+        uri,
+        fileType,
+        { quality: 0.7, maxWidth: 1920 }
+      );
+
+      // Subir archivo
+      const uploadUrl = await uploadFileToStorage(
+        compressionResult.uri,
+        userId,
+        folder,
+        fileType,
+        fileName
+      );
+
+      return uploadUrl;
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      return null;
+    }
+  };
+
+  // Función para seleccionar y subir video
+  const handleVideoUpload = async (type: "effect" | "secret") => {
+    if (!canEdit) return;
+
+    try {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          t("permissionRequired", "Permission Required"),
+          t("mediaLibraryPermission", "We need access to your gallery.")
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["videos"],
+        allowsMultipleSelection: false,
+        quality: 0.5,
+        videoMaxDuration: 60,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setIsUploading(true);
+        const asset = result.assets[0];
+
+        // Subir video
+        const folder =
+          type === "effect"
+            ? `${currentUserId}/effects`
+            : `${currentUserId}/secrets`;
+
+        const fileName = `${type}_${Date.now()}.mp4`;
+
+        const uploadedUrl = await uploadFileWithCompression(
+          asset.uri,
+          folder,
+          "video/mp4",
+          fileName,
+          currentUserId!
+        );
+
+        if (uploadedUrl) {
+          // Actualizar en la base de datos
+          const updateData =
+            type === "effect"
+              ? { effect_video_url: uploadedUrl }
+              : { secret_video_url: uploadedUrl };
+
+          const { error } = await supabase
+            .from("magic_tricks")
+            .update(updateData)
+            .eq("id", trick.id);
+
+          if (!error) {
+            // Actualizar estado local
+            if (type === "effect") {
+              setEffectVideoUrl(uploadedUrl);
+            } else {
+              setSecretVideoUrl(uploadedUrl);
+            }
+          } else {
+            Alert.alert(
+              t("error"),
+              t("errorUpdatingTrick", "Error updating trick")
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error uploading video:", error);
+      Alert.alert(
+        t("error"),
+        t("errorUploadingVideo", "Error uploading video")
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Función para seleccionar y subir fotos
+  const handlePhotoUpload = async () => {
+    if (!canEdit) return;
+
+    try {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          t("permissionRequired", "Permission Required"),
+          t("mediaLibraryPermission", "We need access to your gallery.")
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsMultipleSelection: true,
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        setIsUploading(true);
+        const uploadedPhotos: string[] = [];
+
+        for (let i = 0; i < result.assets.length; i++) {
+          const asset = result.assets[i];
+          const fileName = `photo_${Date.now()}_${i}.jpg`;
+
+          const uploadedUrl = await uploadFileWithCompression(
+            asset.uri,
+            `${currentUserId}/photos`,
+            "image/jpeg",
+            fileName,
+            currentUserId!
+          );
+
+          if (uploadedUrl) {
+            uploadedPhotos.push(uploadedUrl);
+          }
+        }
+
+        if (uploadedPhotos.length > 0) {
+          // Si no hay foto principal, usar la primera
+          const updateData: any = {};
+          if (!trick.photo_url) {
+            updateData.photo_url = uploadedPhotos[0];
+          }
+
+          // Actualizar en la base de datos
+          const { error } = await supabase
+            .from("magic_tricks")
+            .update(updateData)
+            .eq("id", trick.id);
+
+          if (!error) {
+            // Actualizar estado local
+            setDecryptedPhotos([...decryptedPhotos, ...uploadedPhotos]);
+          } else {
+            Alert.alert(
+              t("error"),
+              t("errorUpdatingTrick", "Error updating trick")
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error uploading photos:", error);
+      Alert.alert(
+        t("error"),
+        t("errorUploadingPhotos", "Error uploading photos")
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // Cargar tags del truco
   useEffect(() => {
     const loadTrickTags = async () => {
@@ -183,6 +394,75 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     }
   }, [trick.id]);
 
+  // Cargar el estado is_public
+  useEffect(() => {
+    const loadTrickPublicState = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("magic_tricks")
+          .select("is_public, user_id")
+          .eq("id", trick.id)
+          .single();
+
+        if (data && !error) {
+          setTrickIsPublic(data.is_public);
+          // Si el trick no tiene user_id, actualizarlo desde la BD
+          if (!trick.user_id && data.user_id) {
+            trick.user_id = data.user_id;
+          }
+        }
+      } catch (error) {
+        console.error("Error loading trick public state:", error);
+      }
+    };
+
+    if (trick.id) {
+      loadTrickPublicState();
+    }
+  }, [trick.id]);
+
+  // Manejar acciones del modal
+  const handleMorePress = () => {
+    // Pausar video actual
+    if (currentSection === "effect" && effectPlayer) {
+      effectPlayer.pause();
+      setIsEffectPlaying(false);
+    } else if (currentSection === "secret" && secretPlayer) {
+      secretPlayer.pause();
+      setIsSecretPlaying(false);
+    }
+    setShowActionsModal(true);
+  };
+
+  const handlePrivacyPress = () => {
+    setShowPrivacyModal(true);
+  };
+
+  const handleDeletePress = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      const success = await trickService.deleteTrick(trick.id);
+      if (success) {
+        router.push("/(app)/home");
+      } else {
+        Alert.alert(
+          t("error"),
+          t("errorDeletingTrick", "Error deleting trick")
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting trick:", error);
+      Alert.alert(t("error"), t("errorDeletingTrick", "Error deleting trick"));
+    }
+  };
+
+  const handlePrivacySuccess = (isPublic: boolean) => {
+    setTrickIsPublic(isPublic);
+  };
+
   // useEffect para cargar videos
   useEffect(() => {
     const loadVideos = async () => {
@@ -190,9 +470,23 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         setIsLoadingVideos(true);
         setVideoLoadError(null);
 
+        console.log("🎥 Loading videos:", {
+          effect_video_url: trick.effect_video_url,
+          secret_video_url: trick.secret_video_url,
+        });
+
         // Usar URLs directamente
-        const effectUrl = getPublicUrl(trick.effect_video_url);
-        const secretUrl = getPublicUrl(trick.secret_video_url);
+        const effectUrl = trick.effect_video_url
+          ? getPublicUrl(trick.effect_video_url)
+          : null;
+        const secretUrl = trick.secret_video_url
+          ? getPublicUrl(trick.secret_video_url)
+          : null;
+
+        console.log("🔗 Processed URLs:", {
+          effectUrl,
+          secretUrl,
+        });
 
         setEffectVideoUrl(effectUrl);
         setSecretVideoUrl(secretUrl);
@@ -427,7 +721,17 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     // Seleccionar el player correcto
     const player = type === "effect" ? effectPlayer : secretPlayer;
 
+    console.log(`🎬 renderVideo ${type}:`, {
+      url,
+      isLoading,
+      videoLoadError,
+      canEdit,
+      currentUserId,
+      trickUserId: trick.user_id,
+    });
+
     if (isLoading) {
+      console.log(`⏳ ${type} video is loading...`);
       return (
         <View
           style={{
@@ -454,6 +758,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     }
 
     if (videoLoadError && !url) {
+      console.log(`❌ ${type} video error:`, videoLoadError);
       return (
         <View
           style={{
@@ -491,41 +796,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     }
 
     if (!url) {
-      if (decryptedPhotos.length > 0) {
-        return (
-          <View style={{ flex: 1 }}>
-            <Image
-              source={{ uri: decryptedPhotos[0] }}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode="contain"
-            />
-            <View
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: "#15322C",
-              }}
-            >
-              <Text
-                style={{
-                  color: "white",
-                  fontSize: 18,
-                  fontFamily: fontNames.light,
-                  includeFontPadding: false,
-                }}
-              >
-                {t("noVideoButPhoto", "Sin video - Ver fotos abajo")}
-              </Text>
-            </View>
-          </View>
-        );
-      }
-
+      console.log(
+        `📹 ${type} no video URL, showing upload UI. canEdit:`,
+        canEdit
+      );
       return (
         <View
           style={{
@@ -535,20 +809,57 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             backgroundColor: "#15322C",
           }}
         >
-          <Text
-            style={{
-              color: "white",
-              fontSize: 20,
-              fontFamily: fontNames.light,
-              includeFontPadding: false,
-            }}
-          >
-            {t("noVideoAvailable", "No video available")}
-          </Text>
+          {isUploading ? (
+            <>
+              <ActivityIndicator size="large" color="#5BB9A3" />
+              <Text
+                style={{
+                  color: "white",
+                  fontSize: 18,
+                  marginTop: 16,
+                  fontFamily: fontNames.light,
+                  includeFontPadding: false,
+                }}
+              >
+                {t("uploadingVideo", "Uploading video...")}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text
+                style={{
+                  color: "white",
+                  fontSize: 20,
+                  fontFamily: fontNames.light,
+                  includeFontPadding: false,
+                }}
+              >
+                {t("noVideo", "No Video")}
+              </Text>
+              {canEdit && (
+                <TouchableOpacity
+                  onPress={() => handleVideoUpload(type)}
+                  style={{ marginTop: 16 }}
+                >
+                  <Text
+                    style={{
+                      color: "#5BB9A3",
+                      fontSize: 18,
+                      fontFamily: fontNames.light,
+                      includeFontPadding: false,
+                    }}
+                  >
+                    {t("uploadVideo", "Upload video")}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
         </View>
       );
     }
 
+    console.log(`✅ ${type} video has URL, showing player`);
     return (
       <View style={{ flex: 1, backgroundColor: "#15322C" }}>
         <VideoView
@@ -650,15 +961,48 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     if (photosToDisplay.length === 0) {
       return (
         <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-[#15322C]">
-          <StyledText
-            className="text-white text-xl"
-            style={{
-              fontFamily: fontNames.light,
-              includeFontPadding: false,
-            }}
-          >
-            {t("noPhotosAvailable", "No photos available")}
-          </StyledText>
+          {isUploading ? (
+            <>
+              <ActivityIndicator size="large" color="#5BB9A3" />
+              <StyledText
+                className="text-white text-lg mt-4"
+                style={{
+                  fontFamily: fontNames.light,
+                  includeFontPadding: false,
+                }}
+              >
+                {t("uploadingPhotos", "Uploading photos...")}
+              </StyledText>
+            </>
+          ) : (
+            <>
+              <StyledText
+                className="text-white text-xl"
+                style={{
+                  fontFamily: fontNames.light,
+                  includeFontPadding: false,
+                }}
+              >
+                {t("noPhotos", "No Photos")}
+              </StyledText>
+              {canEdit && (
+                <TouchableOpacity
+                  onPress={handlePhotoUpload}
+                  style={{ marginTop: 16 }}
+                >
+                  <StyledText
+                    className="text-[#5BB9A3] text-lg"
+                    style={{
+                      fontFamily: fontNames.light,
+                      includeFontPadding: false,
+                    }}
+                  >
+                    {t("uploadPhotos", "Upload photos")}
+                  </StyledText>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
         </StyledView>
       );
     }
@@ -809,11 +1153,17 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           pointerEvents: isStageExpanded ? "auto" : "none",
         }}
       >
-        <BlurView
-          intensity={20}
-          tint="default"
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.1)" }}
-        />
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => handleStageExpandedChange(false)}
+          style={{ flex: 1 }}
+        >
+          <BlurView
+            intensity={40}
+            tint="dark"
+            style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.3)" }}
+          />
+        </TouchableOpacity>
       </Animated.View>
 
       {/* Barra de navegación superior */}
@@ -831,7 +1181,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           title={trick.title}
           onBackPress={handleClose}
           onLikePress={handleLikePress}
-          onEditPress={handleEditPress}
+          onMorePress={handleMorePress}
           isLiked={isFavorite}
         />
       </StyledView>
@@ -860,9 +1210,37 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           onRemoveTag={
             currentUserId === trick.user_id ? handleRemoveTag : undefined
           }
+          stageExpanded={isStageExpanded}
           onStageExpandedChange={handleStageExpandedChange}
         />
       </StyledView>
+
+      {/* Modals */}
+      <TrickActionsModal
+        visible={showActionsModal}
+        onClose={() => setShowActionsModal(false)}
+        onEdit={handleEditPress}
+        onPrivacy={handlePrivacyPress}
+        onDelete={handleDeletePress}
+        isPublic={trickIsPublic}
+        isOwner={currentUserId === trick.user_id}
+      />
+
+      <MakePublicModal
+        visible={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+        trickId={trick.id}
+        initialIsPublic={trickIsPublic}
+        onSuccess={handlePrivacySuccess}
+      />
+
+      <DeleteModal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleConfirmDelete}
+        itemName={trick.title}
+        itemType={t("trick", "trick")}
+      />
     </StyledView>
   );
 };

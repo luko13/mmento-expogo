@@ -54,7 +54,7 @@ export const trickService = {
         user_id: trick.user_id,
         title: trick.title || "",
         categories: [],
-        tags: tagsData?.map(t => t.tag_id) || [],
+        tags: tagsData?.map((t) => t.tag_id) || [],
         selectedCategoryId: categoryData?.category_id || null,
         effect: trick.effect || "",
         effect_video_url: trick.effect_video_url,
@@ -69,8 +69,8 @@ export const trickService = {
         script: scriptData?.content || "",
         scriptId: scriptData?.id,
         photo_url: trick.photo_url,
-        techniqueIds: techniquesData?.map(t => t.technique_id) || [],
-        gimmickIds: gimmicksData?.map(g => g.gimmick_id) || [],
+        techniqueIds: techniquesData?.map((t) => t.technique_id) || [],
+        gimmickIds: gimmicksData?.map((g) => g.gimmick_id) || [],
         is_public: trick.is_public,
         status: trick.status,
         price: trick.price,
@@ -106,8 +106,59 @@ export const trickService = {
     }
   },
 
+  // Eliminar truco completo
+  async deleteTrick(trickId: string): Promise<boolean> {
+    try {
+      // Eliminar en orden por las foreign keys
+
+      // 1. Eliminar favoritos
+      await supabase
+        .from("user_favorites")
+        .delete()
+        .eq("content_id", trickId)
+        .eq("content_type", "magic");
+
+      // 2. Eliminar tags
+      await supabase.from("trick_tags").delete().eq("trick_id", trickId);
+
+      // 3. Eliminar categorías
+      await supabase.from("trick_categories").delete().eq("trick_id", trickId);
+
+      // 4. Eliminar técnicas
+      await supabase.from("trick_techniques").delete().eq("trick_id", trickId);
+
+      // 5. Eliminar gimmicks
+      await supabase.from("trick_gimmicks").delete().eq("trick_id", trickId);
+
+      // 6. Eliminar scripts
+      await supabase.from("scripts").delete().eq("trick_id", trickId);
+
+      // 7. Eliminar contenido compartido
+      await supabase
+        .from("shared_content")
+        .delete()
+        .eq("content_id", trickId)
+        .eq("content_type", "magic_trick");
+
+      // 8. Finalmente eliminar el truco
+      const { error } = await supabase
+        .from("magic_tricks")
+        .delete()
+        .eq("id", trickId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error("Error deleting trick:", error);
+      return false;
+    }
+  },
+
   // Actualizar truco completo
-  async updateTrick(trickId: string, trickData: Partial<MagicTrick>): Promise<boolean> {
+  async updateTrick(
+    trickId: string,
+    trickData: Partial<MagicTrick>
+  ): Promise<boolean> {
     try {
       // Actualizar datos principales
       const { error: updateError } = await supabase
@@ -151,10 +202,7 @@ export const trickService = {
 
       // Actualizar tags
       if (trickData.tags) {
-        await supabase
-          .from("trick_tags")
-          .delete()
-          .eq("trick_id", trickId);
+        await supabase.from("trick_tags").delete().eq("trick_id", trickId);
 
         if (trickData.tags.length > 0) {
           const tagInserts = trickData.tags.map((tagId) => ({
@@ -173,20 +221,19 @@ export const trickService = {
           .eq("trick_id", trickId);
 
         if (trickData.techniqueIds.length > 0) {
-          const techniqueInserts = trickData.techniqueIds.map((techniqueId) => ({
-            trick_id: trickId,
-            technique_id: techniqueId,
-          }));
+          const techniqueInserts = trickData.techniqueIds.map(
+            (techniqueId) => ({
+              trick_id: trickId,
+              technique_id: techniqueId,
+            })
+          );
           await supabase.from("trick_techniques").insert(techniqueInserts);
         }
       }
 
       // Actualizar gimmicks
       if (trickData.gimmickIds) {
-        await supabase
-          .from("trick_gimmicks")
-          .delete()
-          .eq("trick_id", trickId);
+        await supabase.from("trick_gimmicks").delete().eq("trick_id", trickId);
 
         if (trickData.gimmickIds.length > 0) {
           const gimmickInserts = trickData.gimmickIds.map((gimmickId) => ({

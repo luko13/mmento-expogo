@@ -41,8 +41,6 @@ export class AuthService {
    */
   async signUp(email: string, password: string, username?: string) {
     try {
-      console.log("📧 Iniciando registro...");
-
       // Validar parámetros de entrada
       if (!email || !password) {
         throw new Error("Email y contraseña son requeridos");
@@ -55,9 +53,6 @@ export class AuthService {
       if (!email.includes("@") || !email.includes(".")) {
         throw new Error("El email no es válido");
       }
-
-      console.log("📧 Creando cuenta en Supabase...");
-
       // Crear cuenta en Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -77,9 +72,6 @@ export class AuthService {
       if (!authData.user) {
         throw new Error("No se recibieron datos del usuario");
       }
-
-      console.log("✅ Usuario creado:", authData.user.id);
-
       return {
         user: authData.user,
         session: authData.session,
@@ -113,15 +105,10 @@ export class AuthService {
    */
   async signIn(email: string, password: string): Promise<SignInResult> {
     try {
-      console.log("🔑 Iniciando login...");
-
       // Validar parámetros
       if (!email || !password) {
         throw new Error("Email y contraseña son requeridos");
       }
-
-      console.log("🔑 Autenticando en Supabase...");
-
       // Autenticar con Supabase
       const { data: authData, error: authError } =
         await supabase.auth.signInWithPassword({
@@ -137,9 +124,6 @@ export class AuthService {
       if (!authData.user || !authData.session) {
         throw new Error("Credenciales inválidas");
       }
-
-      console.log("✅ Usuario autenticado:", authData.user.id);
-
       return {
         user: authData.user,
         session: authData.session,
@@ -155,11 +139,8 @@ export class AuthService {
    */
   async signOut() {
     try {
-      console.log("🚪 Cerrando sesión...");
-
       // Cerrar sesión en Supabase
       await supabase.auth.signOut();
-      console.log("✅ Sesión cerrada");
     } catch (error) {
       console.error("❌ Error en logout:", error);
       throw error;
@@ -272,8 +253,6 @@ export class AuthService {
       if (error) {
         throw this.translateAuthError(error);
       }
-
-      console.log("✅ Contraseña actualizada");
       return true;
     } catch (error) {
       console.error("Error actualizando contraseña:", error);
@@ -296,8 +275,6 @@ export class AuthService {
       if (error) {
         throw this.translateAuthError(error);
       }
-
-      console.log("✅ Email de restablecimiento enviado");
       return true;
     } catch (error) {
       console.error("Error enviando email de reset:", error);
@@ -337,8 +314,6 @@ export class AuthService {
         console.error("Error refrescando sesión:", error);
         return false;
       }
-
-      console.log("✅ Sesión refrescada");
       return true;
     } catch (error) {
       console.error("Error refrescando sesión:", error);

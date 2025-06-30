@@ -257,18 +257,6 @@ export class PaginatedContentService {
       const techniques = techniquesResult.data || [];
       const gimmicks = gimmicksResult.data || [];
 
-      // Debug log
-      console.log("📦 PaginatedContentService - Raw data:", {
-        page,
-        isFirstPage,
-        tricksTotal: tricks.length,
-        techniquesTotal: techniques.length,
-        gimmicksTotal: gimmicks.length,
-        firstTrick: tricks[0],
-        firstTechnique: techniques[0],
-        tricksWithTitle: tricks.filter((t: any) => t.title).length,
-      });
-
       // Check if there's more content
       // Si es la primera página y cargamos todo, no hay más
       const totalItems = tricks.length + techniques.length + gimmicks.length;

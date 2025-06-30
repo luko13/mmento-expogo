@@ -21,6 +21,7 @@ interface TrickViewerBottomSectionProps {
   difficulty?: number;
   userId?: string;
   onRemoveTag?: (tagId: string) => void;
+  stageExpanded?: boolean;
   onStageExpandedChange?: (expanded: boolean) => void;
 }
 
@@ -35,6 +36,7 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
   difficulty,
   userId,
   onRemoveTag,
+  stageExpanded,
   onStageExpandedChange,
 }) => {
   const [statsVisible, setStatsVisible] = useState(false);
@@ -58,6 +60,7 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
         stage={stage}
         category={category}
         description={description}
+        expanded={stageExpanded}
         onExpandedChange={onStageExpandedChange}
       />
 
