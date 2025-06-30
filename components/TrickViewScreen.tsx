@@ -22,6 +22,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
 import TopNavigationBar from "./trick-viewer/TopNavigationBar";
 import TrickViewerBottomSection from "./trick-viewer/TrickViewerBottomSection";
 import type { StageType } from "./trick-viewer/StageInfoSection";
@@ -74,6 +75,14 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const [overlayOpacity] = useState(new Animated.Value(0));
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
+  // Nuevo estado para el blur
+  const [isStageExpanded, setIsStageExpanded] = useState(false);
+  const blurOpacity = useRef(new Animated.Value(0)).current;
+
+  // Estados para guardar el estado anterior del video
+  const [wasEffectPlaying, setWasEffectPlaying] = useState(true);
+  const [wasSecretPlaying, setWasSecretPlaying] = useState(true);
+
   // Hook de favoritos
   const { isFavorite, toggleFavorite } = useFavorites(trick.id, "magic");
 
@@ -109,14 +118,14 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   // Referencias para los videos
   const effectPlayer = useVideoPlayer(effectVideoUrl || "", (player) => {
     player.loop = true;
-    if (currentSection === "effect" && isEffectPlaying) {
+    if (currentSection === "effect" && isEffectPlaying && !isStageExpanded) {
       player.play();
     }
   });
 
   const secretPlayer = useVideoPlayer(secretVideoUrl || "", (player) => {
     player.loop = true;
-    if (currentSection === "secret" && isSecretPlaying) {
+    if (currentSection === "secret" && isSecretPlaying && !isStageExpanded) {
       player.play();
     }
   });
@@ -231,25 +240,80 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     loadPhotos();
   }, [trick.id, photos]);
 
+  // Manejar el cambio de estado de expansión
+  const handleStageExpandedChange = useCallback(
+    (expanded: boolean) => {
+      setIsStageExpanded(expanded);
+
+      // Animar el blur
+      Animated.timing(blurOpacity, {
+        toValue: expanded ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+
+      if (expanded) {
+        // Guardar estado actual y pausar
+        if (currentSection === "effect") {
+          setWasEffectPlaying(isEffectPlaying);
+          if (effectPlayer && isEffectPlaying) {
+            effectPlayer.pause();
+            setIsEffectPlaying(false);
+          }
+        } else if (currentSection === "secret") {
+          setWasSecretPlaying(isSecretPlaying);
+          if (secretPlayer && isSecretPlaying) {
+            secretPlayer.pause();
+            setIsSecretPlaying(false);
+          }
+        }
+      } else {
+        // Restaurar estado anterior
+        if (currentSection === "effect" && wasEffectPlaying) {
+          if (effectPlayer) {
+            effectPlayer.play();
+            setIsEffectPlaying(true);
+          }
+        } else if (currentSection === "secret" && wasSecretPlaying) {
+          if (secretPlayer) {
+            secretPlayer.play();
+            setIsSecretPlaying(true);
+          }
+        }
+      }
+    },
+    [
+      currentSection,
+      isEffectPlaying,
+      isSecretPlaying,
+      effectPlayer,
+      secretPlayer,
+      wasEffectPlaying,
+      wasSecretPlaying,
+    ]
+  );
+
   // Pausar/reproducir videos según la sección actual
   useEffect(() => {
-    if (currentSection === "effect") {
-      if (effectPlayer && isEffectPlaying) {
-        effectPlayer.play();
+    if (!isStageExpanded) {
+      if (currentSection === "effect") {
+        if (effectPlayer && isEffectPlaying) {
+          effectPlayer.play();
+        }
+        if (secretPlayer) {
+          secretPlayer.pause();
+        }
+      } else if (currentSection === "secret") {
+        if (secretPlayer && isSecretPlaying) {
+          secretPlayer.play();
+        }
+        if (effectPlayer) {
+          effectPlayer.pause();
+        }
+      } else {
+        if (effectPlayer) effectPlayer.pause();
+        if (secretPlayer) secretPlayer.pause();
       }
-      if (secretPlayer) {
-        secretPlayer.pause();
-      }
-    } else if (currentSection === "secret") {
-      if (secretPlayer && isSecretPlaying) {
-        secretPlayer.play();
-      }
-      if (effectPlayer) {
-        effectPlayer.pause();
-      }
-    } else {
-      if (effectPlayer) effectPlayer.pause();
-      if (secretPlayer) secretPlayer.pause();
     }
   }, [
     currentSection,
@@ -257,6 +321,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     isSecretPlaying,
     effectPlayer,
     secretPlayer,
+    isStageExpanded,
   ]);
 
   // Función para manejar el cambio de sección al deslizar
@@ -289,10 +354,12 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
   // Alternar reproducción de video
   const togglePlayPause = (type: "effect" | "secret") => {
-    if (type === "effect") {
-      setIsEffectPlaying(!isEffectPlaying);
-    } else {
-      setIsSecretPlaying(!isSecretPlaying);
+    if (!isStageExpanded) {
+      if (type === "effect") {
+        setIsEffectPlaying(!isEffectPlaying);
+      } else {
+        setIsSecretPlaying(!isSecretPlaying);
+      }
     }
   };
 
@@ -506,14 +573,14 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           }}
           activeOpacity={1}
           onPress={() => {
-            if (player) {
+            if (!isStageExpanded && player) {
               if (isPlaying) {
                 player.pause();
               } else {
                 player.play();
               }
+              togglePlayPause(type);
             }
-            togglePlayPause(type);
           }}
         >
           {!isPlaying && (
@@ -730,6 +797,25 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         </StyledView>
       </StyledScrollView>
 
+      {/* Blur overlay */}
+      <Animated.View
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          opacity: blurOpacity,
+          pointerEvents: isStageExpanded ? "auto" : "none",
+        }}
+      >
+        <BlurView
+          intensity={40}
+          tint="dark"
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.3)" }}
+        />
+      </Animated.View>
+
       {/* Barra de navegación superior */}
       <StyledView
         style={{
@@ -774,6 +860,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           onRemoveTag={
             currentUserId === trick.user_id ? handleRemoveTag : undefined
           }
+          onStageExpandedChange={handleStageExpandedChange}
         />
       </StyledView>
     </StyledView>

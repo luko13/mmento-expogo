@@ -35,18 +35,22 @@ interface StageInfoSectionProps {
   stage: StageType;
   category: string;
   description?: string;
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
 const StageInfoSection: React.FC<StageInfoSectionProps> = ({
   stage,
   category,
   description,
+  onExpandedChange,
 }) => {
   const [expanded, setExpanded] = useState(false);
 
   const toggleExpand = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpanded(!expanded);
+    const newExpanded = !expanded;
+    setExpanded(newExpanded);
+    onExpandedChange?.(newExpanded);
   };
 
   const getStageIcon = () => {

@@ -21,6 +21,7 @@ interface TrickViewerBottomSectionProps {
   difficulty?: number;
   userId?: string;
   onRemoveTag?: (tagId: string) => void;
+  onStageExpandedChange?: (expanded: boolean) => void;
 }
 
 const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
@@ -34,6 +35,7 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
   difficulty,
   userId,
   onRemoveTag,
+  onStageExpandedChange,
 }) => {
   const [statsVisible, setStatsVisible] = useState(false);
 
@@ -56,6 +58,7 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
         stage={stage}
         category={category}
         description={description}
+        onExpandedChange={onStageExpandedChange}
       />
 
       {/* Panel de estadísticas posicionado encima de las tags */}
