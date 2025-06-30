@@ -72,7 +72,14 @@ export default function EffectStep({
       onNext();
     }
   };
-
+  // Obtener fecha actual formateada
+  const getCurrentDate = () => {
+    const now = new Date();
+    const day = now.getDate().toString().padStart(2, "0");
+    const month = (now.getMonth() + 1).toString().padStart(2, "0");
+    const year = now.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>
       <StyledView className="flex-1">
@@ -130,7 +137,7 @@ export default function EffectStep({
               includeFontPadding: false,
             }}
           >
-            {t("content", "Contenido")}
+            {getCurrentDate()}
           </StyledText>
         </StyledView>
 

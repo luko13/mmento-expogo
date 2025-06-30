@@ -636,7 +636,14 @@ export default function ExtrasStep({
       return `${minutes} min ${seconds} s`;
     }
   };
-
+  // Obtener fecha actual formateada
+  const getCurrentDate = () => {
+    const now = new Date();
+    const day = now.getDate().toString().padStart(2, "0");
+    const month = (now.getMonth() + 1).toString().padStart(2, "0");
+    const year = now.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
   // Formatear tiempo de reinicio para mostrar
   const formatReset = (resetInSeconds: number | null) => {
     if (!resetInSeconds)
@@ -709,7 +716,7 @@ export default function ExtrasStep({
               includeFontPadding: false,
             }}
           >
-            {t("statistics", "Estadísticas")}
+            {getCurrentDate()}
           </StyledText>
         </StyledView>
 
@@ -730,7 +737,7 @@ export default function ExtrasStep({
             {/* Sección de Estadísticas */}
             <StyledView className="mt-3">
               <StyledText
-                className="text-white/60 text-lg font-semibold mb-4"
+                className="text-white text-lg mb-2"
                 style={{
                   fontFamily: fontNames.light,
                   fontSize: 20,

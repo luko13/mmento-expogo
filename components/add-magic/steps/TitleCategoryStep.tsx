@@ -224,7 +224,7 @@ export default function TitleCategoryStep({
           >
             {/* Título de sección */}
             <StyledText
-              className="text-white text-lg"
+              className="text-white text-lg mb-2"
               style={{
                 fontFamily: fontNames.light,
                 fontSize: 20,
