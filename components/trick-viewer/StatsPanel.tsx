@@ -44,20 +44,21 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
   const [isPressed, setIsPressed] = useState(false);
 
   useEffect(() => {
-    Animated.timing(slideAnim, {
+    Animated.spring(slideAnim, {
       toValue: visible ? 1 : 0,
-      duration: 200,
+      tension: 65,
+      friction: 11,
       useNativeDriver: true,
     }).start();
   }, [visible]);
 
   // Función para convertir dificultad numérica a color
   const getDifficultyColor = (level = 0) => {
-    if (level <= 2) return "#4ade80"; // green-400
-    if (level <= 4) return "#22d3ee"; // cyan-400
-    if (level <= 6) return "#facc15"; // yellow-400
-    if (level <= 8) return "#fb923c"; // orange-400
-    return "#ef4444"; // red-400
+    if (level <= 2) return "#ffffff78"; // green-400
+    if (level <= 4) return "#ffffff78"; // cyan-400
+    if (level <= 6) return "#ffffff78"; // yellow-400
+    if (level <= 8) return "#ffffff78"; // orange-400
+    return "#ffffff78"; // red-400
   };
 
   return (
@@ -70,8 +71,8 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
         style={styles.toggleButton}
       >
         <BlurView
-          intensity={visible ? 50 : isPressed ? 40 : 25}
-          tint="default"
+          intensity={visible ? 80 : isPressed ? 40 : 25}
+          tint="dark"
           style={styles.blurToggle}
         >
           <LinearGradient
@@ -102,20 +103,41 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
           {
             transform: [
               {
-                translateX: slideAnim.interpolate({
+                translateY: slideAnim.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [150, 0],
+                  outputRange: [20, 0],
+                }),
+              },
+              {
+                scale: slideAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.8, 1],
                 }),
               },
             ],
             opacity: slideAnim,
           },
         ]}
+        pointerEvents={visible ? "auto" : "none"}
       >
         <StyledView style={styles.statsColumn}>
           {/* Ángulo */}
-          <StyledView style={styles.statItemContainer}>
-            <BlurView intensity={30} tint="default" style={styles.statItemBlur}>
+          <Animated.View
+            style={[
+              styles.statItemContainer,
+              {
+                transform: [
+                  {
+                    translateY: slideAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [40, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <BlurView intensity={50} tint="dark" style={styles.statItemBlur}>
               <LinearGradient
                 colors={["#ffffff15", "#ffffff08"]}
                 start={{ x: 0, y: 0 }}
@@ -143,11 +165,25 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
                 </StyledView>
               </LinearGradient>
             </BlurView>
-          </StyledView>
+          </Animated.View>
 
           {/* Tiempo de reset */}
-          <StyledView style={styles.statItemContainer}>
-            <BlurView intensity={30} tint="default" style={styles.statItemBlur}>
+          <Animated.View
+            style={[
+              styles.statItemContainer,
+              {
+                transform: [
+                  {
+                    translateY: slideAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <BlurView intensity={50} tint="dark" style={styles.statItemBlur}>
               <LinearGradient
                 colors={["#ffffff15", "#ffffff08"]}
                 start={{ x: 0, y: 0 }}
@@ -166,18 +202,32 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
                             (resetTime || 0) % 60
                           ).padStart(2, "0")}`}
                     </StyledText>
-                    <StyledText style={[styles.statUnit, { fontSize: 8 }]}>
+                    <StyledText style={[styles.statUnit, { fontSize: 14 }]}>
                       Min
                     </StyledText>
                   </StyledView>
                 </StyledView>
               </LinearGradient>
             </BlurView>
-          </StyledView>
+          </Animated.View>
 
           {/* Duración */}
-          <StyledView style={styles.statItemContainer}>
-            <BlurView intensity={30} tint="default" style={styles.statItemBlur}>
+          <Animated.View
+            style={[
+              styles.statItemContainer,
+              {
+                transform: [
+                  {
+                    translateY: slideAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <BlurView intensity={50} tint="dark" style={styles.statItemBlur}>
               <LinearGradient
                 colors={["#ffffff15", "#ffffff08"]}
                 start={{ x: 0, y: 0 }}
@@ -196,23 +246,33 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
                             (duration || 0) % 60
                           ).padStart(2, "0")}`}
                     </StyledText>
-                    <StyledText style={[styles.statUnit, { fontSize: 8 }]}>
+                    <StyledText style={[styles.statUnit, { fontSize: 14 }]}>
                       Min
                     </StyledText>
                   </StyledView>
                 </StyledView>
               </LinearGradient>
             </BlurView>
-          </StyledView>
+          </Animated.View>
 
           {/* Dificultad */}
           {difficulty && (
-            <StyledView style={styles.statItemContainer}>
-              <BlurView
-                intensity={30}
-                tint="default"
-                style={styles.statItemBlur}
-              >
+            <Animated.View
+              style={[
+                styles.statItemContainer,
+                {
+                  transform: [
+                    {
+                      translateY: slideAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-10, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <BlurView intensity={50} tint="dark" style={styles.statItemBlur}>
                 <LinearGradient
                   colors={["#ffffff15", "#ffffff08"]}
                   start={{ x: 0, y: 0 }}
@@ -246,7 +306,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
                   </StyledView>
                 </LinearGradient>
               </BlurView>
-            </StyledView>
+            </Animated.View>
           )}
         </StyledView>
       </Animated.View>
@@ -268,6 +328,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     width: 60,
     height: 60,
+    zIndex: 2,
   },
   blurToggle: {
     borderRadius: 14,
@@ -325,7 +386,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(100, 100, 100, 0.3)",
+    backgroundColor: "rgba(161, 161, 161, 0.596)",
   },
   statValue: {
     color: "#ffffff",

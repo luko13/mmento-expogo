@@ -144,7 +144,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       } = await supabase.auth.getUser();
       if (user) {
         setCurrentUserId(user.id);
-        console.log("👤 Current user:", user.id);
       }
     };
     getCurrentUser();
@@ -154,7 +153,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   useEffect(() => {
     const loadTrickTags = async () => {
       try {
-        console.log("🏷️ Loading tags for trick:", trick.id);
         const { data, error } = await supabase
           .from("trick_tags")
           .select("tag_id")
@@ -163,8 +161,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         if (data && !error) {
           const tagIds = data.map((item) => item.tag_id);
           setLocalTagIds(tagIds);
-          console.log("✅ Tags loaded:", tagIds);
-          console.log("📌 Trick user_id:", trick.user_id);
         } else if (error) {
           console.error("❌ Error loading tags:", error);
         }
@@ -182,21 +178,12 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   useEffect(() => {
     const loadVideos = async () => {
       try {
-        console.log("\n🎬 INICIANDO CARGA DE VIDEOS");
-        console.log("- Trick ID:", trick.id);
-        console.log("- Effect Video URL:", trick.effect_video_url);
-        console.log("- Secret Video URL:", trick.secret_video_url);
-
         setIsLoadingVideos(true);
         setVideoLoadError(null);
 
         // Usar URLs directamente
         const effectUrl = getPublicUrl(trick.effect_video_url);
         const secretUrl = getPublicUrl(trick.secret_video_url);
-
-        console.log("\n📊 URLS FINALES:");
-        console.log("- Effect Video:", effectUrl);
-        console.log("- Secret Video:", secretUrl);
 
         setEffectVideoUrl(effectUrl);
         setSecretVideoUrl(secretUrl);
@@ -217,10 +204,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   useEffect(() => {
     const loadPhotos = async () => {
       try {
-        console.log("📸 Iniciando carga de fotos...");
-        console.log("📸 trick.photos:", trick.photos);
-        console.log("📸 trick.photo_url:", trick.photo_url);
-
         setIsLoadingPhotos(true);
         setPhotoLoadError(null);
 
@@ -360,8 +343,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         setLocalTagIds(localTagIds);
         return;
       }
-
-      console.log("Tag removed successfully");
     } catch (error) {
       console.error("Error removing tag:", error);
       // Revertir cambio local si falla
@@ -665,9 +646,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
                     e.nativeEvent.error
                   );
                 }}
-                onLoad={() => {
-                  console.log("✅ Imagen cargada correctamente");
-                }}
+                onLoad={() => {}}
               />
             );
           }}
@@ -724,7 +703,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         contentInsetAdjustmentBehavior="never"
       >
         {/* Sección de Efecto */}
-        <View style={{ width, height, backgroundColor: '#15322C' }}>
+        <View style={{ width, height, backgroundColor: "#15322C" }}>
           {renderVideo(
             effectVideoUrl,
             isEffectPlaying,
@@ -734,7 +713,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         </View>
 
         {/* Sección de Secreto */}
-        <View style={{ width, height, backgroundColor: '#15322C' }}>
+        <View style={{ width, height, backgroundColor: "#15322C" }}>
           {renderVideo(
             secretVideoUrl,
             isSecretPlaying,
