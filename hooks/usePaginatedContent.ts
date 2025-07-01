@@ -228,6 +228,53 @@ export function usePaginatedContent(
   }, [searchQuery, searchFilters, debouncedSearch]);
 
   // --------------------------------------------------------------------------
+  // 3) Suscripción a cambios en tiempo real (opcional pero recomendado)
+  // --------------------------------------------------------------------------
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const subscription = supabase
+      .channel(`user_tricks_${currentUserId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Escuchar INSERT, UPDATE, DELETE
+          schema: "public",
+          table: "magic_tricks",
+          filter: `user_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          console.log("📡 Cambio detectado en magic_tricks:", payload);
+
+          // Limpiar caché y refrescar
+          paginatedContentService.clearUserCache(currentUserId);
+          refresh();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "trick_categories",
+        },
+        (payload) => {
+          console.log("📡 Cambio detectado en trick_categories:", payload);
+
+          // Verificar si el cambio afecta al usuario actual
+          // Necesitaríamos hacer una consulta adicional para verificar el user_id del trick
+          paginatedContentService.clearUserCache(currentUserId);
+          refresh();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [currentUserId]);
+
+  // --------------------------------------------------------------------------
   // Función principal para cargar contenido paginado
   // --------------------------------------------------------------------------
   const loadContent = useCallback(
@@ -235,6 +282,7 @@ export function usePaginatedContent(
       try {
         if (pageToLoad === 0) {
           setLoading(true);
+          setError(null);
         } else {
           setLoadingMore(true);
         }
@@ -328,16 +376,26 @@ export function usePaginatedContent(
   // Forzar refresco completo (limpia caché y recarga desde página 0)
   // --------------------------------------------------------------------------
   const refresh = useCallback(async () => {
+    console.log("🔄 Iniciando refresh completo");
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (user) {
+      // Limpiar TODO el caché del usuario
       paginatedContentService.clearUserCache(user.id);
     }
 
+    // Resetear todos los estados
     setSections([]);
+    setAllCategories([]);
     setPage(0);
-    loadContent(0, searchQuery, searchFilters);
+    setHasMore(true);
+    setError(null);
+    setLoading(true);
+
+    // Forzar recarga desde página 0
+    await loadContent(0, searchQuery, searchFilters);
   }, [loadContent, searchQuery, searchFilters]);
 
   // --------------------------------------------------------------------------

@@ -29,7 +29,7 @@ interface StatsPanelProps {
   angle?: number;
   resetTime?: number;
   duration?: number;
-  difficulty?: number;
+  difficulty?: number | null;
 }
 
 const StatsPanel: React.FC<StatsPanelProps> = ({
@@ -256,58 +256,64 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
           </Animated.View>
 
           {/* Dificultad */}
-          {difficulty && (
-            <Animated.View
-              style={[
-                styles.statItemContainer,
-                {
-                  transform: [
-                    {
-                      translateY: slideAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [-10, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <BlurView intensity={50} tint="dark" style={styles.statItemBlur}>
-                <LinearGradient
-                  colors={["#ffffff15", "#ffffff08"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.statItemGradient}
-                >
-                  <StyledText style={styles.statLabel}>Difficulty</StyledText>
-                  <StyledView
-                    style={[styles.innerStatContainer, { width: 50 }]}
-                  >
-                    <StyledView style={styles.innerStatGradient}>
-                      {/* Barra de progreso */}
-                      <StyledView style={styles.progressBarContainer}>
-                        <StyledView
-                          style={[
-                            styles.progressBarFill,
-                            {
-                              height: `${(difficulty / 10) * 100}%`,
-                              backgroundColor: getDifficultyColor(difficulty),
-                            },
-                          ]}
-                        />
-                      </StyledView>
-                      {/* Número centrado */}
+          <Animated.View
+            style={[
+              styles.statItemContainer,
+              {
+                transform: [
+                  {
+                    translateY: slideAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-10, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <BlurView intensity={50} tint="dark" style={styles.statItemBlur}>
+              <LinearGradient
+                colors={["#ffffff15", "#ffffff08"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.statItemGradient}
+              >
+                <StyledText style={styles.statLabel}>Difficulty</StyledText>
+                <StyledView style={[styles.innerStatContainer, { width: 50 }]}>
+                  <StyledView style={styles.innerStatGradient}>
+                    {difficulty !== null && difficulty !== undefined ? (
+                      <>
+                        {/* Barra de progreso */}
+                        <StyledView style={styles.progressBarContainer}>
+                          <StyledView
+                            style={[
+                              styles.progressBarFill,
+                              {
+                                height: `${(difficulty / 10) * 100}%`,
+                                backgroundColor: getDifficultyColor(difficulty),
+                              },
+                            ]}
+                          />
+                        </StyledView>
+                        {/* Número centrado */}
+                        <StyledText
+                          style={[styles.difficultyValue, { fontSize: 18 }]}
+                        >
+                          {difficulty}
+                        </StyledText>
+                      </>
+                    ) : (
                       <StyledText
-                        style={[styles.difficultyValue, { fontSize: 18 }]}
+                        style={[styles.difficultyValue, { fontSize: 24 }]}
                       >
-                        {difficulty}
+                        –
                       </StyledText>
-                    </StyledView>
+                    )}
                   </StyledView>
-                </LinearGradient>
-              </BlurView>
-            </Animated.View>
-          )}
+                </StyledView>
+              </LinearGradient>
+            </BlurView>
+          </Animated.View>
         </StyledView>
       </Animated.View>
     </StyledView>

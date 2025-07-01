@@ -38,8 +38,6 @@ export default function RootLayout() {
   useEffect(() => {
     async function loadFonts() {
       try {
-        console.log("🚀 Cargando fuentes en _layout.tsx...");
-
         await Font.loadAsync({
           "Outfit-Thin": require("../assets/fonts/Outfit-Thin.ttf"),
           "Outfit-ExtraLight": require("../assets/fonts/Outfit-ExtraLight.ttf"),
@@ -51,8 +49,6 @@ export default function RootLayout() {
           "Outfit-ExtraBold": require("../assets/fonts/Outfit-ExtraBold.ttf"),
           "Outfit-Black": require("../assets/fonts/Outfit-Black.ttf"),
         });
-
-        console.log("✅ Fuentes cargadas en _layout.tsx");
         setFontsLoaded(true);
       } catch (error) {
         console.error("❌ Error cargando fuentes en _layout.tsx:", error);

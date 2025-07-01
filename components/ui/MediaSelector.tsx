@@ -44,6 +44,7 @@ interface MediaSelectorProps {
   tooltip?: string;
   placeholder?: string;
   disableEncryption?: boolean; // Mantenemos por compatibilidad pero no se usa
+  initialFiles?: MediaFile[]; // Nuevo prop para inicializar con archivos existentes
 }
 
 export interface MediaSelectorRef {
@@ -62,10 +63,20 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
       onFilesSelected,
       tooltip,
       placeholder,
+      initialFiles = [],
     } = props;
 
     const { t } = useTranslation();
-    const [selectedFiles, setSelectedFiles] = useState<MediaFile[]>([]);
+    const [selectedFiles, setSelectedFiles] =
+      useState<MediaFile[]>(initialFiles);
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    // Actualizar selectedFiles cuando cambien los initialFiles
+    useEffect(() => {
+      if (initialFiles.length > 0 && selectedFiles.length === 0) {
+        setSelectedFiles(initialFiles);
+      }
+    }, [initialFiles]);
 
     // Exposición de métodos al padre
     useImperativeHandle(ref, () => ({
@@ -78,10 +89,14 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
 
     const selectMedia = async () => {
       try {
+        // Activar estado de procesamiento inmediatamente
+        setIsProcessing(true);
+
         // Verificar permisos
         const { status } =
           await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== "granted") {
+          setIsProcessing(false);
           Alert.alert(
             t("permissionRequired", "Permiso Requerido"),
             t("mediaLibraryPermission", "Necesitamos acceso a tu galería."),
@@ -105,6 +120,7 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
 
           // Verificar límites
           if (selectedFiles.length + result.assets.length > maxFiles) {
+            setIsProcessing(false);
             Alert.alert(
               t("limitExceeded", "Límite excedido"),
               t("maxFilesMessage", `Máximo ${maxFiles} archivos permitidos`),
@@ -163,6 +179,9 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
           t("mediaPickError", "Error al seleccionar archivos"),
           [{ text: t("ok", "OK") }]
         );
+      } finally {
+        // Siempre desactivar el estado de procesamiento
+        setIsProcessing(false);
       }
     };
 
@@ -173,6 +192,16 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
     };
 
     const getButtonText = () => {
+      // Si está procesando, mostrar mensaje de procesamiento
+      if (isProcessing) {
+        if (type === "video") {
+          return t("selectingVideo", "Seleccionando video...");
+        } else {
+          return t("selectingPhotos", "Seleccionando fotos...");
+        }
+      }
+
+      // Si hay archivos seleccionados
       if (selectedFiles.length > 0) {
         if (type === "video") {
           // Para videos, mostrar el nombre del archivo
@@ -186,6 +215,7 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
         }
       }
 
+      // Placeholder por defecto
       return (
         placeholder ||
         (type === "photo"
@@ -229,7 +259,7 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
                   ? () => removeFile(0)
                   : selectMedia
               }
-              className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[15px] border border-[#eafffb]/40 flex-row items-center justify-between"
+              className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 h-[48px] border border-[#eafffb]/40 flex-row items-center justify-between"
             >
               <StyledView className="flex-1 flex-row items-center">
                 <StyledText

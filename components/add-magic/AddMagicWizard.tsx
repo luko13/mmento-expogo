@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import { supabase } from "../../lib/supabase";
 import { compressionService } from "../../utils/compressionService";
 import { uploadFileToStorage } from "../../services/fileUploadService";
+import { paginatedContentService } from "../../utils/paginatedContentService";
 import type { MagicTrick, MagicTrickDBRecord } from "../../types/magicTrick";
 import TitleCategoryStep from "./steps/TitleCategoryStep";
 import EffectStep from "./steps/EffectStep";
@@ -40,7 +41,7 @@ export default function AddMagicWizard({
     angles: [],
     duration: null,
     reset: null,
-    difficulty: 5,
+    difficulty: null, // Cambiado de 5 a null
     secret: "",
     secret_video_url: null,
     special_materials: [],
@@ -386,6 +387,10 @@ export default function AddMagicWizard({
         // Aquí podrías guardar las fotos adicionales si tienes una tabla para ello
         // Por ahora solo usamos la primera foto como principal
       }
+
+      // Limpiar caché del servicio paginado ANTES de notificar
+      console.log("🧹 Limpiando caché del usuario");
+      paginatedContentService.clearUserCache(profileId);
 
       // Éxito - Notificar al componente padre
       if (onComplete) {

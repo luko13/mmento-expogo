@@ -72,6 +72,7 @@ export default function EffectStep({
       onNext();
     }
   };
+
   // Obtener fecha actual formateada
   const getCurrentDate = () => {
     const now = new Date();
@@ -80,6 +81,45 @@ export default function EffectStep({
     const year = now.getFullYear();
     return `${day}/${month}/${year}`;
   };
+
+  // Preparar archivos iniciales para los MediaSelectors
+  const getInitialEffectVideo = () => {
+    if (trickData.localFiles?.effectVideo) {
+      return [
+        {
+          uri: trickData.localFiles.effectVideo,
+          fileName: `effect_video_${Date.now()}.mp4`,
+        },
+      ];
+    }
+    return [];
+  };
+
+  const getInitialSecretVideo = () => {
+    if (trickData.localFiles?.secretVideo) {
+      return [
+        {
+          uri: trickData.localFiles.secretVideo,
+          fileName: `secret_video_${Date.now()}.mp4`,
+        },
+      ];
+    }
+    return [];
+  };
+
+  const getInitialPhotos = () => {
+    if (
+      trickData.localFiles?.photos &&
+      trickData.localFiles.photos.length > 0
+    ) {
+      return trickData.localFiles.photos.map((uri, index) => ({
+        uri,
+        fileName: `photo_${index}.jpg`,
+      }));
+    }
+    return [];
+  };
+
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>
       <StyledView className="flex-1">
@@ -169,6 +209,7 @@ export default function EffectStep({
               quality={0.5}
               tooltip={t("tooltips.effectVideo")}
               placeholder={t("uploadEffectVideo", "Subir video del efecto*")}
+              initialFiles={getInitialEffectVideo()}
               onFilesSelected={(files) => {
                 updateTrickData({
                   localFiles: {
@@ -244,6 +285,7 @@ export default function EffectStep({
               quality={0.5}
               tooltip={t("tooltips.secretVideo")}
               placeholder={t("secretVideoUpload", "Subir video del secreto")}
+              initialFiles={getInitialSecretVideo()}
               onFilesSelected={(files) => {
                 updateTrickData({
                   localFiles: {
@@ -315,6 +357,7 @@ export default function EffectStep({
               quality={0.4}
               tooltip={t("tooltips.imageUpload")}
               placeholder={t("imagesUpload", "Subir Imágenes")}
+              initialFiles={getInitialPhotos()}
               onFilesSelected={(files) => {
                 updateTrickData({
                   localFiles: {

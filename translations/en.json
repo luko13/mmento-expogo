@@ -269,7 +269,8 @@
     "techniques": "Add techniques related to your magic trick",
     "gimmicks": "Add gimmicks related to your magic trick",
     "scripts": "Add scripts related to your magic trick",
-    "script": "Add script related to your magic trick"
+    "script": "Add script related to your magic trick",
+    "notes": "Write down important details, observations, or reminders about this trick"
   },
   "noItems": "No items in this category",
   "decryptingVideo": "Decrypting video...",

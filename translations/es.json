@@ -308,6 +308,7 @@
     "gimmicks": "Añade gimmicks relacionados con tu truco",
     "scripts": "Añade guiones relacionados con tu truco",
     "script": "Añade guión relacionado con tu truco",
-    "imageSizeWarning": "Una o más imágenes son demasiado grandes. El límite es 10MB por imagen."
+    "imageSizeWarning": "Una o más imágenes son demasiado grandes. El límite es 10MB por imagen.",
+    "notes": "Anota detalles importantes, observaciones o recordatorios sobre este truco"
   }
 }

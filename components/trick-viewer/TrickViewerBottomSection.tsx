@@ -18,7 +18,7 @@ interface TrickViewerBottomSectionProps {
   angle?: number;
   resetTime?: number;
   duration?: number;
-  difficulty?: number;
+  difficulty?: number | null;
   userId?: string;
   onRemoveTag?: (tagId: string) => void;
   stageExpanded?: boolean;

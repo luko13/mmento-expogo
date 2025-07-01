@@ -874,7 +874,7 @@ export default function ExtrasStep({
                   <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg pb-3 border border-[#eafffb]/40">
                     {/* Componente DifficultySlider */}
                     <DifficultySlider
-                      value={trickData.difficulty || 5}
+                      value={trickData.difficulty}
                       onChange={handleDifficultyChange}
                       min={1}
                       max={10}

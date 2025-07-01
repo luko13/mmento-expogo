@@ -28,6 +28,8 @@ import CompactSearchBar, {
 } from "../../../components/home/CompactSearchBar";
 import SuccessCreationModal from "../../../components/ui/SuccessCreationModal";
 import { fontNames } from "../../../app/_layout";
+import { supabase } from "../../../lib/supabase";
+import { paginatedContentService } from "../../../utils/paginatedContentService";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -70,6 +72,9 @@ export default function Home() {
     title: string;
   } | null>(null);
 
+  // Estado para forzar refresh de LibrariesSection
+  const [refreshKey, setRefreshKey] = useState(0);
+
   // Animation values
   const scrollY = useRef(new Animated.Value(0)).current;
   const librariesTranslateY = useRef(new Animated.Value(0)).current;
@@ -88,6 +93,20 @@ export default function Home() {
         title: params.trickTitle as string,
       });
       setShowSuccessModal(true);
+
+      // Limpiar el caché del servicio paginado
+      const clearCache = async () => {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          paginatedContentService.clearUserCache(user.id);
+        }
+      };
+      clearCache();
+
+      // Forzar actualización de LibrariesSection
+      setRefreshKey((prev) => prev + 1);
 
       // Limpiar los parámetros para evitar que se muestre de nuevo
       router.setParams({
@@ -523,6 +542,7 @@ export default function Home() {
               }}
             >
               <LibrariesSection
+                key={refreshKey}
                 searchQuery={searchQuery}
                 searchFilters={searchFilters}
               />

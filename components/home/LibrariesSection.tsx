@@ -7,7 +7,6 @@ import {
   Text,
   TouchableOpacity,
   Modal,
-  ActivityIndicator,
   RefreshControl,
   Platform,
 } from "react-native";
@@ -33,6 +32,7 @@ import { useRouter } from "expo-router";
 import { usePaginatedContent } from "../../hooks/usePaginatedContent";
 import CollapsibleCategoryOptimized from "./CollapsibleCategoryOptimized";
 import { fontNames } from "../../app/_layout";
+import MagicLoader from "../ui/MagicLoader";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
@@ -318,20 +318,13 @@ const LibrariesSection = memo(function LibrariesSection({
 
     return (
       <StyledView className="py-4">
-        <ActivityIndicator size="small" color="#10b981" />
+        <MagicLoader size="small" />
       </StyledView>
     );
   }, [loadingMore]);
 
   const ListEmpty = useCallback(() => {
-    if (loading) {
-      return (
-        <StyledView className="flex-1 justify-center items-center py-20">
-          <ActivityIndicator size="large" color="#10b981" />
-        </StyledView>
-      );
-    }
-
+    // Remove the loading state check here since we'll handle it at the component level
     return (
       <StyledView className="bg-white/5 p-6 rounded-lg items-center mx-4">
         <Text
@@ -367,7 +360,7 @@ const LibrariesSection = memo(function LibrariesSection({
         )}
       </StyledView>
     );
-  }, [loading, searchQuery, searchFilters, t]);
+  }, [searchQuery, searchFilters, t]);
 
   const renderSection = useCallback(
     ({ item }: { item: any }) => {
@@ -401,7 +394,18 @@ const LibrariesSection = memo(function LibrariesSection({
     }
   }, [hasMore, loadingMore, loadMore]);
 
-  // Main render
+  // Main render - Show loading only for initial load
+  if (loading && sections.length === 0 && !error) {
+    return (
+      <StyledView className="flex-1">
+        <ListHeader />
+        <StyledView className="flex-1 justify-center items-center">
+          <MagicLoader size="large" />
+        </StyledView>
+      </StyledView>
+    );
+  }
+
   return (
     <StyledView className="flex-1">
       <ListHeader />
@@ -449,9 +453,16 @@ const LibrariesSection = memo(function LibrariesSection({
           getItemType={() => "category"}
           refreshControl={
             <RefreshControl
-              refreshing={loading && sections.length === 0}
+              refreshing={false}
               onRefresh={refresh}
-              tintColor="#10b981"
+              tintColor="transparent"
+              // iOS - Muestra el texto arriba
+              title="Refresh... ↓"
+              titleColor="rgba(255, 255, 255, 0.6)"
+              // Android - Sin indicador visible
+              colors={["transparent"]}
+              progressBackgroundColor="transparent"
+              progressViewOffset={-50} // Mueve el indicador más arriba en Android
             />
           }
           contentContainerStyle={{

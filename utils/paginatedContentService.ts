@@ -336,14 +336,52 @@ export class PaginatedContentService {
   }
 
   /**
-   * Clear cache for a user
+   * Invalida el caché de la primera página para forzar recarga
+   */
+  invalidateFirstPage(userId: string, categoryId?: string) {
+    const cacheKey = `${userId}-0-${categoryId || "all"}`;
+    this.cache.delete(cacheKey);
+    console.log(`🗑️ Cache invalidado: ${cacheKey}`);
+  }
+
+  /**
+   * Clear cache for a user - MEJORADO
    */
   clearUserCache(userId: string) {
+    const keysToDelete: string[] = [];
+
+    // Encontrar todas las claves del usuario
     for (const [key] of this.cache) {
       if (key.startsWith(userId)) {
-        this.cache.delete(key);
+        keysToDelete.push(key);
       }
     }
+
+    // Eliminar todas las claves del usuario
+    keysToDelete.forEach((key) => {
+      this.cache.delete(key);
+      console.log(`🗑️ Cache eliminado: ${key}`);
+    });
+
+    console.log(
+      `🧹 Caché limpiado para usuario ${userId}: ${keysToDelete.length} entradas eliminadas`
+    );
+  }
+
+  /**
+   * Limpiar todo el caché (útil para desarrollo)
+   */
+  clearAllCache() {
+    const size = this.cache.size;
+    this.cache.clear();
+    console.log(`🧹 Todo el caché limpiado: ${size} entradas eliminadas`);
+  }
+
+  /**
+   * Obtener el tamaño actual del caché
+   */
+  getCacheSize(): number {
+    return this.cache.size;
   }
 
   /**

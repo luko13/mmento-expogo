@@ -1206,7 +1206,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           angle={180}
           resetTime={trick.reset || 10}
           duration={trick.duration || 110}
-          difficulty={trick.difficulty || 7}
+          difficulty={trick.difficulty}
           onRemoveTag={
             currentUserId === trick.user_id ? handleRemoveTag : undefined
           }
