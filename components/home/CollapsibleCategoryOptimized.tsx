@@ -11,7 +11,6 @@ import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons, Entypo } from "@expo/vector-icons";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
-import type { SearchFilters } from "./CompactSearchBar";
 import { fontNames } from "../../app/_layout";
 import InlineProgressBar from "./TrickCompletionProgress";
 
@@ -40,6 +39,16 @@ interface LibraryItem {
 interface CategorySection {
   category: any;
   items: LibraryItem[];
+}
+
+// Define SearchFilters interface locally to match the expected type
+interface SearchFilters {
+  categories: string[];
+  tags: string[];
+  difficulties: number[]; // Keep as number[] to match database type
+  resetTimes: { min?: number; max?: number };
+  durations: { min?: number; max?: number };
+  angles: string[];
 }
 
 interface Props {
@@ -129,11 +138,13 @@ const CollapsibleCategoryOptimized = ({
         if (!matchesText) return false;
       }
 
-      // Difficulty filter
+      // Difficulty filter - convert to string for comparison with hook expectations
       if (searchFilters?.difficulties?.length) {
         if (
           !item.difficulty ||
-          !searchFilters.difficulties.includes(String(item.difficulty))
+          !searchFilters.difficulties
+            .map((d) => String(d))
+            .includes(String(item.difficulty))
         ) {
           return false;
         }
@@ -144,6 +155,59 @@ const CollapsibleCategoryOptimized = ({
         if (!item.tags?.some((tagId) => searchFilters.tags.includes(tagId))) {
           return false;
         }
+      }
+
+      // Reset time filter
+      if (
+        searchFilters?.resetTimes?.min !== undefined ||
+        searchFilters?.resetTimes?.max !== undefined
+      ) {
+        if (item.reset === null || item.reset === undefined) return false;
+
+        if (
+          searchFilters.resetTimes.min !== undefined &&
+          item.reset < searchFilters.resetTimes.min
+        ) {
+          return false;
+        }
+        if (
+          searchFilters.resetTimes.max !== undefined &&
+          item.reset > searchFilters.resetTimes.max
+        ) {
+          return false;
+        }
+      }
+
+      // Duration filter
+      if (
+        searchFilters?.durations?.min !== undefined ||
+        searchFilters?.durations?.max !== undefined
+      ) {
+        if (item.duration === null || item.duration === undefined) return false;
+
+        if (
+          searchFilters.durations.min !== undefined &&
+          item.duration < searchFilters.durations.min
+        ) {
+          return false;
+        }
+        if (
+          searchFilters.durations.max !== undefined &&
+          item.duration > searchFilters.durations.max
+        ) {
+          return false;
+        }
+      }
+
+      // Angles filter
+      if (searchFilters?.angles?.length) {
+        if (!item.angles || !Array.isArray(item.angles)) return false;
+
+        // Check if any of the item's angles match the selected angles
+        const hasMatchingAngle = item.angles.some((angle) =>
+          searchFilters.angles.includes(String(angle))
+        );
+        if (!hasMatchingAngle) return false;
       }
 
       return true;

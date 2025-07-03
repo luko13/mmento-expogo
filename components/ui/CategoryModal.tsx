@@ -26,6 +26,16 @@ const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledModal = styled(Modal);
 const StyledBlurView = styled(BlurView);
 
+// Lista de nombres de categorías reservadas
+const RESERVED_CATEGORY_NAMES = [
+  "favoritos",
+  "favorites",
+  "favourites",
+  "favorito",
+  "favorite",
+  "favourite",
+];
+
 interface CategoryModalProps {
   visible: boolean;
   onClose: () => void;
@@ -82,6 +92,14 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
         return t(
           "validation.minLength",
           "Category name must be at least 3 characters"
+        );
+      }
+
+      // Validar nombres reservados
+      if (RESERVED_CATEGORY_NAMES.includes(trimmedName.toLowerCase())) {
+        return t(
+          "validation.reservedCategory",
+          "This category name is reserved and cannot be used"
         );
       }
 

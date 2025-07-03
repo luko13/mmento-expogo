@@ -38,7 +38,18 @@ interface CategorySelectorProps {
   placeholder?: string;
   iconComponent?: React.ReactNode;
   userId?: string;
+  excludeFavorites?: boolean; // Nueva prop para excluir favoritos
 }
+
+// Lista de nombres de categorías a excluir (en diferentes idiomas si es necesario)
+const EXCLUDED_CATEGORY_NAMES = [
+  "favoritos",
+  "favorites",
+  "favourites",
+  "favorito",
+  "favorite",
+  "favourite",
+];
 
 export default function CategorySelector({
   selectedCategories,
@@ -48,6 +59,7 @@ export default function CategorySelector({
   placeholder = "Add category...",
   iconComponent,
   userId,
+  excludeFavorites = true, // Por defecto excluir favoritos
 }: CategorySelectorProps) {
   const { t } = useTranslation();
   const [userCategories, setUserCategories] = useState<Category[]>([]);
@@ -68,7 +80,13 @@ export default function CategorySelector({
 
   useEffect(() => {
     sortCategoriesBySelection();
-  }, [newCategory, userCategories, predefinedCategories, selectedCategories]);
+  }, [
+    newCategory,
+    userCategories,
+    predefinedCategories,
+    selectedCategories,
+    excludeFavorites,
+  ]);
 
   const fetchCategories = async () => {
     setLoading(true);
@@ -87,8 +105,23 @@ export default function CategorySelector({
     }
   };
 
+  // Función para verificar si una categoría debe ser excluida
+  const shouldExcludeCategory = (category: Category): boolean => {
+    if (!excludeFavorites) return false;
+
+    const categoryNameLower = category.name.toLowerCase().trim();
+    return EXCLUDED_CATEGORY_NAMES.includes(categoryNameLower);
+  };
+
   const sortCategoriesBySelection = () => {
-    const allCategories = [...userCategories, ...predefinedCategories];
+    let allCategories = [...userCategories, ...predefinedCategories];
+
+    // Filtrar categorías excluidas (como favoritos)
+    if (excludeFavorites) {
+      allCategories = allCategories.filter(
+        (cat) => !shouldExcludeCategory(cat)
+      );
+    }
 
     // Filtrar por búsqueda si hay texto
     let filtered = allCategories;
@@ -144,12 +177,41 @@ export default function CategorySelector({
   const handleAddCategory = () => {
     if (!newCategory.trim() || !allowCreate) return;
 
+    // Verificar si el nombre de categoría está excluido
+    if (
+      excludeFavorites &&
+      EXCLUDED_CATEGORY_NAMES.includes(newCategory.toLowerCase().trim())
+    ) {
+      Alert.alert(
+        t("common.error", "Error"),
+        t(
+          "errors.reservedCategoryName",
+          "This category name is reserved and cannot be created."
+        )
+      );
+      setNewCategory("");
+      return;
+    }
+
     const allCategories = [...userCategories, ...predefinedCategories];
     const existingCategory = allCategories.find(
       (cat) => cat.name.toLowerCase() === newCategory.toLowerCase()
     );
 
     if (existingCategory) {
+      // Si la categoría existe pero está excluida, no permitir seleccionarla
+      if (excludeFavorites && shouldExcludeCategory(existingCategory)) {
+        Alert.alert(
+          t("common.error", "Error"),
+          t(
+            "errors.cannotSelectCategory",
+            "This category cannot be selected here."
+          )
+        );
+        setNewCategory("");
+        return;
+      }
+
       if (!selectedCategories.includes(existingCategory.id)) {
         toggleCategory(existingCategory.id);
       }
@@ -162,6 +224,21 @@ export default function CategorySelector({
 
   const createNewCategory = async (name: string, description?: string) => {
     if (!userId) return;
+
+    // Verificar nuevamente si el nombre está excluido antes de crear
+    if (
+      excludeFavorites &&
+      EXCLUDED_CATEGORY_NAMES.includes(name.toLowerCase().trim())
+    ) {
+      Alert.alert(
+        t("common.error", "Error"),
+        t(
+          "errors.reservedCategoryName",
+          "This category name is reserved and cannot be created."
+        )
+      );
+      return;
+    }
 
     try {
       const newCat = await createCategory(userId, name, description);

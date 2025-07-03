@@ -1,7 +1,7 @@
 // components/home/LibrariesSection.tsx
 "use client";
 
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, memo, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -40,6 +40,7 @@ const StyledTouchableOpacity = styled(TouchableOpacity);
 // Calculate safe area for navigation bar
 const NAVBAR_HEIGHT = 60;
 const BOTTOM_SPACING = Platform.select({ ios: 20, default: 10 });
+
 interface LibrariesSectionProps {
   searchQuery?: string;
   searchFilters?: SearchFilters;
@@ -73,6 +74,19 @@ const LibrariesSection = memo(function LibrariesSection({
   const [selectedCategoryForActions, setSelectedCategoryForActions] =
     useState<Category | null>(null);
 
+  // Total tricks count state
+  const [totalTricksCount, setTotalTricksCount] = useState(0);
+
+  // Convert SearchFilters for compatibility with usePaginatedContent hook
+  const convertedSearchFilters = useMemo(() => {
+    if (!searchFilters) return undefined;
+    
+    return {
+      ...searchFilters,
+      difficulties: searchFilters.difficulties.map(d => String(d))
+    };
+  }, [searchFilters]);
+
   // Use paginated content hook
   const {
     sections,
@@ -83,7 +97,74 @@ const LibrariesSection = memo(function LibrariesSection({
     loadMore,
     refresh,
     allCategories,
-  } = usePaginatedContent(searchQuery, searchFilters);
+  } = usePaginatedContent(searchQuery, convertedSearchFilters);
+
+  // Filter sections to hide empty categories when there's an active search
+  const filteredSections = useMemo(() => {
+    // Check if there's an active search (query or filters)
+    const hasActiveSearch = searchQuery.trim() !== "" || 
+      (searchFilters && (
+        searchFilters.categories.length > 0 ||
+        searchFilters.tags.length > 0 ||
+        searchFilters.difficulties.length > 0 ||
+        searchFilters.resetTimes.min !== undefined ||
+        searchFilters.resetTimes.max !== undefined ||
+        searchFilters.durations.min !== undefined ||
+        searchFilters.durations.max !== undefined ||
+        searchFilters.angles.length > 0
+      ));
+
+    if (!hasActiveSearch) {
+      // No active search, show all categories
+      return sections;
+    }
+
+    // Filter out categories with 0 items when there's an active search
+    // UNLESS the category name matches the search query
+    return sections.filter(section => {
+      // Always show if category has items
+      if (section.items && section.items.length > 0) {
+        return true;
+      }
+
+      // If no items, only show if category name matches search query
+      if (searchQuery.trim()) {
+        const categoryNameLower = section.category.name.toLowerCase();
+        const searchQueryLower = searchQuery.toLowerCase().trim();
+        return categoryNameLower.includes(searchQueryLower);
+      }
+
+      // Hide empty categories when only filters are active
+      return false;
+    });
+  }, [sections, searchQuery, searchFilters]);
+
+  // Calculate total tricks count whenever sections update
+  useEffect(() => {
+    const calculateTotalTricks = () => {
+      const total = sections.reduce((acc, section) => {
+        // Excluir trucos de la categoría "Favoritos" del conteo
+        const categoryName = section.category.name.toLowerCase().trim();
+        const isFavoritesCategory = [
+          "favoritos",
+          "favorites",
+          "favourites",
+          "favorito",
+          "favorite",
+          "favourite",
+        ].includes(categoryName);
+
+        if (isFavoritesCategory) {
+          return acc; // No sumar los trucos de favoritos
+        }
+
+        return acc + (section.items?.length || 0);
+      }, 0);
+      setTotalTricksCount(total);
+    };
+
+    calculateTotalTricks();
+  }, [sections]);
 
   // Fetch item data - simplified without encryption
   const fetchItemData = async (item: any) => {
@@ -297,9 +378,7 @@ const LibrariesSection = memo(function LibrariesSection({
               includeFontPadding: false,
             }}
           >
-            {t("librariesCount", {
-              count: allCategories?.length || sections.length,
-            })}
+            {totalTricksCount} MMENTOS
           </Text>
         </StyledView>
         <StyledTouchableOpacity
@@ -310,7 +389,7 @@ const LibrariesSection = memo(function LibrariesSection({
         </StyledTouchableOpacity>
       </StyledView>
     ),
-    [t, allCategories, sections.length]
+    [totalTricksCount]
   );
 
   const ListFooter = useCallback(() => {
@@ -324,7 +403,6 @@ const LibrariesSection = memo(function LibrariesSection({
   }, [loadingMore]);
 
   const ListEmpty = useCallback(() => {
-    // Remove the loading state check here since we'll handle it at the component level
     return (
       <StyledView className="bg-white/5 p-6 rounded-lg items-center mx-4">
         <Text
@@ -378,7 +456,7 @@ const LibrariesSection = memo(function LibrariesSection({
     },
     [
       searchQuery,
-      searchFilters,
+      convertedSearchFilters,
       handleItemPress,
       openEditCategoryModal,
       handleDeleteCategory,
@@ -442,7 +520,7 @@ const LibrariesSection = memo(function LibrariesSection({
         </StyledView>
       ) : (
         <FlashList
-          data={sections}
+          data={filteredSections}
           renderItem={renderSection}
           keyExtractor={keyExtractor}
           ListEmptyComponent={ListEmpty}
@@ -456,19 +534,16 @@ const LibrariesSection = memo(function LibrariesSection({
               refreshing={false}
               onRefresh={refresh}
               tintColor="transparent"
-              // iOS - Muestra el texto arriba
               title="Refresh... ↓"
               titleColor="rgba(255, 255, 255, 0.6)"
-              // Android - Sin indicador visible
               colors={["transparent"]}
               progressBackgroundColor="transparent"
-              progressViewOffset={-50} // Mueve el indicador más arriba en Android
+              progressViewOffset={-50}
             />
           }
           contentContainerStyle={{
             paddingBottom: NAVBAR_HEIGHT + BOTTOM_SPACING,
           }}
-          // Performance optimizations
           drawDistance={200}
           removeClippedSubviews={true}
           estimatedListSize={{
