@@ -49,7 +49,8 @@
   "librariesCount": "{{count}} Libraries",
   "myTricks": "My Tricks",
   "noTricks": "You haven't added any tricks yet.",
-  "difficulty": {
+  "difficulty": "Difficulty",
+  "difficultyType": {
     "beginner": "Beginner",
     "easy": "Easy",
     "intermediate": "Intermediate",

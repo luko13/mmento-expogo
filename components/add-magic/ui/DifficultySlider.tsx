@@ -54,10 +54,8 @@ export default function DifficultySlider({
 
   // Calcular color dependiendo de la dificultad
   const getDifficultyColor = (value: number) => {
-    if (!hasUserInteracted) return "rgba(255, 255, 255, 0.3)"; // Color apagado cuando no ha interactuado
-    if (value <= 3) return "#10b981"; // green-500
-    if (value <= 7) return "#f59e0b"; // yellow-500
-    return "#ef4444"; // red-500
+    if (!hasUserInteracted) return "rgba(255, 255, 255, 0.3)";
+    return "#ffffffc3"; // Siempre blanco cuando ha interactuado
   };
 
   // Gestión del cambio de valor del slider

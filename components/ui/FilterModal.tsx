@@ -8,6 +8,7 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
@@ -18,6 +19,12 @@ import { supabase } from "../../lib/supabase";
 import CategorySelector from "../ui/CategorySelector";
 import TagSelector from "../ui/TagSelector";
 import TimePickerModal from "../add-magic/ui/TimePickerModal";
+import DifficultySlider from "../add-magic/ui/DifficultySlider";
+import {
+  modalStyles,
+  blurConfig,
+  modalClasses,
+} from "../../styles/modalStyles";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -25,16 +32,20 @@ const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledModal = styled(Modal);
 const StyledBlurView = styled(BlurView);
 const StyledScrollView = styled(ScrollView);
+const StyledSwitch = styled(Switch);
 
-const { height: screenHeight } = Dimensions.get("window");
+const { height: screenHeight, width: screenWidth } = Dimensions.get("window");
 
 export interface SearchFilters {
   categories: string[];
   tags: string[];
+  tagsMode?: "and" | "or";
   difficulties: number[];
   resetTimes: { min?: number; max?: number };
   durations: { min?: number; max?: number };
   angles: string[];
+  isPublic?: boolean | null;
+  sortOrder?: "recent" | "last";
 }
 
 interface FiltersModalProps {
@@ -62,8 +73,13 @@ export default function FiltersModal({
   const [selectedTags, setSelectedTags] = useState<string[]>(
     currentFilters.tags
   );
-  const [selectedDifficulties, setSelectedDifficulties] = useState<number[]>(
-    currentFilters.difficulties
+  const [tagsMode, setTagsMode] = useState<"and" | "or">(
+    currentFilters.tagsMode ?? "or"
+  );
+  const [selectedDifficulty, setSelectedDifficulty] = useState<number | null>(
+    currentFilters.difficulties.length > 0
+      ? currentFilters.difficulties[0]
+      : null
   );
   const [resetTimeMin, setResetTimeMin] = useState<number | undefined>(
     currentFilters.resetTimes.min
@@ -80,6 +96,14 @@ export default function FiltersModal({
   const [selectedAngles, setSelectedAngles] = useState<string[]>(
     currentFilters.angles
   );
+  const [publicFilter, setPublicFilter] = useState<boolean | null>(
+    currentFilters.isPublic ?? null
+  );
+  const [sortOrder, setSortOrder] = useState<"recent" | "last">(
+    currentFilters.sortOrder ?? "recent"
+  );
+  const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   // Time picker states
   const [showResetTimeMinPicker, setShowResetTimeMinPicker] = useState(false);
@@ -96,12 +120,19 @@ export default function FiltersModal({
     if (visible) {
       setSelectedCategories(currentFilters.categories);
       setSelectedTags(currentFilters.tags);
-      setSelectedDifficulties(currentFilters.difficulties);
+      setTagsMode(currentFilters.tagsMode ?? "or");
+      setSelectedDifficulty(
+        currentFilters.difficulties.length > 0
+          ? currentFilters.difficulties[0]
+          : null
+      );
       setResetTimeMin(currentFilters.resetTimes.min);
       setResetTimeMax(currentFilters.resetTimes.max);
       setDurationMin(currentFilters.durations.min);
       setDurationMax(currentFilters.durations.max);
       setSelectedAngles(currentFilters.angles);
+      setPublicFilter(currentFilters.isPublic ?? null);
+      setSortOrder(currentFilters.sortOrder ?? "recent");
     }
   }, [visible, currentFilters]);
 
@@ -121,14 +152,6 @@ export default function FiltersModal({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const toggleDifficulty = (difficulty: number) => {
-    setSelectedDifficulties((prev) =>
-      prev.includes(difficulty)
-        ? prev.filter((d) => d !== difficulty)
-        : [...prev, difficulty]
-    );
-  };
-
   const toggleAngle = (angle: string) => {
     setSelectedAngles((prev) =>
       prev.includes(angle) ? prev.filter((a) => a !== angle) : [...prev, angle]
@@ -138,22 +161,28 @@ export default function FiltersModal({
   const clearAllFilters = () => {
     setSelectedCategories([]);
     setSelectedTags([]);
-    setSelectedDifficulties([]);
+    setTagsMode("or");
+    setSelectedDifficulty(null);
     setResetTimeMin(undefined);
     setResetTimeMax(undefined);
     setDurationMin(undefined);
     setDurationMax(undefined);
     setSelectedAngles([]);
+    setPublicFilter(null);
+    setSortOrder("recent");
   };
 
   const applyFilters = () => {
     onApplyFilters({
       categories: selectedCategories,
       tags: selectedTags,
-      difficulties: selectedDifficulties,
+      tagsMode: tagsMode,
+      difficulties: selectedDifficulty !== null ? [selectedDifficulty] : [],
       resetTimes: { min: resetTimeMin, max: resetTimeMax },
       durations: { min: durationMin, max: durationMax },
       angles: selectedAngles,
+      isPublic: publicFilter,
+      sortOrder: sortOrder,
     });
     onClose();
   };
@@ -162,30 +191,63 @@ export default function FiltersModal({
     let count = 0;
     if (selectedCategories.length > 0) count += selectedCategories.length;
     if (selectedTags.length > 0) count += selectedTags.length;
-    if (selectedDifficulties.length > 0) count += selectedDifficulties.length;
+    if (selectedDifficulty !== null) count++;
     if (resetTimeMin !== undefined) count++;
     if (resetTimeMax !== undefined) count++;
     if (durationMin !== undefined) count++;
     if (durationMax !== undefined) count++;
     if (selectedAngles.length > 0) count += selectedAngles.length;
+    if (publicFilter !== null) count++;
+    if (sortOrder !== "recent") count++;
     return count;
   };
 
-  const clearTimeFilter = (type: 'resetMin' | 'resetMax' | 'durationMin' | 'durationMax') => {
-    switch(type) {
-      case 'resetMin':
+  const clearTimeFilter = (
+    type: "resetMin" | "resetMax" | "durationMin" | "durationMax"
+  ) => {
+    switch (type) {
+      case "resetMin":
         setResetTimeMin(undefined);
         break;
-      case 'resetMax':
+      case "resetMax":
         setResetTimeMax(undefined);
         break;
-      case 'durationMin':
+      case "durationMin":
         setDurationMin(undefined);
         break;
-      case 'durationMax':
+      case "durationMax":
         setDurationMax(undefined);
         break;
     }
+  };
+
+  // Debug functions
+  const handleDurationMinPress = () => {
+    console.log("Duration Min Pressed");
+    setShowVisibilityDropdown(false);
+    setShowSortDropdown(false);
+    setShowDurationMinPicker(true);
+  };
+
+  const handleDurationMaxPress = () => {
+    console.log("Duration Max Pressed");
+    setShowVisibilityDropdown(false);
+    setShowSortDropdown(false);
+    setShowDurationMaxPicker(true);
+  };
+
+  const handleResetTimeMinPress = () => {
+    console.log("Reset Time Min Pressed");
+    setShowVisibilityDropdown(false);
+    setShowSortDropdown(false);
+    setShowResetTimeMinPicker(true);
+  };
+
+  const handleResetTimeMaxPress = () => {
+    console.log("Reset Time Max Pressed");
+    setShowVisibilityDropdown(false);
+    setShowSortDropdown(false);
+    setShowResetTimeMaxPicker(true);
   };
 
   return (
@@ -196,11 +258,11 @@ export default function FiltersModal({
         animationType="slide"
         onRequestClose={onClose}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <StyledView className="flex-1">
+        <StyledBlurView {...blurConfig.backgroundBlur} className="flex-1">
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1 }}
+          >
             {/* Backdrop */}
             <TouchableOpacity
               style={{ flex: 1 }}
@@ -209,59 +271,356 @@ export default function FiltersModal({
             />
 
             {/* Modal Content */}
-            <StyledView
+            <StyledBlurView
+              {...blurConfig.containerBlur}
               style={{
-                height: screenHeight * 0.75,
-                backgroundColor: "rgba(30, 30, 30, 0.95)",
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
+                height: screenHeight * 0.85,
+                backgroundColor: "rgba(255, 255, 255, 0.30)",
+                borderTopLeftRadius: 30,
+                borderTopRightRadius: 30,
                 borderWidth: 1,
-                borderColor: "rgba(255, 255, 255, 0.1)",
+                borderColor: "rgba(200, 200, 200, 0.4)",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: -10 },
+                shadowOpacity: 0.5,
+                shadowRadius: 20,
+                elevation: 10,
+                overflow: "hidden",
               }}
             >
               {/* Header */}
-              <StyledView className="flex-row items-center justify-between p-4 border-b border-white/10">
-                <StyledTouchableOpacity onPress={clearAllFilters}>
+              <StyledView className="px-6 pt-6">
+                {/* Filter by row */}
+                <StyledView className="flex-row items-center justify-between mb-4">
+                  <StyledView className="flex-row items-center flex-1">
+                    <StyledText
+                      className="text-white mr-3"
+                      style={{
+                        fontFamily: fontNames.medium,
+                        fontSize: 18,
+                        includeFontPadding: false,
+                      }}
+                    >
+                      {t("filterBy", "Filter by")}
+                    </StyledText>
+
+                    {/* Visibility Dropdown */}
+                    <StyledTouchableOpacity
+                      onPress={() =>
+                        setShowVisibilityDropdown(!showVisibilityDropdown)
+                      }
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: "rgba(255, 255, 255, 0.1)",
+                        paddingHorizontal: 12,
+                        paddingVertical: 3,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: "rgba(255, 255, 255, 0.2)",
+                      }}
+                    >
+                      <StyledText
+                        className="text-white mr-2"
+                        style={{
+                          fontFamily: fontNames.regular,
+                          fontSize: 14,
+                          includeFontPadding: false,
+                        }}
+                      >
+                        {publicFilter === null
+                          ? t("all", "All")
+                          : publicFilter
+                          ? t("public", "Public")
+                          : t("private", "Private")}
+                      </StyledText>
+                      <Feather
+                        name={
+                          showVisibilityDropdown ? "chevron-up" : "chevron-down"
+                        }
+                        size={16}
+                        color="white"
+                      />
+                    </StyledTouchableOpacity>
+                  </StyledView>
+
+                  {/* Close button */}
+                  <StyledTouchableOpacity onPress={onClose} className="ml-4">
+                    <Feather name="x" size={24} color="white" />
+                  </StyledTouchableOpacity>
+                </StyledView>
+
+                {/* Visibility Dropdown Menu */}
+                {showVisibilityDropdown && (
+                  <StyledView
+                    style={{
+                      position: "absolute",
+                      top: 60,
+                      left: 140,
+                      zIndex: 1000,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <StyledBlurView
+                      {...blurConfig.containerBlur}
+                      style={{
+                        backgroundColor: "rgba(255, 255, 255, 0.30)",
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: "rgba(200, 200, 200, 0.4)",
+                        paddingVertical: 4,
+                        minWidth: 120,
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 8,
+                        elevation: 5,
+                      }}
+                    >
+                      <StyledTouchableOpacity
+                        onPress={() => {
+                          setPublicFilter(null);
+                          setShowVisibilityDropdown(false);
+                        }}
+                        style={{
+                          paddingHorizontal: 16,
+                          paddingVertical: 10,
+                          backgroundColor:
+                            publicFilter === null
+                              ? "rgba(16, 185, 129, 0.3)"
+                              : "transparent",
+                        }}
+                      >
+                        <StyledText
+                          className="text-white"
+                          style={{
+                            fontFamily: fontNames.regular,
+                            fontSize: 14,
+                            includeFontPadding: false,
+                          }}
+                        >
+                          {t("all", "All")}
+                        </StyledText>
+                      </StyledTouchableOpacity>
+
+                      <StyledView
+                        style={{
+                          height: 0.5,
+                          backgroundColor: "rgba(200, 200, 200, 0.3)",
+                        }}
+                      />
+
+                      <StyledTouchableOpacity
+                        onPress={() => {
+                          setPublicFilter(true);
+                          setShowVisibilityDropdown(false);
+                        }}
+                        style={{
+                          paddingHorizontal: 16,
+                          paddingVertical: 10,
+                          backgroundColor:
+                            publicFilter === true
+                              ? "rgba(16, 185, 129, 0.3)"
+                              : "transparent",
+                        }}
+                      >
+                        <StyledText
+                          className="text-white"
+                          style={{
+                            fontFamily: fontNames.regular,
+                            fontSize: 14,
+                            includeFontPadding: false,
+                          }}
+                        >
+                          {t("public", "Public")}
+                        </StyledText>
+                      </StyledTouchableOpacity>
+
+                      <StyledView
+                        style={{
+                          height: 0.5,
+                          backgroundColor: "rgba(200, 200, 200, 0.3)",
+                        }}
+                      />
+
+                      <StyledTouchableOpacity
+                        onPress={() => {
+                          setPublicFilter(false);
+                          setShowVisibilityDropdown(false);
+                        }}
+                        style={{
+                          paddingHorizontal: 16,
+                          paddingVertical: 10,
+                          backgroundColor:
+                            publicFilter === false
+                              ? "rgba(16, 185, 129, 0.3)"
+                              : "transparent",
+                        }}
+                      >
+                        <StyledText
+                          className="text-white"
+                          style={{
+                            fontFamily: fontNames.regular,
+                            fontSize: 14,
+                            includeFontPadding: false,
+                          }}
+                        >
+                          {t("private", "Private")}
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                    </StyledBlurView>
+                  </StyledView>
+                )}
+
+                {/* Order/Sort row */}
+                <StyledView className="flex-row items-center">
                   <StyledText
-                    className="text-white/60"
+                    className="text-white/70 mr-2"
                     style={{
                       fontFamily: fontNames.regular,
                       fontSize: 16,
+                      includeFontPadding: false,
                     }}
                   >
-                    {t("clearAll", "Clear all")}
+                    {t("order", "Order:")}
                   </StyledText>
-                </StyledTouchableOpacity>
+                  <StyledTouchableOpacity
+                    onPress={() => setShowSortDropdown(!showSortDropdown)}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
+                  >
+                    <StyledText
+                      className="text-white mr-1"
+                      style={{
+                        fontFamily: fontNames.regular,
+                        fontSize: 16,
+                        includeFontPadding: false,
+                      }}
+                    >
+                      {sortOrder === "recent"
+                        ? t("recentAdded", "Recent added")
+                        : t("lastAdded", "Last added")}
+                    </StyledText>
+                    <Feather
+                      name={showSortDropdown ? "chevron-up" : "chevron-down"}
+                      size={16}
+                      color="white"
+                    />
+                  </StyledTouchableOpacity>
+                </StyledView>
 
-                <StyledText
-                  className="text-white text-lg"
-                  style={{
-                    fontFamily: fontNames.medium,
-                    fontSize: 18,
-                  }}
-                >
-                  {t("filters", "Filters")}
-                </StyledText>
+                {/* Sort Dropdown Menu */}
+                {showSortDropdown && (
+                  <StyledView
+                    style={{
+                      position: "absolute",
+                      top: 95,
+                      left: 80,
+                      zIndex: 1000,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <StyledBlurView
+                      {...blurConfig.containerBlur}
+                      style={{
+                        backgroundColor: "rgba(255, 255, 255, 0.30)",
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: "rgba(200, 200, 200, 0.4)",
+                        paddingVertical: 4,
+                        minWidth: 150,
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 8,
+                        elevation: 5,
+                      }}
+                    >
+                      <StyledTouchableOpacity
+                        onPress={() => {
+                          setSortOrder("recent");
+                          setShowSortDropdown(false);
+                        }}
+                        style={{
+                          paddingHorizontal: 16,
+                          paddingVertical: 10,
+                          backgroundColor:
+                            sortOrder === "recent"
+                              ? "rgba(16, 185, 129, 0.3)"
+                              : "transparent",
+                        }}
+                      >
+                        <StyledText
+                          className="text-white"
+                          style={{
+                            fontFamily: fontNames.regular,
+                            fontSize: 14,
+                            includeFontPadding: false,
+                          }}
+                        >
+                          {t("recentAdded", "Recent added")}
+                        </StyledText>
+                      </StyledTouchableOpacity>
 
-                <StyledTouchableOpacity onPress={onClose}>
-                  <Feather name="x" size={24} color="white" />
-                </StyledTouchableOpacity>
+                      <StyledView
+                        style={{
+                          height: 0.5,
+                          backgroundColor: "rgba(200, 200, 200, 0.3)",
+                        }}
+                      />
+
+                      <StyledTouchableOpacity
+                        onPress={() => {
+                          setSortOrder("last");
+                          setShowSortDropdown(false);
+                        }}
+                        style={{
+                          paddingHorizontal: 16,
+                          paddingVertical: 10,
+                          backgroundColor:
+                            sortOrder === "last"
+                              ? "rgba(16, 185, 129, 0.3)"
+                              : "transparent",
+                        }}
+                      >
+                        <StyledText
+                          className="text-white"
+                          style={{
+                            fontFamily: fontNames.regular,
+                            fontSize: 14,
+                            includeFontPadding: false,
+                          }}
+                        >
+                          {t("lastAdded", "Last added")}
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                    </StyledBlurView>
+                  </StyledView>
+                )}
               </StyledView>
 
               {/* Filters Content */}
               <StyledScrollView
-                className="flex-1 px-4"
+                className="flex-1"
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 20 }}
+                contentContainerStyle={{
+                  paddingBottom: 16,
+                  paddingHorizontal: 24,
+                }}
                 keyboardShouldPersistTaps="handled"
               >
                 {/* Categories */}
-                <StyledView className="mt-6">
+                <StyledView className="mt-8">
                   <StyledText
-                    className="text-white mb-3"
+                    className="text-white mb-2"
                     style={{
                       fontFamily: fontNames.medium,
                       fontSize: 16,
+                      includeFontPadding: false,
                     }}
                   >
                     {t("categories", "Categories")}
@@ -278,16 +637,64 @@ export default function FiltersModal({
                 </StyledView>
 
                 {/* Tags */}
-                <StyledView className="mt-6">
-                  <StyledText
-                    className="text-white mb-3"
-                    style={{
-                      fontFamily: fontNames.medium,
-                      fontSize: 16,
-                    }}
-                  >
-                    {t("tags", "Tags")}
-                  </StyledText>
+                <StyledView>
+                  <StyledView className="flex-row items-center mb-2">
+                    <StyledText
+                      className="text-white mr-4"
+                      style={{
+                        fontFamily: fontNames.medium,
+                        fontSize: 16,
+                        includeFontPadding: false,
+                      }}
+                    >
+                      {t("tags", "Tags")}
+                    </StyledText>
+
+                    {/* AND/OR Toggle */}
+                    <StyledView className="flex-row items-center">
+                      <StyledText
+                        className={
+                          tagsMode === "and" ? "text-white" : "text-white/40"
+                        }
+                        style={{
+                          fontFamily: fontNames.regular,
+                          fontSize: 14,
+                          includeFontPadding: false,
+                        }}
+                      >
+                        And
+                      </StyledText>
+                      <StyledSwitch
+                        value={tagsMode === "or"}
+                        onValueChange={(value) =>
+                          setTagsMode(value ? "or" : "and")
+                        }
+                        trackColor={{
+                          false: "rgba(255, 255, 255, 0.2)",
+                          true: "rgba(255, 255, 255, 0.2)",
+                        }}
+                        thumbColor="#ffffff"
+                        ios_backgroundColor="rgba(255, 255, 255, 0.2)"
+                        style={{
+                          transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
+                          marginHorizontal: 8,
+                        }}
+                      />
+                      <StyledText
+                        className={
+                          tagsMode === "or" ? "text-white" : "text-white/40"
+                        }
+                        style={{
+                          fontFamily: fontNames.regular,
+                          fontSize: 14,
+                          includeFontPadding: false,
+                        }}
+                      >
+                        Or
+                      </StyledText>
+                    </StyledView>
+                  </StyledView>
+
                   <TagSelector
                     selectedTags={selectedTags}
                     onTagsChange={setSelectedTags}
@@ -298,201 +705,183 @@ export default function FiltersModal({
                 </StyledView>
 
                 {/* Difficulty */}
-                <StyledView className="mt-6">
+                <StyledView>
                   <StyledText
-                    className="text-white mb-3"
+                    className="text-white mb-2"
                     style={{
                       fontFamily: fontNames.medium,
                       fontSize: 16,
+                      includeFontPadding: false,
                     }}
                   >
                     {t("difficulty", "Difficulty")}
                   </StyledText>
-                  <StyledView className="flex-row flex-wrap">
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((level) => (
-                      <StyledTouchableOpacity
-                        key={level}
-                        onPress={() => toggleDifficulty(level)}
-                        style={{
-                          backgroundColor: selectedDifficulties.includes(level)
-                            ? "rgba(16, 185, 129, 0.3)"
-                            : "rgba(255, 255, 255, 0.1)",
-                          borderWidth: 1,
-                          borderColor: selectedDifficulties.includes(level)
-                            ? "rgba(16, 185, 129, 0.6)"
-                            : "rgba(255, 255, 255, 0.2)",
-                          borderRadius: 8,
-                          paddingHorizontal: 16,
-                          paddingVertical: 8,
-                          marginRight: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <StyledText
-                          className="text-white"
-                          style={{
-                            fontFamily: fontNames.regular,
-                            fontSize: 14,
-                          }}
-                        >
-                          {level}
-                        </StyledText>
-                      </StyledTouchableOpacity>
-                    ))}
-                  </StyledView>
-                </StyledView>
-
-                {/* Reset Time Range */}
-                <StyledView className="mt-6">
-                  <StyledText
-                    className="text-white mb-3"
-                    style={{
-                      fontFamily: fontNames.medium,
-                      fontSize: 16,
-                    }}
-                  >
-                    {t("resetTime", "Reset Time")}
-                  </StyledText>
-                  <StyledView className="flex-row items-center">
-                    <StyledTouchableOpacity
-                      onPress={() => setShowResetTimeMinPicker(true)}
-                      onLongPress={() => clearTimeFilter('resetMin')}
-                      className="flex-1 mr-2"
-                      style={{
-                        backgroundColor: resetTimeMin !== undefined
-                          ? "rgba(16, 185, 129, 0.2)"
-                          : "rgba(255, 255, 255, 0.1)",
-                        borderWidth: 1,
-                        borderColor: resetTimeMin !== undefined
-                          ? "rgba(16, 185, 129, 0.4)"
-                          : "rgba(255, 255, 255, 0.2)",
-                        borderRadius: 8,
-                        paddingVertical: 12,
-                        alignItems: "center",
-                      }}
-                    >
-                      <StyledText
-                        className="text-white/60 text-xs mb-1"
-                        style={{ fontFamily: fontNames.light }}
-                      >
-                        {t("min", "Min")}
-                      </StyledText>
-                      <StyledText
-                        className="text-white"
-                        style={{ fontFamily: fontNames.regular }}
-                      >
-                        {formatTime(resetTimeMin)}
-                      </StyledText>
-                    </StyledTouchableOpacity>
-
-                    <StyledText className="text-white/60 mx-2">—</StyledText>
-
-                    <StyledTouchableOpacity
-                      onPress={() => setShowResetTimeMaxPicker(true)}
-                      onLongPress={() => clearTimeFilter('resetMax')}
-                      className="flex-1 ml-2"
-                      style={{
-                        backgroundColor: resetTimeMax !== undefined
-                          ? "rgba(16, 185, 129, 0.2)"
-                          : "rgba(255, 255, 255, 0.1)",
-                        borderWidth: 1,
-                        borderColor: resetTimeMax !== undefined
-                          ? "rgba(16, 185, 129, 0.4)"
-                          : "rgba(255, 255, 255, 0.2)",
-                        borderRadius: 8,
-                        paddingVertical: 12,
-                        alignItems: "center",
-                      }}
-                    >
-                      <StyledText
-                        className="text-white/60 text-xs mb-1"
-                        style={{ fontFamily: fontNames.light }}
-                      >
-                        {t("max", "Max")}
-                      </StyledText>
-                      <StyledText
-                        className="text-white"
-                        style={{ fontFamily: fontNames.regular }}
-                      >
-                        {formatTime(resetTimeMax)}
-                      </StyledText>
-                    </StyledTouchableOpacity>
-                  </StyledView>
+                  <DifficultySlider
+                    value={selectedDifficulty}
+                    onChange={setSelectedDifficulty}
+                    min={1}
+                    max={10}
+                    step={1}
+                  />
                 </StyledView>
 
                 {/* Duration Range */}
-                <StyledView className="mt-6">
+                <StyledView className="mt-4">
                   <StyledText
-                    className="text-white mb-3"
+                    className="text-white mb-2"
                     style={{
                       fontFamily: fontNames.medium,
                       fontSize: 16,
+                      includeFontPadding: false,
                     }}
                   >
                     {t("duration", "Duration")}
                   </StyledText>
                   <StyledView className="flex-row items-center">
                     <StyledTouchableOpacity
-                      onPress={() => setShowDurationMinPicker(true)}
-                      onLongPress={() => clearTimeFilter('durationMin')}
+                      onPress={handleDurationMinPress}
+                      onLongPress={() => clearTimeFilter("durationMin")}
                       className="flex-1 mr-2"
                       style={{
-                        backgroundColor: durationMin !== undefined
-                          ? "rgba(16, 185, 129, 0.2)"
-                          : "rgba(255, 255, 255, 0.1)",
-                        borderWidth: 1,
-                        borderColor: durationMin !== undefined
-                          ? "rgba(16, 185, 129, 0.4)"
-                          : "rgba(255, 255, 255, 0.2)",
-                        borderRadius: 8,
-                        paddingVertical: 12,
-                        alignItems: "center",
+                        ...modalStyles.pillContainer,
+                        backgroundColor:
+                          durationMin !== undefined
+                            ? "rgba(16, 185, 129, 0.2)"
+                            : "rgba(255, 255, 255, 0.1)",
+                        borderColor:
+                          durationMin !== undefined
+                            ? "rgba(16, 185, 129, 0.4)"
+                            : "rgba(255, 255, 255, 0.2)",
+                        paddingVertical: 10,
+                        paddingHorizontal: 20,
                       }}
                     >
                       <StyledText
-                        className="text-white/60 text-xs mb-1"
-                        style={{ fontFamily: fontNames.light }}
+                        className="text-white text-center"
+                        style={{
+                          fontFamily: fontNames.regular,
+                          fontSize: 14,
+                          includeFontPadding: false,
+                        }}
                       >
-                        {t("min", "Min")}
-                      </StyledText>
-                      <StyledText
-                        className="text-white"
-                        style={{ fontFamily: fontNames.regular }}
-                      >
-                        {formatTime(durationMin)}
+                        {durationMin !== undefined
+                          ? formatTime(durationMin)
+                          : t("min", "Min")}
                       </StyledText>
                     </StyledTouchableOpacity>
 
                     <StyledText className="text-white/60 mx-2">—</StyledText>
 
                     <StyledTouchableOpacity
-                      onPress={() => setShowDurationMaxPicker(true)}
-                      onLongPress={() => clearTimeFilter('durationMax')}
+                      onPress={handleDurationMaxPress}
+                      onLongPress={() => clearTimeFilter("durationMax")}
                       className="flex-1 ml-2"
                       style={{
-                        backgroundColor: durationMax !== undefined
-                          ? "rgba(16, 185, 129, 0.2)"
-                          : "rgba(255, 255, 255, 0.1)",
-                        borderWidth: 1,
-                        borderColor: durationMax !== undefined
-                          ? "rgba(16, 185, 129, 0.4)"
-                          : "rgba(255, 255, 255, 0.2)",
-                        borderRadius: 8,
-                        paddingVertical: 12,
-                        alignItems: "center",
+                        ...modalStyles.pillContainer,
+                        backgroundColor:
+                          durationMax !== undefined
+                            ? "rgba(16, 185, 129, 0.2)"
+                            : "rgba(255, 255, 255, 0.1)",
+                        borderColor:
+                          durationMax !== undefined
+                            ? "rgba(16, 185, 129, 0.4)"
+                            : "rgba(255, 255, 255, 0.2)",
+                        paddingVertical: 10,
+                        paddingHorizontal: 20,
                       }}
                     >
                       <StyledText
-                        className="text-white/60 text-xs mb-1"
-                        style={{ fontFamily: fontNames.light }}
+                        className="text-white text-center"
+                        style={{
+                          fontFamily: fontNames.regular,
+                          fontSize: 14,
+                          includeFontPadding: false,
+                        }}
                       >
-                        {t("max", "Max")}
+                        {durationMax !== undefined
+                          ? formatTime(durationMax)
+                          : t("max", "Max")}
                       </StyledText>
+                    </StyledTouchableOpacity>
+                  </StyledView>
+                </StyledView>
+
+                {/* Reset Time Range */}
+                <StyledView className="mt-4">
+                  <StyledText
+                    className="text-white mb-3"
+                    style={{
+                      fontFamily: fontNames.medium,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                    }}
+                  >
+                    {t("timeReset", "Time Reset")}
+                  </StyledText>
+                  <StyledView className="flex-row items-center">
+                    <StyledTouchableOpacity
+                      onPress={handleResetTimeMinPress}
+                      onLongPress={() => clearTimeFilter("resetMin")}
+                      className="flex-1 mr-2"
+                      style={{
+                        ...modalStyles.pillContainer,
+                        backgroundColor:
+                          resetTimeMin !== undefined
+                            ? "rgba(16, 185, 129, 0.2)"
+                            : "rgba(255, 255, 255, 0.1)",
+                        borderColor:
+                          resetTimeMin !== undefined
+                            ? "rgba(16, 185, 129, 0.4)"
+                            : "rgba(255, 255, 255, 0.2)",
+                        paddingVertical: 10,
+                        paddingHorizontal: 20,
+                      }}
+                    >
                       <StyledText
-                        className="text-white"
-                        style={{ fontFamily: fontNames.regular }}
+                        className="text-white text-center"
+                        style={{
+                          fontFamily: fontNames.regular,
+                          fontSize: 14,
+                          includeFontPadding: false,
+                        }}
                       >
-                        {formatTime(durationMax)}
+                        {resetTimeMin !== undefined
+                          ? formatTime(resetTimeMin)
+                          : t("min", "Min")}
+                      </StyledText>
+                    </StyledTouchableOpacity>
+
+                    <StyledText className="text-white/60 mx-2">—</StyledText>
+
+                    <StyledTouchableOpacity
+                      onPress={handleResetTimeMaxPress}
+                      onLongPress={() => clearTimeFilter("resetMax")}
+                      className="flex-1 ml-2"
+                      style={{
+                        ...modalStyles.pillContainer,
+                        backgroundColor:
+                          resetTimeMax !== undefined
+                            ? "rgba(16, 185, 129, 0.2)"
+                            : "rgba(255, 255, 255, 0.1)",
+                        borderColor:
+                          resetTimeMax !== undefined
+                            ? "rgba(16, 185, 129, 0.4)"
+                            : "rgba(255, 255, 255, 0.2)",
+                        paddingVertical: 10,
+                        paddingHorizontal: 20,
+                      }}
+                    >
+                      <StyledText
+                        className="text-white text-center"
+                        style={{
+                          fontFamily: fontNames.regular,
+                          fontSize: 14,
+                          includeFontPadding: false,
+                        }}
+                      >
+                        {resetTimeMax !== undefined
+                          ? formatTime(resetTimeMax)
+                          : t("max", "Max")}
                       </StyledText>
                     </StyledTouchableOpacity>
                   </StyledView>
@@ -505,35 +894,51 @@ export default function FiltersModal({
                     style={{
                       fontFamily: fontNames.medium,
                       fontSize: 16,
+                      includeFontPadding: false,
                     }}
                   >
                     {t("angle", "Angle")}
                   </StyledText>
-                  <StyledView className="flex-row flex-wrap">
+                  <StyledView className="flex-row justify-between">
                     {ANGLES.map((angle) => (
                       <StyledTouchableOpacity
                         key={angle}
                         onPress={() => toggleAngle(angle)}
-                        style={{
-                          backgroundColor: selectedAngles.includes(angle)
-                            ? "rgba(16, 185, 129, 0.3)"
-                            : "rgba(255, 255, 255, 0.1)",
-                          borderWidth: 1,
-                          borderColor: selectedAngles.includes(angle)
-                            ? "rgba(16, 185, 129, 0.6)"
-                            : "rgba(255, 255, 255, 0.2)",
-                          borderRadius: 8,
-                          paddingHorizontal: 16,
-                          paddingVertical: 8,
-                          marginRight: 8,
-                          marginBottom: 8,
-                        }}
+                        className="flex-row items-center"
+                        style={{ flex: 1, justifyContent: "center" }}
                       >
+                        <StyledView
+                          style={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: 10,
+                            borderWidth: 2,
+                            borderColor: "rgba(255, 255, 255, 0.6)",
+                            backgroundColor: selectedAngles.includes(angle)
+                              ? "#ffffff"
+                              : "transparent",
+                            marginRight: 8,
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {selectedAngles.includes(angle) && (
+                            <StyledView
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: 5,
+                                backgroundColor: "rgba(0, 0, 0, 0.8)",
+                              }}
+                            />
+                          )}
+                        </StyledView>
                         <StyledText
                           className="text-white"
                           style={{
                             fontFamily: fontNames.regular,
-                            fontSize: 14,
+                            fontSize: 16,
+                            includeFontPadding: false,
                           }}
                         >
                           {angle}°
@@ -544,84 +949,135 @@ export default function FiltersModal({
                 </StyledView>
               </StyledScrollView>
 
-              {/* Apply Button */}
-              <StyledView className="p-4 border-t border-white/10">
-                <StyledTouchableOpacity
-                  onPress={applyFilters}
-                  className="bg-[#10b981] rounded-lg py-3"
-                  style={{
-                    backgroundColor:
-                      getActiveFiltersCount() > 0
-                        ? "rgba(16, 185, 129, 0.8)"
-                        : "rgba(16, 185, 129, 0.4)",
-                  }}
-                >
-                  <StyledText
-                    className="text-white text-center"
+              {/* Apply Button Footer */}
+              <StyledView
+                style={{
+                  paddingHorizontal: 24,
+                  paddingVertical: 16,
+                  borderTopWidth: 1,
+                  borderTopColor: "rgba(200, 200, 200, 0.3)",
+                  backgroundColor: "transparent",
+                }}
+              >
+                <StyledView className="flex-row items-center">
+                  {/* Clear Filters Button */}
+                  <StyledTouchableOpacity
+                    onPress={clearAllFilters}
+                    className="mr-4"
+                  >
+                    <StyledText
+                      className="text-[#10b981]"
+                      style={{
+                        fontFamily: fontNames.regular,
+                        fontSize: 16,
+                        includeFontPadding: false,
+                      }}
+                    >
+                      {t("clearFilters", "Clear Filters")}
+                    </StyledText>
+                  </StyledTouchableOpacity>
+
+                  {/* Apply Button */}
+                  <StyledTouchableOpacity
+                    onPress={applyFilters}
+                    className="flex-1 rounded-xl py-4"
                     style={{
-                      fontFamily: fontNames.medium,
-                      fontSize: 16,
+                      backgroundColor: "#10b981",
+                      alignItems: "center",
                     }}
                   >
-                    {getActiveFiltersCount() > 0
-                      ? `${t("apply", "Apply")} (${getActiveFiltersCount()})`
-                      : t("apply", "Apply")}
-                  </StyledText>
-                </StyledTouchableOpacity>
+                    <StyledText
+                      className="text-white text-center"
+                      style={{
+                        fontFamily: fontNames.medium,
+                        fontSize: 16,
+                        includeFontPadding: false,
+                      }}
+                    >
+                      {getActiveFiltersCount() > 0
+                        ? `${t("apply", "Apply")} (${getActiveFiltersCount()})`
+                        : t("apply", "Apply")}
+                    </StyledText>
+                  </StyledTouchableOpacity>
+                </StyledView>
               </StyledView>
-            </StyledView>
-          </StyledView>
-        </KeyboardAvoidingView>
+            </StyledBlurView>
+          </KeyboardAvoidingView>
+        </StyledBlurView>
       </StyledModal>
 
-      {/* Time Picker Modals */}
-      <TimePickerModal
-        visible={showResetTimeMinPicker}
-        onClose={() => setShowResetTimeMinPicker(false)}
-        onConfirm={(seconds) => {
-          setResetTimeMin(seconds);
-          setShowResetTimeMinPicker(false);
-        }}
-        initialMinutes={resetTimeMin ? Math.floor(resetTimeMin / 60) : 0}
-        initialSeconds={resetTimeMin ? resetTimeMin % 60 : 0}
-        title={t("selectMinResetTime", "Select Minimum Reset Time")}
-      />
+      {/* Time Picker Modals - Rendered outside the main modal to avoid z-index issues */}
+      {showResetTimeMinPicker && (
+        <TimePickerModal
+          visible={showResetTimeMinPicker}
+          onClose={() => {
+            console.log("Closing Reset Time Min Picker");
+            setShowResetTimeMinPicker(false);
+          }}
+          onConfirm={(seconds) => {
+            console.log("Reset Time Min confirmed:", seconds);
+            setResetTimeMin(seconds);
+            setShowResetTimeMinPicker(false);
+          }}
+          initialMinutes={resetTimeMin ? Math.floor(resetTimeMin / 60) : 0}
+          initialSeconds={resetTimeMin ? resetTimeMin % 60 : 0}
+          title={t("selectMinResetTime", "Select Minimum Reset Time")}
+        />
+      )}
 
-      <TimePickerModal
-        visible={showResetTimeMaxPicker}
-        onClose={() => setShowResetTimeMaxPicker(false)}
-        onConfirm={(seconds) => {
-          setResetTimeMax(seconds);
-          setShowResetTimeMaxPicker(false);
-        }}
-        initialMinutes={resetTimeMax ? Math.floor(resetTimeMax / 60) : 0}
-        initialSeconds={resetTimeMax ? resetTimeMax % 60 : 0}
-        title={t("selectMaxResetTime", "Select Maximum Reset Time")}
-      />
+      {showResetTimeMaxPicker && (
+        <TimePickerModal
+          visible={showResetTimeMaxPicker}
+          onClose={() => {
+            console.log("Closing Reset Time Max Picker");
+            setShowResetTimeMaxPicker(false);
+          }}
+          onConfirm={(seconds) => {
+            console.log("Reset Time Max confirmed:", seconds);
+            setResetTimeMax(seconds);
+            setShowResetTimeMaxPicker(false);
+          }}
+          initialMinutes={resetTimeMax ? Math.floor(resetTimeMax / 60) : 0}
+          initialSeconds={resetTimeMax ? resetTimeMax % 60 : 0}
+          title={t("selectMaxResetTime", "Select Maximum Reset Time")}
+        />
+      )}
 
-      <TimePickerModal
-        visible={showDurationMinPicker}
-        onClose={() => setShowDurationMinPicker(false)}
-        onConfirm={(seconds) => {
-          setDurationMin(seconds);
-          setShowDurationMinPicker(false);
-        }}
-        initialMinutes={durationMin ? Math.floor(durationMin / 60) : 0}
-        initialSeconds={durationMin ? durationMin % 60 : 0}
-        title={t("selectMinDuration", "Select Minimum Duration")}
-      />
+      {showDurationMinPicker && (
+        <TimePickerModal
+          visible={showDurationMinPicker}
+          onClose={() => {
+            console.log("Closing Duration Min Picker");
+            setShowDurationMinPicker(false);
+          }}
+          onConfirm={(seconds) => {
+            console.log("Duration Min confirmed:", seconds);
+            setDurationMin(seconds);
+            setShowDurationMinPicker(false);
+          }}
+          initialMinutes={durationMin ? Math.floor(durationMin / 60) : 0}
+          initialSeconds={durationMin ? durationMin % 60 : 0}
+          title={t("selectMinDuration", "Select Minimum Duration")}
+        />
+      )}
 
-      <TimePickerModal
-        visible={showDurationMaxPicker}
-        onClose={() => setShowDurationMaxPicker(false)}
-        onConfirm={(seconds) => {
-          setDurationMax(seconds);
-          setShowDurationMaxPicker(false);
-        }}
-        initialMinutes={durationMax ? Math.floor(durationMax / 60) : 0}
-        initialSeconds={durationMax ? durationMax % 60 : 0}
-        title={t("selectMaxDuration", "Select Maximum Duration")}
-      />
+      {showDurationMaxPicker && (
+        <TimePickerModal
+          visible={showDurationMaxPicker}
+          onClose={() => {
+            console.log("Closing Duration Max Picker");
+            setShowDurationMaxPicker(false);
+          }}
+          onConfirm={(seconds) => {
+            console.log("Duration Max confirmed:", seconds);
+            setDurationMax(seconds);
+            setShowDurationMaxPicker(false);
+          }}
+          initialMinutes={durationMax ? Math.floor(durationMax / 60) : 0}
+          initialSeconds={durationMax ? durationMax % 60 : 0}
+          title={t("selectMaxDuration", "Select Maximum Duration")}
+        />
+      )}
     </>
   );
 }

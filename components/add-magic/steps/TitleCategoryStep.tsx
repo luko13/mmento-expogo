@@ -71,15 +71,6 @@ export default function TitleCategoryStep({
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState<string | undefined>();
 
-  // Obtener fecha actual formateada
-  const getCurrentDate = () => {
-    const now = new Date();
-    const day = now.getDate().toString().padStart(2, "0");
-    const month = (now.getMonth() + 1).toString().padStart(2, "0");
-    const year = now.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
-
   // Validación en tiempo real del título
   const titleValidation = useMemo(() => {
     if (!trickData.title) {
@@ -203,17 +194,6 @@ export default function TitleCategoryStep({
                 )}
               </StyledTouchableOpacity>
             </StyledView>
-
-            <StyledText
-              className="text-[#FFFFFF]/50 text-sm opacity-70 text-center"
-              style={{
-                fontFamily: fontNames.light,
-                fontSize: 16,
-                includeFontPadding: false,
-              }}
-            >
-              {getCurrentDate()}
-            </StyledText>
           </StyledView>
 
           {/* Form Container */}

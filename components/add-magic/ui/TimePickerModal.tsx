@@ -164,6 +164,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
         intensity={10}
         tint="dark"
         className="flex-1 justify-center items-center"
+        style={{ zIndex: 1000 }}
       >
         <StyledView className="flex-1 justify-center items-center px-6">
           {/* Modal with blur effect border */}

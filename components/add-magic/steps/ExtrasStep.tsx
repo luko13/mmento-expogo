@@ -636,14 +636,6 @@ export default function ExtrasStep({
       return `${minutes} min ${seconds} s`;
     }
   };
-  // Obtener fecha actual formateada
-  const getCurrentDate = () => {
-    const now = new Date();
-    const day = now.getDate().toString().padStart(2, "0");
-    const month = (now.getMonth() + 1).toString().padStart(2, "0");
-    const year = now.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
   // Formatear tiempo de reinicio para mostrar
   const formatReset = (resetInSeconds: number | null) => {
     if (!resetInSeconds)
@@ -707,17 +699,6 @@ export default function ExtrasStep({
               <Feather name="chevron-left" size={24} color="white" />
             </StyledView>
           </StyledView>
-
-          <StyledText
-            className="text-[#FFFFFF]/50 text-sm opacity-70 text-center"
-            style={{
-              fontFamily: fontNames.light,
-              fontSize: 16,
-              includeFontPadding: false,
-            }}
-          >
-            {getCurrentDate()}
-          </StyledText>
         </StyledView>
 
         <KeyboardAvoidingView

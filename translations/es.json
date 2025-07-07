@@ -50,7 +50,8 @@
   "myTricks": "Mis Trucos",
   "noTricks": "Aún no has añadido ningún truco.",
   "noItems": "No hay elementos en esta categoría",
-  "difficulty": {
+  "difficulty": "Dificultad",
+  "difficultyType": {
     "beginner": "Principiante",
     "easy": "Fácil",
     "intermediate": "Intermedio",
