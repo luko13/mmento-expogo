@@ -156,7 +156,7 @@ export default function Profile() {
 
           {/* Stats */}
           <StyledView className="rounded-xl mb-6 overflow-hidden">
-            <StyledBlurView intensity={20} tint="dark" className="rounded-xl">
+            <StyledBlurView intensity={20} tint="dark" experimentalBlurMethod="dimezisBlurView" className="rounded-xl">
               <StyledView className="flex-row justify-around p-4">
                 <StyledView className="items-center">
                   <StyledText

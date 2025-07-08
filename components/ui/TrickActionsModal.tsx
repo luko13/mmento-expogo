@@ -63,6 +63,7 @@ const TrickActionsModal: React.FC<TrickActionsModalProps> = ({
       <TouchableWithoutFeedback onPress={onClose}>
         <StyledBlurView
           {...blurConfig.backgroundBlur}
+          experimentalBlurMethod="dimezisBlurView"
           className="flex-1 justify-end"
         >
           <TouchableWithoutFeedback>
@@ -70,6 +71,7 @@ const TrickActionsModal: React.FC<TrickActionsModalProps> = ({
               {/* Actions Container */}
               <StyledBlurView
                 {...blurConfig.containerBlur}
+                experimentalBlurMethod="dimezisBlurView"
                 className="w-full overflow-hidden mb-2"
                 style={modalStyles.actionModalContainer}
               >
@@ -176,6 +178,7 @@ const TrickActionsModal: React.FC<TrickActionsModalProps> = ({
               {/* Cancel Button */}
               <StyledBlurView
                 {...blurConfig.containerBlur}
+                experimentalBlurMethod="dimezisBlurView"
                 className="w-full overflow-hidden"
                 style={{
                   ...modalStyles.actionModalContainer,

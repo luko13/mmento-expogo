@@ -163,6 +163,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
       <StyledBlurView
         intensity={10}
         tint="dark"
+        experimentalBlurMethod="dimezisBlurView"
         className="flex-1 justify-center items-center"
         style={{ zIndex: 9999, elevation: 999 }}
       >
@@ -172,6 +173,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
             className="overflow-hidden"
             intensity={60}
             tint="default"
+            experimentalBlurMethod="dimezisBlurView"
             style={{
               width: screenWidth * 0.9,
               maxWidth: 400,
@@ -277,6 +279,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
             {/* Actions - No gap between buttons */}
             <StyledBlurView
               className="flex-row overflow-hidden"
+              experimentalBlurMethod="dimezisBlurView"
               style={{ height: 56 }}
               intensity={60}
               tint="default"

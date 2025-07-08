@@ -66,11 +66,13 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
       <StyledModal visible={visible} transparent animationType="fade">
         <StyledBlurView
           {...blurConfig.backgroundBlur}
+          experimentalBlurMethod="dimezisBlurView"
           className={modalClasses.backgroundBlur}
         >
           <StyledView className={modalClasses.mainContainer}>
             <StyledBlurView
               {...blurConfig.containerBlur}
+              experimentalBlurMethod="dimezisBlurView"
               className={modalClasses.containerBlur}
               style={modalStyles.modalContainer}
             >

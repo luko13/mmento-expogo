@@ -137,7 +137,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
               },
             ]}
           >
-            <BlurView intensity={50} tint="dark" style={styles.statItemBlur}>
+            <BlurView intensity={50} tint="dark" experimentalBlurMethod="dimezisBlurView" style={styles.statItemBlur}>
               <LinearGradient
                 colors={["#ffffff15", "#ffffff08"]}
                 start={{ x: 0, y: 0 }}
@@ -183,7 +183,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
               },
             ]}
           >
-            <BlurView intensity={50} tint="dark" style={styles.statItemBlur}>
+            <BlurView intensity={50} tint="dark" experimentalBlurMethod="dimezisBlurView" style={styles.statItemBlur}>
               <LinearGradient
                 colors={["#ffffff15", "#ffffff08"]}
                 start={{ x: 0, y: 0 }}
@@ -227,7 +227,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
               },
             ]}
           >
-            <BlurView intensity={50} tint="dark" style={styles.statItemBlur}>
+            <BlurView intensity={50} tint="dark" experimentalBlurMethod="dimezisBlurView" style={styles.statItemBlur}>
               <LinearGradient
                 colors={["#ffffff15", "#ffffff08"]}
                 start={{ x: 0, y: 0 }}
@@ -271,7 +271,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
               },
             ]}
           >
-            <BlurView intensity={50} tint="dark" style={styles.statItemBlur}>
+            <BlurView intensity={50} tint="dark" experimentalBlurMethod="dimezisBlurView" style={styles.statItemBlur}>
               <LinearGradient
                 colors={["#ffffff15", "#ffffff08"]}
                 start={{ x: 0, y: 0 }}

@@ -80,7 +80,7 @@ const StageInfoSection: React.FC<StageInfoSectionProps> = ({
   return (
     <StyledView style={styles.container}>
       <StyledView style={styles.borderContainer}>
-        <BlurView intensity={50} tint="dark" style={styles.blurContainer}>
+        <BlurView intensity={50} tint="dark" experimentalBlurMethod="dimezisBlurView" style={styles.blurContainer}>
           <LinearGradient
             colors={["#d4d4d426", "#6e6e6e14"]}
             start={{ x: 0, y: 0 }}

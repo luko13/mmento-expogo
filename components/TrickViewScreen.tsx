@@ -1160,6 +1160,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         >
           <BlurView
             intensity={40}
+            experimentalBlurMethod="dimezisBlurView"
             tint="dark"
             style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.3)" }}
           />

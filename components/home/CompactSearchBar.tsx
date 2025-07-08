@@ -44,7 +44,7 @@ export default function CompactSearchBar({
 
   return (
     <StyledView style={styles.searchBarContainer}>
-      <BlurView intensity={10} tint="dark" style={styles.blurEffect}>
+      <BlurView intensity={10} tint="dark" experimentalBlurMethod="dimezisBlurView" style={styles.blurEffect}>
         <StyledView style={styles.searchInputContainer}>
           <Ionicons name="search" size={16} color="white" />
           <StyledTextInput

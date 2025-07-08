@@ -174,10 +174,12 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
       <StyledBlurView
         {...blurConfig.backgroundBlur}
         className={modalClasses.backgroundBlur}
+        experimentalBlurMethod="dimezisBlurView"
       >
         <StyledView className={modalClasses.mainContainer}>
           <StyledBlurView
             {...blurConfig.containerBlur}
+            experimentalBlurMethod="dimezisBlurView"
             className={modalClasses.containerBlur}
             style={modalStyles.modalContainer}
           >

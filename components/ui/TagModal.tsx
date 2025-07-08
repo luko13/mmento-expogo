@@ -84,11 +84,13 @@ const TagModal: React.FC<TagModalProps> = ({
     <StyledModal visible={visible} transparent animationType="fade">
       <StyledBlurView
         {...blurConfig.backgroundBlur}
+        experimentalBlurMethod="dimezisBlurView"
         className={modalClasses.backgroundBlur}
       >
         <StyledView className={modalClasses.mainContainerWithPadding}>
           <StyledBlurView
             {...blurConfig.containerBlur}
+            experimentalBlurMethod="dimezisBlurView"
             className={modalClasses.containerBlur}
             style={modalStyles.modalContainer}
           >

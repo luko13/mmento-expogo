@@ -117,6 +117,7 @@ export default function AppLayout() {
           <StyledBlurView
             intensity={40}
             tint="dark"
+            experimentalBlurMethod="dimezisBlurView"
             className="overflow-hidden"
             style={{
               backgroundColor: "rgba(255,255,255,0.15)",

@@ -225,6 +225,7 @@ const MagicLoader: React.FC<MagicLoaderProps> = ({ size = "medium" }) => {
           {/* Efecto de cristal con blur */}
           <BlurView
             intensity={50}
+            experimentalBlurMethod="dimezisBlurView"
             tint="light"
             style={{
               position: "absolute",

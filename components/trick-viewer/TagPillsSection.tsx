@@ -119,6 +119,7 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
               <BlurView
                 intensity={25}
                 tint="default"
+                experimentalBlurMethod="dimezisBlurView"
                 style={styles.blurContainer}
               >
                 <StyledView

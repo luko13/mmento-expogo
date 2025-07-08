@@ -279,7 +279,11 @@ export default function FiltersModal({
         animationType="slide"
         onRequestClose={onClose}
       >
-        <StyledBlurView {...blurConfig.backgroundBlur} className="flex-1">
+        <StyledBlurView
+          {...blurConfig.backgroundBlurDark}
+          experimentalBlurMethod="dimezisBlurView"
+          className="flex-1"
+        >
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={{ flex: 1 }}
@@ -302,6 +306,7 @@ export default function FiltersModal({
             >
               <StyledBlurView
                 {...blurConfig.containerBlur}
+                experimentalBlurMethod="dimezisBlurView"
                 style={{
                   flex: 1,
                   backgroundColor: "rgba(255, 255, 255, 0.30)",
@@ -394,6 +399,7 @@ export default function FiltersModal({
                     >
                       <StyledBlurView
                         {...blurConfig.containerBlur}
+                        experimentalBlurMethod="dimezisBlurView"
                         style={{
                           backgroundColor: "rgba(255, 255, 255, 0.30)",
                           borderRadius: 12,
@@ -559,6 +565,7 @@ export default function FiltersModal({
                     >
                       <StyledBlurView
                         {...blurConfig.containerBlur}
+                        experimentalBlurMethod="dimezisBlurView"
                         style={{
                           backgroundColor: "rgba(255, 255, 255, 0.30)",
                           borderRadius: 12,

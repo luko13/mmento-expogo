@@ -50,6 +50,7 @@ const CategoryActionsModal: React.FC<CategoryActionsModalProps> = ({
       <TouchableWithoutFeedback onPress={onClose}>
         <StyledBlurView
           {...blurConfig.backgroundBlur}
+          experimentalBlurMethod="dimezisBlurView"
           className="flex-1 justify-end"
         >
           <TouchableWithoutFeedback>
@@ -57,10 +58,11 @@ const CategoryActionsModal: React.FC<CategoryActionsModalProps> = ({
               {/* Actions Container */}
               <StyledBlurView
                 {...blurConfig.containerBlur}
+                experimentalBlurMethod="dimezisBlurView"
                 className="w-full overflow-hidden mb-2"
                 style={modalStyles.actionModalContainer}
               >
-                {/* Actions wrapper - sin BlurView adicional */}
+                {/* Actions wrapper */}
                 <StyledView>
                   {/* Edit Button */}
                   <StyledTouchableOpacity
@@ -109,6 +111,7 @@ const CategoryActionsModal: React.FC<CategoryActionsModalProps> = ({
               {/* Cancel Button */}
               <StyledBlurView
                 {...blurConfig.containerBlur}
+                experimentalBlurMethod="dimezisBlurView"
                 className="w-full overflow-hidden"
                 style={{
                   ...modalStyles.actionModalContainer,

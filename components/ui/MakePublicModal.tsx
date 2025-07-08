@@ -169,12 +169,14 @@ const MakePublicModal: React.FC<MakePublicModalProps> = ({
       <StyledModal visible={visible} transparent animationType="fade">
         <StyledBlurView
           {...blurConfig.backgroundBlur}
+          experimentalBlurMethod="dimezisBlurView"
           className={modalClasses.backgroundBlur}
           style={{ zIndex: 9999 }}
         >
           <StyledView className={modalClasses.mainContainer}>
             <StyledBlurView
               {...blurConfig.containerBlur}
+              experimentalBlurMethod="dimezisBlurView"
               className={modalClasses.containerBlur}
               style={modalStyles.modalContainer}
             >
@@ -280,10 +282,12 @@ const MakePublicModal: React.FC<MakePublicModalProps> = ({
       <StyledBlurView
         {...blurConfig.backgroundBlur}
         className={modalClasses.backgroundBlur}
+        experimentalBlurMethod="dimezisBlurView"
       >
         <StyledView className={modalClasses.mainContainer}>
           <StyledBlurView
             {...blurConfig.containerBlur}
+            experimentalBlurMethod="dimezisBlurView"
             className={modalClasses.containerBlur}
             style={modalStyles.modalContainer}
           >

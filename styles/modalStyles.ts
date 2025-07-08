@@ -126,10 +126,10 @@ export const blurConfig = {
     tint: "light" as const,
   },
 
-  // Blur alternativo oscuro para fondos - NO SE USA, mantenemos el mismo que arriba
+  // Blur alternativo oscuro para fondos
   backgroundBlurDark: {
-    intensity: 10, // Mismo que backgroundBlur
-    tint: "light" as const, // Mismo que backgroundBlur
+    intensity: 100, 
+    tint: "dark" as const,
   },
 
   // Contenedor principal con efecto glass (igual que CategoryModal)

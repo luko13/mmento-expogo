@@ -13,7 +13,6 @@ import { styled } from "nativewind";
 import { Feather } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../../lib/supabase";
-import { BlurView } from "expo-blur";
 import TagModal from "../ui/TagModal";
 import { fontNames } from "../../app/_layout";
 
@@ -22,7 +21,6 @@ const StyledText = styled(Text);
 const StyledTextInput = styled(TextInput);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledModal = styled(Modal);
-const StyledBlurView = styled(BlurView);
 
 interface Tag {
   id: string;

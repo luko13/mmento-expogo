@@ -42,11 +42,13 @@ const CantDeleteModal: React.FC<CategoryNotEmptyModalProps> = ({
       <StyledBlurView
         {...blurConfig.backgroundBlur}
         className={modalClasses.backgroundBlur}
+        experimentalBlurMethod="dimezisBlurView"
       >
         <StyledView className={modalClasses.mainContainer}>
           {/* Caja principal con desenfoque e intento de vidrio esmerilado */}
           <StyledBlurView
             {...blurConfig.containerBlur}
+            experimentalBlurMethod="dimezisBlurView"
             className={modalClasses.containerBlur}
             style={modalStyles.modalContainer}
           >
