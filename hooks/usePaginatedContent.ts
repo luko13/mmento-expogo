@@ -49,6 +49,7 @@ interface LibraryItem {
   effect?: string;
   secret_video_url?: string;
   secret?: string;
+  is_public?: boolean;
 }
 
 interface CategorySection {
@@ -60,10 +61,17 @@ interface CategorySection {
   items: LibraryItem[];
 }
 
+// Actualizar la interfaz SearchFilters para coincidir con FiltersModal
 interface SearchFilters {
-  difficulties?: string[];
-  tags?: string[];
   categories?: string[];
+  tags?: string[];
+  tagsMode?: "and" | "or";
+  difficulties?: number[]; // Cambiar a number[] para coincidir con CompactSearchBar
+  resetTimes?: { min?: number; max?: number };
+  durations?: { min?: number; max?: number };
+  angles?: string[];
+  isPublic?: boolean | null;
+  sortOrder?: "recent" | "last";
 }
 
 export function usePaginatedContent(
@@ -101,8 +109,8 @@ export function usePaginatedContent(
         hasMore: boolean;
         nextPage: number;
       },
-      query?: string,
-      filters?: SearchFilters,
+      query?: string, // Ya no necesarios
+      filters?: SearchFilters, // Ya no necesarios
       userId?: string
     ): Promise<CategorySection[]> => {
       const sectionsMap = new Map<string, CategorySection>();
@@ -141,7 +149,7 @@ export function usePaginatedContent(
         setFavoritesCategoryId(favCat.id);
       }
 
-      // Process tricks
+      // Process tricks sin filtrar localmente
       content.tricks.forEach((trick) => {
         const isFavorite = userFavorites.has(trick.id);
 
@@ -165,9 +173,10 @@ export function usePaginatedContent(
           effect: trick.effect,
           secret_video_url: trick.secret_video_url,
           secret: trick.secret,
+          is_public: trick.is_public,
         };
 
-        if (!matchesFilters(item, query, filters)) return;
+        // Ya no necesitamos matchesFilters
 
         // Add to regular categories
         trick.trick_categories?.forEach((tc: any) => {
@@ -262,7 +271,6 @@ export function usePaginatedContent(
           console.log("📡 Cambio detectado en trick_categories:", payload);
 
           // Verificar si el cambio afecta al usuario actual
-          // Necesitaríamos hacer una consulta adicional para verificar el user_id del trick
           paginatedContentService.clearUserCache(currentUserId);
           refresh();
         }
@@ -297,20 +305,30 @@ export function usePaginatedContent(
         // Ensure favorites category exists
         await ensureFavoritesCategory(user.id);
 
-        const selectedCategoryId: string | undefined =
-          filters?.categories?.[0] ?? undefined;
+        const selectedCategoryIds: string[] = filters?.categories || [];
 
+        // Convertir difficulties de number[] a number[] (ya no es necesaria conversión)
+        const convertedFilters = filters ? {
+          ...filters,
+          difficulties: filters.difficulties || []
+        } : undefined;
+
+        // Pasar query y filters al servicio
         const content = await paginatedContentService.getUserContentPaginated(
           user.id,
           pageToLoad,
-          selectedCategoryId
+          selectedCategoryIds, // Pasar array de categorías
+          query,
+          convertedFilters
         );
+        
         if (!isMounted.current) return;
 
+        // Ya no necesitamos filtrar localmente
         const newSections = await processContentIntoSections(
           content,
-          query,
-          filters,
+          undefined, // No pasar query ni filters aquí
+          undefined,
           user.id
         );
 
@@ -326,11 +344,12 @@ export function usePaginatedContent(
 
         // Prefetch siguiente página si hay más
         if (content.hasMore) {
-          paginatedContentService.prefetchNextPage(
-            user.id,
-            pageToLoad,
-            selectedCategoryId
-          );
+          // Comentado temporalmente hasta que se implemente el método
+          // paginatedContentService.prefetchNextPage(
+          //   user.id,
+          //   pageToLoad,
+          //   selectedCategoryId
+          // );
         }
       } catch (err) {
         console.error("Error cargando contenido:", err);
@@ -482,38 +501,6 @@ export function usePaginatedContent(
 // ============================================================================
 // FUNCIONES AUXILIARES
 // ============================================================================
-
-function matchesFilters(
-  item: LibraryItem,
-  query?: string,
-  filters?: Pick<SearchFilters, "difficulties" | "tags">
-): boolean {
-  const queryLower = query?.toLowerCase().trim() ?? "";
-  if (queryLower) {
-    const matchesText =
-      item.title.toLowerCase().includes(queryLower) ||
-      item.description?.toLowerCase().includes(queryLower) ||
-      false;
-    if (!matchesText) return false;
-  }
-
-  if (filters?.difficulties?.length) {
-    if (
-      !item.difficulty ||
-      !filters.difficulties.includes(String(item.difficulty))
-    ) {
-      return false;
-    }
-  }
-
-  if (filters?.tags?.length) {
-    if (!item.tags?.some((t) => filters.tags!.includes(t))) {
-      return false;
-    }
-  }
-
-  return true;
-}
 
 function parseJsonSafely(value: any, defaultValue: any = null): any {
   if (value == null) return defaultValue;

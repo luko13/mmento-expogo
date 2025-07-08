@@ -26,6 +26,7 @@ interface LibraryItem {
   tags?: string[];
   description?: string;
   is_favorite?: boolean;
+  is_public?: boolean;
   category_id?: string;
   effect_video_url?: string;
   effect?: string;
@@ -34,6 +35,7 @@ interface LibraryItem {
   angles?: string[] | any;
   duration?: number | null;
   reset?: number | null;
+  notes?: string;
 }
 
 interface CategorySection {
@@ -45,10 +47,13 @@ interface CategorySection {
 interface SearchFilters {
   categories: string[];
   tags: string[];
-  difficulties: number[]; // Keep as number[] to match database type
+  difficulties: number[];
   resetTimes: { min?: number; max?: number };
   durations: { min?: number; max?: number };
   angles: string[];
+  isPublic?: boolean | null;
+  sortOrder?: "recent" | "last";
+  tagsMode?: "and" | "or";
 }
 
 interface Props {
@@ -64,26 +69,77 @@ interface Props {
 
 // Memoized library item row
 const LibraryItemRow = memo(
-  ({ item, onPress }: { item: LibraryItem; onPress: () => void }) => {
+  ({
+    item,
+    onPress,
+    searchQuery,
+  }: {
+    item: LibraryItem;
+    onPress: () => void;
+    searchQuery?: string;
+  }) => {
+    // Function to determine where the search match is found
+    const getSearchMatchLocation = (): string | null => {
+      if (!searchQuery || searchQuery.trim() === "") return null;
+
+      const query = searchQuery.toLowerCase().trim();
+
+      // Check in order: Title, Notes, Secret, Effect
+      if (item.title.toLowerCase().includes(query)) {
+        return null; // Don't show location for title matches
+      }
+
+      if (item.notes?.toLowerCase().includes(query)) {
+        return "Notes";
+      }
+
+      if (item.secret?.toLowerCase().includes(query)) {
+        return "Secret";
+      }
+
+      if (item.effect?.toLowerCase().includes(query)) {
+        return "Effect";
+      }
+
+      return null;
+    };
+
+    const matchLocation = getSearchMatchLocation();
+
     return (
       <StyledTouchableOpacity
-        className="flex-row justify-between items-center p-2 rounded-lg mb-1 border-b border-white/10"
+        className="p-2 rounded-lg mb-1 border-b border-white/10"
         onPress={onPress}
       >
-        <StyledView className="flex-row items-center flex-1">
-          <Text
-            style={{
-              fontFamily: fontNames.light,
-              fontSize: 16,
-              color: "white",
-              marginLeft: 8,
-              flex: 1,
-              includeFontPadding: false,
-            }}
-            numberOfLines={1}
-          >
-            {item.title}
-          </Text>
+        <StyledView className="flex-row justify-between items-center">
+          <StyledView className="flex-1">
+            <Text
+              style={{
+                fontFamily: fontNames.light,
+                fontSize: 16,
+                color: "white",
+                marginLeft: 8,
+                includeFontPadding: false,
+              }}
+              numberOfLines={1}
+            >
+              {item.title}
+            </Text>
+            {matchLocation && (
+              <Text
+                style={{
+                  fontFamily: fontNames.light,
+                  fontSize: 12,
+                  color: "rgba(255, 255, 255, 0.6)",
+                  marginLeft: 8,
+                  marginTop: 2,
+                  includeFontPadding: false,
+                }}
+              >
+                In: {matchLocation}
+              </Text>
+            )}
+          </StyledView>
           <InlineProgressBar item={item} />
         </StyledView>
       </StyledTouchableOpacity>
@@ -102,7 +158,8 @@ const LibraryItemRow = memo(
       prevProps.item.secret === nextProps.item.secret &&
       prevProps.item.duration === nextProps.item.duration &&
       prevProps.item.reset === nextProps.item.reset &&
-      prevProps.item.difficulty === nextProps.item.difficulty
+      prevProps.item.difficulty === nextProps.item.difficulty &&
+      prevProps.searchQuery === nextProps.searchQuery
     );
   }
 );
@@ -134,10 +191,23 @@ const CollapsibleCategoryOptimized = ({
         const query = searchQuery.toLowerCase().trim();
         const matchesText =
           item.title.toLowerCase().includes(query) ||
-          item.description?.toLowerCase().includes(query);
+          item.description?.toLowerCase().includes(query) ||
+          item.effect?.toLowerCase().includes(query) ||
+          item.secret?.toLowerCase().includes(query) ||
+          item.notes?.toLowerCase().includes(query);
         if (!matchesText) return false;
       }
-
+      // Public/Private filter
+      if (
+        searchFilters?.isPublic !== undefined &&
+        searchFilters.isPublic !== null
+      ) {
+        // Asegurarse de que el item tenga la propiedad is_public
+        const itemIsPublic = (item as any).is_public;
+        if (itemIsPublic !== searchFilters.isPublic) {
+          return false;
+        }
+      }
       // Difficulty filter - convert to string for comparison with hook expectations
       if (searchFilters?.difficulties?.length) {
         if (
@@ -203,10 +273,12 @@ const CollapsibleCategoryOptimized = ({
       if (searchFilters?.angles?.length) {
         if (!item.angles || !Array.isArray(item.angles)) return false;
 
-        // Check if any of the item's angles match the selected angles
-        const hasMatchingAngle = item.angles.some((angle) =>
-          searchFilters.angles.includes(String(angle))
+        // Convertir todos los valores a string para comparación consistente
+        const itemAngles = item.angles.map((angle) => String(angle));
+        const hasMatchingAngle = searchFilters.angles.some((filterAngle) =>
+          itemAngles.includes(filterAngle)
         );
+
         if (!hasMatchingAngle) return false;
       }
 
@@ -324,6 +396,7 @@ const CollapsibleCategoryOptimized = ({
               key={`${item.type}-${item.id}`}
               item={item}
               onPress={() => handleItemPress(item)}
+              searchQuery={searchQuery}
             />
           ))
         ) : (

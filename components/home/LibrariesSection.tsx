@@ -78,13 +78,9 @@ const LibrariesSection = memo(function LibrariesSection({
   const [totalTricksCount, setTotalTricksCount] = useState(0);
 
   // Convert SearchFilters for compatibility with usePaginatedContent hook
+  // Ya no necesitamos convertir, pasamos directamente
   const convertedSearchFilters = useMemo(() => {
-    if (!searchFilters) return undefined;
-    
-    return {
-      ...searchFilters,
-      difficulties: searchFilters.difficulties.map(d => String(d))
-    };
+    return searchFilters; // Sin conversión
   }, [searchFilters]);
 
   // Use paginated content hook
@@ -102,17 +98,17 @@ const LibrariesSection = memo(function LibrariesSection({
   // Filter sections to hide empty categories when there's an active search
   const filteredSections = useMemo(() => {
     // Check if there's an active search (query or filters)
-    const hasActiveSearch = searchQuery.trim() !== "" || 
-      (searchFilters && (
-        searchFilters.categories.length > 0 ||
-        searchFilters.tags.length > 0 ||
-        searchFilters.difficulties.length > 0 ||
-        searchFilters.resetTimes.min !== undefined ||
-        searchFilters.resetTimes.max !== undefined ||
-        searchFilters.durations.min !== undefined ||
-        searchFilters.durations.max !== undefined ||
-        searchFilters.angles.length > 0
-      ));
+    const hasActiveSearch =
+      searchQuery.trim() !== "" ||
+      (searchFilters &&
+        (searchFilters.categories.length > 0 ||
+          searchFilters.tags.length > 0 ||
+          searchFilters.difficulties.length > 0 ||
+          searchFilters.resetTimes.min !== undefined ||
+          searchFilters.resetTimes.max !== undefined ||
+          searchFilters.durations.min !== undefined ||
+          searchFilters.durations.max !== undefined ||
+          searchFilters.angles.length > 0));
 
     if (!hasActiveSearch) {
       // No active search, show all categories
@@ -121,7 +117,7 @@ const LibrariesSection = memo(function LibrariesSection({
 
     // Filter out categories with 0 items when there's an active search
     // UNLESS the category name matches the search query
-    return sections.filter(section => {
+    return sections.filter((section) => {
       // Always show if category has items
       if (section.items && section.items.length > 0) {
         return true;
@@ -456,7 +452,7 @@ const LibrariesSection = memo(function LibrariesSection({
     },
     [
       searchQuery,
-      convertedSearchFilters,
+      searchFilters,
       handleItemPress,
       openEditCategoryModal,
       handleDeleteCategory,
