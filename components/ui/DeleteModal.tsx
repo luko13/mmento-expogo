@@ -48,7 +48,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
   return (
     <StyledModal visible={visible} transparent animationType="fade">
       <StyledBlurView
-        {...blurConfig.backgroundBlurDark}
+        {...blurConfig.backgroundBlur}
         experimentalBlurMethod="dimezisBlurView"
         className={modalClasses.backgroundBlur}
       >

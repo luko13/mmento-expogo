@@ -298,20 +298,36 @@ export default function FiltersModal({
             {/* Modal Content */}
             <StyledView
               style={{
-                height: screenHeight * 0.85,
+                height: screenHeight * 0.9,
                 borderTopLeftRadius: 30,
                 borderTopRightRadius: 30,
                 overflow: "hidden",
               }}
             >
+              {/* Vista para el borde */}
+              <StyledView
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  borderTopLeftRadius: 30,
+                  borderTopRightRadius: 30,
+                  borderWidth: 1,
+                  borderColor: "rgba(200, 200, 200, 0.4)",
+                  borderBottomWidth: 0,
+                  zIndex: 2,
+                  pointerEvents: "none",
+                }}
+              />
+
               <StyledBlurView
                 {...blurConfig.containerBlur}
                 experimentalBlurMethod="dimezisBlurView"
                 style={{
                   flex: 1,
                   backgroundColor: "rgba(255, 255, 255, 0.30)",
-                  borderWidth: 1,
-                  borderColor: "rgba(200, 200, 200, 0.4)",
                   borderTopLeftRadius: 30,
                   borderTopRightRadius: 30,
                   shadowColor: "#000",

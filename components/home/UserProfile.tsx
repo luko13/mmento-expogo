@@ -146,7 +146,7 @@ export default function UserProfile({
         <Text
           style={{
             color: "white",
-            fontSize: 20,
+            fontSize: 16,
             fontFamily: fontNames.light,
             includeFontPadding: false,
             textAlignVertical: "center",

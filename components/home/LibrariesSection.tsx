@@ -368,13 +368,13 @@ const LibrariesSection = memo(function LibrariesSection({
           <Text
             style={{
               fontFamily: fontNames.light,
-              fontSize: 20,
+              fontSize: 18,
               color: "white",
               marginLeft: 10,
               includeFontPadding: false,
             }}
           >
-            {totalTricksCount} MMENTOS
+            {totalTricksCount} {t("magicItems", "Magic Items")}
           </Text>
         </StyledView>
         <StyledTouchableOpacity

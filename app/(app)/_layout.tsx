@@ -92,7 +92,7 @@ export default function AppLayout() {
     {
       id: "ai",
       icon: "robot-angry-outline",
-      route: "/(app)/ai",
+      route: "/(app)/mmento-ai",
       library: "materialcommunity",
       size: 24,
     },
