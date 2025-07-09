@@ -348,6 +348,7 @@
   "recommendedForSituation": "Para esa situación, te recomiendo estos trucos de tu biblioteca:",
   "registerTrickPlusOnly": "El registro de trucos mediante IA está disponible solo para usuarios Plus",
   "helpPrepareInfo": "Para registrar trucos, por favor usa el formulario de la aplicación. Puedo ayudarte a preparar la información.",
+  "chat": "Chat",
   "tooltips": {
     "magicTitle": "Introduce el título del truco.",
     "category": "Selecciona una categoría para tu truco.",

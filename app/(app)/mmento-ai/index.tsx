@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
+import { useRouter } from "expo-router";
 import { fontNames } from "../../_layout";
 import ChatService from "../../../services/chatService";
 import { SecurityManager } from "../../../utils/security";
@@ -32,6 +33,7 @@ const StyledTouchableOpacity = styled(TouchableOpacity);
 
 export default function MmentoAI() {
   const { t } = useTranslation();
+  const router = useRouter();
   const chatService = ChatService.getInstance();
   const flatListRef = useRef<FlatList>(null);
 
@@ -78,7 +80,7 @@ export default function MmentoAI() {
 
       // Si no hay conversaciones, crear una nueva
       if (convs.length === 0) {
-        await createNewConversation();
+        await createNewConversation(user.id);
       } else {
         // Cargar la conversación más reciente
         await selectConversation(convs[0]);
@@ -91,10 +93,19 @@ export default function MmentoAI() {
     }
   };
 
-  const createNewConversation = async () => {
+  const createNewConversation = async (userIdParam?: string) => {
     try {
+      const effectiveUserId = userIdParam || userId;
+      if (!effectiveUserId) {
+        console.error("No userId disponible");
+        return;
+      }
+
       const title = `${t("chat") as string} ${new Date().toLocaleDateString()}`;
-      const newConv = await chatService.createConversation(userId, title);
+      const newConv = await chatService.createConversation(
+        effectiveUserId,
+        title
+      );
 
       setConversations([newConv, ...conversations]);
       setCurrentConversation(newConv);
@@ -125,7 +136,37 @@ export default function MmentoAI() {
   };
 
   const sendMessage = async (content: string, audioUrl?: string) => {
-    if (!content.trim() || !currentConversation || isSending) return;
+    console.log("sendMessage llamado con:", { content, audioUrl });
+
+    // Validaciones mejoradas
+    if (!content || typeof content !== "string") {
+      console.error("Contenido inválido:", content);
+      return;
+    }
+
+    const trimmedContent = content.trim();
+
+    if (!trimmedContent) {
+      console.log("Mensaje vacío después de trim");
+      return;
+    }
+
+    if (!currentConversation) {
+      console.error("No hay conversación actual");
+      setError(t("noConversationSelected"));
+      return;
+    }
+
+    if (isSending) {
+      console.log("Ya se está enviando un mensaje");
+      return;
+    }
+
+    if (!userLimits?.can_query) {
+      console.log("Usuario no puede hacer consultas", userLimits);
+      setError(t("dailyLimitReached"));
+      return;
+    }
 
     // Limpiar error previo
     setError("");
@@ -138,7 +179,7 @@ export default function MmentoAI() {
     }
 
     // Sanitizar y validar contenido
-    const sanitized = SecurityManager.sanitizeInput(content);
+    const sanitized = SecurityManager.sanitizeInput(trimmedContent);
     if (!SecurityManager.validateContent(sanitized)) {
       setError(t("invalidContent"));
       return;
@@ -146,18 +187,18 @@ export default function MmentoAI() {
 
     try {
       setIsSending(true);
-      setInputText("");
+      setInputText(""); // Limpiar input inmediatamente
       Keyboard.dismiss();
 
       // Añadir mensaje temporal del usuario
       const tempUserMessage = {
-        id: "temp-user",
-        role: "user",
+        id: `temp-user-${Date.now()}`,
+        role: "user" as const,
         content: sanitized,
         created_at: new Date().toISOString(),
       };
 
-      setMessages([...messages, tempUserMessage]);
+      setMessages((prev) => [...prev, tempUserMessage]);
 
       // Scroll al final
       setTimeout(() => {
@@ -166,8 +207,8 @@ export default function MmentoAI() {
 
       // Añadir mensaje temporal de "escribiendo..."
       const tempAssistantMessage = {
-        id: "temp-assistant",
-        role: "assistant",
+        id: `temp-assistant-${Date.now()}`,
+        role: "assistant" as const,
         content: "...",
         created_at: new Date().toISOString(),
       };
@@ -182,7 +223,7 @@ export default function MmentoAI() {
         audioUrl
       );
 
-      // Actualizar mensajes (eliminar temporales y añadir reales)
+      // Actualizar mensajes (eliminar temporales)
       setMessages((prev) => prev.filter((m) => !m.id.startsWith("temp-")));
 
       // Obtener mensajes actualizados
@@ -201,8 +242,16 @@ export default function MmentoAI() {
       }, 100);
     } catch (error: any) {
       console.error("Error enviando mensaje:", error);
+
       // Traducir el error si es una clave conocida
-      const errorMessage = t(error.message, error.message) as string;
+      let errorMessage = error.message;
+
+      // Intentar traducir el mensaje de error
+      const translatedError = t(error.message, { defaultValue: "" });
+      if (translatedError) {
+        errorMessage = translatedError;
+      }
+
       setError(errorMessage);
 
       // Eliminar mensajes temporales
@@ -220,24 +269,33 @@ export default function MmentoAI() {
 
   const renderHeader = () => (
     <StyledView className="flex-row items-center justify-between p-4 border-b border-white/20">
-      <StyledTouchableOpacity
-        onPress={() => setShowConversations(true)}
-        className="flex-row items-center flex-1"
-      >
-        <Ionicons name="menu" size={24} color="white" />
-        <StyledText
-          className="text-white ml-3 flex-1"
-          style={{
-            fontFamily: fontNames.medium,
-            fontSize: 18,
-          }}
-          numberOfLines={1}
-        >
-          {currentConversation?.title || t("newChat")}
-        </StyledText>
-      </StyledTouchableOpacity>
+      <StyledView className="flex-row items-center flex-1">
+        <StyledTouchableOpacity onPress={() => router.back()} className="mr-3">
+          <Ionicons name="chevron-back" size={24} color="white" />
+        </StyledTouchableOpacity>
 
-      <StyledTouchableOpacity onPress={createNewConversation} className="ml-2">
+        <StyledTouchableOpacity
+          onPress={() => setShowConversations(true)}
+          className="flex-row items-center flex-1"
+        >
+          <Ionicons name="menu" size={24} color="white" />
+          <StyledText
+            className="text-white ml-3 flex-1"
+            style={{
+              fontFamily: fontNames.medium,
+              fontSize: 18,
+            }}
+            numberOfLines={1}
+          >
+            {currentConversation?.title || t("newChat")}
+          </StyledText>
+        </StyledTouchableOpacity>
+      </StyledView>
+
+      <StyledTouchableOpacity
+        onPress={() => createNewConversation()}
+        className="ml-2"
+      >
         <Ionicons name="add-circle-outline" size={24} color="white" />
       </StyledTouchableOpacity>
     </StyledView>
@@ -245,10 +303,34 @@ export default function MmentoAI() {
 
   const renderLimitsBar = () => {
     if (!userLimits) return null;
-
-    const percentage = (userLimits.queriesToday / userLimits.limit) * 100;
-    const remaining = userLimits.limit - userLimits.queriesToday;
-
+  
+    // Si es desarrollador, mostrar barra especial
+    if (userLimits.is_developer || userLimits.queries_limit > 1000) {
+      return (
+        <StyledView className="px-4 py-2 border-b border-white/10">
+          <StyledView className="flex-row items-center justify-between">
+            <StyledView className="flex-row items-center">
+              <Ionicons name="code-slash" size={16} color="#10b981" />
+              <StyledText
+                className="text-emerald-400 text-xs ml-2"
+                style={{ fontFamily: fontNames.medium }}
+              >
+                Developer Mode - Consultas ilimitadas
+              </StyledText>
+            </StyledView>
+            <StyledView className="flex-row items-center">
+              <Ionicons name="infinite" size={16} color="#10b981" />
+            </StyledView>
+          </StyledView>
+        </StyledView>
+      );
+    }
+  
+    // Código original para usuarios normales
+    const percentage =
+      (userLimits.queries_today / userLimits.queries_limit) * 100;
+    const remaining = userLimits.queries_limit - userLimits.queries_today;
+  
     return (
       <StyledView className="px-4 py-2 border-b border-white/10">
         <StyledView className="flex-row items-center justify-between mb-1">
@@ -256,7 +338,7 @@ export default function MmentoAI() {
             className="text-white/60 text-xs"
             style={{ fontFamily: fontNames.regular }}
           >
-            {userLimits.isPlus ? t("plusPlan") : t("freePlan")}
+            {userLimits.is_plus ? t("plusPlan") : t("freePlan")}
           </StyledText>
           <StyledText
             className="text-white/60 text-xs"
@@ -265,7 +347,7 @@ export default function MmentoAI() {
             {t("queriesRemaining", { count: remaining })}
           </StyledText>
         </StyledView>
-
+  
         <StyledView className="h-1 bg-white/10 rounded-full overflow-hidden">
           <StyledView
             className={`h-full ${
@@ -274,8 +356,8 @@ export default function MmentoAI() {
             style={{ width: `${percentage}%` }}
           />
         </StyledView>
-
-        {!userLimits.isPlus && remaining === 0 && (
+  
+        {!userLimits.is_plus && remaining === 0 && (
           <StyledTouchableOpacity className="mt-2">
             <StyledText
               className="text-emerald-400 text-xs text-center"
@@ -365,23 +447,39 @@ export default function MmentoAI() {
               color: "white",
               maxHeight: 100,
             }}
-            editable={!isSending && userLimits?.canQuery}
+            editable={!isSending && userLimits?.can_query}
+            onSubmitEditing={() => {
+              if (inputText.trim() && !isSending && userLimits?.can_query) {
+                sendMessage(inputText);
+              }
+            }}
+            blurOnSubmit={false}
           />
         </StyledView>
 
         <AudioRecorder
           onTranscription={handleAudioTranscription}
-          disabled={isSending || !userLimits?.canQuery}
+          disabled={isSending || !userLimits?.can_query}
         />
 
         <StyledTouchableOpacity
-          onPress={() => sendMessage(inputText)}
-          disabled={!inputText.trim() || isSending || !userLimits?.canQuery}
+          onPress={() => {
+            if (
+              inputText.trim() &&
+              !isSending &&
+              userLimits?.can_query &&
+              currentConversation
+            ) {
+              sendMessage(inputText);
+            }
+          }}
+          disabled={!inputText.trim() || isSending || !userLimits?.can_query}
           className={`ml-2 w-12 h-12 rounded-full justify-center items-center ${
-            inputText.trim() && !isSending && userLimits?.canQuery
+            inputText.trim() && !isSending && userLimits?.can_query
               ? "bg-emerald-500"
               : "bg-white/20"
           }`}
+          activeOpacity={0.7}
         >
           {isSending ? (
             <ActivityIndicator size="small" color="white" />
@@ -457,7 +555,7 @@ export default function MmentoAI() {
             currentId={currentConversation?.id}
             onSelect={selectConversation}
             onClose={() => setShowConversations(false)}
-            onCreate={createNewConversation}
+            onCreate={() => createNewConversation()}
             chatService={chatService}
           />
         </Modal>

@@ -35,6 +35,7 @@ export default function AppLayout() {
   const isEditTrickRoute = pathname.includes("/edit-trick");
   const isAddQuickMagicRoute = pathname.includes("/add-quick-magic");
   const isAddScriptRoute = pathname.includes("/add-script");
+  const isMMENTOAIroute = pathname.includes("/mmento-ai")
   const isTrickViewRoute =
     pathname.includes("/trick/") || pathname.includes("/tricks/");
   const isTechniqueViewRoute =
@@ -49,7 +50,9 @@ export default function AppLayout() {
     isTrickViewRoute ||
     isTechniqueViewRoute ||
     isEditTrickRoute ||
-    isGimmickViewRoute;
+    isGimmickViewRoute ||
+    isMMENTOAIroute
+    ;
 
   // Determinar ruta activa
   const getActiveRoute = () => {
