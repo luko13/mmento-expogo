@@ -2,22 +2,14 @@
 
 import type React from "react";
 import { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
-import { Feather } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
-const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledScrollView = styled(ScrollView);
 
 export interface Tag {
@@ -29,15 +21,11 @@ export interface Tag {
 
 interface TagPillsSectionProps {
   tagIds: string[]; // IDs de las tags del truco
-  onRemoveTag?: (tagId: string) => void;
-  editable?: boolean;
   userId?: string;
 }
 
 const TagPillsSection: React.FC<TagPillsSectionProps> = ({
   tagIds,
-  onRemoveTag,
-  editable = false,
   userId,
 }) => {
   const [tags, setTags] = useState<Tag[]>([]);
@@ -99,65 +87,58 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
     "#424242": "#F5F5F5",
   };
 
-  // Debug: mostrar estado actual
-  // No mostrar nada si no hay tags
-  if (!tags || tags.length === 0) return null;
-
+  // IMPORTANTE: Siempre renderizar el contenedor para mantener el espacio
   return (
     <StyledView style={styles.container}>
-      <StyledScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {tags.map((tag) => {
-          const tagColor = tag.color || "#5bb9a3";
-          const lightColor = COLOR_MAPPINGS[tagColor] || tagColor;
+      {tags && tags.length > 0 ? (
+        <StyledScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {tags.map((tag) => {
+            const tagColor = tag.color || "#5bb9a3";
+            const lightColor = COLOR_MAPPINGS[tagColor] || tagColor;
 
-          return (
-            <StyledView key={tag.id} style={styles.tagContainer}>
-              <BlurView
-                intensity={25}
-                tint="default"
-                experimentalBlurMethod="dimezisBlurView"
-                style={styles.blurContainer}
-              >
-                <StyledView
-                  style={[
-                    styles.tagContent,
-                    {
-                      backgroundColor: tagColor + "20", // Transparencia suave
-                      borderColor: lightColor + "60",
-                      borderWidth: 1,
-                    },
-                  ]}
+            return (
+              <StyledView key={tag.id} style={styles.tagContainer}>
+                <BlurView
+                  intensity={25}
+                  tint="default"
+                  experimentalBlurMethod="dimezisBlurView"
+                  style={styles.blurContainer}
                 >
-                  <StyledText
+                  <StyledView
                     style={[
-                      styles.tagText,
+                      styles.tagContent,
                       {
-                        color: lightColor,
-                        fontFamily: fontNames.medium,
+                        backgroundColor: tagColor + "20", // Transparencia suave
+                        borderColor: lightColor + "60",
+                        borderWidth: 1,
                       },
                     ]}
                   >
-                    {tag.name}
-                  </StyledText>
-                  {editable && onRemoveTag && (
-                    <StyledTouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => onRemoveTag(tag.id)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    <StyledText
+                      style={[
+                        styles.tagText,
+                        {
+                          color: lightColor,
+                          fontFamily: fontNames.medium,
+                        },
+                      ]}
                     >
-                      <Feather name="x" size={14} color={lightColor} />
-                    </StyledTouchableOpacity>
-                  )}
-                </StyledView>
-              </BlurView>
-            </StyledView>
-          );
-        })}
-      </StyledScrollView>
+                      {tag.name}
+                    </StyledText>
+                  </StyledView>
+                </BlurView>
+              </StyledView>
+            );
+          })}
+        </StyledScrollView>
+      ) : (
+        // Espacio vacío del mismo tamaño cuando no hay tags
+        <StyledView style={styles.emptySpace} />
+      )}
     </StyledView>
   );
 };
@@ -166,6 +147,7 @@ const styles = StyleSheet.create({
   container: {
     marginHorizontal: 12,
     marginBottom: 12,
+    minHeight: 48, // Altura mínima para mantener el espacio
   },
   scrollContent: {
     paddingVertical: 4,
@@ -180,7 +162,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   tagContent: {
-    flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
     paddingHorizontal: 14,
@@ -190,8 +171,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     includeFontPadding: false,
   },
-  removeButton: {
-    marginLeft: 6,
+  emptySpace: {
+    height: 48, // Mismo alto que tendrían los tags
   },
 });
 

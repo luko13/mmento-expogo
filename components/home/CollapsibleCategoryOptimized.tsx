@@ -1,5 +1,12 @@
 // components/home/CollapsibleCategoryOptimized.tsx
-import React, { memo, useState, useRef, useCallback, useMemo } from "react";
+import React, {
+  memo,
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+  useEffect,
+} from "react";
 import {
   View,
   Text,
@@ -177,9 +184,66 @@ const CollapsibleCategoryOptimized = ({
   onToggleFavorite,
 }: Props) => {
   const { t } = useTranslation();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const animatedHeight = useRef(new Animated.Value(0)).current;
-  const animatedRotation = useRef(new Animated.Value(0)).current;
+
+  // Check if there's an active search or filters
+  const hasActiveSearch = useMemo(() => {
+    // Check if there's a search query
+    if (searchQuery && searchQuery.trim() !== "") return true;
+
+    // Check if there are any active filters
+    if (searchFilters) {
+      if (searchFilters.categories?.length > 0) return true;
+      if (searchFilters.tags?.length > 0) return true;
+      if (searchFilters.difficulties?.length > 0) return true;
+      if (searchFilters.angles?.length > 0) return true;
+      if (
+        searchFilters.resetTimes?.min !== undefined ||
+        searchFilters.resetTimes?.max !== undefined
+      )
+        return true;
+      if (
+        searchFilters.durations?.min !== undefined ||
+        searchFilters.durations?.max !== undefined
+      )
+        return true;
+      if (
+        searchFilters.isPublic !== undefined &&
+        searchFilters.isPublic !== null
+      )
+        return true;
+    }
+
+    return false;
+  }, [searchQuery, searchFilters]);
+
+  // Initialize expanded state based on whether there's an active search
+  const [isExpanded, setIsExpanded] = useState(hasActiveSearch);
+  const animatedHeight = useRef(
+    new Animated.Value(hasActiveSearch ? 1 : 0)
+  ).current;
+  const animatedRotation = useRef(
+    new Animated.Value(hasActiveSearch ? 1 : 0)
+  ).current;
+
+  // Effect to auto-expand/collapse when search state changes
+  useEffect(() => {
+    const toValue = hasActiveSearch ? 1 : 0;
+
+    Animated.parallel([
+      Animated.timing(animatedHeight, {
+        toValue,
+        duration: 250,
+        useNativeDriver: false,
+      }),
+      Animated.timing(animatedRotation, {
+        toValue,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    setIsExpanded(hasActiveSearch);
+  }, [hasActiveSearch, animatedHeight, animatedRotation]);
 
   // Filter items with memoization
   const filteredItems = useMemo(() => {

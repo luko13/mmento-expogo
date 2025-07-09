@@ -20,14 +20,12 @@ import {
 } from "react-native-safe-area-context";
 import UserProfile from "../../../components/home/UserProfile";
 import LibrariesSection from "../../../components/home/LibrariesSection";
-import CompactSearchBar, {
-  type SearchFilters,
-} from "../../../components/home/CompactSearchBar";
+import CompactSearchBar from "../../../components/home/CompactSearchBar";
 import SuccessCreationModal from "../../../components/ui/SuccessCreationModal";
 import FiltersModal from "../../../components/ui/FilterModal";
-import { fontNames } from "../../../app/_layout";
 import { supabase } from "../../../lib/supabase";
 import { paginatedContentService } from "../../../utils/paginatedContentService";
+import { useSearch } from "../../../context/SearchContext";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -41,15 +39,10 @@ export default function Home() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const [searchExpanded, setSearchExpanded] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchFilters, setSearchFilters] = useState<SearchFilters>({
-    categories: [],
-    tags: [],
-    difficulties: [],
-    resetTimes: {},
-    durations: {},
-    angles: [],
-  });
+
+  // Usar el contexto de búsqueda en lugar de estado local
+  const { searchQuery, setSearchQuery, searchFilters, setSearchFilters } =
+    useSearch();
 
   // Estados para el modal de éxito
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -141,6 +134,10 @@ export default function Home() {
     if (searchFilters.durations.min !== undefined) count++;
     if (searchFilters.durations.max !== undefined) count++;
     if (searchFilters.angles.length > 0) count += searchFilters.angles.length;
+    if (searchFilters.isPublic !== null && searchFilters.isPublic !== undefined)
+      count++;
+    if (searchFilters.sortOrder && searchFilters.sortOrder !== "recent")
+      count++;
     return count;
   };
 

@@ -94,6 +94,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
   // Estado para subida
   const [isUploading, setIsUploading] = useState(false);
+  const [isProcessingSelection, setIsProcessingSelection] = useState(false);
 
   // Estados para modales
   const [showActionsModal, setShowActionsModal] = useState(false);
@@ -227,6 +228,9 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         return;
       }
 
+      // Mostrar estado de procesando ANTES de abrir el picker
+      setIsProcessingSelection(true);
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["videos"],
         allowsMultipleSelection: false,
@@ -234,61 +238,70 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         videoMaxDuration: 60,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        setIsUploading(true);
-        const asset = result.assets[0];
+      // Si canceló, quitar el estado de procesando
+      if (result.canceled || !result.assets[0]) {
+        setIsProcessingSelection(false);
+        return;
+      }
 
-        // Subir video
-        const folder =
+      // Cambiar de procesando a uploading
+      setIsProcessingSelection(false);
+      setIsUploading(true);
+
+      const asset = result.assets[0];
+
+      // Subir video
+      const folder =
+        type === "effect"
+          ? `${currentUserId}/effects`
+          : `${currentUserId}/secrets`;
+
+      const fileName = `${type}_${Date.now()}.mp4`;
+
+      const uploadedUrl = await uploadFileWithCompression(
+        asset.uri,
+        folder,
+        "video/mp4",
+        fileName,
+        currentUserId!
+      );
+
+      if (uploadedUrl) {
+        // Actualizar en la base de datos
+        const updateData =
           type === "effect"
-            ? `${currentUserId}/effects`
-            : `${currentUserId}/secrets`;
+            ? { effect_video_url: uploadedUrl }
+            : { secret_video_url: uploadedUrl };
 
-        const fileName = `${type}_${Date.now()}.mp4`;
+        const { error } = await supabase
+          .from("magic_tricks")
+          .update(updateData)
+          .eq("id", trick.id);
 
-        const uploadedUrl = await uploadFileWithCompression(
-          asset.uri,
-          folder,
-          "video/mp4",
-          fileName,
-          currentUserId!
-        );
-
-        if (uploadedUrl) {
-          // Actualizar en la base de datos
-          const updateData =
-            type === "effect"
-              ? { effect_video_url: uploadedUrl }
-              : { secret_video_url: uploadedUrl };
-
-          const { error } = await supabase
-            .from("magic_tricks")
-            .update(updateData)
-            .eq("id", trick.id);
-
-          if (!error) {
-            // Actualizar estado local
-            if (type === "effect") {
-              setEffectVideoUrl(uploadedUrl);
-            } else {
-              setSecretVideoUrl(uploadedUrl);
-            }
+        if (!error) {
+          // Actualizar estado local
+          if (type === "effect") {
+            setEffectVideoUrl(uploadedUrl);
           } else {
-            Alert.alert(
-              t("error"),
-              t("errorUpdatingTrick", "Error updating trick")
-            );
+            setSecretVideoUrl(uploadedUrl);
           }
+        } else {
+          Alert.alert(
+            t("error"),
+            t("errorUpdatingTrick", "Error updating trick")
+          );
         }
       }
+
+      setIsUploading(false);
     } catch (error) {
       console.error("Error uploading video:", error);
       Alert.alert(
         t("error"),
         t("errorUploadingVideo", "Error uploading video")
       );
-    } finally {
       setIsUploading(false);
+      setIsProcessingSelection(false);
     }
   };
 
@@ -313,58 +326,64 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         quality: 0.7,
       });
 
-      if (!result.canceled && result.assets.length > 0) {
-        setIsUploading(true);
-        const uploadedPhotos: string[] = [];
+      // Si canceló, no hacer nada
+      if (result.canceled || result.assets.length === 0) {
+        return;
+      }
 
-        for (let i = 0; i < result.assets.length; i++) {
-          const asset = result.assets[i];
-          const fileName = `photo_${Date.now()}_${i}.jpg`;
+      // AQUÍ: Justo después de seleccionar y cerrar el modal
+      setIsUploading(true);
 
-          const uploadedUrl = await uploadFileWithCompression(
-            asset.uri,
-            `${currentUserId}/photos`,
-            "image/jpeg",
-            fileName,
-            currentUserId!
-          );
+      const uploadedPhotos: string[] = [];
 
-          if (uploadedUrl) {
-            uploadedPhotos.push(uploadedUrl);
-          }
-        }
+      for (let i = 0; i < result.assets.length; i++) {
+        const asset = result.assets[i];
+        const fileName = `photo_${Date.now()}_${i}.jpg`;
 
-        if (uploadedPhotos.length > 0) {
-          // Si no hay foto principal, usar la primera
-          const updateData: any = {};
-          if (!trick.photo_url) {
-            updateData.photo_url = uploadedPhotos[0];
-          }
+        const uploadedUrl = await uploadFileWithCompression(
+          asset.uri,
+          `${currentUserId}/photos`,
+          "image/jpeg",
+          fileName,
+          currentUserId!
+        );
 
-          // Actualizar en la base de datos
-          const { error } = await supabase
-            .from("magic_tricks")
-            .update(updateData)
-            .eq("id", trick.id);
-
-          if (!error) {
-            // Actualizar estado local
-            setDecryptedPhotos([...decryptedPhotos, ...uploadedPhotos]);
-          } else {
-            Alert.alert(
-              t("error"),
-              t("errorUpdatingTrick", "Error updating trick")
-            );
-          }
+        if (uploadedUrl) {
+          uploadedPhotos.push(uploadedUrl);
         }
       }
+
+      if (uploadedPhotos.length > 0) {
+        // Si no hay foto principal, usar la primera
+        const updateData: any = {};
+        if (!trick.photo_url) {
+          updateData.photo_url = uploadedPhotos[0];
+        }
+
+        // Actualizar en la base de datos
+        const { error } = await supabase
+          .from("magic_tricks")
+          .update(updateData)
+          .eq("id", trick.id);
+
+        if (!error) {
+          // Actualizar estado local
+          setDecryptedPhotos([...decryptedPhotos, ...uploadedPhotos]);
+        } else {
+          Alert.alert(
+            t("error"),
+            t("errorUpdatingTrick", "Error updating trick")
+          );
+        }
+      }
+
+      setIsUploading(false);
     } catch (error) {
       console.error("Error uploading photos:", error);
       Alert.alert(
         t("error"),
         t("errorUploadingPhotos", "Error uploading photos")
       );
-    } finally {
       setIsUploading(false);
     }
   };
@@ -809,7 +828,21 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             backgroundColor: "#15322C",
           }}
         >
-          {isUploading ? (
+          {isProcessingSelection ? (
+            <>
+              <Text
+                style={{
+                  color: "#5BB9A3",
+                  fontSize: 16,
+                  marginTop: 16,
+                  fontFamily: fontNames.regular,
+                  includeFontPadding: false,
+                }}
+              >
+                {t("processingSelection", "Processing selection...")}
+              </Text>
+            </>
+          ) : isUploading ? (
             <>
               <ActivityIndicator size="large" color="#5BB9A3" />
               <Text
@@ -961,7 +994,19 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     if (photosToDisplay.length === 0) {
       return (
         <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-[#15322C]">
-          {isUploading ? (
+          {isProcessingSelection ? (
+            <>
+              <StyledText
+                className="text-[#5BB9A3] text-base mt-4"
+                style={{
+                  fontFamily: fontNames.regular,
+                  includeFontPadding: false,
+                }}
+              >
+                {t("processingSelection", "Processing selection...")}
+              </StyledText>
+            </>
+          ) : isUploading ? (
             <>
               <ActivityIndicator size="large" color="#5BB9A3" />
               <StyledText
