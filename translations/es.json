@@ -176,7 +176,8 @@
     "success": "Éxito",
     "loading": "Cargando...",
     "loadingCategories": "Cargando categorías...",
-    "trick": "Truco"
+    "trick": "Truco",
+    "delete": "Eliminar"
   },
   "forms": {
     "registerMagic": "Registrar Magia",

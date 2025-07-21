@@ -9,11 +9,13 @@ import {
   Modal,
   RefreshControl,
   Platform,
+  Animated,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import { AntDesign, Feather } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { supabase } from "../../lib/supabase";
 import {
   type Category,
@@ -21,6 +23,8 @@ import {
   deleteCategory,
   updateCategory,
 } from "../../utils/categoryService";
+import { orderService } from "../../services/orderService";
+import { useDragDrop, type DragDropItem } from "../../hooks/useDragDrop";
 import TrickViewScreen from "../TrickViewScreen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import type { SearchFilters } from "./CompactSearchBar";
@@ -33,9 +37,12 @@ import { usePaginatedContent } from "../../hooks/usePaginatedContent";
 import CollapsibleCategoryOptimized from "./CollapsibleCategoryOptimized";
 import { fontNames } from "../../app/_layout";
 import MagicLoader from "../ui/MagicLoader";
+import { useTrickDeletion } from "../../context/TrickDeletionContext";
+import { paginatedContentService } from "../../utils/paginatedContentService";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
+const AnimatedView = Animated.View;
 
 // Calculate safe area for navigation bar
 const NAVBAR_HEIGHT = 60;
@@ -52,6 +59,8 @@ const LibrariesSection = memo(function LibrariesSection({
 }: LibrariesSectionProps) {
   const router = useRouter();
   const { t } = useTranslation();
+  const { deletedTrickId } = useTrickDeletion();
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Modal states
   const [isAddCategoryModalVisible, setAddCategoryModalVisible] =
@@ -77,10 +86,43 @@ const LibrariesSection = memo(function LibrariesSection({
   // Total tricks count state
   const [totalTricksCount, setTotalTricksCount] = useState(0);
 
+  // Order state
+  const [categoryOrder, setCategoryOrder] = useState<any[]>([]);
+  const [trickOrders, setTrickOrders] = useState<Map<string, any[]>>(new Map());
+
+  // Check if search or filters are active
+  const hasActiveSearchOrFilters = useMemo(() => {
+    const hasSearch = searchQuery.trim() !== "";
+    const hasFilters = searchFilters && (
+      searchFilters.categories.length > 0 ||
+      searchFilters.tags.length > 0 ||
+      searchFilters.difficulties.length > 0 ||
+      searchFilters.resetTimes.min !== undefined ||
+      searchFilters.resetTimes.max !== undefined ||
+      searchFilters.durations.min !== undefined ||
+      searchFilters.durations.max !== undefined ||
+      searchFilters.angles.length > 0 ||
+      (searchFilters.isPublic !== null && searchFilters.isPublic !== undefined) ||
+      (searchFilters.sortOrder && searchFilters.sortOrder !== "recent")
+    );
+    return hasSearch || hasFilters;
+  }, [searchQuery, searchFilters]);
+
+  // Initialize drag and drop
+  const {
+    dragState,
+    createDragGesture,
+    getDraggedStyle,
+    setDraggedOver,
+    getCategoryDragOverStyle
+  } = useDragDrop({
+    enabled: !hasActiveSearchOrFilters, // Disable when searching/filtering
+    onDragEnd: handleDragEnd
+  });
+
   // Convert SearchFilters for compatibility with usePaginatedContent hook
-  // Ya no necesitamos convertir, pasamos directamente
   const convertedSearchFilters = useMemo(() => {
-    return searchFilters; // Sin conversión
+    return searchFilters;
   }, [searchFilters]);
 
   // Use paginated content hook
@@ -95,51 +137,222 @@ const LibrariesSection = memo(function LibrariesSection({
     allCategories,
   } = usePaginatedContent(searchQuery, convertedSearchFilters);
 
-  // Filter sections to hide empty categories when there's an active search
-  const filteredSections = useMemo(() => {
-    // Check if there's an active search (query or filters)
-    const hasActiveSearch =
-      searchQuery.trim() !== "" ||
-      (searchFilters &&
-        (searchFilters.categories.length > 0 ||
-          searchFilters.tags.length > 0 ||
-          searchFilters.difficulties.length > 0 ||
-          searchFilters.resetTimes.min !== undefined ||
-          searchFilters.resetTimes.max !== undefined ||
-          searchFilters.durations.min !== undefined ||
-          searchFilters.durations.max !== undefined ||
-          searchFilters.angles.length > 0));
+  // Get user ID
+  useEffect(() => {
+    const fetchUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      }
+    };
+    fetchUserId();
+  }, []);
 
-    if (!hasActiveSearch) {
-      // No active search, show all categories
+  // Load custom order when user ID is available
+  useEffect(() => {
+    if (userId && !hasActiveSearchOrFilters) {
+      loadCustomOrder();
+    }
+  }, [userId, hasActiveSearchOrFilters]);
+
+  // Load custom order from database
+  const loadCustomOrder = async () => {
+    if (!userId) return;
+
+    const categoryOrderData = await orderService.getUserCategoryOrder(userId);
+    const allTrickOrders = await orderService.getAllUserTrickOrders(userId);
+
+    setCategoryOrder(categoryOrderData);
+
+    // Group trick orders by category
+    const ordersByCategory = new Map<string, any[]>();
+    allTrickOrders.forEach(order => {
+      const categoryOrders = ordersByCategory.get(order.category_id) || [];
+      categoryOrders.push(order);
+      ordersByCategory.set(order.category_id, categoryOrders);
+    });
+    
+    setTrickOrders(ordersByCategory);
+  };
+
+  // Apply custom order to sections
+  const orderedSections = useMemo(() => {
+    if (hasActiveSearchOrFilters || categoryOrder.length === 0) {
       return sections;
     }
 
-    // Filter out categories with 0 items when there's an active search
-    // UNLESS the category name matches the search query
-    return sections.filter((section) => {
-      // Always show if category has items
+    // Create a map of category positions
+    const positionMap = new Map<string, number>();
+    categoryOrder.forEach(order => {
+      positionMap.set(order.category_id, order.position);
+    });
+
+    // Sort sections based on custom order
+    const sorted = [...sections].sort((a, b) => {
+      // Favorites always first
+      const aIsFavorites = a.category.name.toLowerCase().includes('favorit');
+      const bIsFavorites = b.category.name.toLowerCase().includes('favorit');
+      
+      if (aIsFavorites && !bIsFavorites) return -1;
+      if (!aIsFavorites && bIsFavorites) return 1;
+
+      const aPos = positionMap.get(a.category.id) ?? Number.MAX_VALUE;
+      const bPos = positionMap.get(b.category.id) ?? Number.MAX_VALUE;
+      
+      return aPos - bPos;
+    });
+
+    // Apply trick order within each category
+    return sorted.map(section => {
+      const categoryTrickOrder = trickOrders.get(section.category.id);
+      if (!categoryTrickOrder || categoryTrickOrder.length === 0) {
+        return section;
+      }
+
+      // Create position map for tricks
+      const trickPositionMap = new Map<string, number>();
+      categoryTrickOrder.forEach(order => {
+        trickPositionMap.set(order.trick_id, order.position);
+      });
+
+      // Sort items based on custom order
+      const sortedItems = [...(section.items || [])].sort((a, b) => {
+        const aPos = trickPositionMap.get(a.id) ?? Number.MAX_VALUE;
+        const bPos = trickPositionMap.get(b.id) ?? Number.MAX_VALUE;
+        return aPos - bPos;
+      });
+
+      return {
+        ...section,
+        items: sortedItems
+      };
+    });
+  }, [sections, categoryOrder, trickOrders, hasActiveSearchOrFilters]);
+
+  // Filter sections to hide empty categories when there's an active search
+  const filteredSections = useMemo(() => {
+    const hasActiveSearch = searchQuery.trim() !== "" || hasActiveSearchOrFilters;
+
+    if (!hasActiveSearch) {
+      return orderedSections;
+    }
+
+    return orderedSections.filter((section) => {
       if (section.items && section.items.length > 0) {
         return true;
       }
 
-      // If no items, only show if category name matches search query
       if (searchQuery.trim()) {
         const categoryNameLower = section.category.name.toLowerCase();
         const searchQueryLower = searchQuery.toLowerCase().trim();
         return categoryNameLower.includes(searchQueryLower);
       }
 
-      // Hide empty categories when only filters are active
       return false;
     });
-  }, [sections, searchQuery, searchFilters]);
+  }, [orderedSections, searchQuery, hasActiveSearchOrFilters]);
+
+  // Handle drag end
+  async function handleDragEnd(
+    draggedItem: DragDropItem,
+    targetItem?: DragDropItem,
+    targetCategory?: string
+  ) {
+    if (!userId) return;
+
+    try {
+      if (draggedItem.type === 'category') {
+        // Handle category reordering
+        if (targetItem && targetItem.type === 'category') {
+          await reorderCategories(draggedItem.id, targetItem.id);
+        }
+      } else if (draggedItem.type === 'trick') {
+        // Handle trick reordering or moving
+        if (targetCategory && targetCategory !== draggedItem.categoryId) {
+          // Moving to different category
+          await orderService.moveTrickToCategory(
+            userId,
+            draggedItem.id,
+            draggedItem.categoryId!,
+            targetCategory,
+            0 // Add to end, will be reordered if needed
+          );
+        } else if (targetItem && targetItem.type === 'trick' && draggedItem.categoryId === targetItem.categoryId) {
+          // Reordering within same category
+          await reorderTricks(
+            draggedItem.categoryId!,
+            draggedItem.id,
+            targetItem.id
+          );
+        }
+      }
+
+      // Reload custom order and refresh data
+      await loadCustomOrder();
+      refresh();
+    } catch (error) {
+      console.error('Error handling drag end:', error);
+    }
+  }
+
+  // Reorder categories
+  const reorderCategories = async (draggedId: string, targetId: string) => {
+    if (!userId) return;
+
+    const currentOrder = [...categoryOrder];
+    const draggedIndex = currentOrder.findIndex(o => o.category_id === draggedId);
+    const targetIndex = currentOrder.findIndex(o => o.category_id === targetId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    // Don't allow moving favorites
+    const draggedSection = sections.find(s => s.category.id === draggedId);
+    if (draggedSection?.category.name.toLowerCase().includes('favorit')) {
+      return;
+    }
+
+    // Reorder array
+    const [removed] = currentOrder.splice(draggedIndex, 1);
+    currentOrder.splice(targetIndex, 0, removed);
+
+    // Update positions
+    currentOrder.forEach((order, index) => {
+      orderService.updateCategoryOrder(userId, order.category_id, index);
+    });
+
+    setCategoryOrder(currentOrder);
+  };
+
+  // Reorder tricks within category
+  const reorderTricks = async (categoryId: string, draggedId: string, targetId: string) => {
+    if (!userId) return;
+
+    const categoryTricks = trickOrders.get(categoryId) || [];
+    const currentOrder = [...categoryTricks];
+    
+    const draggedIndex = currentOrder.findIndex(o => o.trick_id === draggedId);
+    const targetIndex = currentOrder.findIndex(o => o.trick_id === targetId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    // Reorder array
+    const [removed] = currentOrder.splice(draggedIndex, 1);
+    currentOrder.splice(targetIndex, 0, removed);
+
+    // Update positions
+    currentOrder.forEach((order, index) => {
+      orderService.updateTrickOrder(userId, categoryId, order.trick_id, index);
+    });
+
+    const newOrders = new Map(trickOrders);
+    newOrders.set(categoryId, currentOrder);
+    setTrickOrders(newOrders);
+  };
 
   // Calculate total tricks count whenever sections update
   useEffect(() => {
     const calculateTotalTricks = () => {
       const total = sections.reduce((acc, section) => {
-        // Excluir trucos de la categoría "Favoritos" del conteo
         const categoryName = section.category.name.toLowerCase().trim();
         const isFavoritesCategory = [
           "favoritos",
@@ -151,7 +364,7 @@ const LibrariesSection = memo(function LibrariesSection({
         ].includes(categoryName);
 
         if (isFavoritesCategory) {
-          return acc; // No sumar los trucos de favoritos
+          return acc;
         }
 
         return acc + (section.items?.length || 0);
@@ -162,7 +375,24 @@ const LibrariesSection = memo(function LibrariesSection({
     calculateTotalTricks();
   }, [sections]);
 
-  // Fetch item data - simplified without encryption
+  // Update when a trick is deleted
+  useEffect(() => {
+    if (deletedTrickId) {
+      const clearCacheAndRefresh = async () => {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          paginatedContentService.clearUserCache(user.id);
+          refresh();
+        }
+      };
+
+      clearCacheAndRefresh();
+    }
+  }, [deletedTrickId, refresh]);
+
+  // Fetch item data
   const fetchItemData = async (item: any) => {
     try {
       const {
@@ -171,7 +401,6 @@ const LibrariesSection = memo(function LibrariesSection({
       if (!user) return null;
 
       if (item.type === "magic") {
-        // Get trick data directly
         const { data, error } = await supabase
           .from("magic_tricks")
           .select(
@@ -186,7 +415,6 @@ const LibrariesSection = memo(function LibrariesSection({
 
         if (error || !data) return null;
 
-        // Parse angles if necessary
         let angles = data.angles;
         if (angles && typeof angles === "string") {
           try {
@@ -196,7 +424,6 @@ const LibrariesSection = memo(function LibrariesSection({
           }
         }
 
-        // Get category name
         let categoryName = "Unknown";
         if (data.trick_categories && data.trick_categories.length > 0) {
           const categoryId = data.trick_categories[0].category_id;
@@ -211,7 +438,6 @@ const LibrariesSection = memo(function LibrariesSection({
           }
         }
 
-        // Get photos if any (assuming you have a trick_photos table)
         const { data: photosData } = await supabase
           .from("trick_photos")
           .select("photo_url")
@@ -240,7 +466,6 @@ const LibrariesSection = memo(function LibrariesSection({
         };
       }
 
-      // Handle other types (technique, gimmick) similarly if needed
       return null;
     } catch (error) {
       console.error("Error in fetchItemData:", error);
@@ -259,7 +484,8 @@ const LibrariesSection = memo(function LibrariesSection({
 
         const newCategory = await createCategory(user.id, name);
 
-        if (newCategory) {
+        if (newCategory && userId) {
+          await orderService.initializeCategoryOrder(userId, newCategory.id);
           refresh();
         }
 
@@ -268,7 +494,7 @@ const LibrariesSection = memo(function LibrariesSection({
         console.error("Error adding category:", error);
       }
     },
-    [refresh]
+    [refresh, userId]
   );
 
   const handleEditCategory = useCallback(
@@ -317,11 +543,12 @@ const LibrariesSection = memo(function LibrariesSection({
   );
 
   const confirmDeleteCategory = useCallback(async () => {
-    if (!categoryToDelete) return;
+    if (!categoryToDelete || !userId) return;
 
     try {
       const success = await deleteCategory(categoryToDelete.id);
       if (success) {
+        await orderService.cleanupCategoryOrder(userId, categoryToDelete.id);
         refresh();
       }
     } catch (error) {
@@ -330,7 +557,7 @@ const LibrariesSection = memo(function LibrariesSection({
       setShowDeleteModal(false);
       setCategoryToDelete(null);
     }
-  }, [categoryToDelete, refresh]);
+  }, [categoryToDelete, refresh, userId]);
 
   const openEditCategoryModal = useCallback((category: Category) => {
     setEditingCategory(category);
@@ -438,16 +665,34 @@ const LibrariesSection = memo(function LibrariesSection({
 
   const renderSection = useCallback(
     ({ item }: { item: any }) => {
+      const dragItem: DragDropItem = {
+        id: item.category.id,
+        type: 'category',
+        data: item.category
+      };
+
       return (
-        <CollapsibleCategoryOptimized
-          section={item}
-          searchQuery={searchQuery}
-          searchFilters={searchFilters}
-          onItemPress={handleItemPress}
-          onEditCategory={openEditCategoryModal}
-          onDeleteCategory={handleDeleteCategory}
-          onMoreOptions={handleMoreOptions}
-        />
+        <AnimatedView
+          style={[
+            getDraggedStyle(dragItem),
+            getCategoryDragOverStyle(item.category.id)
+          ]}
+        >
+          <CollapsibleCategoryOptimized
+            section={item}
+            searchQuery={searchQuery}
+            searchFilters={searchFilters}
+            onItemPress={handleItemPress}
+            onEditCategory={openEditCategoryModal}
+            onDeleteCategory={handleDeleteCategory}
+            onMoreOptions={handleMoreOptions}
+            dragGesture={createDragGesture(dragItem)}
+            isDragEnabled={!hasActiveSearchOrFilters}
+            onDraggedOver={(categoryId) => setDraggedOver(null, categoryId)}
+            dragState={dragState}
+            userId={userId}
+          />
+        </AnimatedView>
       );
     },
     [
@@ -457,6 +702,13 @@ const LibrariesSection = memo(function LibrariesSection({
       openEditCategoryModal,
       handleDeleteCategory,
       handleMoreOptions,
+      createDragGesture,
+      getDraggedStyle,
+      getCategoryDragOverStyle,
+      hasActiveSearchOrFilters,
+      setDraggedOver,
+      dragState,
+      userId
     ]
   );
 
@@ -468,7 +720,7 @@ const LibrariesSection = memo(function LibrariesSection({
     }
   }, [hasMore, loadingMore, loadMore]);
 
-  // Main render - Show loading only for initial load
+  // Main render
   if (loading && sections.length === 0 && !error) {
     return (
       <StyledView className="flex-1">
@@ -481,148 +733,150 @@ const LibrariesSection = memo(function LibrariesSection({
   }
 
   return (
-    <StyledView className="flex-1">
-      <ListHeader />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StyledView className="flex-1">
+        <ListHeader />
 
-      {error ? (
-        <StyledView className="flex-1 justify-center items-center p-4">
-          <Text
-            style={{
-              fontFamily: fontNames.light,
-              fontSize: 16,
-              color: "#ef4444",
-              textAlign: "center",
-              marginBottom: 16,
-              includeFontPadding: false,
-            }}
-          >
-            {error}
-          </Text>
-          <StyledTouchableOpacity
-            className="bg-emerald-700 px-4 py-2 rounded-lg"
-            onPress={refresh}
-          >
+        {error ? (
+          <StyledView className="flex-1 justify-center items-center p-4">
             <Text
               style={{
                 fontFamily: fontNames.light,
                 fontSize: 16,
-                color: "white",
+                color: "#ef4444",
+                textAlign: "center",
+                marginBottom: 16,
                 includeFontPadding: false,
               }}
             >
-              {t("retry", "Retry")}
+              {error}
             </Text>
-          </StyledTouchableOpacity>
-        </StyledView>
-      ) : (
-        <FlashList
-          data={filteredSections}
-          renderItem={renderSection}
-          keyExtractor={keyExtractor}
-          ListEmptyComponent={ListEmpty}
-          ListFooterComponent={ListFooter}
-          onEndReached={handleEndReached}
-          onEndReachedThreshold={0.5}
-          estimatedItemSize={100}
-          getItemType={() => "category"}
-          refreshControl={
-            <RefreshControl
-              refreshing={false}
-              onRefresh={refresh}
-              tintColor="transparent"
-              title="Refresh... ↓"
-              titleColor="rgba(255, 255, 255, 0.6)"
-              colors={["transparent"]}
-              progressBackgroundColor="transparent"
-              progressViewOffset={-50}
-            />
-          }
-          contentContainerStyle={{
-            paddingBottom: NAVBAR_HEIGHT + BOTTOM_SPACING,
+            <StyledTouchableOpacity
+              className="bg-emerald-700 px-4 py-2 rounded-lg"
+              onPress={refresh}
+            >
+              <Text
+                style={{
+                  fontFamily: fontNames.light,
+                  fontSize: 16,
+                  color: "white",
+                  includeFontPadding: false,
+                }}
+              >
+                {t("retry", "Retry")}
+              </Text>
+            </StyledTouchableOpacity>
+          </StyledView>
+        ) : (
+          <FlashList
+            data={filteredSections}
+            renderItem={renderSection}
+            keyExtractor={keyExtractor}
+            ListEmptyComponent={ListEmpty}
+            ListFooterComponent={ListFooter}
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.5}
+            estimatedItemSize={100}
+            getItemType={() => "category"}
+            refreshControl={
+              <RefreshControl
+                refreshing={false}
+                onRefresh={refresh}
+                tintColor="transparent"
+                title="Refresh... ↓"
+                titleColor="rgba(255, 255, 255, 0.6)"
+                colors={["transparent"]}
+                progressBackgroundColor="transparent"
+                progressViewOffset={-50}
+              />
+            }
+            contentContainerStyle={{
+              paddingBottom: NAVBAR_HEIGHT + BOTTOM_SPACING,
+            }}
+            drawDistance={200}
+            removeClippedSubviews={true}
+            estimatedListSize={{
+              height: 600,
+              width: 350,
+            }}
+          />
+        )}
+
+        {/* Modals */}
+        <CategoryModal
+          visible={isAddCategoryModalVisible || isEditCategoryModalVisible}
+          onClose={() => {
+            setAddCategoryModalVisible(false);
+            setEditCategoryModalVisible(false);
+            setEditingCategory(null);
           }}
-          drawDistance={200}
-          removeClippedSubviews={true}
-          estimatedListSize={{
-            height: 600,
-            width: 350,
-          }}
+          onConfirm={editingCategory ? handleEditCategory : handleAddCategory}
+          initialName={editingCategory?.name || ""}
+          mode={editingCategory ? "edit" : "create"}
+          currentCategoryId={editingCategory?.id}
         />
-      )}
 
-      {/* Modals */}
-      <CategoryModal
-        visible={isAddCategoryModalVisible || isEditCategoryModalVisible}
-        onClose={() => {
-          setAddCategoryModalVisible(false);
-          setEditCategoryModalVisible(false);
-          setEditingCategory(null);
-        }}
-        onConfirm={editingCategory ? handleEditCategory : handleAddCategory}
-        initialName={editingCategory?.name || ""}
-        mode={editingCategory ? "edit" : "create"}
-        currentCategoryId={editingCategory?.id}
-      />
+        {selectedTrickData && (
+          <Modal
+            visible={!!selectedTrickData}
+            transparent={false}
+            animationType="fade"
+            onRequestClose={() => setSelectedTrickData(null)}
+            presentationStyle="fullScreen"
+          >
+            <SafeAreaProvider>
+              <TrickViewScreen
+                trick={selectedTrickData}
+                onClose={() => setSelectedTrickData(null)}
+              />
+            </SafeAreaProvider>
+          </Modal>
+        )}
 
-      {selectedTrickData && (
-        <Modal
-          visible={!!selectedTrickData}
-          transparent={false}
-          animationType="fade"
-          onRequestClose={() => setSelectedTrickData(null)}
-          presentationStyle="fullScreen"
-        >
-          <SafeAreaProvider>
-            <TrickViewScreen
-              trick={selectedTrickData}
-              onClose={() => setSelectedTrickData(null)}
-            />
-          </SafeAreaProvider>
-        </Modal>
-      )}
+        <CategoryActionsModal
+          visible={showActionsModal}
+          onClose={() => {
+            setShowActionsModal(false);
+            setSelectedCategoryForActions(null);
+          }}
+          onEdit={() => {
+            if (selectedCategoryForActions) {
+              openEditCategoryModal(selectedCategoryForActions);
+            }
+            setShowActionsModal(false);
+          }}
+          onDelete={() => {
+            if (selectedCategoryForActions) {
+              handleDeleteCategory(selectedCategoryForActions.id);
+            }
+            setShowActionsModal(false);
+          }}
+          categoryName={selectedCategoryForActions?.name}
+        />
 
-      <CategoryActionsModal
-        visible={showActionsModal}
-        onClose={() => {
-          setShowActionsModal(false);
-          setSelectedCategoryForActions(null);
-        }}
-        onEdit={() => {
-          if (selectedCategoryForActions) {
-            openEditCategoryModal(selectedCategoryForActions);
-          }
-          setShowActionsModal(false);
-        }}
-        onDelete={() => {
-          if (selectedCategoryForActions) {
-            handleDeleteCategory(selectedCategoryForActions.id);
-          }
-          setShowActionsModal(false);
-        }}
-        categoryName={selectedCategoryForActions?.name}
-      />
+        <DeleteModal
+          visible={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setCategoryToDelete(null);
+          }}
+          onConfirm={confirmDeleteCategory}
+          itemName={categoryToDelete?.name}
+          itemType={t("category", "category")}
+        />
 
-      <DeleteModal
-        visible={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setCategoryToDelete(null);
-        }}
-        onConfirm={confirmDeleteCategory}
-        itemName={categoryToDelete?.name}
-        itemType={t("category", "category")}
-      />
-
-      <CantDeleteModal
-        visible={showCantDeleteModal}
-        onClose={() => {
-          setShowCantDeleteModal(false);
-          setCategoryToDelete(null);
-          setCategoryItemCount(0);
-        }}
-        categoryName={categoryToDelete?.name}
-        itemCount={categoryItemCount}
-      />
-    </StyledView>
+        <CantDeleteModal
+          visible={showCantDeleteModal}
+          onClose={() => {
+            setShowCantDeleteModal(false);
+            setCategoryToDelete(null);
+            setCategoryItemCount(0);
+          }}
+          categoryName={categoryToDelete?.name}
+          itemCount={categoryItemCount}
+        />
+      </StyledView>
+    </GestureHandlerRootView>
   );
 });
 

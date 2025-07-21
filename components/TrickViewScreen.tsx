@@ -36,6 +36,7 @@ import { trickService } from "../services/trickService";
 import TrickActionsModal from "../components/ui/TrickActionsModal";
 import MakePublicModal from "../components/ui/MakePublicModal";
 import DeleteModal from "../components/ui/DeleteModal";
+import { useTrickDeletion } from "../context/TrickDeletionContext";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -83,6 +84,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const [isSecretPlaying, setIsSecretPlaying] = useState(true);
   const [overlayOpacity] = useState(new Animated.Value(0));
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const { notifyTrickDeleted } = useTrickDeletion();
 
   // Nuevo estado para el blur
   const [isStageExpanded, setIsStageExpanded] = useState(false);
@@ -465,6 +467,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     try {
       const success = await trickService.deleteTrick(trick.id);
       if (success) {
+        // Notificar que el truco fue eliminado
+        notifyTrickDeleted(trick.id);
+
+        // Navegar a home
         router.push("/(app)/home");
       } else {
         Alert.alert(

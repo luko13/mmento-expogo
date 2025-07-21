@@ -46,7 +46,7 @@ const InlineProgressBar: React.FC<InlineProgressBarProps> = ({ item }) => {
   return (
     <StyledView style={{ width: 50, marginRight: 12 }}>
       <StyledView
-        className="bg-[#2C6B5C]/100 rounded-full overflow-hidden"
+        className="bg-[#4b7c71] rounded-full overflow-hidden"
         style={{ height: 3 }}
       >
         <StyledView

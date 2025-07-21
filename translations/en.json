@@ -180,7 +180,8 @@
     "success": "Success",
     "loading": "Loading...",
     "loadingCategories": "Loading categories...",
-    "trick": "Trick"
+    "trick": "Trick",
+    "delete": "Delete"
   },
   "forms": {
     "registerMagic": "Register Magic",

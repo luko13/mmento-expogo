@@ -15,7 +15,7 @@ const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledTextInput = styled(TextInput);
 
-// Define a search filters interface
+// Define a search filters interface with all properties
 export interface SearchFilters {
   categories: string[];
   tags: string[];
@@ -23,6 +23,9 @@ export interface SearchFilters {
   resetTimes: { min?: number; max?: number };
   durations: { min?: number; max?: number };
   angles: string[];
+  tagsMode?: "and" | "or";
+  isPublic?: boolean | null;
+  sortOrder?: "recent" | "last";
 }
 
 interface CompactSearchBarProps {

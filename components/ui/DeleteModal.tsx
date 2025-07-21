@@ -39,7 +39,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
     if (customMessage) return customMessage;
 
     if (itemName && itemType) {
-      return `${t("common.delete", "Delete")} ${itemName}?`;
+      return `${t("common.delete", "Delete")} `;
     }
 
     return t("common.confirmDelete", "This action can't be undone.");
@@ -64,7 +64,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
               <StyledText
                 className={modalClasses.titleTextWithOpacity}
                 style={{
-                  fontFamily: fontNames.semiBold,
+                  fontFamily: fontNames.medium,
                   fontSize: 18,
                   includeFontPadding: false,
                 }}
@@ -75,7 +75,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
                     <StyledText
                       className="text-white font-medium"
                       style={{
-                        fontFamily: fontNames.medium,
+                        fontFamily: fontNames.semiBold,
                         fontSize: 18,
                         includeFontPadding: false,
                       }}
@@ -136,7 +136,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
                 onPress={onConfirm}
               >
                 <StyledText
-                  className={modalClasses.deleteButtonText}
+                  className={modalClasses.deleteButtonTextLight}
                   style={{
                     fontFamily: fontNames.medium,
                     fontSize: 16,

@@ -1,3 +1,4 @@
+// app/(app)/home/index.tsx
 "use client";
 import { useRef, useState, useEffect } from "react";
 import {
@@ -26,6 +27,8 @@ import FiltersModal from "../../../components/ui/FilterModal";
 import { supabase } from "../../../lib/supabase";
 import { paginatedContentService } from "../../../utils/paginatedContentService";
 import { useSearch } from "../../../context/SearchContext";
+import { useTrickDeletion } from "../../../context/TrickDeletionContext";
+import { useIsFocused } from "@react-navigation/native";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -39,6 +42,8 @@ export default function Home() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const [searchExpanded, setSearchExpanded] = useState(false);
+  const { deletedTrickId } = useTrickDeletion();
+  const isFocused = useIsFocused();
 
   // Usar el contexto de búsqueda en lugar de estado local
   const { searchQuery, setSearchQuery, searchFilters, setSearchFilters } =
@@ -92,6 +97,13 @@ export default function Home() {
       });
     }
   }, [params.showSuccessModal, params.trickId, params.trickTitle, router]);
+
+  useEffect(() => {
+    if (isFocused && deletedTrickId) {
+      // Incrementar refreshKey para forzar actualización de LibrariesSection
+      setRefreshKey((prev) => prev + 1);
+    }
+  }, [isFocused, deletedTrickId]);
 
   // Funciones del modal
   const handleViewItem = () => {

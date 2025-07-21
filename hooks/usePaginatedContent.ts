@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { paginatedContentService } from "../utils/paginatedContentService";
 import { supabase } from "../lib/supabase";
+import { orderService } from "../services/orderService";
 
 // ============================================================================
 // función debounce para evitar múltiples llamadas rápidas
@@ -149,6 +150,9 @@ export function usePaginatedContent(
         setFavoritesCategoryId(favCat.id);
       }
 
+      // Track new tricks for order initialization
+      const newTricks: Array<{ trickId: string; categoryId: string }> = [];
+
       // Process tricks sin filtrar localmente
       content.tricks.forEach((trick) => {
         const isFavorite = userFavorites.has(trick.id);
@@ -176,13 +180,16 @@ export function usePaginatedContent(
           is_public: trick.is_public,
         };
 
-        // Ya no necesitamos matchesFilters
-
         // Add to regular categories
         trick.trick_categories?.forEach((tc: any) => {
           const section = sectionsMap.get(tc.category_id);
           if (section) {
             section.items.push(item);
+            
+            // Track new tricks for order initialization
+            if (userId) {
+              newTricks.push({ trickId: trick.id, categoryId: tc.category_id });
+            }
           }
         });
 
@@ -191,14 +198,69 @@ export function usePaginatedContent(
           const favSection = sectionsMap.get(favCat.id);
           if (favSection) {
             favSection.items.push(item);
+            
+            // Also track for favorites
+            if (userId) {
+              newTricks.push({ trickId: trick.id, categoryId: favCat.id });
+            }
           }
         }
       });
+
+      // Initialize order for new tricks and categories if needed
+      if (userId) {
+        await initializeOrdersIfNeeded(userId, sortedCategories, newTricks);
+      }
 
       return Array.from(sectionsMap.values());
     },
     []
   );
+
+  // --------------------------------------------------------------------------
+  // Initialize order for new categories and tricks
+  // --------------------------------------------------------------------------
+  const initializeOrdersIfNeeded = async (
+    userId: string,
+    categories: any[],
+    newTricks: Array<{ trickId: string; categoryId: string }>
+  ) => {
+    try {
+      // Get existing orders
+      const existingCategoryOrder = await orderService.getUserCategoryOrder(userId);
+      const existingCategoryIds = new Set(existingCategoryOrder.map(o => o.category_id));
+
+      // Initialize order for new categories
+      for (const category of categories) {
+        if (!existingCategoryIds.has(category.id)) {
+          await orderService.initializeCategoryOrder(userId, category.id);
+        }
+      }
+
+      // Get all existing trick orders
+      const allTrickOrders = await orderService.getAllUserTrickOrders(userId);
+      
+      // Create a map of existing trick orders by category
+      const existingTrickOrdersMap = new Map<string, Set<string>>();
+      allTrickOrders.forEach(order => {
+        const key = order.category_id;
+        if (!existingTrickOrdersMap.has(key)) {
+          existingTrickOrdersMap.set(key, new Set());
+        }
+        existingTrickOrdersMap.get(key)!.add(order.trick_id);
+      });
+
+      // Initialize order for new tricks
+      for (const { trickId, categoryId } of newTricks) {
+        const categoryTricks = existingTrickOrdersMap.get(categoryId);
+        if (!categoryTricks || !categoryTricks.has(trickId)) {
+          await orderService.initializeTrickOrder(userId, categoryId, trickId);
+        }
+      }
+    } catch (error) {
+      console.error('Error initializing orders:', error);
+    }
+  };
 
   // --------------------------------------------------------------------------
   // Debounce de búsqueda para no disparar loadContent en cada pulsación
@@ -273,6 +335,35 @@ export function usePaginatedContent(
           // Verificar si el cambio afecta al usuario actual
           paginatedContentService.clearUserCache(currentUserId);
           refresh();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "magic_tricks",
+          filter: `user_id=eq.${currentUserId}`,
+        },
+        async (payload) => {
+          console.log("📡 Nuevo truco creado:", payload);
+          
+          // Inicializar orden para el nuevo truco
+          if (payload.new && payload.new.id) {
+            const trickId = payload.new.id;
+            
+            // Obtener la categoría del truco
+            const { data: trickCategories } = await supabase
+              .from("trick_categories")
+              .select("category_id")
+              .eq("trick_id", trickId);
+            
+            if (trickCategories && trickCategories.length > 0) {
+              for (const tc of trickCategories) {
+                await orderService.initializeTrickOrder(currentUserId, tc.category_id, trickId);
+              }
+            }
+          }
         }
       )
       .subscribe();
@@ -374,11 +465,20 @@ export function usePaginatedContent(
       .single();
 
     if (!existingCategory) {
-      await supabase.from("user_categories").insert({
-        user_id: userId,
-        name: "Favoritos",
-        description: "Tus trucos favoritos",
-      });
+      const { data: newCategory } = await supabase
+        .from("user_categories")
+        .insert({
+          user_id: userId,
+          name: "Favoritos",
+          description: "Tus trucos favoritos",
+        })
+        .select()
+        .single();
+
+      // Initialize order for the new favorites category
+      if (newCategory) {
+        await orderService.initializeCategoryOrder(userId, newCategory.id);
+      }
     }
   };
 
@@ -438,6 +538,14 @@ export function usePaginatedContent(
             .eq("user_id", currentUserId)
             .eq("content_id", itemId)
             .eq("content_type", contentType);
+
+          // Remove from favorites order
+          await supabase
+            .from("user_trick_order")
+            .delete()
+            .eq("user_id", currentUserId)
+            .eq("category_id", favoritesCategoryId)
+            .eq("trick_id", itemId);
         } else {
           // Add to favorites
           await supabase.from("user_favorites").insert({
@@ -445,6 +553,9 @@ export function usePaginatedContent(
             content_id: itemId,
             content_type: contentType,
           });
+
+          // Initialize order in favorites
+          await orderService.initializeTrickOrder(currentUserId, favoritesCategoryId, itemId);
         }
 
         // Update sections locally
@@ -483,6 +594,27 @@ export function usePaginatedContent(
   );
 
   // --------------------------------------------------------------------------
+  // Función para manejar cuando se crea un nuevo truco
+  // --------------------------------------------------------------------------
+  const handleNewTrickCreated = useCallback(
+    async (trickId: string, categoryId: string) => {
+      if (!currentUserId) return;
+
+      try {
+        // Inicializar el orden para el nuevo truco
+        await orderService.initializeTrickOrder(currentUserId, categoryId, trickId);
+        
+        // Limpiar caché y refrescar
+        paginatedContentService.clearUserCache(currentUserId);
+        await refresh();
+      } catch (error) {
+        console.error('Error initializing trick order:', error);
+      }
+    },
+    [currentUserId, refresh]
+  );
+
+  // --------------------------------------------------------------------------
   // Devolvemos todo lo que necesita el componente que lo use
   // --------------------------------------------------------------------------
   return {
@@ -495,6 +627,7 @@ export function usePaginatedContent(
     loadMore,
     refresh,
     toggleFavorite,
+    handleNewTrickCreated, // Nueva función exportada
   };
 }
 

@@ -8,10 +8,9 @@ import {
   modalStyles,
   blurConfig,
   modalClasses,
-  getTagPillStyle,
-  getTagPillTextStyle,
 } from "../../styles/modalStyles";
 import { fontNames } from "../../app/_layout";
+import { getContrastTextColor } from "../../utils/colorUtils";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -28,27 +27,6 @@ interface TagModalProps {
   initialColor?: string;
   mode?: "create" | "edit";
 }
-
-const COLOR_MAPPINGS: { [key: string]: string } = {
-  // Verde
-  "#4CAF50": "#C8E6C9",
-  "#1B5E20": "#C8E6C9",
-  // Azul
-  "#2196F3": "#BBDEFB",
-  "#0D47A1": "#BBDEFB",
-  // Naranja
-  "#FF9800": "#FFE0B2",
-  "#E65100": "#FFE0B2",
-  // Morado
-  "#9C27B0": "#E1BEE7",
-  "#4A148C": "#E1BEE7",
-  // Rojo
-  "#F44336": "#FFCDD2",
-  "#B71C1C": "#FFCDD2",
-  // Grises
-  "#9E9E9E": "#F5F5F5",
-  "#424242": "#F5F5F5",
-};
 
 const TagModal: React.FC<TagModalProps> = ({
   visible,
@@ -79,6 +57,8 @@ const TagModal: React.FC<TagModalProps> = ({
     setSelectedColor(initialColor);
     onClose();
   };
+
+  const textColor = getContrastTextColor(selectedColor);
 
   return (
     <StyledModal visible={visible} transparent animationType="fade">
@@ -115,10 +95,11 @@ const TagModal: React.FC<TagModalProps> = ({
                 <StyledTouchableOpacity
                   onPress={() => setIsEditingName(true)}
                   className="px-4 py-2 rounded-full"
-                  style={getTagPillStyle(
-                    selectedColor,
-                    COLOR_MAPPINGS[selectedColor]
-                  )}
+                  style={{
+                    backgroundColor: selectedColor + "30",
+                    borderWidth: 1,
+                    borderColor: textColor + "80",
+                  }}
                 >
                   {isEditingName ? (
                     <StyledTextInput
@@ -127,24 +108,21 @@ const TagModal: React.FC<TagModalProps> = ({
                       onBlur={() => setIsEditingName(false)}
                       autoFocus
                       style={{
-                        ...getTagPillTextStyle(
-                          selectedColor,
-                          COLOR_MAPPINGS[selectedColor]
-                        ),
+                        color: textColor,
                         fontFamily: fontNames.regular,
+                        fontSize: 16,
                         includeFontPadding: false,
                       }}
                       className="text-base"
                       placeholder={t("tagName", "Tag name")}
-                      placeholderTextColor={
-                        COLOR_MAPPINGS[selectedColor] || selectedColor
-                      }
+                      placeholderTextColor={textColor + "80"}
                     />
                   ) : (
                     <StyledText
                       style={{
-                        color: COLOR_MAPPINGS[selectedColor] || selectedColor,
+                        color: textColor,
                         fontFamily: fontNames.medium,
+                        fontSize: 16,
                         includeFontPadding: false,
                       }}
                       className="font-medium"

@@ -7,6 +7,7 @@ import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { supabase } from "../../lib/supabase";
 import { fontNames } from "../../app/_layout";
+import { getContrastTextColor } from "../../utils/colorUtils";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -60,33 +61,6 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
     }
   };
 
-  // Color mappings para versiones más claras
-  const COLOR_MAPPINGS: { [key: string]: string } = {
-    // Verde
-    "#4CAF50": "#C8E6C9",
-    "#1B5E20": "#C8E6C9",
-
-    // Azul
-    "#2196F3": "#BBDEFB",
-    "#0D47A1": "#BBDEFB",
-
-    // Naranja
-    "#FF9800": "#FFE0B2",
-    "#E65100": "#FFE0B2",
-
-    // Morado
-    "#9C27B0": "#E1BEE7",
-    "#4A148C": "#E1BEE7",
-
-    // Rojo
-    "#F44336": "#FFCDD2",
-    "#B71C1C": "#FFCDD2",
-
-    // Grises
-    "#9E9E9E": "#F5F5F5",
-    "#424242": "#F5F5F5",
-  };
-
   // IMPORTANTE: Siempre renderizar el contenedor para mantener el espacio
   return (
     <StyledView style={styles.container}>
@@ -97,8 +71,8 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
           contentContainerStyle={styles.scrollContent}
         >
           {tags.map((tag) => {
-            const tagColor = tag.color || "#5bb9a3";
-            const lightColor = COLOR_MAPPINGS[tagColor] || tagColor;
+            const tagColor = tag.color || "#4CAF50";
+            const textColor = getContrastTextColor(tagColor);
 
             return (
               <StyledView key={tag.id} style={styles.tagContainer}>
@@ -113,7 +87,7 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
                       styles.tagContent,
                       {
                         backgroundColor: tagColor + "20", // Transparencia suave
-                        borderColor: lightColor + "60",
+                        borderColor: textColor + "60",
                         borderWidth: 1,
                       },
                     ]}
@@ -122,7 +96,7 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
                       style={[
                         styles.tagText,
                         {
-                          color: lightColor,
+                          color: textColor,
                           fontFamily: fontNames.medium,
                         },
                       ]}

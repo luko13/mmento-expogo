@@ -8,7 +8,7 @@ export const modalStyles = StyleSheet.create({
     width: screenWidth * 0.9,
     maxWidth: 400,
     backgroundColor: "rgba(255, 255, 255, 0.30)",
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(200, 200, 200, 0.4)",
     shadowColor: "#000",
@@ -23,7 +23,7 @@ export const modalStyles = StyleSheet.create({
     width: screenWidth * 0.9,
     maxWidth: 400,
     backgroundColor: "rgba(255, 255, 255, 0.30)", // Mismo color que modalContainer
-    borderRadius: 30,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(200, 200, 200, 0.4)",
     shadowColor: "#000",

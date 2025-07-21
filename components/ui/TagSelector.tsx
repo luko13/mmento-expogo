@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "../../lib/supabase";
 import TagModal from "../ui/TagModal";
 import { fontNames } from "../../app/_layout";
+import { getContrastTextColor } from "../../utils/colorUtils";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -179,32 +180,6 @@ export default function TagSelector({
     }
   };
 
-  const COLOR_MAPPINGS: { [key: string]: string } = {
-    // Verde
-    "#4CAF50": "#C8E6C9", // medio -> claro
-    "#1B5E20": "#C8E6C9", // oscuro -> claro
-
-    // Azul
-    "#2196F3": "#BBDEFB", // medio -> claro
-    "#0D47A1": "#BBDEFB", // oscuro -> claro
-
-    // Naranja
-    "#FF9800": "#FFE0B2", // medio -> claro
-    "#E65100": "#FFE0B2", // oscuro -> claro
-
-    // Morado
-    "#9C27B0": "#E1BEE7", // medio -> claro
-    "#4A148C": "#E1BEE7", // oscuro -> claro
-
-    // Rojo
-    "#F44336": "#FFCDD2", // medio -> claro
-    "#B71C1C": "#FFCDD2", // oscuro -> claro
-
-    // Grises
-    "#9E9E9E": "#F5F5F5", // gris medio -> gris claro
-    "#424242": "#F5F5F5", // gris oscuro -> gris claro
-  };
-
   return (
     <>
       <StyledView className="mb-6">
@@ -259,8 +234,8 @@ export default function TagSelector({
             >
               {sortedTags.map((tag, index) => {
                 const isSelected = selectedTags.includes(tag.id);
-                const tagColor = tag.color || "#5bb9a3";
-                const lightColor = COLOR_MAPPINGS[tagColor] || tagColor;
+                const tagColor = tag.color || "#4CAF50";
+                const textColor = getContrastTextColor(tagColor);
 
                 return (
                   <TouchableOpacity
@@ -271,7 +246,7 @@ export default function TagSelector({
                         ? tagColor + "30" // 30 for selected (more opaque)
                         : tagColor + "15", // 15 for unselected (more transparent)
                       borderWidth: 1,
-                      borderColor: isSelected ? lightColor : tagColor + "60",
+                      borderColor: isSelected ? textColor + "80" : tagColor + "60",
                       borderRadius: 20,
                       paddingHorizontal: 16,
                       paddingVertical: 8,
@@ -285,7 +260,7 @@ export default function TagSelector({
                   >
                     <Text
                       style={{
-                        color: isSelected ? lightColor : tagColor + "DD",
+                        color: isSelected ? textColor : tagColor + "DD",
                         fontSize: 14,
                         textAlign: "center",
                         fontWeight: isSelected ? "500" : "400",
@@ -301,7 +276,7 @@ export default function TagSelector({
                       <Feather
                         name="x"
                         size={14}
-                        color={lightColor}
+                        color={textColor}
                         style={{ marginLeft: 4 }}
                       />
                     )}
