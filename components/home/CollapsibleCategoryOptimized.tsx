@@ -11,9 +11,11 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Animated,
   StyleSheet,
+  Animated as RNAnimated,
+  LayoutChangeEvent,
 } from "react-native";
+import Animated from "react-native-reanimated";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons, Entypo } from "@expo/vector-icons";
@@ -21,12 +23,10 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import { fontNames } from "../../app/_layout";
 import InlineProgressBar from "./TrickCompletionProgress";
-import { useDragDrop, type DragDropItem, type DragDropState } from "../../hooks/useDragDrop";
-import { orderService } from "../../services/orderService";
+import { type DragDropItem, type DragDropState } from "../../hooks/useDragDrop";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
-const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 interface LibraryItem {
   id: string;
@@ -54,7 +54,6 @@ interface CategorySection {
   items: LibraryItem[];
 }
 
-// Define SearchFilters interface locally to match the expected type
 interface SearchFilters {
   categories: string[];
   tags: string[];
@@ -81,9 +80,17 @@ interface Props {
   onDraggedOver?: (categoryId: string) => void;
   dragState?: DragDropState;
   userId?: string | null;
+  registerCategoryLayout?: (
+    categoryId: string
+  ) => (e: LayoutChangeEvent) => void;
+  createDragGesture?: (item: DragDropItem) => any;
+  isDraggingItem?: (item: DragDropItem) => boolean;
+  draggedAnimatedStyle?: any;
+  getDragOverStyle?: (item: DragDropItem) => any;
+  getCategoryDragOverStyle?: (categoryId: string) => any;
 }
 
-// Memoized library item row with drag support
+// Memoized library item row
 const LibraryItemRow = memo(
   ({
     item,
@@ -91,27 +98,28 @@ const LibraryItemRow = memo(
     onPress,
     searchQuery,
     isDragEnabled,
-    userId,
+    createDragGesture,
+    isDraggingItem,
+    draggedAnimatedStyle,
+    getDragOverStyle,
   }: {
     item: LibraryItem;
     categoryId: string;
     onPress: () => void;
     searchQuery?: string;
     isDragEnabled?: boolean;
-    userId?: string | null;
+    createDragGesture?: (item: DragDropItem) => any;
+    isDraggingItem?: (item: DragDropItem) => boolean;
+    draggedAnimatedStyle?: any;
+    getDragOverStyle?: (item: DragDropItem) => any;
   }) => {
-    const { createDragGesture, getDraggedStyle, getDragOverStyle } = useDragDrop({
-      enabled: isDragEnabled ?? false,
-    });
-
     const dragItem: DragDropItem = {
       id: item.id,
-      type: 'trick',
+      type: "trick",
       categoryId: categoryId,
-      data: item
+      data: item,
     };
 
-    // Function to determine where the search match is found
     const getSearchMatchLocation = (): string | null => {
       if (!searchQuery || searchQuery.trim() === "") return null;
 
@@ -137,6 +145,7 @@ const LibraryItemRow = memo(
     };
 
     const matchLocation = getSearchMatchLocation();
+    const isDragging = isDraggingItem?.(dragItem) || false;
 
     const content = (
       <StyledView className="flex-row justify-between items-center">
@@ -172,25 +181,33 @@ const LibraryItemRow = memo(
       </StyledView>
     );
 
-    if (isDragEnabled) {
+    const baseStyle = {
+      padding: 8,
+      borderRadius: 8,
+      marginBottom: 4,
+      borderBottomWidth: 1,
+      borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    };
+
+    if (isDragEnabled && createDragGesture && getDragOverStyle) {
+      const gesture = createDragGesture(dragItem);
+      const overStyle = getDragOverStyle(dragItem);
+
+      if (isDragging && draggedAnimatedStyle) {
+        return (
+          <GestureDetector gesture={gesture}>
+            <Animated.View style={[baseStyle, overStyle, draggedAnimatedStyle]}>
+              <TouchableOpacity onPress={onPress}>{content}</TouchableOpacity>
+            </Animated.View>
+          </GestureDetector>
+        );
+      }
+
       return (
-        <GestureDetector gesture={createDragGesture(dragItem)}>
-          <AnimatedTouchableOpacity
-            onPress={onPress}
-            style={[
-              {
-                padding: 8,
-                borderRadius: 8,
-                marginBottom: 4,
-                borderBottomWidth: 1,
-                borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-              },
-              getDraggedStyle(dragItem),
-              getDragOverStyle(dragItem)
-            ]}
-          >
+        <GestureDetector gesture={gesture}>
+          <TouchableOpacity onPress={onPress} style={[baseStyle, overStyle]}>
             {content}
-          </AnimatedTouchableOpacity>
+          </TouchableOpacity>
         </GestureDetector>
       );
     }
@@ -240,10 +257,15 @@ const CollapsibleCategoryOptimized = ({
   onDraggedOver,
   dragState,
   userId,
+  registerCategoryLayout,
+  createDragGesture,
+  isDraggingItem,
+  draggedAnimatedStyle,
+  getDragOverStyle,
+  getCategoryDragOverStyle,
 }: Props) => {
   const { t } = useTranslation();
 
-  // Check if there's an active search or filters
   const hasActiveSearch = useMemo(() => {
     if (searchQuery && searchQuery.trim() !== "") return true;
 
@@ -272,45 +294,52 @@ const CollapsibleCategoryOptimized = ({
     return false;
   }, [searchQuery, searchFilters]);
 
-  // Initialize expanded state based on whether there's an active search
   const [isExpanded, setIsExpanded] = useState(hasActiveSearch);
   const animatedHeight = useRef(
-    new Animated.Value(hasActiveSearch ? 1 : 0)
+    new RNAnimated.Value(hasActiveSearch ? 1 : 0)
   ).current;
   const animatedRotation = useRef(
-    new Animated.Value(hasActiveSearch ? 1 : 0)
+    new RNAnimated.Value(hasActiveSearch ? 1 : 0)
   ).current;
 
-  // Auto-expand when dragging over category
   useEffect(() => {
-    if (dragState?.isDragging && dragState.draggedOverCategory === section.category.id && !isExpanded) {
+    if (
+      dragState?.isDragging &&
+      dragState.draggedOverCategory === section.category.id &&
+      !isExpanded
+    ) {
       setIsExpanded(true);
-      Animated.parallel([
-        Animated.timing(animatedHeight, {
+      RNAnimated.parallel([
+        RNAnimated.timing(animatedHeight, {
           toValue: 1,
           duration: 250,
           useNativeDriver: false,
         }),
-        Animated.timing(animatedRotation, {
+        RNAnimated.timing(animatedRotation, {
           toValue: 1,
           duration: 250,
           useNativeDriver: true,
         }),
       ]).start();
     }
-  }, [dragState, section.category.id, isExpanded, animatedHeight, animatedRotation]);
+  }, [
+    dragState,
+    section.category.id,
+    isExpanded,
+    animatedHeight,
+    animatedRotation,
+  ]);
 
-  // Effect to auto-expand/collapse when search state changes
   useEffect(() => {
     const toValue = hasActiveSearch ? 1 : 0;
 
-    Animated.parallel([
-      Animated.timing(animatedHeight, {
+    RNAnimated.parallel([
+      RNAnimated.timing(animatedHeight, {
         toValue,
         duration: 250,
         useNativeDriver: false,
       }),
-      Animated.timing(animatedRotation, {
+      RNAnimated.timing(animatedRotation, {
         toValue,
         duration: 250,
         useNativeDriver: true,
@@ -320,12 +349,10 @@ const CollapsibleCategoryOptimized = ({
     setIsExpanded(hasActiveSearch);
   }, [hasActiveSearch, animatedHeight, animatedRotation]);
 
-  // Filter items with memoization
   const filteredItems = useMemo(() => {
     if (!section.items) return [];
 
     return section.items.filter((item) => {
-      // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase().trim();
         const matchesText =
@@ -336,8 +363,7 @@ const CollapsibleCategoryOptimized = ({
           item.notes?.toLowerCase().includes(query);
         if (!matchesText) return false;
       }
-      
-      // Public/Private filter
+
       if (
         searchFilters?.isPublic !== undefined &&
         searchFilters.isPublic !== null
@@ -347,8 +373,7 @@ const CollapsibleCategoryOptimized = ({
           return false;
         }
       }
-      
-      // Difficulty filter
+
       if (searchFilters?.difficulties?.length) {
         if (
           !item.difficulty ||
@@ -360,14 +385,12 @@ const CollapsibleCategoryOptimized = ({
         }
       }
 
-      // Tags filter
       if (searchFilters?.tags?.length) {
         if (!item.tags?.some((tagId) => searchFilters.tags.includes(tagId))) {
           return false;
         }
       }
 
-      // Reset time filter
       if (
         searchFilters?.resetTimes?.min !== undefined ||
         searchFilters?.resetTimes?.max !== undefined
@@ -388,7 +411,6 @@ const CollapsibleCategoryOptimized = ({
         }
       }
 
-      // Duration filter
       if (
         searchFilters?.durations?.min !== undefined ||
         searchFilters?.durations?.max !== undefined
@@ -409,7 +431,6 @@ const CollapsibleCategoryOptimized = ({
         }
       }
 
-      // Angles filter
       if (searchFilters?.angles?.length) {
         if (!item.angles || !Array.isArray(item.angles)) return false;
 
@@ -425,17 +446,16 @@ const CollapsibleCategoryOptimized = ({
     });
   }, [section.items, searchQuery, searchFilters]);
 
-  // Toggle expansion
   const toggleExpanded = useCallback(() => {
     const toValue = !isExpanded ? 1 : 0;
 
-    Animated.parallel([
-      Animated.timing(animatedHeight, {
+    RNAnimated.parallel([
+      RNAnimated.timing(animatedHeight, {
         toValue,
         duration: 250,
         useNativeDriver: false,
       }),
-      Animated.timing(animatedRotation, {
+      RNAnimated.timing(animatedRotation, {
         toValue,
         duration: 250,
         useNativeDriver: true,
@@ -445,7 +465,6 @@ const CollapsibleCategoryOptimized = ({
     setIsExpanded(!isExpanded);
   }, [isExpanded, animatedHeight, animatedRotation]);
 
-  // Handle item press
   const handleItemPress = useCallback(
     (item: LibraryItem) => {
       onItemPress(item);
@@ -453,7 +472,6 @@ const CollapsibleCategoryOptimized = ({
     [onItemPress]
   );
 
-  // Handle more options
   const handleMoreOptions = useCallback(
     (e: any) => {
       e.stopPropagation();
@@ -462,7 +480,6 @@ const CollapsibleCategoryOptimized = ({
     [onMoreOptions, section.category]
   );
 
-  // Handle drag over category
   const handlePointerMove = useCallback(() => {
     if (dragState?.isDragging && onDraggedOver) {
       onDraggedOver(section.category.id);
@@ -474,21 +491,31 @@ const CollapsibleCategoryOptimized = ({
     outputRange: ["0deg", "90deg"],
   });
 
-  // Don't allow editing or deleting the Favorites category
-  const isFavoritesCategory = section.category.name.toLowerCase().includes('favorit');
+  const isFavoritesCategory = section.category.name
+    .toLowerCase()
+    .includes("favorit");
 
-  // Create header content
+  // Crear drag item para esta categoría
+  const categoryDragItem: DragDropItem = {
+    id: section.category.id,
+    type: "category",
+    data: section.category,
+  };
+
+  const isDraggingThisCategory = isDraggingItem?.(categoryDragItem) || false;
+
   const headerContent = (
-    <StyledView 
+    <StyledView
       className="flex-row justify-between items-center bg-[white]/10 px-3 border border-white/40 rounded-lg mb-2"
       onPointerMove={handlePointerMove}
+      onLayout={registerCategoryLayout?.(section.category.id)}
     >
       <StyledView className="flex-row items-center flex-1">
-        <Animated.View
+        <RNAnimated.View
           style={{ transform: [{ rotate: rotateInterpolation }] }}
         >
           <MaterialIcons name="chevron-right" size={20} color="white" />
-        </Animated.View>
+        </RNAnimated.View>
         <Text
           style={{
             fontFamily: fontNames.light,
@@ -527,30 +554,31 @@ const CollapsibleCategoryOptimized = ({
   );
 
   return (
-    <StyledView className="mb-2 px-4">
+    <Animated.View
+      style={[
+        { marginBottom: 8, paddingHorizontal: 16 },
+        isDraggingThisCategory && draggedAnimatedStyle
+          ? draggedAnimatedStyle
+          : {},
+      ]}
+    >
       {dragGesture && isDragEnabled && !isFavoritesCategory ? (
         <GestureDetector gesture={dragGesture}>
-          <StyledTouchableOpacity
-            onPress={toggleExpanded}
-            activeOpacity={0.7}
-          >
+          <StyledTouchableOpacity onPress={toggleExpanded} activeOpacity={0.7}>
             {headerContent}
           </StyledTouchableOpacity>
         </GestureDetector>
       ) : (
-        <StyledTouchableOpacity
-          onPress={toggleExpanded}
-          activeOpacity={0.7}
-        >
+        <StyledTouchableOpacity onPress={toggleExpanded} activeOpacity={0.7}>
           {headerContent}
         </StyledTouchableOpacity>
       )}
 
-      <Animated.View
+      <RNAnimated.View
         style={{
           maxHeight: animatedHeight.interpolate({
             inputRange: [0, 1],
-            outputRange: [0, 500], // Adjust based on expected content
+            outputRange: [0, 500],
           }),
           opacity: animatedHeight,
           overflow: "hidden",
@@ -566,7 +594,10 @@ const CollapsibleCategoryOptimized = ({
               onPress={() => handleItemPress(item)}
               searchQuery={searchQuery}
               isDragEnabled={isDragEnabled}
-              userId={userId}
+              createDragGesture={createDragGesture}
+              isDraggingItem={isDraggingItem}
+              draggedAnimatedStyle={draggedAnimatedStyle}
+              getDragOverStyle={getDragOverStyle}
             />
           ))
         ) : (
@@ -581,13 +612,13 @@ const CollapsibleCategoryOptimized = ({
               }}
             >
               {isFavoritesCategory
-                ? t("noFavorites", "No tienes favoritos aún")
+                ? t("noFavorites", "No favorites yet")
                 : t("noItems", "No items in this category")}
             </Text>
           </StyledView>
         )}
-      </Animated.View>
-    </StyledView>
+      </RNAnimated.View>
+    </Animated.View>
   );
 };
 

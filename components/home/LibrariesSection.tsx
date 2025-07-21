@@ -9,8 +9,8 @@ import {
   Modal,
   RefreshControl,
   Platform,
-  Animated,
 } from "react-native";
+import Animated from "react-native-reanimated";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import { AntDesign, Feather } from "@expo/vector-icons";
@@ -42,7 +42,6 @@ import { paginatedContentService } from "../../utils/paginatedContentService";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
-const AnimatedView = Animated.View;
 
 // Calculate safe area for navigation bar
 const NAVBAR_HEIGHT = 60;
@@ -61,6 +60,7 @@ const LibrariesSection = memo(function LibrariesSection({
   const { t } = useTranslation();
   const { deletedTrickId } = useTrickDeletion();
   const [userId, setUserId] = useState<string | null>(null);
+  const [isReordering, setIsReordering] = useState(false);
 
   // Modal states
   const [isAddCategoryModalVisible, setAddCategoryModalVisible] =
@@ -93,18 +93,19 @@ const LibrariesSection = memo(function LibrariesSection({
   // Check if search or filters are active
   const hasActiveSearchOrFilters = useMemo(() => {
     const hasSearch = searchQuery.trim() !== "";
-    const hasFilters = searchFilters && (
-      searchFilters.categories.length > 0 ||
-      searchFilters.tags.length > 0 ||
-      searchFilters.difficulties.length > 0 ||
-      searchFilters.resetTimes.min !== undefined ||
-      searchFilters.resetTimes.max !== undefined ||
-      searchFilters.durations.min !== undefined ||
-      searchFilters.durations.max !== undefined ||
-      searchFilters.angles.length > 0 ||
-      (searchFilters.isPublic !== null && searchFilters.isPublic !== undefined) ||
-      (searchFilters.sortOrder && searchFilters.sortOrder !== "recent")
-    );
+    const hasFilters =
+      searchFilters &&
+      (searchFilters.categories.length > 0 ||
+        searchFilters.tags.length > 0 ||
+        searchFilters.difficulties.length > 0 ||
+        searchFilters.resetTimes.min !== undefined ||
+        searchFilters.resetTimes.max !== undefined ||
+        searchFilters.durations.min !== undefined ||
+        searchFilters.durations.max !== undefined ||
+        searchFilters.angles.length > 0 ||
+        (searchFilters.isPublic !== null &&
+          searchFilters.isPublic !== undefined) ||
+        (searchFilters.sortOrder && searchFilters.sortOrder !== "recent"));
     return hasSearch || hasFilters;
   }, [searchQuery, searchFilters]);
 
@@ -112,12 +113,15 @@ const LibrariesSection = memo(function LibrariesSection({
   const {
     dragState,
     createDragGesture,
-    getDraggedStyle,
+    createCategoryDragGesture,
+    isDraggingItem,
+    draggedAnimatedStyle,
+    getDragOverStyle,
+    getCategoryDragOverStyle,
     setDraggedOver,
-    getCategoryDragOverStyle
   } = useDragDrop({
-    enabled: !hasActiveSearchOrFilters, // Disable when searching/filtering
-    onDragEnd: handleDragEnd
+    enabled: !hasActiveSearchOrFilters && !isReordering,
+    onDragEnd: handleDragEnd,
   });
 
   // Convert SearchFilters for compatibility with usePaginatedContent hook
@@ -140,7 +144,9 @@ const LibrariesSection = memo(function LibrariesSection({
   // Get user ID
   useEffect(() => {
     const fetchUserId = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
       }
@@ -166,12 +172,12 @@ const LibrariesSection = memo(function LibrariesSection({
 
     // Group trick orders by category
     const ordersByCategory = new Map<string, any[]>();
-    allTrickOrders.forEach(order => {
+    allTrickOrders.forEach((order) => {
       const categoryOrders = ordersByCategory.get(order.category_id) || [];
       categoryOrders.push(order);
       ordersByCategory.set(order.category_id, categoryOrders);
     });
-    
+
     setTrickOrders(ordersByCategory);
   };
 
@@ -183,27 +189,27 @@ const LibrariesSection = memo(function LibrariesSection({
 
     // Create a map of category positions
     const positionMap = new Map<string, number>();
-    categoryOrder.forEach(order => {
+    categoryOrder.forEach((order) => {
       positionMap.set(order.category_id, order.position);
     });
 
     // Sort sections based on custom order
     const sorted = [...sections].sort((a, b) => {
       // Favorites always first
-      const aIsFavorites = a.category.name.toLowerCase().includes('favorit');
-      const bIsFavorites = b.category.name.toLowerCase().includes('favorit');
-      
+      const aIsFavorites = a.category.name.toLowerCase().includes("favorit");
+      const bIsFavorites = b.category.name.toLowerCase().includes("favorit");
+
       if (aIsFavorites && !bIsFavorites) return -1;
       if (!aIsFavorites && bIsFavorites) return 1;
 
       const aPos = positionMap.get(a.category.id) ?? Number.MAX_VALUE;
       const bPos = positionMap.get(b.category.id) ?? Number.MAX_VALUE;
-      
+
       return aPos - bPos;
     });
 
     // Apply trick order within each category
-    return sorted.map(section => {
+    return sorted.map((section) => {
       const categoryTrickOrder = trickOrders.get(section.category.id);
       if (!categoryTrickOrder || categoryTrickOrder.length === 0) {
         return section;
@@ -211,7 +217,7 @@ const LibrariesSection = memo(function LibrariesSection({
 
       // Create position map for tricks
       const trickPositionMap = new Map<string, number>();
-      categoryTrickOrder.forEach(order => {
+      categoryTrickOrder.forEach((order) => {
         trickPositionMap.set(order.trick_id, order.position);
       });
 
@@ -224,14 +230,15 @@ const LibrariesSection = memo(function LibrariesSection({
 
       return {
         ...section,
-        items: sortedItems
+        items: sortedItems,
       };
     });
   }, [sections, categoryOrder, trickOrders, hasActiveSearchOrFilters]);
 
   // Filter sections to hide empty categories when there's an active search
   const filteredSections = useMemo(() => {
-    const hasActiveSearch = searchQuery.trim() !== "" || hasActiveSearchOrFilters;
+    const hasActiveSearch =
+      searchQuery.trim() !== "" || hasActiveSearchOrFilters;
 
     if (!hasActiveSearch) {
       return orderedSections;
@@ -258,15 +265,16 @@ const LibrariesSection = memo(function LibrariesSection({
     targetItem?: DragDropItem,
     targetCategory?: string
   ) {
-    if (!userId) return;
+    if (!userId || isReordering) return;
 
+    setIsReordering(true);
     try {
-      if (draggedItem.type === 'category') {
+      if (draggedItem.type === "category") {
         // Handle category reordering
-        if (targetItem && targetItem.type === 'category') {
+        if (targetItem && targetItem.type === "category") {
           await reorderCategories(draggedItem.id, targetItem.id);
         }
-      } else if (draggedItem.type === 'trick') {
+      } else if (draggedItem.type === "trick") {
         // Handle trick reordering or moving
         if (targetCategory && targetCategory !== draggedItem.categoryId) {
           // Moving to different category
@@ -277,7 +285,11 @@ const LibrariesSection = memo(function LibrariesSection({
             targetCategory,
             0 // Add to end, will be reordered if needed
           );
-        } else if (targetItem && targetItem.type === 'trick' && draggedItem.categoryId === targetItem.categoryId) {
+        } else if (
+          targetItem &&
+          targetItem.type === "trick" &&
+          draggedItem.categoryId === targetItem.categoryId
+        ) {
           // Reordering within same category
           await reorderTricks(
             draggedItem.categoryId!,
@@ -291,7 +303,9 @@ const LibrariesSection = memo(function LibrariesSection({
       await loadCustomOrder();
       refresh();
     } catch (error) {
-      console.error('Error handling drag end:', error);
+      console.error("Error handling drag end:", error);
+    } finally {
+      setIsReordering(false);
     }
   }
 
@@ -300,14 +314,18 @@ const LibrariesSection = memo(function LibrariesSection({
     if (!userId) return;
 
     const currentOrder = [...categoryOrder];
-    const draggedIndex = currentOrder.findIndex(o => o.category_id === draggedId);
-    const targetIndex = currentOrder.findIndex(o => o.category_id === targetId);
+    const draggedIndex = currentOrder.findIndex(
+      (o) => o.category_id === draggedId
+    );
+    const targetIndex = currentOrder.findIndex(
+      (o) => o.category_id === targetId
+    );
 
     if (draggedIndex === -1 || targetIndex === -1) return;
 
     // Don't allow moving favorites
-    const draggedSection = sections.find(s => s.category.id === draggedId);
-    if (draggedSection?.category.name.toLowerCase().includes('favorit')) {
+    const draggedSection = sections.find((s) => s.category.id === draggedId);
+    if (draggedSection?.category.name.toLowerCase().includes("favorit")) {
       return;
     }
 
@@ -324,14 +342,20 @@ const LibrariesSection = memo(function LibrariesSection({
   };
 
   // Reorder tricks within category
-  const reorderTricks = async (categoryId: string, draggedId: string, targetId: string) => {
+  const reorderTricks = async (
+    categoryId: string,
+    draggedId: string,
+    targetId: string
+  ) => {
     if (!userId) return;
 
     const categoryTricks = trickOrders.get(categoryId) || [];
     const currentOrder = [...categoryTricks];
-    
-    const draggedIndex = currentOrder.findIndex(o => o.trick_id === draggedId);
-    const targetIndex = currentOrder.findIndex(o => o.trick_id === targetId);
+
+    const draggedIndex = currentOrder.findIndex(
+      (o) => o.trick_id === draggedId
+    );
+    const targetIndex = currentOrder.findIndex((o) => o.trick_id === targetId);
 
     if (draggedIndex === -1 || targetIndex === -1) return;
 
@@ -667,32 +691,35 @@ const LibrariesSection = memo(function LibrariesSection({
     ({ item }: { item: any }) => {
       const dragItem: DragDropItem = {
         id: item.category.id,
-        type: 'category',
-        data: item.category
+        type: "category",
+        data: item.category,
       };
 
       return (
-        <AnimatedView
-          style={[
-            getDraggedStyle(dragItem),
-            getCategoryDragOverStyle(item.category.id)
-          ]}
+        <Animated.View
+          style={isDraggingItem(dragItem) ? draggedAnimatedStyle : {}}
         >
-          <CollapsibleCategoryOptimized
-            section={item}
-            searchQuery={searchQuery}
-            searchFilters={searchFilters}
-            onItemPress={handleItemPress}
-            onEditCategory={openEditCategoryModal}
-            onDeleteCategory={handleDeleteCategory}
-            onMoreOptions={handleMoreOptions}
-            dragGesture={createDragGesture(dragItem)}
-            isDragEnabled={!hasActiveSearchOrFilters}
-            onDraggedOver={(categoryId) => setDraggedOver(null, categoryId)}
-            dragState={dragState}
-            userId={userId}
-          />
-        </AnimatedView>
+          <View style={getCategoryDragOverStyle(item.category.id)}>
+            <CollapsibleCategoryOptimized
+              section={item}
+              searchQuery={searchQuery}
+              searchFilters={searchFilters}
+              onItemPress={handleItemPress}
+              onEditCategory={openEditCategoryModal}
+              onDeleteCategory={handleDeleteCategory}
+              onMoreOptions={handleMoreOptions}
+              dragGesture={createCategoryDragGesture(dragItem)}
+              isDragEnabled={!hasActiveSearchOrFilters}
+              onDraggedOver={(categoryId) => setDraggedOver(null, categoryId)}
+              dragState={dragState}
+              userId={userId}
+              createDragGesture={createDragGesture}
+              isDraggingItem={isDraggingItem}
+              draggedAnimatedStyle={draggedAnimatedStyle}
+              getDragOverStyle={getDragOverStyle}
+            />
+          </View>
+        </Animated.View>
       );
     },
     [
@@ -702,13 +729,15 @@ const LibrariesSection = memo(function LibrariesSection({
       openEditCategoryModal,
       handleDeleteCategory,
       handleMoreOptions,
-      createDragGesture,
-      getDraggedStyle,
+      isDraggingItem,
+      draggedAnimatedStyle,
+      getDragOverStyle,
       getCategoryDragOverStyle,
       hasActiveSearchOrFilters,
       setDraggedOver,
       dragState,
-      userId
+      userId,
+      createDragGesture,
     ]
   );
 
