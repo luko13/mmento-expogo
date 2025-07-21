@@ -1,4 +1,4 @@
-// app/index.tsx - Version without encryption
+// app/index.tsx
 "use client";
 
 import { View, Text, TouchableOpacity, Image, Dimensions } from "react-native";
