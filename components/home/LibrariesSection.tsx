@@ -119,6 +119,7 @@ const LibrariesSection = memo(function LibrariesSection({
     getDragOverStyle,
     getCategoryDragOverStyle,
     setDraggedOver,
+    registerCategoryLayout,
   } = useDragDrop({
     enabled: !hasActiveSearchOrFilters && !isReordering,
     onDragEnd: handleDragEnd,
@@ -696,30 +697,28 @@ const LibrariesSection = memo(function LibrariesSection({
       };
 
       return (
-        <Animated.View
-          style={isDraggingItem(dragItem) ? draggedAnimatedStyle : {}}
-        >
-          <View style={getCategoryDragOverStyle(item.category.id)}>
-            <CollapsibleCategoryOptimized
-              section={item}
-              searchQuery={searchQuery}
-              searchFilters={searchFilters}
-              onItemPress={handleItemPress}
-              onEditCategory={openEditCategoryModal}
-              onDeleteCategory={handleDeleteCategory}
-              onMoreOptions={handleMoreOptions}
-              dragGesture={createCategoryDragGesture(dragItem)}
-              isDragEnabled={!hasActiveSearchOrFilters}
-              onDraggedOver={(categoryId) => setDraggedOver(null, categoryId)}
-              dragState={dragState}
-              userId={userId}
-              createDragGesture={createDragGesture}
-              isDraggingItem={isDraggingItem}
-              draggedAnimatedStyle={draggedAnimatedStyle}
-              getDragOverStyle={getDragOverStyle}
-            />
-          </View>
-        </Animated.View>
+        <View style={getCategoryDragOverStyle(item.category.id)}>
+          <CollapsibleCategoryOptimized
+            section={item}
+            searchQuery={searchQuery}
+            searchFilters={searchFilters}
+            onItemPress={handleItemPress}
+            onEditCategory={openEditCategoryModal}
+            onDeleteCategory={handleDeleteCategory}
+            onMoreOptions={handleMoreOptions}
+            dragGesture={createCategoryDragGesture(dragItem)}
+            isDragEnabled={!hasActiveSearchOrFilters}
+            onDraggedOver={(categoryId) => setDraggedOver(null, categoryId)}
+            dragState={dragState}
+            userId={userId}
+            registerCategoryLayout={registerCategoryLayout}
+            createDragGesture={createDragGesture}
+            isDraggingItem={isDraggingItem}
+            draggedAnimatedStyle={draggedAnimatedStyle}
+            getDragOverStyle={getDragOverStyle}
+            getCategoryDragOverStyle={getCategoryDragOverStyle}
+          />
+        </View>
       );
     },
     [
@@ -738,6 +737,8 @@ const LibrariesSection = memo(function LibrariesSection({
       dragState,
       userId,
       createDragGesture,
+      registerCategoryLayout,
+      createCategoryDragGesture,
     ]
   );
 
