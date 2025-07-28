@@ -1,5 +1,5 @@
 // utils/orderService.ts
-import { supabase } from '../lib/supabase';
+import { supabase } from "../lib/supabase";
 
 export interface CategoryOrder {
   user_id: string;
@@ -22,13 +22,13 @@ class OrderService {
   // Obtener el orden de categorías del usuario
   async getUserCategoryOrder(userId: string): Promise<CategoryOrder[]> {
     const { data, error } = await supabase
-      .from('user_category_order')
-      .select('*')
-      .eq('user_id', userId)
-      .order('position');
+      .from("user_category_order")
+      .select("*")
+      .eq("user_id", userId)
+      .order("position");
 
     if (error) {
-      console.error('Error fetching category order:', error);
+      console.error("Error fetching category order:", error);
       return [];
     }
 
@@ -36,16 +36,19 @@ class OrderService {
   }
 
   // Obtener el orden de trucos para una categoría
-  async getUserTrickOrder(userId: string, categoryId: string): Promise<TrickOrder[]> {
+  async getUserTrickOrder(
+    userId: string,
+    categoryId: string
+  ): Promise<TrickOrder[]> {
     const { data, error } = await supabase
-      .from('user_trick_order')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('category_id', categoryId)
-      .order('position');
+      .from("user_trick_order")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("category_id", categoryId)
+      .order("position");
 
     if (error) {
-      console.error('Error fetching trick order:', error);
+      console.error("Error fetching trick order:", error);
       return [];
     }
 
@@ -55,13 +58,13 @@ class OrderService {
   // Obtener todos los órdenes de trucos del usuario
   async getAllUserTrickOrders(userId: string): Promise<TrickOrder[]> {
     const { data, error } = await supabase
-      .from('user_trick_order')
-      .select('*')
-      .eq('user_id', userId)
-      .order('category_id, position');
+      .from("user_trick_order")
+      .select("*")
+      .eq("user_id", userId)
+      .order("category_id, position");
 
     if (error) {
-      console.error('Error fetching all trick orders:', error);
+      console.error("Error fetching all trick orders:", error);
       return [];
     }
 
@@ -74,20 +77,25 @@ class OrderService {
     this.pendingCategoryUpdates.set(key, {
       user_id: userId,
       category_id: categoryId,
-      position: newPosition
+      position: newPosition,
     });
 
     this.scheduleUpdate();
   }
 
   // Actualizar orden de trucos con debounce
-  updateTrickOrder(userId: string, categoryId: string, trickId: string, newPosition: number) {
+  updateTrickOrder(
+    userId: string,
+    categoryId: string,
+    trickId: string,
+    newPosition: number
+  ) {
     const key = `${userId}-${categoryId}-${trickId}`;
     this.pendingTrickUpdates.set(key, {
       user_id: userId,
       category_id: categoryId,
       trick_id: trickId,
-      position: newPosition
+      position: newPosition,
     });
 
     this.scheduleUpdate();
@@ -104,54 +112,54 @@ class OrderService {
     try {
       // Si es favoritos, no cambiamos la categoría del truco
       const isFavoritesCategory = await this.isFavoritesCategory(toCategoryId);
-      
+
       if (!isFavoritesCategory) {
         // Actualizar la categoría del truco en trick_categories
         await supabase
-          .from('trick_categories')
+          .from("trick_categories")
           .update({ category_id: toCategoryId })
-          .eq('trick_id', trickId);
+          .eq("trick_id", trickId);
       }
 
       // Si movemos desde favoritos, eliminar de favoritos
       if (await this.isFavoritesCategory(fromCategoryId)) {
         await supabase
-          .from('user_favorites')
+          .from("user_favorites")
           .delete()
-          .eq('user_id', userId)
-          .eq('content_id', trickId)
-          .eq('content_type', 'magic');
+          .eq("user_id", userId)
+          .eq("content_id", trickId)
+          .eq("content_type", "magic");
       }
 
       // Si movemos hacia favoritos, añadir a favoritos
       if (isFavoritesCategory) {
-        await supabase
-          .from('user_favorites')
-          .upsert({
+        await supabase.from("user_favorites").upsert(
+          {
             user_id: userId,
             content_id: trickId,
-            content_type: 'magic'
-          }, {
-            onConflict: 'user_id,content_id,content_type'
-          });
+            content_type: "magic",
+          },
+          {
+            onConflict: "user_id,content_id,content_type",
+          }
+        );
       }
 
       // Eliminar del orden anterior
       await supabase
-        .from('user_trick_order')
+        .from("user_trick_order")
         .delete()
-        .eq('user_id', userId)
-        .eq('category_id', fromCategoryId)
-        .eq('trick_id', trickId);
+        .eq("user_id", userId)
+        .eq("category_id", fromCategoryId)
+        .eq("trick_id", trickId);
 
       // Añadir al nuevo orden
       this.updateTrickOrder(userId, toCategoryId, trickId, newPosition);
 
       // Reordenar los trucos restantes en la categoría origen
       await this.reorderTricksInCategory(userId, fromCategoryId);
-
     } catch (error) {
-      console.error('Error moving trick to category:', error);
+      console.error("Error moving trick to category:", error);
       throw error;
     }
   }
@@ -159,25 +167,32 @@ class OrderService {
   // Comprobar si una categoría es "Favoritos"
   private async isFavoritesCategory(categoryId: string): Promise<boolean> {
     const { data } = await supabase
-      .from('user_categories')
-      .select('name')
-      .eq('id', categoryId)
+      .from("user_categories")
+      .select("name")
+      .eq("id", categoryId)
       .single();
 
     if (!data) return false;
 
-    const favoritesNames = ['favoritos', 'favorites', 'favourites', 'favorito', 'favorite', 'favourite'];
+    const favoritesNames = [
+      "favoritos",
+      "favorites",
+      "favourites",
+      "favorito",
+      "favorite",
+      "favourite",
+    ];
     return favoritesNames.includes(data.name.toLowerCase().trim());
   }
 
   // Reordenar trucos después de eliminar uno
   private async reorderTricksInCategory(userId: string, categoryId: string) {
     const tricks = await this.getUserTrickOrder(userId, categoryId);
-    
+
     // Reordenar con posiciones consecutivas
     const updates = tricks.map((trick, index) => ({
       ...trick,
-      position: index
+      position: index,
     }));
 
     // Actualizar en batch
@@ -203,36 +218,34 @@ class OrderService {
   }
 
   // Ejecutar todas las actualizaciones pendientes
-  private async flushUpdates() {
+  async flushUpdates() {
     const categoryUpdates = Array.from(this.pendingCategoryUpdates.values());
     const trickUpdates = Array.from(this.pendingTrickUpdates.values());
 
     this.pendingCategoryUpdates.clear();
     this.pendingTrickUpdates.clear();
 
-    // Actualizar categorías
     if (categoryUpdates.length > 0) {
       const { error } = await supabase
-        .from('user_category_order')
+        .from("user_category_order")
         .upsert(categoryUpdates, {
-          onConflict: 'user_id,category_id'
+          onConflict: "user_id,category_id",
         });
 
       if (error) {
-        console.error('Error updating category order:', error);
+        console.error("Error updating category order:", error);
       }
     }
 
-    // Actualizar trucos
     if (trickUpdates.length > 0) {
       const { error } = await supabase
-        .from('user_trick_order')
+        .from("user_trick_order")
         .upsert(trickUpdates, {
-          onConflict: 'user_id,category_id,trick_id'
+          onConflict: "user_id,category_id,trick_id",
         });
 
       if (error) {
-        console.error('Error updating trick order:', error);
+        console.error("Error updating trick order:", error);
       }
     }
   }
@@ -240,31 +253,41 @@ class OrderService {
   // Inicializar orden para nuevas categorías
   async initializeCategoryOrder(userId: string, categoryId: string) {
     const existingOrder = await this.getUserCategoryOrder(userId);
-    const maxPosition = Math.max(...existingOrder.map(o => o.position), -1);
+    const maxPosition = Math.max(...existingOrder.map((o) => o.position), -1);
 
-    await supabase
-      .from('user_category_order')
-      .upsert({
+    await supabase.from("user_category_order").upsert(
+      {
         user_id: userId,
         category_id: categoryId,
-        position: maxPosition + 1
-      }, {
-        onConflict: 'user_id,category_id'
-      });
+        position: maxPosition + 1,
+      },
+      {
+        onConflict: "user_id,category_id",
+      }
+    );
   }
 
   // Inicializar orden para nuevos trucos (se añaden al principio)
-  async initializeTrickOrder(userId: string, categoryId: string, trickId: string) {
+  async initializeTrickOrder(
+    userId: string,
+    categoryId: string,
+    trickId: string
+  ) {
     const existingOrder = await this.getUserTrickOrder(userId, categoryId);
-    
+
     // Incrementar posiciones existentes
     for (const order of existingOrder) {
-      this.updateTrickOrder(userId, categoryId, order.trick_id, order.position + 1);
+      this.updateTrickOrder(
+        userId,
+        categoryId,
+        order.trick_id,
+        order.position + 1
+      );
     }
 
     // Añadir el nuevo truco en posición 0
     this.updateTrickOrder(userId, categoryId, trickId, 0);
-    
+
     // Forzar actualización inmediata
     await this.flushUpdates();
   }
@@ -272,16 +295,16 @@ class OrderService {
   // Limpiar órdenes al eliminar una categoría
   async cleanupCategoryOrder(userId: string, categoryId: string) {
     await supabase
-      .from('user_category_order')
+      .from("user_category_order")
       .delete()
-      .eq('user_id', userId)
-      .eq('category_id', categoryId);
+      .eq("user_id", userId)
+      .eq("category_id", categoryId);
 
     await supabase
-      .from('user_trick_order')
+      .from("user_trick_order")
       .delete()
-      .eq('user_id', userId)
-      .eq('category_id', categoryId);
+      .eq("user_id", userId)
+      .eq("category_id", categoryId);
   }
 }
 

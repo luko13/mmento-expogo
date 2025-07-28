@@ -1,7 +1,7 @@
 // components/home/LibrariesSection.tsx
 "use client";
 
-import { useState, useCallback, memo, useEffect, useMemo } from "react";
+import { useState, useCallback, memo, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -9,12 +9,14 @@ import {
   Modal,
   RefreshControl,
   Platform,
+  Dimensions,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
-import { AntDesign, Feather, MaterialIcons } from "@expo/vector-icons";
+import { AntDesign, Feather } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import * as Haptics from "expo-haptics";
 import { supabase } from "../../lib/supabase";
 import {
   type Category,
@@ -23,10 +25,6 @@ import {
   updateCategory,
 } from "../../utils/categoryService";
 import { orderService } from "../../services/orderService";
-import {
-  useSimpleDragDrop,
-  type DragDropItem,
-} from "../../hooks/useSimpleDragDrop";
 import TrickViewScreen from "../TrickViewScreen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import type { SearchFilters } from "./CompactSearchBar";
@@ -41,6 +39,8 @@ import { fontNames } from "../../app/_layout";
 import MagicLoader from "../ui/MagicLoader";
 import { useTrickDeletion } from "../../context/TrickDeletionContext";
 import { paginatedContentService } from "../../utils/paginatedContentService";
+import { DragArea } from "../DragArea";
+import { DraggableCategory } from "../DraggableCategory";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
@@ -92,6 +92,17 @@ const LibrariesSection = memo(function LibrariesSection({
   const [categoryOrder, setCategoryOrder] = useState<any[]>([]);
   const [trickOrders, setTrickOrders] = useState<Map<string, any[]>>(new Map());
 
+  // Drag and drop states
+  const [draggedItem, setDraggedItem] = useState<any>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const flatListRef = useRef<FlashList<any>>(null);
+
+  // Estado de expansión
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set()
+  );
+
   // Check if search or filters are active
   const hasActiveSearchOrFilters = useMemo(() => {
     const hasSearch = searchQuery.trim() !== "";
@@ -122,24 +133,6 @@ const LibrariesSection = memo(function LibrariesSection({
     refresh,
     allCategories,
   } = usePaginatedContent(searchQuery, searchFilters);
-
-  // Initialize simple drag and drop (SOLO UNA VEZ)
-  const {
-    dragState,
-    createDragGesture,
-    isDraggingItem,
-    draggedAnimatedStyle,
-    getDragOverStyle,
-    getCategoryDragOverStyle,
-    registerCategoryLayout,
-    registerItemLayout,
-    setDraggedOver,
-    setDraggedOverCategory,
-    isDragging,
-  } = useSimpleDragDrop({
-    enabled: !hasActiveSearchOrFilters && !isReordering,
-    onDragEnd: handleDragEnd,
-  });
 
   // Get user ID
   useEffect(() => {
@@ -240,134 +233,243 @@ const LibrariesSection = memo(function LibrariesSection({
     const hasActiveSearch =
       searchQuery.trim() !== "" || hasActiveSearchOrFilters;
 
-    if (!hasActiveSearch) {
-      return orderedSections;
+    let result = orderedSections;
+
+    if (hasActiveSearch) {
+      result = orderedSections.filter((section) => {
+        if (section.items && section.items.length > 0) {
+          return true;
+        }
+
+        if (searchQuery.trim()) {
+          const categoryNameLower = section.category.name.toLowerCase();
+          const searchQueryLower = searchQuery.toLowerCase().trim();
+          return categoryNameLower.includes(searchQueryLower);
+        }
+
+        return false;
+      });
     }
 
-    return orderedSections.filter((section) => {
-      if (section.items && section.items.length > 0) {
-        return true;
+    // Añadir estado de expansión
+    return result.map((section) => ({
+      ...section,
+      isExpanded: expandedCategories.has(section.category.id),
+    }));
+  }, [
+    orderedSections,
+    searchQuery,
+    hasActiveSearchOrFilters,
+    expandedCategories,
+  ]);
+
+  // Handle expand/collapse
+  const handleExpandChange = useCallback(
+    (categoryId: string, isExpanded: boolean) => {
+      setExpandedCategories((prev) => {
+        const newSet = new Set(prev);
+        if (isExpanded) {
+          newSet.add(categoryId);
+        } else {
+          newSet.delete(categoryId);
+        }
+        return newSet;
+      });
+    },
+    []
+  );
+
+  // Handle drag start
+  const handleDragStart = useCallback(
+    (itemId: string, index: number) => {
+      const section = filteredSections.find((s) => s.category.id === itemId);
+      if (!section || section.category.name.toLowerCase().includes("favorit")) {
+        return;
       }
 
-      if (searchQuery.trim()) {
-        const categoryNameLower = section.category.name.toLowerCase();
-        const searchQueryLower = searchQuery.toLowerCase().trim();
-        return categoryNameLower.includes(searchQueryLower);
-      }
+      // Calcular el índice real excluyendo favoritos
+      const nonFavoriteSections = filteredSections.filter(
+        (s) => !s.category.name.toLowerCase().includes("favorit")
+      );
 
-      return false;
-    });
-  }, [orderedSections, searchQuery, hasActiveSearchOrFilters]);
+      const realIndex = nonFavoriteSections.findIndex(
+        (s) => s.category.id === itemId
+      );
+
+      if (realIndex === -1) return;
+
+      // Calcular la posición Y del item
+      const itemHeight = 68; // 60 de altura + 8 de margen
+      const headerHeight = 40; // Altura del header
+      const originalY = headerHeight + realIndex * itemHeight;
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      setDraggedItem({
+        ...section.category,
+        originalIndex: realIndex,
+        originalY: originalY,
+      });
+      setIsDragging(true);
+    },
+    [filteredSections]
+  );
+
+  // Handle Update
+  const handleUpdateHoveredIndex = useCallback(
+    (index: number | null) => {
+      const nonFavoriteSections = filteredSections.filter(
+        (s) => !s.category.name.toLowerCase().includes("favorit")
+      );
+
+      if (index !== null && index >= 0 && index < nonFavoriteSections.length) {
+        setHoveredIndex(index);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } else {
+        setHoveredIndex(null);
+      }
+    },
+    [filteredSections]
+  );
 
   // Handle drag end
-  async function handleDragEnd(
-    draggedItem: DragDropItem,
-    targetCategory?: string
-  ) {
-    if (!userId || isReordering || !targetCategory) return;
+  const handleDragEnd = useCallback(
+    async (newIndex: number) => {
+      console.log("🔴 handleDragEnd - INICIO");
+      console.log("🔴 Parámetros:", {
+        newIndex,
+        hasDraggedItem: !!draggedItem,
+        draggedItemId: draggedItem?.id,
+        draggedItemOriginalIndex: draggedItem?.originalIndex,
+        userId,
+        isReordering,
+      });
 
-    console.log("🎯 handleDragEnd:", draggedItem.id, "->", targetCategory);
-
-    setIsReordering(true);
-    try {
-      if (draggedItem.type === "category") {
-        if (targetCategory !== draggedItem.id) {
-          // No permitir mover favoritos
-          const draggedSection = sections.find(
-            (s) => s.category.id === draggedItem.id
-          );
-          if (
-            !draggedSection?.category.name.toLowerCase().includes("favorit")
-          ) {
-            await reorderCategories(draggedItem.id, targetCategory);
-          }
+      try {
+        // Validaciones básicas
+        if (!draggedItem) {
+          console.log("🔴 No hay draggedItem - saliendo");
+          setDraggedItem(null);
+          setIsDragging(false);
+          setHoveredIndex(null);
+          return;
         }
-      } else if (draggedItem.type === "trick") {
-        // Moving to different category
-        if (targetCategory !== draggedItem.categoryId) {
-          await orderService.moveTrickToCategory(
+
+        if (!userId) {
+          console.log("🔴 No hay userId - saliendo");
+          setDraggedItem(null);
+          setIsDragging(false);
+          setHoveredIndex(null);
+          return;
+        }
+
+        if (isReordering) {
+          console.log("🔴 Ya está reordenando - saliendo");
+          return;
+        }
+
+        const oldIndex = draggedItem.originalIndex;
+        console.log("🔴 Índices:", { oldIndex, newIndex });
+
+        // Si no se movió, solo limpiar
+        if (oldIndex === newIndex) {
+          console.log("🔴 No se movió - limpiando estados");
+          setDraggedItem(null);
+          setIsDragging(false);
+          setHoveredIndex(null);
+          return;
+        }
+
+        console.log("🔴 Iniciando reordenamiento...");
+        setIsReordering(true);
+
+        // Obtener las secciones actuales
+        const currentSections = [...filteredSections];
+        console.log("🔴 Total secciones:", currentSections.length);
+
+        // Filtrar solo las no-favoritos
+        const nonFavoriteSections = currentSections.filter(
+          (s) => !s.category.name.toLowerCase().includes("favorit")
+        );
+        console.log("🔴 Secciones no-favoritos:", nonFavoriteSections.length);
+
+        // Validar índices
+        if (oldIndex < 0 || oldIndex >= nonFavoriteSections.length) {
+          console.error("🔴 oldIndex fuera de rango:", oldIndex);
+          throw new Error("oldIndex fuera de rango");
+        }
+
+        if (newIndex < 0 || newIndex >= nonFavoriteSections.length) {
+          console.error("🔴 newIndex fuera de rango:", newIndex);
+          throw new Error("newIndex fuera de rango");
+        }
+
+        // IMPLEMENTAR EL REORDENAMIENTO REAL
+        console.log("🔴 Reordenando categorías...");
+
+        // Obtener el orden visual actual (solo categorías no-favoritos)
+        const visualOrder = nonFavoriteSections.map((s) => s.category.id);
+        console.log("🔴 Orden visual antes:", visualOrder);
+
+        // Remover el item de su posición actual
+        const [movedItem] = visualOrder.splice(oldIndex, 1);
+
+        // Insertarlo en la nueva posición
+        visualOrder.splice(newIndex, 0, movedItem);
+        console.log("🔴 Orden visual después:", visualOrder);
+
+        // Crear actualizaciones para todas las categorías afectadas
+        const updates = visualOrder.map((categoryId, index) => ({
+          user_id: userId,
+          category_id: categoryId,
+          position: index,
+        }));
+
+        console.log("🔴 Actualizaciones a realizar:", updates.length);
+
+        // Actualizar en la base de datos
+        for (const update of updates) {
+          console.log(
+            "🔴 Actualizando:",
+            update.category_id,
+            "-> posición",
+            update.position
+          );
+          await orderService.updateCategoryOrder(
             userId,
-            draggedItem.id,
-            draggedItem.categoryId!,
-            targetCategory,
-            0 // Add to end
+            update.category_id,
+            update.position
           );
         }
+
+        // Actualizar estado local
+        setCategoryOrder(updates);
+
+        // Forzar flush de actualizaciones
+        console.log("🔴 Forzando flush de actualizaciones...");
+        await orderService.flushUpdates();
+
+        // Recargar el orden personalizado
+        console.log("🔴 Recargando orden personalizado...");
+        await loadCustomOrder();
+
+        console.log("🔴 Reordenamiento completado con éxito");
+      } catch (error) {
+        console.error("🔴 ERROR en handleDragEnd:", error);
+        console.error(
+          "🔴 Stack trace:",
+          error instanceof Error ? error.stack : "No stack"
+        );
+      } finally {
+        // Siempre limpiar estados
+        setDraggedItem(null);
+        setIsDragging(false);
+        setHoveredIndex(null);
+        setIsReordering(false);
+        console.log("🔴 handleDragEnd - FIN");
       }
-
-      // Reload custom order and refresh data
-      await loadCustomOrder();
-      refresh();
-    } catch (error) {
-      console.error("Error handling drag end:", error);
-    } finally {
-      setIsReordering(false);
-    }
-  }
-
-  // Reorder categories
-  const reorderCategories = async (draggedId: string, targetId: string) => {
-    if (!userId) return;
-
-    const currentOrder = [...categoryOrder];
-    const draggedIndex = currentOrder.findIndex(
-      (o) => o.category_id === draggedId
-    );
-    const targetIndex = currentOrder.findIndex(
-      (o) => o.category_id === targetId
-    );
-
-    if (draggedIndex === -1 || targetIndex === -1) return;
-
-    // Don't allow moving favorites
-    const draggedSection = sections.find((s) => s.category.id === draggedId);
-    if (draggedSection?.category.name.toLowerCase().includes("favorit")) {
-      return;
-    }
-
-    // Reorder array
-    const [removed] = currentOrder.splice(draggedIndex, 1);
-    currentOrder.splice(targetIndex, 0, removed);
-
-    // Update positions
-    currentOrder.forEach((order, index) => {
-      orderService.updateCategoryOrder(userId, order.category_id, index);
-    });
-
-    setCategoryOrder(currentOrder);
-  };
-
-  // Reorder tricks within category
-  const reorderTricks = async (
-    categoryId: string,
-    draggedId: string,
-    targetId: string
-  ) => {
-    if (!userId) return;
-
-    const categoryTricks = trickOrders.get(categoryId) || [];
-    const currentOrder = [...categoryTricks];
-
-    const draggedIndex = currentOrder.findIndex(
-      (o) => o.trick_id === draggedId
-    );
-    const targetIndex = currentOrder.findIndex((o) => o.trick_id === targetId);
-
-    if (draggedIndex === -1 || targetIndex === -1) return;
-
-    // Reorder array
-    const [removed] = currentOrder.splice(draggedIndex, 1);
-    currentOrder.splice(targetIndex, 0, removed);
-
-    // Update positions
-    currentOrder.forEach((order, index) => {
-      orderService.updateTrickOrder(userId, categoryId, order.trick_id, index);
-    });
-
-    const newOrders = new Map(trickOrders);
-    newOrders.set(categoryId, currentOrder);
-    setTrickOrders(newOrders);
-  };
+    },
+    [draggedItem, userId, isReordering, filteredSections, loadCustomOrder]
+  );
 
   // Calculate total tricks count whenever sections update
   useEffect(() => {
@@ -632,7 +734,7 @@ const LibrariesSection = memo(function LibrariesSection({
         </StyledTouchableOpacity>
       </StyledView>
     ),
-    [totalTricksCount]
+    [totalTricksCount, t]
   );
 
   const ListFooter = useCallback(() => {
@@ -683,62 +785,70 @@ const LibrariesSection = memo(function LibrariesSection({
     );
   }, [searchQuery, searchFilters, t]);
 
-  const renderSection = useCallback(
-    ({ item }: { item: any }) => {
-      const isFavoritesCategory = item.category.name
-        .toLowerCase()
-        .includes("favorit");
+  // Render category
+  const renderCategory = useCallback(
+    ({ item, index }: { item: any; index: number }) => {
+      const isFavorites = item.category.name.toLowerCase().includes("favorit");
+      const canDrag =
+        !hasActiveSearchOrFilters && !isFavorites && !item.isExpanded;
 
+      // Si está expandido, hay búsqueda activa, o es favoritos, renderizar el componente completo
+      if (!canDrag) {
+        return (
+          <CollapsibleCategoryOptimized
+            section={item}
+            searchQuery={searchQuery}
+            searchFilters={searchFilters}
+            onItemPress={handleItemPress}
+            onEditCategory={openEditCategoryModal}
+            onDeleteCategory={handleDeleteCategory}
+            onMoreOptions={handleMoreOptions}
+            isDragEnabled={false}
+            onExpandChange={(isExpanded) =>
+              handleExpandChange(item.category.id, isExpanded)
+            }
+          />
+        );
+      }
+
+      // Calcular el índice real para drag (excluyendo favoritos)
+      const nonFavoriteIndex = filteredSections
+        .filter((s) => !s.category.name.toLowerCase().includes("favorit"))
+        .findIndex((s) => s.category.id === item.category.id);
+
+      // Si está colapsado y se puede arrastrar
       return (
-        <CollapsibleCategoryOptimized
-          section={item}
-          searchQuery={searchQuery}
-          searchFilters={searchFilters}
-          onItemPress={handleItemPress}
-          onEditCategory={openEditCategoryModal}
-          onDeleteCategory={handleDeleteCategory}
-          onMoreOptions={handleMoreOptions}
-          // Props simplificados para drag
-          createDragGesture={
-            !isFavoritesCategory ? createDragGesture : undefined
-          }
-          isDraggingItem={isDraggingItem}
-          draggedAnimatedStyle={draggedAnimatedStyle}
-          getDragOverStyle={getDragOverStyle}
-          getCategoryDragOverStyle={getCategoryDragOverStyle}
-          setDraggedOverCategory={setDraggedOverCategory}
+        <DraggableCategory
+          item={{
+            id: item.category.id,
+            name: item.category.name,
+            itemCount: item.items?.length || 0,
+            category: item.category,
+          }}
+          index={nonFavoriteIndex}
+          onDragStart={handleDragStart}
           isDragging={isDragging}
-          isDragEnabled={!hasActiveSearchOrFilters && !isFavoritesCategory}
-          dragState={dragState}
-          userId={userId}
-          registerCategoryLayout={registerCategoryLayout}
-          registerItemLayout={registerItemLayout}
-          onDraggedOver={(categoryId) => setDraggedOverCategory(categoryId)}
-          dragGesture={null} // No longer needed
-          setDraggedOver={setDraggedOver}
+          draggedItemId={draggedItem?.id}
+          hoveredIndex={hoveredIndex}
+          onMoreOptions={() => handleMoreOptions(item.category)}
+          onToggleExpand={() => handleExpandChange(item.category.id, true)}
         />
       );
     },
     [
+      hasActiveSearchOrFilters,
       searchQuery,
       searchFilters,
       handleItemPress,
       openEditCategoryModal,
       handleDeleteCategory,
       handleMoreOptions,
-      hasActiveSearchOrFilters,
-      createDragGesture,
-      isDraggingItem,
-      draggedAnimatedStyle,
-      getDragOverStyle,
-      getCategoryDragOverStyle,
-      setDraggedOverCategory,
+      handleDragStart,
       isDragging,
-      dragState,
-      userId,
-      registerCategoryLayout,
-      registerItemLayout,
-      setDraggedOver,
+      draggedItem,
+      hoveredIndex,
+      filteredSections,
+      handleExpandChange,
     ]
   );
 
@@ -749,6 +859,51 @@ const LibrariesSection = memo(function LibrariesSection({
       loadMore();
     }
   }, [hasMore, loadingMore, loadMore]);
+
+  // Main content with DragArea
+  const mainContent = (
+    <DragArea
+      draggedItem={draggedItem}
+      onDrop={handleDragEnd}
+      onUpdateHoveredIndex={handleUpdateHoveredIndex}
+      currentIndex={draggedItem?.originalIndex || 0}
+    >
+      <FlashList
+        ref={flatListRef}
+        data={filteredSections}
+        renderItem={renderCategory}
+        keyExtractor={keyExtractor}
+        ListEmptyComponent={ListEmpty}
+        ListFooterComponent={ListFooter}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.5}
+        estimatedItemSize={100}
+        getItemType={() => "category"}
+        refreshControl={
+          <RefreshControl
+            refreshing={false}
+            onRefresh={refresh}
+            tintColor="transparent"
+            title="Refresh... ↓"
+            titleColor="rgba(255, 255, 255, 0.6)"
+            colors={["transparent"]}
+            progressBackgroundColor="transparent"
+            progressViewOffset={-50}
+          />
+        }
+        contentContainerStyle={{
+          paddingBottom: NAVBAR_HEIGHT + BOTTOM_SPACING,
+        }}
+        drawDistance={200}
+        removeClippedSubviews={true}
+        estimatedListSize={{
+          height: 600,
+          width: 350,
+        }}
+        scrollEnabled={!isDragging}
+      />
+    </DragArea>
+  );
 
   // Main render
   if (loading && sections.length === 0 && !error) {
@@ -798,38 +953,7 @@ const LibrariesSection = memo(function LibrariesSection({
             </StyledTouchableOpacity>
           </StyledView>
         ) : (
-          <FlashList
-            data={filteredSections}
-            renderItem={renderSection}
-            keyExtractor={keyExtractor}
-            ListEmptyComponent={ListEmpty}
-            ListFooterComponent={ListFooter}
-            onEndReached={handleEndReached}
-            onEndReachedThreshold={0.5}
-            estimatedItemSize={100}
-            getItemType={() => "category"}
-            refreshControl={
-              <RefreshControl
-                refreshing={false}
-                onRefresh={refresh}
-                tintColor="transparent"
-                title="Refresh... ↓"
-                titleColor="rgba(255, 255, 255, 0.6)"
-                colors={["transparent"]}
-                progressBackgroundColor="transparent"
-                progressViewOffset={-50}
-              />
-            }
-            contentContainerStyle={{
-              paddingBottom: NAVBAR_HEIGHT + BOTTOM_SPACING,
-            }}
-            drawDistance={200}
-            removeClippedSubviews={true}
-            estimatedListSize={{
-              height: 600,
-              width: 350,
-            }}
-          />
+          mainContent
         )}
 
         {/* Modals */}

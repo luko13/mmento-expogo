@@ -1,6 +1,7 @@
+// App.tsx
 import "react-native-gesture-handler";
 import "react-native-reanimated";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   useColorScheme,
   NativeModules,
@@ -13,6 +14,8 @@ import {
   DarkTheme,
   DefaultTheme,
 } from "@react-navigation/native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { DragPortalProvider } from "./components/DragPortal";
 import i18n from "./i18n";
 import * as NavigationBar from "expo-navigation-bar";
 
@@ -76,13 +79,17 @@ export default function App() {
    * Renderizado principal de la aplicación
    */
   return (
-    <ThemeProvider value={theme}>
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="light-content"
-      />
-      <ExpoRoot context={require("./app")} />
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <DragPortalProvider>
+        <ThemeProvider value={theme}>
+          <StatusBar
+            translucent
+            backgroundColor="transparent"
+            barStyle="light-content"
+          />
+          <ExpoRoot context={require("./app")} />
+        </ThemeProvider>
+      </DragPortalProvider>
+    </GestureHandlerRootView>
   );
 }
