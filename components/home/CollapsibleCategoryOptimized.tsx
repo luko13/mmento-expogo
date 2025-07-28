@@ -20,7 +20,7 @@ import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons, Entypo } from "@expo/vector-icons";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
-import { GestureDetector, Gesture } from "react-native-gesture-handler";
+import { GestureDetector } from "react-native-gesture-handler";
 import { fontNames } from "../../app/_layout";
 import InlineProgressBar from "./TrickCompletionProgress";
 import { type DragDropItem, type DragDropState } from "../../hooks/useDragDrop";
@@ -83,6 +83,10 @@ interface Props {
   registerCategoryLayout?: (
     categoryId: string
   ) => (e: LayoutChangeEvent) => void;
+  registerItemLayout?: (
+    itemId: string,
+    categoryId: string
+  ) => (e: LayoutChangeEvent) => void;
   createDragGesture?: (item: DragDropItem) => any;
   isDraggingItem?: (item: DragDropItem) => boolean;
   draggedAnimatedStyle?: any;
@@ -102,16 +106,24 @@ const LibraryItemRow = memo(
     isDraggingItem,
     draggedAnimatedStyle,
     getDragOverStyle,
+    registerItemLayout,
   }: {
     item: LibraryItem;
     categoryId: string;
     onPress: () => void;
     searchQuery?: string;
     isDragEnabled?: boolean;
-    createDragGesture?: (item: DragDropItem) => any;
+    createDragGesture?: (
+      item: DragDropItem,
+      renderElement?: () => React.ReactNode
+    ) => any;
     isDraggingItem?: (item: DragDropItem) => boolean;
     draggedAnimatedStyle?: any;
     getDragOverStyle?: (item: DragDropItem) => any;
+    registerItemLayout?: (
+      itemId: string,
+      categoryId: string
+    ) => (e: LayoutChangeEvent) => void;
   }) => {
     const dragItem: DragDropItem = {
       id: item.id,
@@ -147,7 +159,8 @@ const LibraryItemRow = memo(
     const matchLocation = getSearchMatchLocation();
     const isDragging = isDraggingItem?.(dragItem) || false;
 
-    const content = (
+    // Función para renderizar el contenido del elemento
+    const renderContent = () => (
       <StyledView className="flex-row justify-between items-center">
         <StyledView className="flex-1">
           <Text
@@ -190,37 +203,44 @@ const LibraryItemRow = memo(
     };
 
     if (isDragEnabled && createDragGesture && getDragOverStyle) {
-      const gesture = createDragGesture(dragItem);
-      const overStyle = getDragOverStyle(dragItem);
+      // Crear el gesto con una función que renderiza el elemento
+      const gesture = createDragGesture(dragItem, () => (
+        <View style={[baseStyle, { backgroundColor: "rgba(0,0,0,0.8)" }]}>
+          {renderContent()}
+        </View>
+      ));
 
-      if (isDragging && draggedAnimatedStyle) {
-        return (
-          <GestureDetector gesture={gesture}>
-            <Animated.View style={[baseStyle, overStyle, draggedAnimatedStyle]}>
-              <TouchableOpacity onPress={onPress}>{content}</TouchableOpacity>
-            </Animated.View>
-          </GestureDetector>
-        );
-      }
+      const overStyle = getDragOverStyle(dragItem);
 
       return (
         <GestureDetector gesture={gesture}>
-          <TouchableOpacity onPress={onPress} style={[baseStyle, overStyle]}>
-            {content}
-          </TouchableOpacity>
+          <Animated.View
+            style={[
+              baseStyle,
+              overStyle,
+              isDragging && draggedAnimatedStyle ? draggedAnimatedStyle : {},
+            ]}
+            onLayout={registerItemLayout?.(item.id, categoryId)}
+          >
+            <TouchableOpacity onPress={onPress}>
+              {renderContent()}
+            </TouchableOpacity>
+          </Animated.View>
         </GestureDetector>
       );
     }
 
     return (
       <StyledTouchableOpacity
-        className="p-2 rounded-lg mb-1 border-b border-white/10"
+        style={baseStyle}
         onPress={onPress}
+        onLayout={registerItemLayout?.(item.id, categoryId)}
       >
-        {content}
+        {renderContent()}
       </StyledTouchableOpacity>
     );
   },
+  // Optimización de props para evitar re-renders innecesarios
   (prevProps, nextProps) => {
     return (
       prevProps.item.id === nextProps.item.id &&
@@ -258,6 +278,7 @@ const CollapsibleCategoryOptimized = ({
   dragState,
   userId,
   registerCategoryLayout,
+  registerItemLayout,
   createDragGesture,
   isDraggingItem,
   draggedAnimatedStyle,
@@ -482,7 +503,15 @@ const CollapsibleCategoryOptimized = ({
 
   const handlePointerMove = useCallback(() => {
     if (dragState?.isDragging && onDraggedOver) {
-      onDraggedOver(section.category.id);
+      const draggingItem = dragState.draggedItem;
+
+      if (draggingItem?.type === "trick") {
+        if (draggingItem.categoryId !== section.category.id) {
+          onDraggedOver(section.category.id);
+        }
+      } else {
+        onDraggedOver(section.category.id);
+      }
     }
   }, [dragState, onDraggedOver, section.category.id]);
 
@@ -495,7 +524,6 @@ const CollapsibleCategoryOptimized = ({
     .toLowerCase()
     .includes("favorit");
 
-  // Crear drag item para esta categoría
   const categoryDragItem: DragDropItem = {
     id: section.category.id,
     type: "category",
@@ -503,6 +531,13 @@ const CollapsibleCategoryOptimized = ({
   };
 
   const isDraggingThisCategory = isDraggingItem?.(categoryDragItem) || false;
+
+  const containerStyle = [
+    { marginBottom: 8, paddingHorizontal: 16 },
+    getCategoryDragOverStyle
+      ? getCategoryDragOverStyle(section.category.id)
+      : {},
+  ];
 
   const headerContent = (
     <StyledView
@@ -553,7 +588,55 @@ const CollapsibleCategoryOptimized = ({
     </StyledView>
   );
 
-  // Si se está arrastrando esta categoría, aplicar el estilo animado directamente al contenedor del gesto
+  const expandedContent = (
+    <RNAnimated.View
+      style={{
+        maxHeight: animatedHeight.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 500],
+        }),
+        opacity: animatedHeight,
+        overflow: "hidden",
+      }}
+      onPointerMove={handlePointerMove}
+    >
+      {filteredItems.length > 0 ? (
+        filteredItems.map((item) => (
+          <LibraryItemRow
+            key={`${item.type}-${item.id}`}
+            item={item}
+            categoryId={section.category.id}
+            onPress={() => handleItemPress(item)}
+            searchQuery={searchQuery}
+            isDragEnabled={isDragEnabled}
+            createDragGesture={createDragGesture}
+            isDraggingItem={isDraggingItem}
+            draggedAnimatedStyle={draggedAnimatedStyle}
+            getDragOverStyle={getDragOverStyle}
+            registerItemLayout={registerItemLayout}
+          />
+        ))
+      ) : (
+        <StyledView className="border-b border-white/20 p-2 mb-1 rounded-lg">
+          <Text
+            style={{
+              fontFamily: fontNames.light,
+              fontSize: 14,
+              color: "rgba(255, 255, 255, 0.5)",
+              textAlign: "center",
+              includeFontPadding: false,
+            }}
+          >
+            {isFavoritesCategory
+              ? t("noFavorites", "No favorites yet")
+              : t("noItems", "No items in this category")}
+          </Text>
+        </StyledView>
+      )}
+    </RNAnimated.View>
+  );
+
+  // CRÍTICO: Usar Animated.View cuando se está arrastrando
   if (
     isDraggingThisCategory &&
     dragGesture &&
@@ -561,62 +644,15 @@ const CollapsibleCategoryOptimized = ({
     !isFavoritesCategory &&
     draggedAnimatedStyle
   ) {
+    console.log("🎨 Rendering dragged category with animated style");
+    console.log("🎨 draggedAnimatedStyle:", draggedAnimatedStyle);
     return (
       <GestureDetector gesture={dragGesture}>
-        <Animated.View
-          style={[
-            { marginBottom: 8, paddingHorizontal: 16 },
-            draggedAnimatedStyle,
-          ]}
-        >
-          <StyledTouchableOpacity onPress={toggleExpanded} activeOpacity={0.7}>
+        <Animated.View style={[...containerStyle, draggedAnimatedStyle]}>
+          <TouchableOpacity onPress={toggleExpanded} activeOpacity={0.7}>
             {headerContent}
-          </StyledTouchableOpacity>
-
-          <RNAnimated.View
-            style={{
-              maxHeight: animatedHeight.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 500],
-              }),
-              opacity: animatedHeight,
-              overflow: "hidden",
-            }}
-            onPointerMove={handlePointerMove}
-          >
-            {filteredItems.length > 0 ? (
-              filteredItems.map((item) => (
-                <LibraryItemRow
-                  key={`${item.type}-${item.id}`}
-                  item={item}
-                  categoryId={section.category.id}
-                  onPress={() => handleItemPress(item)}
-                  searchQuery={searchQuery}
-                  isDragEnabled={isDragEnabled}
-                  createDragGesture={createDragGesture}
-                  isDraggingItem={isDraggingItem}
-                  draggedAnimatedStyle={draggedAnimatedStyle}
-                  getDragOverStyle={getDragOverStyle}
-                />
-              ))
-            ) : (
-              <StyledView className="border-b border-white/20 p-2 mb-1 rounded-lg">
-                <Text
-                  style={{
-                    fontFamily: fontNames.light,
-                    fontSize: 14,
-                    color: "rgba(255, 255, 255, 0.5)",
-                    textAlign: "center",
-                    includeFontPadding: false,
-                  }}
-                >
-                  {isFavoritesCategory
-                    ? t("noFavorites", "No favorites yet")
-                    : t("noItems", "No items in this category")}
-                </Text>
-              </StyledView>
-            )}
-          </RNAnimated.View>
+          </TouchableOpacity>
+          {expandedContent}
         </Animated.View>
       </GestureDetector>
     );
@@ -624,7 +660,7 @@ const CollapsibleCategoryOptimized = ({
 
   // Renderizado normal cuando no se está arrastrando
   return (
-    <StyledView className="mb-2 px-4">
+    <StyledView style={containerStyle}>
       {dragGesture && isDragEnabled && !isFavoritesCategory ? (
         <GestureDetector gesture={dragGesture}>
           <StyledTouchableOpacity onPress={toggleExpanded} activeOpacity={0.7}>
@@ -636,51 +672,7 @@ const CollapsibleCategoryOptimized = ({
           {headerContent}
         </StyledTouchableOpacity>
       )}
-
-      <RNAnimated.View
-        style={{
-          maxHeight: animatedHeight.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, 500],
-          }),
-          opacity: animatedHeight,
-          overflow: "hidden",
-        }}
-        onPointerMove={handlePointerMove}
-      >
-        {filteredItems.length > 0 ? (
-          filteredItems.map((item) => (
-            <LibraryItemRow
-              key={`${item.type}-${item.id}`}
-              item={item}
-              categoryId={section.category.id}
-              onPress={() => handleItemPress(item)}
-              searchQuery={searchQuery}
-              isDragEnabled={isDragEnabled}
-              createDragGesture={createDragGesture}
-              isDraggingItem={isDraggingItem}
-              draggedAnimatedStyle={draggedAnimatedStyle}
-              getDragOverStyle={getDragOverStyle}
-            />
-          ))
-        ) : (
-          <StyledView className="border-b border-white/20 p-2 mb-1 rounded-lg">
-            <Text
-              style={{
-                fontFamily: fontNames.light,
-                fontSize: 14,
-                color: "rgba(255, 255, 255, 0.5)",
-                textAlign: "center",
-                includeFontPadding: false,
-              }}
-            >
-              {isFavoritesCategory
-                ? t("noFavorites", "No favorites yet")
-                : t("noItems", "No items in this category")}
-            </Text>
-          </StyledView>
-        )}
-      </RNAnimated.View>
+      {expandedContent}
     </StyledView>
   );
 };

@@ -13,7 +13,7 @@ import {
 import Animated from "react-native-reanimated";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
-import { AntDesign, Feather } from "@expo/vector-icons";
+import { AntDesign, Feather, MaterialIcons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { supabase } from "../../lib/supabase";
@@ -113,13 +113,13 @@ const LibrariesSection = memo(function LibrariesSection({
   const {
     dragState,
     createDragGesture,
-    createCategoryDragGesture,
     isDraggingItem,
     draggedAnimatedStyle,
     getDragOverStyle,
     getCategoryDragOverStyle,
     setDraggedOver,
     registerCategoryLayout,
+    registerItemLayout,
   } = useDragDrop({
     enabled: !hasActiveSearchOrFilters && !isReordering,
     onDragEnd: handleDragEnd,
@@ -268,12 +268,26 @@ const LibrariesSection = memo(function LibrariesSection({
   ) {
     if (!userId || isReordering) return;
 
+    console.log("🎯 handleDragEnd:", {
+      draggedItem,
+      targetItem,
+      targetCategory,
+    });
+
     setIsReordering(true);
     try {
       if (draggedItem.type === "category") {
-        // Handle category reordering
-        if (targetItem && targetItem.type === "category") {
-          await reorderCategories(draggedItem.id, targetItem.id);
+        // IMPORTANTE: Usar targetCategory directamente cuando no hay targetItem
+        if (targetCategory && targetCategory !== draggedItem.id) {
+          // No permitir mover favoritos
+          const draggedSection = sections.find(
+            (s) => s.category.id === draggedItem.id
+          );
+          if (
+            !draggedSection?.category.name.toLowerCase().includes("favorit")
+          ) {
+            await reorderCategories(draggedItem.id, targetCategory);
+          }
         }
       } else if (draggedItem.type === "trick") {
         // Handle trick reordering or moving
@@ -284,13 +298,9 @@ const LibrariesSection = memo(function LibrariesSection({
             draggedItem.id,
             draggedItem.categoryId!,
             targetCategory,
-            0 // Add to end, will be reordered if needed
+            0 // Add to end
           );
-        } else if (
-          targetItem &&
-          targetItem.type === "trick" &&
-          draggedItem.categoryId === targetItem.categoryId
-        ) {
+        } else if (targetItem && targetItem.type === "trick") {
           // Reordering within same category
           await reorderTricks(
             draggedItem.categoryId!,
@@ -696,29 +706,81 @@ const LibrariesSection = memo(function LibrariesSection({
         data: item.category,
       };
 
+      // Función para renderizar el elemento clonado de categoría
+      const renderDraggedCategory = () => (
+        <StyledView
+          style={{
+            backgroundColor: "rgba(0,0,0,0.9)",
+            borderRadius: 8,
+            padding: 8,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.4)",
+            minWidth: 250,
+          }}
+        >
+          <StyledView className="flex-row justify-between items-center">
+            <StyledView className="flex-row items-center flex-1">
+              <MaterialIcons name="folder" size={20} color="white" />
+              <Text
+                style={{
+                  fontFamily: fontNames.light,
+                  fontSize: 16,
+                  color: "white",
+                  marginLeft: 8,
+                  includeFontPadding: false,
+                }}
+              >
+                {item.category.name}
+              </Text>
+            </StyledView>
+            <Text
+              style={{
+                fontFamily: fontNames.light,
+                fontSize: 16,
+                color: "rgba(255, 255, 255, 0.7)",
+                marginRight: 8,
+                includeFontPadding: false,
+              }}
+            >
+              {item.items?.length || 0}
+            </Text>
+          </StyledView>
+        </StyledView>
+      );
+
+      // Verificar si es la categoría de favoritos
+      const isFavoritesCategory = item.category.name
+        .toLowerCase()
+        .includes("favorit");
+
+      // Crear el gesto solo si no es favoritos y está habilitado el drag
+      const categoryDragGesture =
+        !hasActiveSearchOrFilters && !isFavoritesCategory && createDragGesture
+          ? createDragGesture(dragItem, renderDraggedCategory)
+          : null;
+
       return (
-        <View style={getCategoryDragOverStyle(item.category.id)}>
-          <CollapsibleCategoryOptimized
-            section={item}
-            searchQuery={searchQuery}
-            searchFilters={searchFilters}
-            onItemPress={handleItemPress}
-            onEditCategory={openEditCategoryModal}
-            onDeleteCategory={handleDeleteCategory}
-            onMoreOptions={handleMoreOptions}
-            dragGesture={createCategoryDragGesture(dragItem)}
-            isDragEnabled={!hasActiveSearchOrFilters}
-            onDraggedOver={(categoryId) => setDraggedOver(null, categoryId)}
-            dragState={dragState}
-            userId={userId}
-            registerCategoryLayout={registerCategoryLayout}
-            createDragGesture={createDragGesture}
-            isDraggingItem={isDraggingItem}
-            draggedAnimatedStyle={draggedAnimatedStyle}
-            getDragOverStyle={getDragOverStyle}
-            getCategoryDragOverStyle={getCategoryDragOverStyle}
-          />
-        </View>
+        <CollapsibleCategoryOptimized
+          section={item}
+          searchQuery={searchQuery}
+          searchFilters={searchFilters}
+          onItemPress={handleItemPress}
+          onEditCategory={openEditCategoryModal}
+          onDeleteCategory={handleDeleteCategory}
+          onMoreOptions={handleMoreOptions}
+          dragGesture={categoryDragGesture}
+          isDragEnabled={!hasActiveSearchOrFilters}
+          onDraggedOver={(categoryId) => setDraggedOver(null, categoryId)}
+          dragState={dragState}
+          userId={userId}
+          registerCategoryLayout={registerCategoryLayout}
+          createDragGesture={createDragGesture}
+          isDraggingItem={isDraggingItem}
+          draggedAnimatedStyle={draggedAnimatedStyle}
+          getDragOverStyle={getDragOverStyle}
+          getCategoryDragOverStyle={getCategoryDragOverStyle}
+          registerItemLayout={registerItemLayout}
+        />
       );
     },
     [
@@ -738,7 +800,7 @@ const LibrariesSection = memo(function LibrariesSection({
       userId,
       createDragGesture,
       registerCategoryLayout,
-      createCategoryDragGesture,
+      registerItemLayout,
     ]
   );
 

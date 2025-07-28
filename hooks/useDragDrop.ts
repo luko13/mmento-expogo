@@ -1,5 +1,4 @@
 // hooks/useDragDrop.ts
-
 import { useState, useCallback, useRef } from "react";
 import {
   Vibration,
@@ -15,9 +14,12 @@ import {
   withSpring,
   runOnJS,
   withTiming,
+  interpolate,
+  Easing,
 } from "react-native-reanimated";
+import { useDragPortal } from "../components/DragPortal";
 
-// Enable LayoutAnimation on Android (experimental)
+// Enable LayoutAnimation on Android
 if (
   Platform.OS === "android" &&
   UIManager.setLayoutAnimationEnabledExperimental
@@ -25,7 +27,6 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// --- Tipos que usamos en todo el hook ---
 export interface DragDropItem {
   id: string;
   type: "category" | "trick";
@@ -51,21 +52,14 @@ interface UseDragDropProps {
   enabled?: boolean;
 }
 
-/**
- * useDragDrop
- *
- * Hook que gestiona todo el drag&drop de categorías y trucos.
- * - Registra posiciones de headers de categorías para detectar colisiones.
- * - Expone gestos (Pan, LongPress) y estilos animados.
- * - Lanza callbacks JS en start, over y end.
- */
 export const useDragDrop = ({
   onDragStart,
   onDragEnd,
   onDragOver,
   enabled = true,
 }: UseDragDropProps) => {
-  // Estado React para re-render cuando arrastramos
+  const { setDraggedElement, setDraggedStyle } = useDragPortal();
+
   const [dragState, setDragState] = useState<DragDropState>({
     isDragging: false,
     draggedItem: null,
@@ -73,35 +67,81 @@ export const useDragDrop = ({
     draggedOverCategory: null,
   });
 
-  // Ref para guardar layouts de cada header de categoría
   const categoryLayouts = useRef<
     Record<string, { x: number; y: number; width: number; height: number }>
   >({});
 
-  // Shared values de Reanimated para posición, escala y opacidad
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
+  const itemLayouts = useRef<
+    Record<
+      string,
+      {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        categoryId: string;
+      }
+    >
+  >({});
+
+  // Posición absoluta para el portal
+  const absoluteX = useSharedValue(0);
+  const absoluteY = useSharedValue(0);
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
 
-  // Shared values para IDs en worklets
+  // Posición inicial del elemento
+  const startX = useSharedValue(0);
+  const startY = useSharedValue(0);
+
+  // Shared values para tracking
   const draggedItemId = useSharedValue<string | null>(null);
-  const draggedItemType = useSharedValue<"category" | "trick" | null>(null);
   const draggedOverItemId = useSharedValue<string | null>(null);
   const draggedOverCategoryId = useSharedValue<string | null>(null);
 
-  // —————————————————————————————
-  // 1) startDrag: inicia el arrastre
-  // —————————————————————————————
+  // Ref para el elemento que se está arrastrando
+  const elementRef = useRef<any>(null);
+  const clonedElement = useRef<React.ReactNode>(null);
+
+  // Estilo animado para el portal
+  const portalAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: absoluteX.value },
+        { translateY: absoluteY.value },
+        { scale: scale.value },
+      ],
+      opacity: opacity.value,
+      position: "absolute" as const,
+      zIndex: 10000,
+    };
+  });
+
+  // Start drag con elemento clonado
   const startDrag = useCallback(
-    (item: DragDropItem) => {
-      console.log("🐾 startDrag:", item);
+    (
+      item: DragDropItem,
+      element: React.ReactNode,
+      initialPosition: { x: number; y: number }
+    ) => {
       if (!enabled) return;
 
-      // Feedback háptico breve
+      console.log("🚀 Starting drag:", item.id);
       Vibration.vibrate(50);
 
-      // Actualizamos estado React
+      // Guardar posición inicial
+      startX.value = initialPosition.x;
+      startY.value = initialPosition.y;
+      absoluteX.value = initialPosition.x;
+      absoluteY.value = initialPosition.y;
+
+      // Guardar el elemento clonado
+      clonedElement.current = element;
+
+      // Establecer el elemento y estilo en el portal
+      setDraggedElement(element);
+      setDraggedStyle(portalAnimatedStyle);
+
       setDragState({
         isDragging: true,
         draggedItem: item,
@@ -109,27 +149,28 @@ export const useDragDrop = ({
         draggedOverCategory: null,
       });
 
-      // Actualizamos shared values para worklet
       draggedItemId.value = item.id;
-      draggedItemType.value = item.type;
       draggedOverItemId.value = null;
       draggedOverCategoryId.value = null;
 
-      // Animación inicial: agrandar y hacer más transparente
-      scale.value = withSpring(1.05, { damping: 15, stiffness: 150 });
-      opacity.value = withTiming(0.9, { duration: 200 });
+      // Animación inicial
+      scale.value = withSpring(1.1, { damping: 15, stiffness: 150 });
+      opacity.value = withTiming(0.95, { duration: 200 });
 
       onDragStart?.(item);
     },
-    [enabled, onDragStart, scale, opacity, draggedItemId, draggedItemType]
+    [
+      enabled,
+      onDragStart,
+      setDraggedElement,
+      setDraggedStyle,
+      portalAnimatedStyle,
+    ]
   );
 
-  // —————————————————————————————
-  // 2) setDraggedOver: llamado cuando detectamos colisión
-  // —————————————————————————————
+  // Set dragged over
   const setDraggedOver = useCallback(
     (item: DragDropItem | null, category: string | null) => {
-      console.log("🐾 setDraggedOver:", item, "categoria→", category);
       setDragState((prev) => ({
         ...prev,
         draggedOverItem: item,
@@ -144,30 +185,39 @@ export const useDragDrop = ({
         Vibration.vibrate(10);
       }
     },
-    [onDragOver, draggedOverItemId, draggedOverCategoryId]
+    [onDragOver]
   );
 
-  // —————————————————————————————
-  // 3) endDrag: termina el arrastre y lanza callback
-  // —————————————————————————————
+  // End drag
   const endDrag = useCallback(
     (item: DragDropItem, targetItemId?: string, targetCategoryId?: string) => {
-      console.log(
-        "🐾 endDrag:",
-        item,
-        "targetItemId=",
-        targetItemId,
-        "targetCategory=",
-        targetCategoryId
-      );
+      console.log("🎯 Ending drag:", item.id, "-> target:", targetCategoryId);
 
-      // Animaciones de regreso a posición original
-      translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
-      translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
+      // Animar de vuelta o desaparecer
       scale.value = withSpring(1, { damping: 15, stiffness: 150 });
-      opacity.value = withTiming(1, { duration: 200 });
+      opacity.value = withTiming(0, {
+        duration: 200,
+        easing: Easing.out(Easing.ease),
+      });
 
-      // Layout animation para reordenar suavemente
+      // Limpiar el portal después de la animación
+      setTimeout(() => {
+        setDraggedElement(null);
+        setDraggedStyle({});
+        clonedElement.current = null;
+
+        setDragState({
+          isDragging: false,
+          draggedItem: null,
+          draggedOverItem: null,
+          draggedOverCategory: null,
+        });
+
+        draggedItemId.value = null;
+        draggedOverItemId.value = null;
+        draggedOverCategoryId.value = null;
+      }, 250);
+
       LayoutAnimation.configureNext(
         LayoutAnimation.create(
           200,
@@ -176,82 +226,23 @@ export const useDragDrop = ({
         )
       );
 
-      // Reset de estado tras la animación
-      setTimeout(() => {
-        setDragState({
-          isDragging: false,
-          draggedItem: null,
-          draggedOverItem: null,
-          draggedOverCategory: null,
-        });
-        draggedItemId.value = null;
-        draggedItemType.value = null;
-        draggedOverItemId.value = null;
-        draggedOverCategoryId.value = null;
-      }, 300);
-
-      // Construimos el objeto DragDropItem para target si existe
       const targetItem = targetItemId
-        ? { id: targetItemId, type: "trick" as const, data: {} }
+        ? {
+            id: targetItemId,
+            type: "trick" as const,
+            categoryId: targetCategoryId,
+            data: {},
+          }
         : undefined;
 
       onDragEnd?.(item, targetItem, targetCategoryId);
     },
-    [
-      translateX,
-      translateY,
-      scale,
-      opacity,
-      onDragEnd,
-      draggedItemId,
-      draggedItemType,
-      draggedOverItemId,
-      draggedOverCategoryId,
-    ]
+    [onDragEnd, setDraggedElement, setDraggedStyle]
   );
 
-  // Worklet que dispara endDrag en JS
-  const endDragWorklet = useCallback(() => {
-    "worklet";
-    if (!draggedItemId.value || !draggedItemType.value) return;
-    const draggedItem: DragDropItem = {
-      id: draggedItemId.value,
-      type: draggedItemType.value,
-      data: {},
-    };
-    runOnJS(endDrag)(
-      draggedItem,
-      draggedOverItemId.value ?? undefined,
-      draggedOverCategoryId.value ?? undefined
-    );
-  }, [
-    endDrag,
-    draggedItemId,
-    draggedItemType,
-    draggedOverItemId,
-    draggedOverCategoryId,
-  ]);
-
-  // —————————————————————————————
-  // 4) Detectar colisiones contra categorías
-  // —————————————————————————————
-  const lastCollisionCheck = useRef({
-    x: 0,
-    y: 0,
-    category: null as string | null,
-  });
-
+  // Check collision with categories
   const checkCategoryCollision = useCallback(
     (absX: number, absY: number) => {
-      // Throttle - solo verificar si el movimiento es significativo
-      const dx = Math.abs(absX - lastCollisionCheck.current.x);
-      const dy = Math.abs(absY - lastCollisionCheck.current.y);
-
-      if (dx < 5 && dy < 5) return; // Ignorar movimientos pequeños
-
-      lastCollisionCheck.current.x = absX;
-      lastCollisionCheck.current.y = absY;
-
       let foundCategory: string | null = null;
 
       for (const [catId, layout] of Object.entries(categoryLayouts.current)) {
@@ -266,122 +257,138 @@ export const useDragDrop = ({
         }
       }
 
-      // Solo actualizar si cambió la categoría
-      if (foundCategory !== lastCollisionCheck.current.category) {
-        lastCollisionCheck.current.category = foundCategory;
-        runOnJS(setDraggedOver)(null, foundCategory);
+      if (foundCategory !== dragState.draggedOverCategory) {
+        setDraggedOver(null, foundCategory);
       }
     },
-    [setDraggedOver]
+    [setDraggedOver, dragState.draggedOverCategory]
   );
 
-  // —————————————————————————————
-  // 5) Registrar el layout de cada header de categoría
-  //    para usarlo en checkCategoryCollision
-  // —————————————————————————————
-  const registerCategoryLayout = useCallback(
-    (categoryId: string) => (e: LayoutChangeEvent) => {
-      e.target.measure((x, y, width, height, pageX, pageY) => {
-        categoryLayouts.current[categoryId] = {
-          x: pageX,
-          y: pageY,
-          width,
-          height,
-        };
-        console.log(`📏 Layout registrado para ${categoryId}:`, {
-          pageX,
-          pageY,
-          width,
-          height,
-        });
-      });
-    },
-    []
-  );
-
-  // —————————————————————————————
-  // 6) Crear gesture de drag (Pan) para ítems y categorías
-  // —————————————————————————————
+  // Create drag gesture con renderElement callback
   const createDragGesture = useCallback(
-    (item: DragDropItem) => {
+    (item: DragDropItem, renderElement?: () => React.ReactNode) => {
       if (!enabled) return Gesture.Tap();
+
+      let initialPageX = 0;
+      let initialPageY = 0;
+      let hasStarted = false;
 
       return Gesture.Pan()
         .onBegin(() => {
           "worklet";
-          console.log("🎯 Gesture onBegin");
+          hasStarted = false;
         })
-        .onStart(() => {
+        .onStart((event) => {
           "worklet";
-          console.log("🎯 Gesture onStart");
-          runOnJS(startDrag)(item);
+
+          if (!hasStarted) {
+            hasStarted = true;
+
+            runOnJS(() => {
+              // Obtener la posición absoluta del touch
+              const element = renderElement ? renderElement() : null;
+              if (element) {
+                const pageX = event.absoluteX;
+                const pageY = event.absoluteY;
+                initialPageX = pageX;
+                initialPageY = pageY;
+                startDrag(item, element, { x: pageX, y: pageY });
+              }
+            })();
+          }
         })
         .onUpdate((event) => {
           "worklet";
-          translateX.value = event.translationX;
-          translateY.value = event.translationY;
 
-          // Log para debug
-          if (event.translationX !== 0 || event.translationY !== 0) {
-            console.log("🎯 Moving:", event.translationX, event.translationY);
-          }
+          if (hasStarted) {
+            // Actualizar posición absoluta en el portal
+            absoluteX.value = initialPageX + event.translationX;
+            absoluteY.value = initialPageY + event.translationY;
 
-          // Solo verificar colisiones si hay movimiento significativo
-          if (
-            Math.abs(event.translationX) > 10 ||
-            Math.abs(event.translationY) > 10
-          ) {
-            runOnJS(checkCategoryCollision)(event.absoluteX, event.absoluteY);
+            // Check collision after significant movement
+            if (
+              Math.abs(event.translationX) > 10 ||
+              Math.abs(event.translationY) > 10
+            ) {
+              runOnJS(checkCategoryCollision)(
+                initialPageX + event.translationX,
+                initialPageY + event.translationY
+              );
+            }
           }
         })
         .onEnd(() => {
           "worklet";
-          console.log("🎯 Gesture onEnd");
-          endDragWorklet();
-        })
-        .onFinalize(() => {
-          "worklet";
-          // Asegurar reset si se cancela
-          translateX.value = withSpring(0);
-          translateY.value = withSpring(0);
+
+          if (hasStarted) {
+            runOnJS(endDrag)(
+              item,
+              draggedOverItemId.value ?? undefined,
+              draggedOverCategoryId.value ?? undefined
+            );
+          }
         })
         .shouldCancelWhenOutside(false)
-        .enabled(enabled);
+        .enabled(enabled)
+        .minDistance(5);
     },
-    [
-      enabled,
-      startDrag,
-      endDragWorklet,
-      translateX,
-      translateY,
-      checkCategoryCollision,
-    ]
+    [enabled, startDrag, endDrag, checkCategoryCollision, absoluteX, absoluteY]
   );
 
-  // Reutilizamos createDragGesture también para categorías
-  const createCategoryDragGesture = createDragGesture;
+  // Register layouts
+  const registerCategoryLayout = useCallback(
+    (categoryId: string) => (e: LayoutChangeEvent) => {
+      const { target } = e;
+      // Usar setTimeout para asegurar que la medición sea correcta
+      setTimeout(() => {
+        if (target) {
+          target.measure((x, y, width, height, pageX, pageY) => {
+            if (pageX !== undefined && pageY !== undefined) {
+              categoryLayouts.current[categoryId] = {
+                x: pageX,
+                y: pageY,
+                width,
+                height,
+              };
+            }
+          });
+        }
+      }, 0);
+    },
+    []
+  );
 
-  // —————————————————————————————
-  // 7) Estilo animado para el item arrastrado
-  // —————————————————————————————
-  const draggedAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-      { scale: scale.value },
-    ],
-    opacity: opacity.value,
-    zIndex: 1000,
-    elevation: 10,
-  }));
+  const registerItemLayout = useCallback(
+    (itemId: string, categoryId: string) => (e: LayoutChangeEvent) => {
+      const { target } = e;
+      setTimeout(() => {
+        if (target) {
+          target.measure((x, y, width, height, pageX, pageY) => {
+            if (pageX !== undefined && pageY !== undefined) {
+              itemLayouts.current[itemId] = {
+                x: pageX,
+                y: pageY,
+                width,
+                height,
+                categoryId,
+              };
+            }
+          });
+        }
+      }, 0);
+    },
+    []
+  );
 
-  // Helpers para estilo de "drag over"
+  // Helper functions
   const isDraggingItem = useCallback(
     (item: DragDropItem) =>
+      dragState.isDragging &&
       dragState.draggedItem?.id === item.id &&
       dragState.draggedItem?.type === item.type,
     [dragState]
   );
+
   const getDragOverStyle = useCallback(
     (item: DragDropItem) => {
       const isOver = dragState.draggedOverItem?.id === item.id;
@@ -389,38 +396,38 @@ export const useDragDrop = ({
         backgroundColor: isOver ? "rgba(16,185,129,0.1)" : "transparent",
         borderColor: isOver ? "rgba(16,185,129,0.4)" : "transparent",
         borderWidth: isOver ? 2 : 0,
-        transform: [{ scale: isOver ? 0.98 : 1 }],
       };
     },
     [dragState]
   );
+
   const getCategoryDragOverStyle = useCallback(
     (categoryId: string) => {
       const isOver = dragState.draggedOverCategory === categoryId;
       return {
-        backgroundColor: isOver ? "rgba(16,185,129,0.15)" : "transparent",
-        borderColor: isOver ? "rgba(16,185,129,0.5)" : "rgba(255,255,255,0.4)",
-        borderWidth: isOver ? 2 : 1,
+        backgroundColor: isOver ? "rgba(16,185,129,0.05)" : "transparent",
         transform: [{ scale: isOver ? 1.02 : 1 }],
       };
     },
     [dragState]
   );
 
-  // —————————————————————————————
-  // Devolvemos todo lo necesario para el componente
-  // —————————————————————————————
+  // Animated style for dragged items (makes them invisible while being dragged)
+  const draggedAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: 0.3,
+    };
+  });
+
   return {
     dragState,
-    startDrag,
-    endDrag,
-    setDraggedOver,
     createDragGesture,
-    createCategoryDragGesture,
-    draggedAnimatedStyle,
     isDraggingItem,
+    draggedAnimatedStyle,
     getDragOverStyle,
     getCategoryDragOverStyle,
     registerCategoryLayout,
+    registerItemLayout,
+    setDraggedOver,
   };
 };
