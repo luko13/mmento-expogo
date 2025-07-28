@@ -58,6 +58,7 @@ export const useDragDrop = ({
   onDragOver,
   enabled = true,
 }: UseDragDropProps) => {
+  console.log("🚀 useDragDrop montado, enabled=", enabled);
   const { setDraggedElement, setDraggedStyle } = useDragPortal();
 
   const [dragState, setDragState] = useState<DragDropState>({
@@ -280,6 +281,11 @@ export const useDragDrop = ({
         })
         .onStart((event) => {
           "worklet";
+          console.log(
+            "🖐️ onStart worklet!",
+            event.translationX,
+            event.translationY
+          );
 
           if (!hasStarted) {
             hasStarted = true;
@@ -299,6 +305,7 @@ export const useDragDrop = ({
         })
         .onUpdate((event) => {
           "worklet";
+          console.log("🔄 onUpdate:", event.translationX, event.translationY);
 
           if (hasStarted) {
             // Actualizar posición absoluta en el portal

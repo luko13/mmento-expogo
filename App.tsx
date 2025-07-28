@@ -1,3 +1,5 @@
+import "react-native-gesture-handler";
+import "react-native-reanimated";
 import { useEffect, useState } from "react";
 import {
   useColorScheme,

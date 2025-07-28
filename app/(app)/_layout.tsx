@@ -1,4 +1,4 @@
-// app/(app)/_layout.tsx actualizado
+// app/(app)/_layout.tsx
 "use client";
 
 import { useEffect } from "react";
