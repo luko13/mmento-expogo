@@ -26,6 +26,8 @@ interface DraggableCategoryProps {
   };
   index: number;
   onDragStart: (itemId: string, index: number) => void;
+  onDragMove: (translationY: number) => void;
+  onDragEnd: (finalY: number) => void;
   isDragging: boolean;
   draggedItemId: string | null;
   hoveredIndex: number | null;
@@ -37,6 +39,8 @@ export const DraggableCategory: React.FC<DraggableCategoryProps> = ({
   item,
   index,
   onDragStart,
+  onDragMove,
+  onDragEnd,
   isDragging,
   draggedItemId,
   hoveredIndex,
@@ -45,8 +49,12 @@ export const DraggableCategory: React.FC<DraggableCategoryProps> = ({
 }) => {
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
   const itemHeight = 68;
+  const isBeingDragged = useSharedValue(false);
+  const startY = useSharedValue(0);
 
+  // Efecto para manejar el desplazamiento cuando otros items se mueven
   React.useEffect(() => {
     if (!isDragging || !draggedItemId || hoveredIndex === null) {
       translateY.value = withSpring(0);
@@ -54,12 +62,11 @@ export const DraggableCategory: React.FC<DraggableCategoryProps> = ({
     }
 
     if (draggedItemId === item.id) {
-      scale.value = withTiming(0.001);
+      // Este item está siendo arrastrado - ocultarlo
       return;
-    } else {
-      scale.value = withTiming(1);
     }
 
+    // Calcular si este item debe moverse
     if (hoveredIndex !== null && index >= hoveredIndex) {
       translateY.value = withSpring(itemHeight);
     } else {
@@ -69,26 +76,79 @@ export const DraggableCategory: React.FC<DraggableCategoryProps> = ({
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }, { scale: scale.value }],
-    opacity: draggedItemId === item.id ? 0 : 1,
+    opacity: opacity.value,
+    zIndex: isBeingDragged.value ? 1000 : 1,
   }));
 
-  const gesture = Gesture.LongPress()
+  // Crear gestos combinados
+  const longPressGesture = Gesture.LongPress()
     .minDuration(200)
     .onStart(() => {
       "worklet";
+      isBeingDragged.value = true;
+      scale.value = withSpring(1.1);
+      opacity.value = withSpring(0.9);
       runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
       runOnJS(onDragStart)(item.id, index);
     });
+
+  const panGesture = Gesture.Pan()
+    .onStart(() => {
+      "worklet";
+      startY.value = 0;
+    })
+    .onChange((event) => {
+      "worklet";
+      if (isBeingDragged.value) {
+        runOnJS(onDragMove)(event.translationY);
+      }
+    })
+    .onEnd((event) => {
+      "worklet";
+      if (isBeingDragged.value) {
+        const finalY = event.translationY;
+
+        // NO resetear isBeingDragged aquí para que onDragEnd pueda usarlo
+        // Solo resetear las animaciones visuales
+        scale.value = withSpring(1);
+        opacity.value = withSpring(1);
+
+        runOnJS(onDragEnd)(finalY);
+      }
+    })
+    .onFinalize(() => {
+      "worklet";
+      // Solo resetear después de que todo haya terminado
+      isBeingDragged.value = false;
+      scale.value = withSpring(1);
+      opacity.value = withSpring(1);
+    });
+
+  // Combinar gestos para que funcionen simultáneamente
+  const composedGesture = Gesture.Simultaneous(longPressGesture, panGesture);
 
   const handleMoreOptions = (e: any) => {
     e.stopPropagation();
     onMoreOptions();
   };
 
+  // Si este item está siendo arrastrado, hacerlo casi invisible
+  const isDraggedStyle =
+    draggedItemId === item.id
+      ? {
+          opacity: 0.001,
+          transform: [{ scale: 0.001 }],
+        }
+      : {};
+
   return (
-    <GestureDetector gesture={gesture}>
+    <GestureDetector gesture={composedGesture}>
       <Animated.View
-        style={[animatedStyle, { marginBottom: 8, paddingHorizontal: 16 }]}
+        style={[
+          animatedStyle,
+          { marginBottom: 8, paddingHorizontal: 16 },
+          isDraggedStyle,
+        ]}
       >
         <TouchableOpacity onPress={onToggleExpand} activeOpacity={0.7}>
           <StyledView className="flex-row justify-between items-center bg-[white]/10 px-3 border border-white/40 rounded-lg mb-2">

@@ -39,8 +39,9 @@ import { fontNames } from "../../app/_layout";
 import MagicLoader from "../ui/MagicLoader";
 import { useTrickDeletion } from "../../context/TrickDeletionContext";
 import { paginatedContentService } from "../../utils/paginatedContentService";
-import { DragArea } from "../DragArea";
 import { DraggableCategory } from "../DraggableCategory";
+import { DragOverlay } from "../DragOverlay";
+import { useSharedValue, withSpring } from "react-native-reanimated";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
@@ -97,6 +98,14 @@ const LibrariesSection = memo(function LibrariesSection({
   const [isDragging, setIsDragging] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const flatListRef = useRef<FlashList<any>>(null);
+
+  // Ref para mantener el draggedItem durante todo el proceso
+  const draggedItemRef = useRef<any>(null);
+
+  // Shared values para animaciones de drag
+  const dragTranslateX = useSharedValue(0);
+  const dragTranslateY = useSharedValue(0);
+  const dragScale = useSharedValue(1);
 
   // Estado de expansión
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
@@ -279,15 +288,22 @@ const LibrariesSection = memo(function LibrariesSection({
     []
   );
 
-  // Handle drag start
+  // Handle drag start - MEJORADO
   const handleDragStart = useCallback(
     (itemId: string, index: number) => {
+      console.log("🟢 handleDragStart - INICIO", { itemId, index });
+
       const section = filteredSections.find((s) => s.category.id === itemId);
-      if (!section || section.category.name.toLowerCase().includes("favorit")) {
+      if (!section) {
+        console.log("🟢 No se encontró la sección");
         return;
       }
 
-      // Calcular el índice real excluyendo favoritos
+      if (section.category.name.toLowerCase().includes("favorit")) {
+        console.log("🟢 Es categoría de favoritos - no se puede arrastrar");
+        return;
+      }
+
       const nonFavoriteSections = filteredSections.filter(
         (s) => !s.category.name.toLowerCase().includes("favorit")
       );
@@ -296,144 +312,166 @@ const LibrariesSection = memo(function LibrariesSection({
         (s) => s.category.id === itemId
       );
 
-      if (realIndex === -1) return;
+      if (realIndex === -1) {
+        console.log("🟢 No se encontró el índice real");
+        return;
+      }
 
-      // Calcular la posición Y del item
-      const itemHeight = 68; // 60 de altura + 8 de margen
-      const headerHeight = 40; // Altura del header
+      const itemHeight = 68;
+      const headerHeight = 40;
       const originalY = headerHeight + realIndex * itemHeight;
 
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      setDraggedItem({
-        ...section.category,
+      // Resetear valores animados
+      dragTranslateX.value = 0;
+      dragTranslateY.value = 0;
+      dragScale.value = withSpring(1.1);
+
+      const newDraggedItem = {
+        id: section.category.id,
+        name: section.category.name,
         originalIndex: realIndex,
         originalY: originalY,
-      });
+        itemCount: section.items?.length || 0,
+      };
+
+      console.log("🟢 Configurando draggedItem:", newDraggedItem);
+
+      // Guardar en ambos lugares para asegurar que no se pierda
+      draggedItemRef.current = newDraggedItem;
+      setDraggedItem(newDraggedItem);
       setIsDragging(true);
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     },
-    [filteredSections]
+    [filteredSections, dragTranslateX, dragTranslateY, dragScale]
   );
 
-  // Handle Update
-  const handleUpdateHoveredIndex = useCallback(
-    (index: number | null) => {
+  // Handle drag move - NUEVO
+  const handleDragMove = useCallback(
+    (translationY: number) => {
+      // Actualizar la posición del overlay
+      dragTranslateY.value = translationY;
+
+      // Calcular el índice basado en el desplazamiento
+      const itemHeight = 68;
+      const currentIndex = draggedItem?.originalIndex || 0;
+      const indexOffset = Math.round(translationY / itemHeight);
+      const newIndex = Math.max(0, currentIndex + indexOffset);
+
       const nonFavoriteSections = filteredSections.filter(
         (s) => !s.category.name.toLowerCase().includes("favorit")
       );
 
-      if (index !== null && index >= 0 && index < nonFavoriteSections.length) {
-        setHoveredIndex(index);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      } else {
-        setHoveredIndex(null);
+      if (newIndex >= 0 && newIndex < nonFavoriteSections.length) {
+        setHoveredIndex(newIndex);
+
+        // Haptic feedback solo cuando cambia el índice
+        if (newIndex !== hoveredIndex) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
       }
     },
-    [filteredSections]
+    [draggedItem, filteredSections, dragTranslateY, hoveredIndex]
   );
 
-  // Handle drag end
+  // Handle drag end - MEJORADO
   const handleDragEnd = useCallback(
-    async (newIndex: number) => {
-      console.log("🔴 handleDragEnd - INICIO");
-      console.log("🔴 Parámetros:", {
-        newIndex,
-        hasDraggedItem: !!draggedItem,
-        draggedItemId: draggedItem?.id,
-        draggedItemOriginalIndex: draggedItem?.originalIndex,
-        userId,
+    async (finalY: number) => {
+      console.log("🔴 handleDragEnd - INICIO con finalY:", finalY);
+
+      // Usar el ref como respaldo si el state se perdió
+      const currentDraggedItem = draggedItem || draggedItemRef.current;
+
+      console.log("🔴 Estado actual:", {
+        draggedItem: !!draggedItem,
+        draggedItemRef: !!draggedItemRef.current,
+        currentDraggedItem: currentDraggedItem,
+        userId: !!userId,
         isReordering,
       });
 
+      if (!currentDraggedItem || !userId || isReordering) {
+        console.log("🔴 Saliendo temprano");
+        // Limpiar todo
+        draggedItemRef.current = null;
+        setDraggedItem(null);
+        setIsDragging(false);
+        setHoveredIndex(null);
+        dragTranslateY.value = withSpring(0);
+        dragScale.value = withSpring(1);
+        return;
+      }
+
       try {
-        // Validaciones básicas
-        if (!draggedItem) {
-          console.log("🔴 No hay draggedItem - saliendo");
-          setDraggedItem(null);
-          setIsDragging(false);
-          setHoveredIndex(null);
-          return;
-        }
+        const itemHeight = 68;
+        const indexOffset = Math.round(finalY / itemHeight);
+        const oldIndex = currentDraggedItem.originalIndex;
 
-        if (!userId) {
-          console.log("🔴 No hay userId - saliendo");
-          setDraggedItem(null);
-          setIsDragging(false);
-          setHoveredIndex(null);
-          return;
-        }
-
-        if (isReordering) {
-          console.log("🔴 Ya está reordenando - saliendo");
-          return;
-        }
-
-        const oldIndex = draggedItem.originalIndex;
-        console.log("🔴 Índices:", { oldIndex, newIndex });
-
-        // Si no se movió, solo limpiar
-        if (oldIndex === newIndex) {
-          console.log("🔴 No se movió - limpiando estados");
-          setDraggedItem(null);
-          setIsDragging(false);
-          setHoveredIndex(null);
-          return;
-        }
-
-        console.log("🔴 Iniciando reordenamiento...");
-        setIsReordering(true);
-
-        // Obtener las secciones actuales
-        const currentSections = [...filteredSections];
-        console.log("🔴 Total secciones:", currentSections.length);
-
-        // Filtrar solo las no-favoritos
-        const nonFavoriteSections = currentSections.filter(
+        // Obtener las secciones no-favoritos para calcular el límite correcto
+        const nonFavoriteSections = filteredSections.filter(
           (s) => !s.category.name.toLowerCase().includes("favorit")
         );
+
+        const newIndex = Math.max(
+          0,
+          Math.min(oldIndex + indexOffset, nonFavoriteSections.length - 1)
+        );
+
+        console.log("🔴 Cálculo de índices:", {
+          finalY,
+          indexOffset,
+          oldIndex,
+          newIndex,
+          totalNonFavorites: nonFavoriteSections.length,
+        });
+
+        if (oldIndex === newIndex) {
+          console.log("🔴 No se movió - limpiando estados");
+          draggedItemRef.current = null;
+          setDraggedItem(null);
+          setIsDragging(false);
+          setHoveredIndex(null);
+          dragTranslateY.value = withSpring(0);
+          dragScale.value = withSpring(1);
+          return;
+        }
+
+        setIsReordering(true);
+
         console.log("🔴 Secciones no-favoritos:", nonFavoriteSections.length);
 
         // Validar índices
-        if (oldIndex < 0 || oldIndex >= nonFavoriteSections.length) {
-          console.error("🔴 oldIndex fuera de rango:", oldIndex);
-          throw new Error("oldIndex fuera de rango");
+        if (
+          oldIndex < 0 ||
+          oldIndex >= nonFavoriteSections.length ||
+          newIndex < 0 ||
+          newIndex >= nonFavoriteSections.length
+        ) {
+          throw new Error(
+            `Índice fuera de rango: oldIndex=${oldIndex}, newIndex=${newIndex}, max=${
+              nonFavoriteSections.length - 1
+            }`
+          );
         }
 
-        if (newIndex < 0 || newIndex >= nonFavoriteSections.length) {
-          console.error("🔴 newIndex fuera de rango:", newIndex);
-          throw new Error("newIndex fuera de rango");
-        }
-
-        // IMPLEMENTAR EL REORDENAMIENTO REAL
-        console.log("🔴 Reordenando categorías...");
-
-        // Obtener el orden visual actual (solo categorías no-favoritos)
+        // Reordenar categorías
         const visualOrder = nonFavoriteSections.map((s) => s.category.id);
-        console.log("🔴 Orden visual antes:", visualOrder);
+        console.log("🔴 Orden antes:", visualOrder);
 
-        // Remover el item de su posición actual
         const [movedItem] = visualOrder.splice(oldIndex, 1);
-
-        // Insertarlo en la nueva posición
         visualOrder.splice(newIndex, 0, movedItem);
-        console.log("🔴 Orden visual después:", visualOrder);
 
-        // Crear actualizaciones para todas las categorías afectadas
+        console.log("🔴 Orden después:", visualOrder);
+
+        // Crear actualizaciones
         const updates = visualOrder.map((categoryId, index) => ({
           user_id: userId,
           category_id: categoryId,
           position: index,
         }));
 
-        console.log("🔴 Actualizaciones a realizar:", updates.length);
-
         // Actualizar en la base de datos
         for (const update of updates) {
-          console.log(
-            "🔴 Actualizando:",
-            update.category_id,
-            "-> posición",
-            update.position
-          );
           await orderService.updateCategoryOrder(
             userId,
             update.category_id,
@@ -445,30 +483,38 @@ const LibrariesSection = memo(function LibrariesSection({
         setCategoryOrder(updates);
 
         // Forzar flush de actualizaciones
-        console.log("🔴 Forzando flush de actualizaciones...");
         await orderService.flushUpdates();
 
         // Recargar el orden personalizado
-        console.log("🔴 Recargando orden personalizado...");
         await loadCustomOrder();
 
-        console.log("🔴 Reordenamiento completado con éxito");
+        console.log("🔴 Reordenamiento completado");
       } catch (error) {
-        console.error("🔴 ERROR en handleDragEnd:", error);
-        console.error(
-          "🔴 Stack trace:",
-          error instanceof Error ? error.stack : "No stack"
-        );
+        console.error("🔴 Error en handleDragEnd:", error);
       } finally {
-        // Siempre limpiar estados
+        // Animar de vuelta
+        dragTranslateY.value = withSpring(0);
+        dragScale.value = withSpring(1);
+
+        // Limpiar estados
+        draggedItemRef.current = null;
         setDraggedItem(null);
         setIsDragging(false);
         setHoveredIndex(null);
         setIsReordering(false);
+
         console.log("🔴 handleDragEnd - FIN");
       }
     },
-    [draggedItem, userId, isReordering, filteredSections, loadCustomOrder]
+    [
+      draggedItem,
+      userId,
+      isReordering,
+      filteredSections,
+      loadCustomOrder,
+      dragScale,
+      dragTranslateY,
+    ]
   );
 
   // Calculate total tricks count whenever sections update
@@ -785,14 +831,13 @@ const LibrariesSection = memo(function LibrariesSection({
     );
   }, [searchQuery, searchFilters, t]);
 
-  // Render category
+  // Render category - MODIFICADO
   const renderCategory = useCallback(
     ({ item, index }: { item: any; index: number }) => {
       const isFavorites = item.category.name.toLowerCase().includes("favorit");
       const canDrag =
         !hasActiveSearchOrFilters && !isFavorites && !item.isExpanded;
 
-      // Si está expandido, hay búsqueda activa, o es favoritos, renderizar el componente completo
       if (!canDrag) {
         return (
           <CollapsibleCategoryOptimized
@@ -811,12 +856,10 @@ const LibrariesSection = memo(function LibrariesSection({
         );
       }
 
-      // Calcular el índice real para drag (excluyendo favoritos)
       const nonFavoriteIndex = filteredSections
         .filter((s) => !s.category.name.toLowerCase().includes("favorit"))
         .findIndex((s) => s.category.id === item.category.id);
 
-      // Si está colapsado y se puede arrastrar
       return (
         <DraggableCategory
           item={{
@@ -827,6 +870,8 @@ const LibrariesSection = memo(function LibrariesSection({
           }}
           index={nonFavoriteIndex}
           onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
           isDragging={isDragging}
           draggedItemId={draggedItem?.id}
           hoveredIndex={hoveredIndex}
@@ -844,6 +889,8 @@ const LibrariesSection = memo(function LibrariesSection({
       handleDeleteCategory,
       handleMoreOptions,
       handleDragStart,
+      handleDragMove,
+      handleDragEnd,
       isDragging,
       draggedItem,
       hoveredIndex,
@@ -860,14 +907,9 @@ const LibrariesSection = memo(function LibrariesSection({
     }
   }, [hasMore, loadingMore, loadMore]);
 
-  // Main content with DragArea
+  // Main content - MODIFICADO
   const mainContent = (
-    <DragArea
-      draggedItem={draggedItem}
-      onDrop={handleDragEnd}
-      onUpdateHoveredIndex={handleUpdateHoveredIndex}
-      currentIndex={draggedItem?.originalIndex || 0}
-    >
+    <View style={{ flex: 1 }}>
       <FlashList
         ref={flatListRef}
         data={filteredSections}
@@ -902,7 +944,13 @@ const LibrariesSection = memo(function LibrariesSection({
         }}
         scrollEnabled={!isDragging}
       />
-    </DragArea>
+      <DragOverlay
+        draggedItem={draggedItem}
+        translateX={dragTranslateX}
+        translateY={dragTranslateY}
+        scale={dragScale}
+      />
+    </View>
   );
 
   // Main render
