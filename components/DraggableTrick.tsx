@@ -39,7 +39,7 @@ interface DraggableTrickProps {
     startX: number,
     startY: number
   ) => void;
-  onDragMove: (absoluteX: number, absoluteY: number) => void;
+  onDragMove: (translationX: number, translationY: number) => void;
   onDragEnd: (finalX: number, finalY: number) => void;
   isDragging: boolean;
   draggedTrickId: string | null;
@@ -62,8 +62,6 @@ export const DraggableTrick: React.FC<DraggableTrickProps> = ({
   const opacity = useSharedValue(1);
   const isBeingDragged = useSharedValue(false);
   const trickOpacity = useSharedValue(1);
-  const startX = useSharedValue(0);
-  const startY = useSharedValue(0);
 
   // Efecto para controlar la opacidad cuando se arrastra
   React.useEffect(() => {
@@ -103,21 +101,23 @@ export const DraggableTrick: React.FC<DraggableTrickProps> = ({
 
   const matchLocation = getSearchMatchLocation();
 
-  // Crear gestos
+  // Crear gestos - siguiendo el mismo patrón que DraggableCategory
   const longPressGesture = Gesture.LongPress()
-    .minDuration(300)
+    .minDuration(300) // Un poco más largo para trucos
     .onStart((event) => {
       "worklet";
+      console.log("🔵 TRICK - LongPress detectado con coordenadas:", {
+        absoluteX: event.absoluteX,
+        absoluteY: event.absoluteY,
+        x: event.x,
+        y: event.y,
+      });
       isBeingDragged.value = true;
       scale.value = withSpring(1.05);
       opacity.value = withSpring(0.9);
       trickOpacity.value = 0.3;
-
-      // Guardar las coordenadas iniciales
-      startX.value = event.absoluteX;
-      startY.value = event.absoluteY;
-
       runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+      // Pasar las coordenadas iniciales
       runOnJS(onDragStart)(
         item.id,
         categoryId,
@@ -130,16 +130,21 @@ export const DraggableTrick: React.FC<DraggableTrickProps> = ({
   const panGesture = Gesture.Pan()
     .onChange((event) => {
       "worklet";
+      console.log("🔵 TRICK - Pan onChange:", {
+        translationX: event.translationX,
+        translationY: event.translationY,
+        isBeingDragged: isBeingDragged.value,
+      });
       if (isBeingDragged.value) {
-        // Usar las coordenadas absolutas directamente
-        runOnJS(onDragMove)(
-          startX.value + event.translationX,
-          startY.value + event.translationY
-        );
+        runOnJS(onDragMove)(event.translationX, event.translationY);
       }
     })
     .onEnd((event) => {
       "worklet";
+      console.log("🔵 TRICK - Pan onEnd:", {
+        finalX: event.translationX,
+        finalY: event.translationY,
+      });
       if (isBeingDragged.value) {
         isBeingDragged.value = false;
         scale.value = withSpring(1);

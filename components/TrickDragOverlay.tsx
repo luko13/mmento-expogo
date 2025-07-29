@@ -1,6 +1,6 @@
 // components/TrickDragOverlay.tsx
 import React from "react";
-import { View, Text } from "react-native";
+import { View, Text, Dimensions } from "react-native";
 import Animated, {
   useAnimatedStyle,
   SharedValue,
@@ -21,34 +21,71 @@ interface TrickDragOverlayProps {
     startX?: number;
     startY?: number;
   } | null;
-  absoluteX: SharedValue<number>;
-  absoluteY: SharedValue<number>;
+  translateX: SharedValue<number>;
+  translateY: SharedValue<number>;
   scale: SharedValue<number>;
 }
 
 export const TrickDragOverlay: React.FC<TrickDragOverlayProps> = ({
   draggedTrick,
-  absoluteX,
-  absoluteY,
+  translateX,
+  translateY,
   scale,
 }) => {
-  const animatedStyle = useAnimatedStyle(() => {
-    if (!draggedTrick) return {};
+  const { width: screenWidth } = Dimensions.get("window");
+  const overlayWidth = 300;
+  const overlayHeight = 60;
 
-    // Añadir una ligera rotación basada en el movimiento horizontal
+  // Calcular la posición base del overlay solo cuando hay un truco siendo arrastrado
+  const baseX = draggedTrick?.startX
+    ? draggedTrick.startX - overlayWidth / 2
+    : 0;
+  const baseY = draggedTrick?.startY
+    ? draggedTrick.startY - overlayHeight / 2
+    : 0;
+
+  // Asegurar que no se salga de la pantalla horizontalmente
+  const clampedBaseX = Math.max(
+    10,
+    Math.min(baseX, screenWidth - overlayWidth - 10)
+  );
+
+  const animatedStyle = useAnimatedStyle(() => {
+    // Si no hay truco siendo arrastrado, ocultar el overlay
+    if (!draggedTrick) {
+      return {
+        opacity: 0,
+        transform: [{ translateX: 0 }, { translateY: 0 }, { scale: 0 }],
+      };
+    }
+
+    // Añadir una ligera rotación basada en la velocidad del movimiento
     const rotation = interpolate(
-      absoluteX.value - (draggedTrick.startX || 0),
+      translateX.value,
       [-100, 0, 100],
       [-3, 0, 3],
       Extrapolate.CLAMP
     );
 
+    // Log para depuración
+    console.log("🟡 OVERLAY - AnimatedStyle con movimiento", {
+      translateX: translateX.value,
+      translateY: translateY.value,
+      scale: scale.value,
+      baseX: clampedBaseX,
+      baseY,
+      finalX: clampedBaseX + translateX.value,
+      finalY: baseY + translateY.value,
+    });
+
     return {
-      position: "absolute",
-      // Centrar el overlay en el punto de toque
-      left: absoluteX.value - 150, // La mitad del ancho aproximado
-      top: absoluteY.value - 25, // La mitad de la altura aproximada
-      transform: [{ scale: scale.value }, { rotate: `${rotation}deg` }],
+      opacity: 1,
+      transform: [
+        { translateX: clampedBaseX + translateX.value },
+        { translateY: baseY + translateY.value },
+        { scale: scale.value },
+        { rotate: `${rotation}deg` },
+      ],
       // Añadir sombra más pronunciada durante el drag
       shadowOpacity: interpolate(
         scale.value,
@@ -63,9 +100,11 @@ export const TrickDragOverlay: React.FC<TrickDragOverlayProps> = ({
         Extrapolate.CLAMP
       ),
     };
-  });
+  }, [draggedTrick, clampedBaseX, baseY]); // Añadir dependencias
 
-  if (!draggedTrick) return null;
+  if (!draggedTrick) {
+    return null;
+  }
 
   return (
     <View
@@ -81,13 +120,13 @@ export const TrickDragOverlay: React.FC<TrickDragOverlayProps> = ({
     >
       <Animated.View
         style={[
-          animatedStyle,
           {
-            width: 300, // Ancho fijo para el overlay
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 8 },
-            shadowRadius: 16,
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: overlayWidth,
           },
+          animatedStyle,
         ]}
         pointerEvents="none"
       >
@@ -96,6 +135,9 @@ export const TrickDragOverlay: React.FC<TrickDragOverlayProps> = ({
           style={{
             backgroundColor: "rgba(255, 255, 255, 0.15)",
             borderColor: "rgba(255, 255, 255, 0.6)",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 8 },
+            shadowRadius: 16,
           }}
         >
           <MaterialIcons

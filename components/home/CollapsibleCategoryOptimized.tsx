@@ -85,7 +85,7 @@ interface Props {
     startX: number,
     startY: number
   ) => void;
-  onTrickDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onTrickDragMove?: (translationX: number, translationY: number) => void;
   onTrickDragEnd?: (finalX: number, finalY: number) => void;
   isDraggingTrick?: boolean;
   draggedTrickId?: string | null;
@@ -512,33 +512,61 @@ const CollapsibleCategoryOptimized = ({
       }}
     >
       {filteredItems.length > 0 ? (
-        filteredItems.map((item, index) => (
-          <DraggableTrick
-            key={`${item.type}-${item.id}`}
-            item={item}
-            categoryId={section.category.id}
-            index={index}
-            onPress={() => handleItemPress(item)}
-            onDragStart={(
-              trickId: string,
-              categoryId: string,
-              index: number,
-              startX: number,
-              startY: number
-            ) => {
-              onTrickDragStart?.(trickId, categoryId, index, startX, startY);
-            }}
-            onDragMove={(absoluteX: number, absoluteY: number) => {
-              onTrickDragMove?.(absoluteX, absoluteY);
-            }}
-            onDragEnd={(finalX: number, finalY: number) => {
-              onTrickDragEnd?.(finalX, finalY);
-            }}
-            isDragging={isDraggingTrick || false}
-            draggedTrickId={draggedTrickId || null}
-            searchQuery={searchQuery}
-          />
-        ))
+        filteredItems.map((item, index) => {
+          // Añadir el log aquí, antes del return
+          console.log("🟢 COLLAPSIBLE - Renderizando DraggableTrick", {
+            item: item.id,
+            categoryId: section.category.id,
+            callbacks: {
+              onTrickDragStart: typeof onTrickDragStart,
+              onTrickDragMove: typeof onTrickDragMove,
+              onTrickDragEnd: typeof onTrickDragEnd,
+              hasCallbacks:
+                !!onTrickDragStart && !!onTrickDragMove && !!onTrickDragEnd,
+            },
+            dragState: {
+              isDraggingTrick: isDraggingTrick,
+              draggedTrickId: draggedTrickId,
+            },
+          });
+
+          return (
+            <DraggableTrick
+              key={`${item.type}-${item.id}`}
+              item={item}
+              categoryId={section.category.id}
+              index={index}
+              onPress={() => handleItemPress(item)}
+              onDragStart={
+                onTrickDragStart ||
+                (() => {
+                  console.log(
+                    "🟢 COLLAPSIBLE - onTrickDragStart es undefined, usando función vacía"
+                  );
+                })
+              }
+              onDragMove={
+                onTrickDragMove ||
+                (() => {
+                  console.log(
+                    "🟢 COLLAPSIBLE - onTrickDragMove es undefined, usando función vacía"
+                  );
+                })
+              }
+              onDragEnd={
+                onTrickDragEnd ||
+                (() => {
+                  console.log(
+                    "🟢 COLLAPSIBLE - onTrickDragEnd es undefined, usando función vacía"
+                  );
+                })
+              }
+              isDragging={isDraggingTrick || false}
+              draggedTrickId={draggedTrickId || null}
+              searchQuery={searchQuery}
+            />
+          );
+        })
       ) : (
         <StyledView className="border-b border-white/20 p-2 mb-1 rounded-lg">
           <Text
