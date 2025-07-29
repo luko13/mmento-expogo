@@ -36,9 +36,10 @@ interface DraggableTrickProps {
     trickId: string,
     categoryId: string,
     index: number,
-    originalY: number
+    startX: number,
+    startY: number
   ) => void;
-  onDragMove: (translationX: number, translationY: number) => void;
+  onDragMove: (absoluteX: number, absoluteY: number) => void;
   onDragEnd: (finalX: number, finalY: number) => void;
   isDragging: boolean;
   draggedTrickId: string | null;
@@ -61,6 +62,8 @@ export const DraggableTrick: React.FC<DraggableTrickProps> = ({
   const opacity = useSharedValue(1);
   const isBeingDragged = useSharedValue(false);
   const trickOpacity = useSharedValue(1);
+  const startX = useSharedValue(0);
+  const startY = useSharedValue(0);
 
   // Efecto para controlar la opacidad cuando se arrastra
   React.useEffect(() => {
@@ -102,24 +105,37 @@ export const DraggableTrick: React.FC<DraggableTrickProps> = ({
 
   // Crear gestos
   const longPressGesture = Gesture.LongPress()
-    .minDuration(300) // Un poco más largo para trucos
+    .minDuration(300)
     .onStart((event) => {
       "worklet";
       isBeingDragged.value = true;
       scale.value = withSpring(1.05);
       opacity.value = withSpring(0.9);
       trickOpacity.value = 0.3;
-      runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
 
-      // Usar la posición Y del evento
-      runOnJS(onDragStart)(item.id, categoryId, index, event.absoluteY);
+      // Guardar las coordenadas iniciales
+      startX.value = event.absoluteX;
+      startY.value = event.absoluteY;
+
+      runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+      runOnJS(onDragStart)(
+        item.id,
+        categoryId,
+        index,
+        event.absoluteX,
+        event.absoluteY
+      );
     });
 
   const panGesture = Gesture.Pan()
     .onChange((event) => {
       "worklet";
       if (isBeingDragged.value) {
-        runOnJS(onDragMove)(event.translationX, event.translationY);
+        // Usar las coordenadas absolutas directamente
+        runOnJS(onDragMove)(
+          startX.value + event.translationX,
+          startY.value + event.translationY
+        );
       }
     })
     .onEnd((event) => {
