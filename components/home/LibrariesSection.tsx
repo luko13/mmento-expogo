@@ -41,6 +41,7 @@ import { useTrickDeletion } from "../../context/TrickDeletionContext";
 import { paginatedContentService } from "../../utils/paginatedContentService";
 import { DraggableCategory } from "../DraggableCategory";
 import { DragOverlay } from "../DragOverlay";
+import { TrickDragOverlay } from "../TrickDragOverlay";
 import { useSharedValue, withSpring } from "react-native-reanimated";
 
 const StyledView = styled(View);
@@ -93,7 +94,7 @@ const LibrariesSection = memo(function LibrariesSection({
   const [categoryOrder, setCategoryOrder] = useState<any[]>([]);
   const [trickOrders, setTrickOrders] = useState<Map<string, any[]>>(new Map());
 
-  // Drag and drop states
+  // Drag and drop states for categories
   const [draggedItem, setDraggedItem] = useState<any>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -106,6 +107,19 @@ const LibrariesSection = memo(function LibrariesSection({
   const dragTranslateX = useSharedValue(0);
   const dragTranslateY = useSharedValue(0);
   const dragScale = useSharedValue(1);
+
+  // Estados para drag & drop de trucos
+  const [draggedTrick, setDraggedTrick] = useState<any>(null);
+  const [isDraggingTrick, setIsDraggingTrick] = useState(false);
+  const [dropTargetCategoryId, setDropTargetCategoryId] = useState<
+    string | null
+  >(null);
+  const draggedTrickRef = useRef<any>(null);
+
+  // Shared values para animaciones de drag de trucos
+  const trickAbsoluteX = useSharedValue(0);
+  const trickAbsoluteY = useSharedValue(0);
+  const trickDragScale = useSharedValue(1);
 
   // Estado de expansión
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
@@ -521,6 +535,218 @@ const LibrariesSection = memo(function LibrariesSection({
     ]
   );
 
+  // Handle trick drag start - ACTUALIZADO
+  const handleTrickDragStart = useCallback(
+    (
+      trickId: string,
+      categoryId: string,
+      index: number,
+      startX: number,
+      startY: number
+    ) => {
+      console.log("🎯 handleTrickDragStart", {
+        trickId,
+        categoryId,
+        index,
+        startX,
+        startY,
+      });
+
+      // Buscar el truco en las secciones
+      let trickData = null;
+
+      for (const section of filteredSections) {
+        if (section.category.id === categoryId) {
+          const trick = section.items?.find((item: any) => item.id === trickId);
+          if (trick) {
+            trickData = trick;
+            break;
+          }
+        }
+      }
+
+      if (!trickData) {
+        console.log("🎯 No se encontró el truco");
+        return;
+      }
+
+      // Establecer las coordenadas iniciales
+      trickAbsoluteX.value = startX;
+      trickAbsoluteY.value = startY;
+      trickDragScale.value = withSpring(1.05);
+
+      const newDraggedTrick = {
+        id: trickId,
+        title: trickData.title,
+        categoryId: categoryId,
+        originalIndex: index,
+        startX: startX,
+        startY: startY,
+        data: trickData,
+      };
+
+      console.log("🎯 Configurando draggedTrick:", newDraggedTrick);
+
+      draggedTrickRef.current = newDraggedTrick;
+      setDraggedTrick(newDraggedTrick);
+      setIsDraggingTrick(true);
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    },
+    [filteredSections, trickAbsoluteX, trickAbsoluteY, trickDragScale]
+  );
+
+  // Handle trick drag move - ACTUALIZADO
+  const handleTrickDragMove = useCallback(
+    (absoluteX: number, absoluteY: number) => {
+      if (!draggedTrick || !isDraggingTrick) return;
+
+      // Actualizar las coordenadas absolutas
+      trickAbsoluteX.value = absoluteX;
+      trickAbsoluteY.value = absoluteY;
+
+      // Calcular sobre qué categoría está el truco basándose en la posición Y
+      // Esto es una aproximación - podrías necesitar ajustar estos valores
+      const headerHeight = 40;
+      const categoryHeight = 68;
+      const itemHeight = 50;
+
+      let accumulatedHeight = headerHeight;
+      let targetCategory = null;
+
+      for (const section of filteredSections) {
+        const sectionTop = accumulatedHeight;
+        const sectionHeight =
+          categoryHeight +
+          (section.isExpanded ? (section.items?.length || 0) * itemHeight : 0);
+        const sectionBottom = sectionTop + sectionHeight;
+
+        if (absoluteY >= sectionTop && absoluteY <= sectionBottom) {
+          targetCategory = section.category.id;
+          break;
+        }
+
+        accumulatedHeight = sectionBottom + 8; // 8px margin between categories
+      }
+
+      // Actualizar el objetivo de drop si cambió
+      if (targetCategory !== dropTargetCategoryId) {
+        setDropTargetCategoryId(targetCategory);
+        if (targetCategory) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      }
+    },
+    [
+      draggedTrick,
+      isDraggingTrick,
+      filteredSections,
+      trickAbsoluteX,
+      trickAbsoluteY,
+      dropTargetCategoryId,
+    ]
+  );
+
+  // Handle trick drag end
+  const handleTrickDragEnd = useCallback(
+    async (finalX: number, finalY: number) => {
+      console.log("🎯 handleTrickDragEnd", { finalX, finalY });
+
+      const currentDraggedTrick = draggedTrick || draggedTrickRef.current;
+
+      if (!currentDraggedTrick || !userId) {
+        console.log("🎯 No hay truco o usuario - limpiando");
+        resetTrickDragState();
+        return;
+      }
+
+      // Limpiar estados visuales inmediatamente
+      draggedTrickRef.current = null;
+      setDraggedTrick(null);
+      setIsDraggingTrick(false);
+      trickAbsoluteX.value = 0;
+      trickAbsoluteY.value = 0;
+      trickDragScale.value = 1;
+
+      // Si no hay categoría objetivo o es la misma, no hacer nada
+      if (
+        !dropTargetCategoryId ||
+        dropTargetCategoryId === currentDraggedTrick.categoryId
+      ) {
+        console.log("🎯 No hay cambio de categoría");
+        setDropTargetCategoryId(null);
+        return;
+      }
+
+      try {
+        console.log(
+          "🎯 Moviendo truco de",
+          currentDraggedTrick.categoryId,
+          "a",
+          dropTargetCategoryId
+        );
+
+        // Actualizar la base de datos en background
+        const moveTrick = async () => {
+          try {
+            // 1. Eliminar de la categoría actual
+            await supabase
+              .from("trick_categories")
+              .delete()
+              .eq("trick_id", currentDraggedTrick.id)
+              .eq("category_id", currentDraggedTrick.categoryId);
+
+            // 2. Añadir a la nueva categoría
+            await supabase.from("trick_categories").insert({
+              trick_id: currentDraggedTrick.id,
+              category_id: dropTargetCategoryId,
+            });
+
+            // 3. Actualizar el orden en ambas categorías
+            // TODO: Implementar lógica de orden
+
+            console.log("🎯 Truco movido exitosamente");
+
+            // Refrescar los datos
+            refresh();
+          } catch (error) {
+            console.error("🎯 Error moviendo truco:", error);
+          }
+        };
+
+        // Ejecutar en background
+        moveTrick();
+      } catch (error) {
+        console.error("🎯 Error en handleTrickDragEnd:", error);
+      } finally {
+        setDropTargetCategoryId(null);
+      }
+    },
+    [
+      draggedTrick,
+      userId,
+      dropTargetCategoryId,
+      refresh,
+      trickAbsoluteX,
+      trickAbsoluteY,
+      trickDragScale,
+    ]
+  );
+
+  // Función helper para resetear el estado del drag de trucos
+  const resetTrickDragState = useCallback(() => {
+    console.log("🎯 Reseteando estado del drag de trucos");
+
+    draggedTrickRef.current = null;
+    setDraggedTrick(null);
+    setIsDraggingTrick(false);
+    setDropTargetCategoryId(null);
+
+    trickAbsoluteX.value = 0;
+    trickAbsoluteY.value = 0;
+    trickDragScale.value = 1;
+  }, [trickAbsoluteX, trickAbsoluteY, trickDragScale]);
+
   // Calculate total tricks count whenever sections update
   useEffect(() => {
     const calculateTotalTricks = () => {
@@ -856,6 +1082,12 @@ const LibrariesSection = memo(function LibrariesSection({
             onExpandChange={(isExpanded) =>
               handleExpandChange(item.category.id, isExpanded)
             }
+            onTrickDragStart={handleTrickDragStart}
+            onTrickDragMove={handleTrickDragMove}
+            onTrickDragEnd={handleTrickDragEnd}
+            isDraggingTrick={isDraggingTrick}
+            draggedTrickId={draggedTrick?.id}
+            isDropTarget={dropTargetCategoryId === item.category.id}
           />
         );
       }
@@ -900,6 +1132,12 @@ const LibrariesSection = memo(function LibrariesSection({
       hoveredIndex,
       filteredSections,
       handleExpandChange,
+      handleTrickDragStart,
+      handleTrickDragMove,
+      handleTrickDragEnd,
+      isDraggingTrick,
+      draggedTrick,
+      dropTargetCategoryId,
     ]
   );
 
@@ -946,13 +1184,19 @@ const LibrariesSection = memo(function LibrariesSection({
           height: 600,
           width: 350,
         }}
-        scrollEnabled={!isDragging}
+        scrollEnabled={!isDragging && !isDraggingTrick}
       />
       <DragOverlay
         draggedItem={draggedItem}
         translateX={dragTranslateX}
         translateY={dragTranslateY}
         scale={dragScale}
+      />
+      <TrickDragOverlay
+        draggedTrick={draggedTrick}
+        absoluteX={trickAbsoluteX}
+        absoluteY={trickAbsoluteY}
+        scale={trickDragScale}
       />
     </View>
   );

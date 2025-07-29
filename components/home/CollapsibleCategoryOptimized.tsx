@@ -23,6 +23,7 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { GestureDetector } from "react-native-gesture-handler";
 import { fontNames } from "../../app/_layout";
 import InlineProgressBar from "./TrickCompletionProgress";
+import { DraggableTrick } from "../DraggableTrick";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
@@ -77,6 +78,18 @@ interface Props {
   onToggleFavorite?: (itemId: string, contentType: string) => void;
   isDragEnabled?: boolean;
   onExpandChange?: (isExpanded: boolean) => void;
+  onTrickDragStart?: (
+    trickId: string,
+    categoryId: string,
+    index: number,
+    startX: number,
+    startY: number
+  ) => void;
+  onTrickDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onTrickDragEnd?: (finalX: number, finalY: number) => void;
+  isDraggingTrick?: boolean;
+  draggedTrickId?: string | null;
+  isDropTarget?: boolean;
 }
 
 // Memoized library item row
@@ -200,6 +213,12 @@ const CollapsibleCategoryOptimized = ({
   onToggleFavorite,
   isDragEnabled = false,
   onExpandChange,
+  onTrickDragStart,
+  onTrickDragMove,
+  onTrickDragEnd,
+  isDraggingTrick,
+  draggedTrickId,
+  isDropTarget,
 }: Props) => {
   const { t } = useTranslation();
 
@@ -240,6 +259,19 @@ const CollapsibleCategoryOptimized = ({
   const animatedRotation = useRef(
     new RNAnimated.Value(isExpanded ? 1 : 0)
   ).current;
+
+  // Efecto para auto-expandir cuando es objetivo de drop
+  useEffect(() => {
+    if (isDropTarget && !isExpanded) {
+      // Auto-expandir después de 500ms si un truco está sobre la categoría colapsada
+      const timer = setTimeout(() => {
+        setIsExpanded(true);
+        onExpandChange?.(true);
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isDropTarget, isExpanded, onExpandChange]);
 
   useEffect(() => {
     const toValue = hasActiveSearch ? 1 : isExpanded ? 1 : 0;
@@ -413,10 +445,18 @@ const CollapsibleCategoryOptimized = ({
     .toLowerCase()
     .includes("favorit");
 
-  const containerStyle = [{ marginBottom: 8, paddingHorizontal: 16 }];
+  const containerStyle = [
+    { marginBottom: 8, paddingHorizontal: 16, position: "relative" as const },
+  ];
 
   const headerContent = (
-    <StyledView className="flex-row justify-between items-center bg-[white]/10 px-3 border border-white/40 rounded-lg mb-2">
+    <StyledView
+      className={`flex-row justify-between items-center px-3 border rounded-lg mb-2 ${
+        isDropTarget
+          ? "bg-emerald-900/30 border-emerald-500/60"
+          : "bg-[white]/10 border-white/40"
+      }`}
+    >
       <StyledView className="flex-row items-center flex-1">
         <RNAnimated.View
           style={{ transform: [{ rotate: rotateInterpolation }] }}
@@ -472,12 +512,30 @@ const CollapsibleCategoryOptimized = ({
       }}
     >
       {filteredItems.length > 0 ? (
-        filteredItems.map((item) => (
-          <LibraryItemRow
+        filteredItems.map((item, index) => (
+          <DraggableTrick
             key={`${item.type}-${item.id}`}
             item={item}
             categoryId={section.category.id}
+            index={index}
             onPress={() => handleItemPress(item)}
+            onDragStart={(
+              trickId: string,
+              categoryId: string,
+              index: number,
+              startX: number,
+              startY: number
+            ) => {
+              onTrickDragStart?.(trickId, categoryId, index, startX, startY);
+            }}
+            onDragMove={(absoluteX: number, absoluteY: number) => {
+              onTrickDragMove?.(absoluteX, absoluteY);
+            }}
+            onDragEnd={(finalX: number, finalY: number) => {
+              onTrickDragEnd?.(finalX, finalY);
+            }}
+            isDragging={isDraggingTrick || false}
+            draggedTrickId={draggedTrickId || null}
             searchQuery={searchQuery}
           />
         ))
@@ -504,6 +562,24 @@ const CollapsibleCategoryOptimized = ({
   // Renderizado normal
   return (
     <StyledView style={containerStyle}>
+      {/* Indicador visual cuando la categoría es objetivo de drop */}
+      {isDropTarget && (
+        <Animated.View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 16,
+            right: 16,
+            bottom: 0,
+            borderRadius: 8,
+            borderWidth: 2,
+            borderColor: "rgba(16, 185, 129, 0.6)",
+            backgroundColor: "rgba(16, 185, 129, 0.1)",
+            pointerEvents: "none",
+            zIndex: 10,
+          }}
+        />
+      )}
       <StyledTouchableOpacity onPress={toggleExpanded} activeOpacity={0.7}>
         {headerContent}
       </StyledTouchableOpacity>
