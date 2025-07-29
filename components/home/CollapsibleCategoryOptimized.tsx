@@ -417,7 +417,7 @@ const CollapsibleCategoryOptimized = ({
 
   const headerContent = (
     <StyledView className="flex-row justify-between items-center bg-[white]/10 px-3 border border-white/40 rounded-lg mb-2">
-      <StyledView className="flex-row items-center flex-1 py-3">
+      <StyledView className="flex-row items-center flex-1">
         <RNAnimated.View
           style={{ transform: [{ rotate: rotateInterpolation }] }}
         >

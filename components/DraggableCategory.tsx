@@ -7,6 +7,7 @@ import Animated, {
   withTiming,
   runOnJS,
   withSpring,
+  Easing,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { styled } from "nativewind";
@@ -33,6 +34,7 @@ interface DraggableCategoryProps {
   hoveredIndex: number | null;
   onMoreOptions: () => void;
   onToggleExpand: () => void;
+  draggedItemOriginalIndex?: number; // Añadir esta prop
 }
 
 export const DraggableCategory: React.FC<DraggableCategoryProps> = ({
@@ -46,6 +48,7 @@ export const DraggableCategory: React.FC<DraggableCategoryProps> = ({
   hoveredIndex,
   onMoreOptions,
   onToggleExpand,
+  draggedItemOriginalIndex,
 }) => {
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
@@ -53,30 +56,37 @@ export const DraggableCategory: React.FC<DraggableCategoryProps> = ({
   const itemHeight = 68;
   const isBeingDragged = useSharedValue(false);
   const startY = useSharedValue(0);
+  const itemOpacity = useSharedValue(1); // Valor separado para la opacidad del item arrastrado
 
-  // Efecto para manejar el desplazamiento cuando otros items se mueven
+  // Efecto para manejar el desplazamiento - SIMPLIFICADO SIN ANIMACIONES
   React.useEffect(() => {
-    if (!isDragging || !draggedItemId || hoveredIndex === null) {
-      translateY.value = withSpring(0);
+    // Si no hay drag activo, no hacer nada
+    if (!isDragging || !draggedItemId) {
+      translateY.value = 0;
       return;
     }
 
+    // Si este es el item siendo arrastrado, no moverlo
     if (draggedItemId === item.id) {
-      // Este item está siendo arrastrado - ocultarlo
       return;
     }
 
-    // Calcular si este item debe moverse
-    if (hoveredIndex !== null && index >= hoveredIndex) {
-      translateY.value = withSpring(itemHeight);
+    // Sin animaciones de desplazamiento - solo resetear
+    translateY.value = 0;
+  }, [isDragging, draggedItemId, item.id]);
+
+  // Efecto para controlar la opacidad del item arrastrado
+  React.useEffect(() => {
+    if (draggedItemId === item.id && isDragging) {
+      itemOpacity.value = 0.3;
     } else {
-      translateY.value = withSpring(0);
+      itemOpacity.value = 1;
     }
-  }, [isDragging, draggedItemId, hoveredIndex, index, item.id, itemHeight]);
+  }, [isDragging, draggedItemId, item.id]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }, { scale: scale.value }],
-    opacity: opacity.value,
+    opacity: opacity.value * itemOpacity.value,
     zIndex: isBeingDragged.value ? 1000 : 1,
   }));
 
@@ -86,8 +96,9 @@ export const DraggableCategory: React.FC<DraggableCategoryProps> = ({
     .onStart(() => {
       "worklet";
       isBeingDragged.value = true;
-      scale.value = withSpring(1.1);
+      scale.value = withSpring(1.05);
       opacity.value = withSpring(0.9);
+      itemOpacity.value = 0.3; // Hacer semi-transparente inmediatamente
       runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
       runOnJS(onDragStart)(item.id, index);
     });
@@ -108,20 +119,25 @@ export const DraggableCategory: React.FC<DraggableCategoryProps> = ({
       if (isBeingDragged.value) {
         const finalY = event.translationY;
 
-        // NO resetear isBeingDragged aquí para que onDragEnd pueda usarlo
-        // Solo resetear las animaciones visuales
+        // Resetear valores locales
+        isBeingDragged.value = false;
         scale.value = withSpring(1);
         opacity.value = withSpring(1);
+        itemOpacity.value = 1; // Restaurar opacidad inmediatamente
 
+        // Llamar a onDragEnd
         runOnJS(onDragEnd)(finalY);
       }
     })
     .onFinalize(() => {
       "worklet";
-      // Solo resetear después de que todo haya terminado
-      isBeingDragged.value = false;
-      scale.value = withSpring(1);
-      opacity.value = withSpring(1);
+      // Solo resetear si algo salió mal
+      if (isBeingDragged.value) {
+        isBeingDragged.value = false;
+        scale.value = withSpring(1);
+        opacity.value = withSpring(1);
+        itemOpacity.value = 1; // Asegurar que se restaure
+      }
     });
 
   // Combinar gestos para que funcionen simultáneamente
@@ -132,27 +148,14 @@ export const DraggableCategory: React.FC<DraggableCategoryProps> = ({
     onMoreOptions();
   };
 
-  // Si este item está siendo arrastrado, hacerlo casi invisible
-  const isDraggedStyle =
-    draggedItemId === item.id
-      ? {
-          opacity: 0.001,
-          transform: [{ scale: 0.001 }],
-        }
-      : {};
-
   return (
     <GestureDetector gesture={composedGesture}>
       <Animated.View
-        style={[
-          animatedStyle,
-          { marginBottom: 8, paddingHorizontal: 16 },
-          isDraggedStyle,
-        ]}
+        style={[animatedStyle, { marginBottom: 8, paddingHorizontal: 16 }]}
       >
         <TouchableOpacity onPress={onToggleExpand} activeOpacity={0.7}>
           <StyledView className="flex-row justify-between items-center bg-[white]/10 px-3 border border-white/40 rounded-lg mb-2">
-            <StyledView className="flex-row items-center flex-1 py-3">
+            <StyledView className="flex-row items-center flex-1">
               <MaterialIcons name="chevron-right" size={20} color="white" />
               <Text
                 style={{

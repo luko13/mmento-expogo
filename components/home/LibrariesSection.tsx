@@ -288,7 +288,7 @@ const LibrariesSection = memo(function LibrariesSection({
     []
   );
 
-  // Handle drag start - MEJORADO
+  // Handle drag start - SIMPLIFICADO
   const handleDragStart = useCallback(
     (itemId: string, index: number) => {
       console.log("🟢 handleDragStart - INICIO", { itemId, index });
@@ -346,7 +346,7 @@ const LibrariesSection = memo(function LibrariesSection({
     [filteredSections, dragTranslateX, dragTranslateY, dragScale]
   );
 
-  // Handle drag move - NUEVO
+  // Handle drag move - SIMPLIFICADO
   const handleDragMove = useCallback(
     (translationY: number) => {
       // Actualizar la posición del overlay
@@ -382,25 +382,25 @@ const LibrariesSection = memo(function LibrariesSection({
       // Usar el ref como respaldo si el state se perdió
       const currentDraggedItem = draggedItem || draggedItemRef.current;
 
-      console.log("🔴 Estado actual:", {
-        draggedItem: !!draggedItem,
-        draggedItemRef: !!draggedItemRef.current,
-        currentDraggedItem: currentDraggedItem,
-        userId: !!userId,
-        isReordering,
-      });
-
       if (!currentDraggedItem || !userId || isReordering) {
         console.log("🔴 Saliendo temprano");
-        // Limpiar todo
+        // Limpiar todo inmediatamente
         draggedItemRef.current = null;
         setDraggedItem(null);
         setIsDragging(false);
         setHoveredIndex(null);
-        dragTranslateY.value = withSpring(0);
-        dragScale.value = withSpring(1);
+        dragTranslateY.value = 0;
+        dragScale.value = 1;
         return;
       }
+
+      // IMPORTANTE: Limpiar estados visuales INMEDIATAMENTE
+      draggedItemRef.current = null;
+      setDraggedItem(null);
+      setIsDragging(false);
+      setHoveredIndex(null);
+      dragTranslateY.value = 0;
+      dragScale.value = 1;
 
       try {
         const itemHeight = 68;
@@ -426,19 +426,17 @@ const LibrariesSection = memo(function LibrariesSection({
         });
 
         if (oldIndex === newIndex) {
-          console.log("🔴 No se movió - limpiando estados");
-          draggedItemRef.current = null;
-          setDraggedItem(null);
-          setIsDragging(false);
-          setHoveredIndex(null);
-          dragTranslateY.value = withSpring(0);
-          dragScale.value = withSpring(1);
+          console.log("🔴 No se movió - ya limpiamos estados");
+          return;
+        }
+
+        // Prevenir múltiples reordenamientos
+        if (isReordering) {
+          console.log("🔴 Ya está reordenando");
           return;
         }
 
         setIsReordering(true);
-
-        console.log("🔴 Secciones no-favoritos:", nonFavoriteSections.length);
 
         // Validar índices
         if (
@@ -447,14 +445,16 @@ const LibrariesSection = memo(function LibrariesSection({
           newIndex < 0 ||
           newIndex >= nonFavoriteSections.length
         ) {
-          throw new Error(
+          console.error(
             `Índice fuera de rango: oldIndex=${oldIndex}, newIndex=${newIndex}, max=${
               nonFavoriteSections.length - 1
             }`
           );
+          setIsReordering(false);
+          return;
         }
 
-        // Reordenar categorías
+        // Reordenar categorías localmente
         const visualOrder = nonFavoriteSections.map((s) => s.category.id);
         console.log("🔴 Orden antes:", visualOrder);
 
@@ -470,41 +470,45 @@ const LibrariesSection = memo(function LibrariesSection({
           position: index,
         }));
 
-        // Actualizar en la base de datos
-        for (const update of updates) {
-          await orderService.updateCategoryOrder(
-            userId,
-            update.category_id,
-            update.position
-          );
-        }
-
-        // Actualizar estado local
+        // Actualizar estado local INMEDIATAMENTE
         setCategoryOrder(updates);
 
-        // Forzar flush de actualizaciones
-        await orderService.flushUpdates();
+        // Guardar en BD en background (sin await)
+        const saveToDatabase = async () => {
+          try {
+            // Actualizar en la base de datos
+            for (const update of updates) {
+              await orderService.updateCategoryOrder(
+                userId,
+                update.category_id,
+                update.position
+              );
+            }
 
-        // Recargar el orden personalizado
-        await loadCustomOrder();
+            // Forzar flush de actualizaciones
+            await orderService.flushUpdates();
 
-        console.log("🔴 Reordenamiento completado");
+            // Recargar el orden personalizado
+            await loadCustomOrder();
+
+            console.log("🔴 Base de datos actualizada exitosamente");
+          } catch (error) {
+            console.error("🔴 Error actualizando base de datos:", error);
+            // Opcionalmente: revertir cambios locales si falla
+            // loadCustomOrder();
+          } finally {
+            setIsReordering(false);
+          }
+        };
+
+        // Ejecutar guardado en background
+        saveToDatabase();
       } catch (error) {
         console.error("🔴 Error en handleDragEnd:", error);
-      } finally {
-        // Animar de vuelta
-        dragTranslateY.value = withSpring(0);
-        dragScale.value = withSpring(1);
-
-        // Limpiar estados
-        draggedItemRef.current = null;
-        setDraggedItem(null);
-        setIsDragging(false);
-        setHoveredIndex(null);
         setIsReordering(false);
-
-        console.log("🔴 handleDragEnd - FIN");
       }
+
+      console.log("🔴 handleDragEnd - FIN (UI actualizada)");
     },
     [
       draggedItem,
@@ -831,7 +835,7 @@ const LibrariesSection = memo(function LibrariesSection({
     );
   }, [searchQuery, searchFilters, t]);
 
-  // Render category - MODIFICADO
+  // Render category
   const renderCategory = useCallback(
     ({ item, index }: { item: any; index: number }) => {
       const isFavorites = item.category.name.toLowerCase().includes("favorit");
@@ -907,7 +911,7 @@ const LibrariesSection = memo(function LibrariesSection({
     }
   }, [hasMore, loadingMore, loadMore]);
 
-  // Main content - MODIFICADO
+  // Main content
   const mainContent = (
     <View style={{ flex: 1 }}>
       <FlashList
