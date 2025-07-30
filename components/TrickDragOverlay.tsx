@@ -10,6 +10,7 @@ import Animated, {
 import { styled } from "nativewind";
 import { fontNames } from "../app/_layout";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const StyledView = styled(View);
 
@@ -32,34 +33,45 @@ export const TrickDragOverlay: React.FC<TrickDragOverlayProps> = ({
   translateY,
   scale,
 }) => {
-  const { width: screenWidth } = Dimensions.get("window");
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
   const overlayWidth = 300;
   const overlayHeight = 60;
 
-  // Calcular la posición base del overlay solo cuando hay un truco siendo arrastrado
-  const baseX = draggedTrick?.startX
-    ? draggedTrick.startX - overlayWidth / 2
-    : 0;
-  const baseY = draggedTrick?.startY
-    ? draggedTrick.startY - overlayHeight / 2
-    : 0;
-
-  // Asegurar que no se salga de la pantalla horizontalmente
-  const clampedBaseX = Math.max(
-    10,
-    Math.min(baseX, screenWidth - overlayWidth - 10)
-  );
-
   const animatedStyle = useAnimatedStyle(() => {
-    // Si no hay truco siendo arrastrado, ocultar el overlay
     if (!draggedTrick) {
       return {
         opacity: 0,
-        transform: [{ translateX: 0 }, { translateY: 0 }, { scale: 0 }],
+        position: "absolute" as const,
+        left: -1000,
+        top: -1000,
       };
     }
 
-    // Añadir una ligera rotación basada en la velocidad del movimiento
+    // Usar las posiciones iniciales directamente
+    const startX = draggedTrick.startX || 0;
+    const startY = draggedTrick.startY || 0;
+
+    // Calcular offsets dinámicamente
+    const FINGER_OFFSET_X = -overlayWidth / 2; // centrar horizontal
+    const FINGER_OFFSET_Y = -overlayHeight - 160; // justo encima del dedo 
+
+    // Posición sin límites
+    const rawX = startX + translateX.value + FINGER_OFFSET_X;
+    const rawY = startY + translateY.value + FINGER_OFFSET_Y;
+
+    // Aplicar límites (clamp) para mantener el overlay dentro de la pantalla
+    const clampedX = Math.max(
+      8, // margen izquierdo mínimo
+      Math.min(rawX, screenWidth - overlayWidth - 8) // margen derecho
+    );
+
+    const clampedY = Math.max(
+      insets.top + 8, // no subir más allá del safe area top
+      Math.min(rawY, screenHeight - overlayHeight - insets.bottom - 8) // no bajar más allá del safe area bottom
+    );
+
+    // Rotación basada en velocidad horizontal
     const rotation = interpolate(
       translateX.value,
       [-100, 0, 100],
@@ -67,26 +79,25 @@ export const TrickDragOverlay: React.FC<TrickDragOverlayProps> = ({
       Extrapolate.CLAMP
     );
 
-    // Log para depuración
-    console.log("🟡 OVERLAY - AnimatedStyle con movimiento", {
+    console.log("🟡 OVERLAY - Posición calculada", {
+      startX,
+      startY,
       translateX: translateX.value,
       translateY: translateY.value,
-      scale: scale.value,
-      baseX: clampedBaseX,
-      baseY,
-      finalX: clampedBaseX + translateX.value,
-      finalY: baseY + translateY.value,
+      rawX,
+      rawY,
+      clampedX,
+      clampedY,
+      safeAreaTop: insets.top,
+      offsets: { x: FINGER_OFFSET_X, y: FINGER_OFFSET_Y },
     });
 
     return {
       opacity: 1,
-      transform: [
-        { translateX: clampedBaseX + translateX.value },
-        { translateY: baseY + translateY.value },
-        { scale: scale.value },
-        { rotate: `${rotation}deg` },
-      ],
-      // Añadir sombra más pronunciada durante el drag
+      position: "absolute" as const,
+      left: clampedX,
+      top: clampedY,
+      transform: [{ scale: scale.value }, { rotate: `${rotation}deg` }],
       shadowOpacity: interpolate(
         scale.value,
         [1, 1.1],
@@ -100,7 +111,7 @@ export const TrickDragOverlay: React.FC<TrickDragOverlayProps> = ({
         Extrapolate.CLAMP
       ),
     };
-  }, [draggedTrick, clampedBaseX, baseY]); // Añadir dependencias
+  });
 
   if (!draggedTrick) {
     return null;
@@ -121,10 +132,8 @@ export const TrickDragOverlay: React.FC<TrickDragOverlayProps> = ({
       <Animated.View
         style={[
           {
-            position: "absolute",
-            top: 0,
-            left: 0,
             width: overlayWidth,
+            height: overlayHeight,
           },
           animatedStyle,
         ]}

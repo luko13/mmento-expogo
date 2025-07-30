@@ -116,7 +116,7 @@ const LibrariesSection = memo(function LibrariesSection({
   const dragTranslateY = useSharedValue(0);
   const dragScale = useSharedValue(1);
 
-  // Estados para drag & drop de trucos - CORREGIDO
+  // Estados para drag & drop de trucos
   const [draggedTrick, setDraggedTrick] = useState<any>(null);
   const isDraggingTrickRef = useRef(false);
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
@@ -311,7 +311,7 @@ const LibrariesSection = memo(function LibrariesSection({
     []
   );
 
-  // Handle drag start - SIMPLIFICADO
+  // Handle drag start
   const handleDragStart = useCallback(
     (itemId: string, index: number) => {
       console.log("🟢 handleDragStart - INICIO", { itemId, index });
@@ -369,7 +369,7 @@ const LibrariesSection = memo(function LibrariesSection({
     [filteredSections, dragTranslateX, dragTranslateY, dragScale]
   );
 
-  // Handle drag move - SIMPLIFICADO
+  // Handle drag move
   const handleDragMove = useCallback(
     (translationY: number) => {
       // Actualizar la posición del overlay
@@ -397,7 +397,7 @@ const LibrariesSection = memo(function LibrariesSection({
     [draggedItem, filteredSections, dragTranslateY, hoveredIndex]
   );
 
-  // Handle drag end - MEJORADO
+  // Handle drag end
   const handleDragEnd = useCallback(
     async (finalY: number) => {
       console.log("🔴 handleDragEnd - INICIO con finalY:", finalY);
@@ -544,7 +544,7 @@ const LibrariesSection = memo(function LibrariesSection({
     ]
   );
 
-  // Handle trick drag start - CORREGIDO
+  // Handle trick drag start
   const handleTrickDragStart = useCallback(
     (
       trickId: string,
@@ -564,7 +564,6 @@ const LibrariesSection = memo(function LibrariesSection({
 
       // Buscar el truco en las secciones
       let trickData = null;
-
       for (const section of filteredSections) {
         if (section.category.id === categoryId) {
           const trick = section.items?.find((item: any) => item.id === trickId);
@@ -585,15 +584,15 @@ const LibrariesSection = memo(function LibrariesSection({
       trickDragTranslateY.value = 0;
       trickDragScale.value = withSpring(1.05);
 
+      // NO aplicar offset aquí - el overlay se centrará automáticamente
       const newDraggedTrick = {
         id: trickId,
         title: trickData.title,
         categoryId: categoryId,
         originalIndex: index,
         data: trickData,
-        // Guardar la posición inicial
         startX: startX,
-        startY: startY,
+        startY: startY, // Sin offset
       };
 
       console.log(
@@ -601,7 +600,6 @@ const LibrariesSection = memo(function LibrariesSection({
         newDraggedTrick
       );
 
-      // IMPORTANTE: Actualizar ref y state
       draggedTrickRef.current = newDraggedTrick;
       isDraggingTrickRef.current = true;
 
@@ -612,7 +610,7 @@ const LibrariesSection = memo(function LibrariesSection({
     [filteredSections, trickDragTranslateX, trickDragTranslateY, trickDragScale]
   );
 
-  // Handle trick drag move - CORREGIDO
+  // Handle trick drag move
   const handleTrickDragMove = useCallback(
     (translationX: number, translationY: number) => {
       console.log("📍 LIBRARIES - handleTrickDragMove llamado", {
@@ -679,7 +677,7 @@ const LibrariesSection = memo(function LibrariesSection({
     ]
   );
 
-  // Handle trick drag end - CORREGIDO
+  // Handle trick drag end
   const handleTrickDragEnd = useCallback(
     async (finalX: number, finalY: number) => {
       console.log("🎯 handleTrickDragEnd", { finalX, finalY });
@@ -749,12 +747,12 @@ const LibrariesSection = memo(function LibrariesSection({
     [userId, dropTargetCategoryId, refresh]
   );
 
-  // Función helper para resetear el estado del drag de trucos - CORREGIDA
+  // Función helper para resetear el estado del drag de trucos
   const resetTrickDragState = useCallback(() => {
     console.log("🎯 Reseteando estado del drag de trucos");
 
     draggedTrickRef.current = null;
-    isDraggingTrickRef.current = false; // CAMBIO: usar ref
+    isDraggingTrickRef.current = false;
 
     setDraggedTrick(null);
     setDropTargetCategoryId(null);
@@ -1078,7 +1076,7 @@ const LibrariesSection = memo(function LibrariesSection({
     );
   }, [searchQuery, searchFilters, t]);
 
-  // Render category - CORREGIDO
+  // Render category
   const renderCategory = useCallback(
     ({ item, index }: { item: any; index: number }) => {
       const isFavorites = item.category.name.toLowerCase().includes("favorit");
@@ -1102,7 +1100,7 @@ const LibrariesSection = memo(function LibrariesSection({
             onTrickDragStart={handleTrickDragStart}
             onTrickDragMove={handleTrickDragMove}
             onTrickDragEnd={handleTrickDragEnd}
-            isDraggingTrick={isDraggingTrickRef.current} // CAMBIO: usar ref
+            isDraggingTrick={isDraggingTrickRef.current}
             draggedTrickId={draggedTrick?.id}
             isDropTarget={dropTargetCategoryId === item.category.id}
           />
@@ -1200,19 +1198,13 @@ const LibrariesSection = memo(function LibrariesSection({
           height: 600,
           width: 350,
         }}
-        scrollEnabled={!isDragging && !isDraggingTrickRef.current} // CAMBIO: usar ref
+        scrollEnabled={!isDragging && !isDraggingTrickRef.current}
       />
       <DragOverlay
         draggedItem={draggedItem}
         translateX={dragTranslateX}
         translateY={dragTranslateY}
         scale={dragScale}
-      />
-      <TrickDragOverlay
-        draggedTrick={draggedTrick}
-        translateX={trickDragTranslateX}
-        translateY={trickDragTranslateY}
-        scale={trickDragScale}
       />
     </View>
   );
@@ -1231,6 +1223,15 @@ const LibrariesSection = memo(function LibrariesSection({
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* ① TRICK OVERLAY A NIVEL RAÍZ - FUERA DE CUALQUIER CONTENEDOR */}
+      <TrickDragOverlay
+        draggedTrick={draggedTrick}
+        translateX={trickDragTranslateX}
+        translateY={trickDragTranslateY}
+        scale={trickDragScale}
+      />
+
+      {/* ② CONTENEDOR PRINCIPAL CON TODO LO DEMÁS */}
       <StyledView className="flex-1">
         <ListHeader />
 
