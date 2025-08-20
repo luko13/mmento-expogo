@@ -1,15 +1,7 @@
 // components/home/LibrariesSection.tsx
 "use client";
 
-import {
-  useState,
-  useCallback,
-  memo,
-  useEffect,
-  useMemo,
-  useRef,
-  useReducer,
-} from "react";
+import { useState, useCallback, memo, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -17,16 +9,12 @@ import {
   Modal,
   RefreshControl,
   Platform,
-  findNodeHandle,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import { AntDesign, Feather } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import * as Haptics from "expo-haptics";
 import { supabase } from "../../lib/supabase";
 import {
   type Category,
@@ -34,7 +22,6 @@ import {
   deleteCategory,
   updateCategory,
 } from "../../utils/categoryService";
-import { orderService } from "../../services/orderService";
 import TrickViewScreen from "../TrickViewScreen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import type { SearchFilters } from "./CompactSearchBar";
@@ -49,42 +36,12 @@ import { fontNames } from "../../app/_layout";
 import MagicLoader from "../ui/MagicLoader";
 import { useTrickDeletion } from "../../context/TrickDeletionContext";
 import { paginatedContentService } from "../../utils/paginatedContentService";
-import { DraggableCategory } from "../DraggableCategory";
-import { DragOverlay } from "../DragOverlay";
-import { TrickDragOverlay } from "../TrickDragOverlay";
-import { useSharedValue, withSpring } from "react-native-reanimated";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 
 const NAVBAR_HEIGHT = 60;
 const BOTTOM_SPACING = Platform.select({ ios: 20, default: 10 });
-
-// Overlay absoluto para la línea de drop (por encima de la lista)
-const DropLineOverlay = ({
-  visible,
-  y,
-}: {
-  visible: boolean;
-  y: number | null;
-}) => {
-  if (!visible || y == null || Number.isNaN(y)) return null;
-  return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: "absolute",
-        left: 24,
-        right: 24,
-        top: y,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: "#10b981",
-        zIndex: 9999,
-      }}
-    />
-  );
-};
 
 interface LibrariesSectionProps {
   searchQuery?: string;
@@ -99,7 +56,6 @@ const LibrariesSection = memo(function LibrariesSection({
   const { t } = useTranslation();
   const { deletedTrickId } = useTrickDeletion();
   const [userId, setUserId] = useState<string | null>(null);
-  const [isReordering, setIsReordering] = useState(false);
 
   // Modales
   const [isAddCategoryModalVisible, setAddCategoryModalVisible] =
@@ -124,88 +80,14 @@ const LibrariesSection = memo(function LibrariesSection({
   // Totales
   const [totalTricksCount, setTotalTricksCount] = useState(0);
 
-  // Orden BD
-  const [categoryOrder, setCategoryOrder] = useState<any[]>([]);
-  const [trickOrders, setTrickOrders] = useState<Map<string, any[]>>(new Map());
-
-  // Drag categorías
-  const [draggedItem, setDraggedItem] = useState<{
-    id: string;
-    name: string;
-    itemCount: number;
-    originalIndex: number;
-    startX?: number;
-    startY?: number;
-  } | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const draggedItemRef = useRef<any>(null);
-
   const flatListRef = useRef<FlashList<any> | null>(null);
-
-  const dragTranslateX = useSharedValue(0);
-  const dragTranslateY = useSharedValue(0);
-  const dragScale = useSharedValue(1);
-
-  // Drag trucos (igual que tenías)
-  const [draggedTrick, setDraggedTrick] = useState<any>(null);
-  const isDraggingTrickRef = useRef(false);
-  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
-  const [dropTargetCategoryId, setDropTargetCategoryId] = useState<
-    string | null
-  >(null);
-  const draggedTrickRef = useRef<any>(null);
-
-  const trickDragTranslateX = useSharedValue(0);
-  const trickDragTranslateY = useSharedValue(0);
-  const trickDragScale = useSharedValue(1);
 
   // Estado expansión
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set()
   );
 
-  // Overlay container y scroll
-  const overlayContainerRef = useRef<View | null>(null);
-  const [containerLeft, setContainerLeft] = useState(0);
-  const [containerTop, setContainerTop] = useState(0);
-  const [containerWidth, setContainerWidth] = useState(0);
-  const [scrollY, setScrollY] = useState(0);
-
-  // Layouts de filas (categorías no-favoritas)
-  const rowLayoutsRef = useRef<Map<string, { y: number; height: number }>>(
-    new Map()
-  );
-  const registerRowLayout = useCallback(
-    (categoryId: string, y: number, height: number) => {
-      const m = rowLayoutsRef.current;
-      const prev = m.get(categoryId);
-      if (!prev || prev.y !== y || prev.height !== height) {
-        m.set(categoryId, { y, height });
-      }
-    },
-    []
-  );
-  const clearRowLayouts = useCallback(() => {
-    rowLayoutsRef.current.clear();
-  }, []);
-
-  const measureOverlayContainer = useCallback(() => {
-    const node = findNodeHandle(overlayContainerRef.current);
-    if (!node || !overlayContainerRef.current) return;
-    overlayContainerRef.current.measureInWindow((x, y, w) => {
-      setContainerLeft(x || 0);
-      setContainerTop(y || 0);
-      setContainerWidth(w || 0);
-    });
-  }, []);
-
-  useEffect(() => {
-    // medir al montar (RAF envía timestamp; lo envolvemos)
-    requestAnimationFrame(() => measureOverlayContainer());
-  }, [measureOverlayContainer]);
-
-  // Hooks de datos
+  // Datos
   const { sections, loading, loadingMore, hasMore, error, loadMore, refresh } =
     usePaginatedContent(searchQuery, searchFilters);
 
@@ -239,65 +121,17 @@ const LibrariesSection = memo(function LibrariesSection({
     return hasSearch || hasFilters;
   }, [searchQuery, searchFilters]);
 
-  useEffect(() => {
-    if (userId && !hasActiveSearchOrFilters) {
-      loadCustomOrder();
-    }
-  }, [userId, hasActiveSearchOrFilters]);
-
-  const loadCustomOrder = async () => {
-    if (!userId) return;
-    const categoryOrderData = await orderService.getUserCategoryOrder(userId);
-    const allTrickOrders = await orderService.getAllUserTrickOrders(userId);
-    setCategoryOrder(categoryOrderData);
-
-    const ordersByCategory = new Map<string, any[]>();
-    allTrickOrders.forEach((order) => {
-      const categoryOrders = ordersByCategory.get(order.category_id) || [];
-      categoryOrders.push(order);
-      ordersByCategory.set(order.category_id, categoryOrders);
-    });
-    setTrickOrders(ordersByCategory);
-  };
-
+  // Solo favoritos primero; resto en orden del backend
   const orderedSections = useMemo(() => {
-    if (hasActiveSearchOrFilters || categoryOrder.length === 0) {
-      return sections;
-    }
-
-    const positionMap = new Map<string, number>();
-    categoryOrder.forEach((order) => {
-      positionMap.set(order.category_id, order.position);
-    });
-
     const sorted = [...sections].sort((a, b) => {
-      const aIsFavorites = a.category.name.toLowerCase().includes("favorit");
-      const bIsFavorites = b.category.name.toLowerCase().includes("favorit");
-      if (aIsFavorites && !bIsFavorites) return -1;
-      if (!aIsFavorites && bIsFavorites) return 1;
-      const aPos = positionMap.get(a.category.id) ?? Number.MAX_VALUE;
-      const bPos = positionMap.get(b.category.id) ?? Number.MAX_VALUE;
-      return aPos - bPos;
+      const aFav = a.category.name.toLowerCase().includes("favorit");
+      const bFav = b.category.name.toLowerCase().includes("favorit");
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
+      return 0;
     });
-
-    return sorted.map((section) => {
-      const categoryTrickOrder = trickOrders.get(section.category.id);
-      if (!categoryTrickOrder?.length) return section;
-
-      const trickPositionMap = new Map<string, number>();
-      categoryTrickOrder.forEach((order) => {
-        trickPositionMap.set(order.trick_id, order.position);
-      });
-
-      const sortedItems = [...(section.items || [])].sort((a, b) => {
-        const aPos = trickPositionMap.get(a.id) ?? Number.MAX_VALUE;
-        const bPos = trickPositionMap.get(b.id) ?? Number.MAX_VALUE;
-        return aPos - bPos;
-      });
-
-      return { ...section, items: sortedItems };
-    });
-  }, [sections, categoryOrder, trickOrders, hasActiveSearchOrFilters]);
+    return sorted;
+  }, [sections]);
 
   const filteredSections = useMemo(() => {
     const hasActiveSearch =
@@ -328,21 +162,6 @@ const LibrariesSection = memo(function LibrariesSection({
     expandedCategories,
   ]);
 
-  const nonFavoriteSections = useMemo(
-    () =>
-      filteredSections.filter(
-        (s) => !s.category.name.toLowerCase().includes("favorit")
-      ),
-    [filteredSections]
-  );
-
-  // Si cambia el tamaño base, reseteo layouts del drop
-  useEffect(() => {
-    setHoveredIndex(null);
-    clearRowLayouts();
-    forceUpdate();
-  }, [nonFavoriteSections.length, clearRowLayouts]);
-
   const handleExpandChange = useCallback(
     (categoryId: string, isExpanded: boolean) => {
       setExpandedCategories((prev) => {
@@ -354,263 +173,6 @@ const LibrariesSection = memo(function LibrariesSection({
     },
     []
   );
-
-  const collapseIfExpanded = useCallback((categoryId: string) => {
-    setExpandedCategories((prev) => {
-      if (!prev.has(categoryId)) return prev;
-      const next = new Set(prev);
-      next.delete(categoryId);
-      return next;
-    });
-  }, []);
-
-  // --- DRAG categorías ---
-  const handleDragStart = useCallback(
-    (itemId: string, index: number, startX?: number, startY?: number) => {
-      collapseIfExpanded(itemId);
-
-      const section = filteredSections.find((s) => s.category.id === itemId);
-      if (!section) return;
-      if (section.category.name.toLowerCase().includes("favorit")) return;
-
-      dragTranslateX.value = 0;
-      dragTranslateY.value = 0;
-      dragScale.value = withSpring(1.05);
-
-      const nonFav = filteredSections.filter(
-        (s) => !s.category.name.toLowerCase().includes("favorit")
-      );
-      const realIndex = nonFav.findIndex((s) => s.category.id === itemId);
-      if (realIndex === -1) return;
-
-      const newDragged = {
-        id: section.category.id,
-        name: section.category.name,
-        originalIndex: realIndex,
-        itemCount: section.items?.length || 0,
-        startX,
-        startY,
-      };
-
-      draggedItemRef.current = newDragged;
-      setDraggedItem(newDragged);
-      setIsDragging(true);
-
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    },
-    [
-      filteredSections,
-      collapseIfExpanded,
-      dragTranslateX,
-      dragTranslateY,
-      dragScale,
-    ]
-  );
-
-  const handleDragMove = useCallback(
-    (translationY: number) => {
-      dragTranslateY.value = translationY;
-
-      const currentIndex = draggedItem?.originalIndex ?? 0;
-      const nonFavLen = nonFavoriteSections.length;
-
-      // Cambiar de slot cuando el centro cruza
-      const indexOffset = Math.floor((translationY + 68 / 2) / 68);
-      const proposed = currentIndex + indexOffset;
-      const newIndex = Math.max(0, Math.min(proposed, nonFavLen));
-
-      if (newIndex !== hoveredIndex) {
-        setHoveredIndex(newIndex);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-    },
-    [draggedItem, hoveredIndex, nonFavoriteSections.length, dragTranslateY]
-  );
-
-  const handleDragEnd = useCallback(
-    async (finalY: number) => {
-      const currentDraggedItem = draggedItem || draggedItemRef.current;
-      if (!currentDraggedItem || !userId) {
-        // limpieza rápida
-        draggedItemRef.current = null;
-        setDraggedItem(null);
-        setIsDragging(false);
-        setHoveredIndex(null);
-        dragTranslateY.value = 0;
-        dragScale.value = 1;
-        return;
-      }
-
-      // --- LIMPIEZA INSTANTÁNEA DE UI ---
-      draggedItemRef.current = null;
-      setIsDragging(false);
-      setDraggedItem(null);
-      setHoveredIndex(null);
-      dragTranslateY.value = 0;
-      dragScale.value = 1;
-
-      try {
-        const currentIndex = currentDraggedItem.originalIndex;
-        const indexOffset = Math.floor((finalY + 68 / 2) / 68);
-        const nonFavLen = nonFavoriteSections.length;
-        const newIndex = Math.max(
-          0,
-          Math.min(currentIndex + indexOffset, nonFavLen)
-        );
-
-        if (currentIndex === newIndex || isReordering) {
-          return;
-        }
-
-        setIsReordering(true);
-
-        const nonFav = nonFavoriteSections;
-        const visualOrder = nonFav.map((s) => s.category.id);
-        const [moved] = visualOrder.splice(currentIndex, 1);
-        visualOrder.splice(newIndex, 0, moved);
-
-        const updates = visualOrder.map((categoryId, index) => ({
-          user_id: userId,
-          category_id: categoryId,
-          position: index,
-        }));
-        setCategoryOrder(updates);
-
-        // Guardado en BD (no bloquea UI)
-        (async () => {
-          try {
-            for (const update of updates) {
-              await orderService.updateCategoryOrder(
-                userId,
-                update.category_id,
-                update.position
-              );
-            }
-            await orderService.flushUpdates();
-            await loadCustomOrder();
-          } catch (error) {
-            console.error("Error actualizando base de datos:", error);
-          } finally {
-            setIsReordering(false);
-          }
-        })();
-      } catch (error) {
-        console.error("Error en handleDragEnd:", error);
-        setIsReordering(false);
-      }
-    },
-    [
-      draggedItem,
-      userId,
-      isReordering,
-      nonFavoriteSections,
-      loadCustomOrder,
-      dragScale,
-      dragTranslateY,
-    ]
-  );
-
-  // --- DRAG TRUCOS (igual que tenías) ---
-  const handleTrickDragStart = useCallback(
-    (
-      trickId: string,
-      categoryId: string,
-      index: number,
-      startX: number,
-      startY: number
-    ) => {
-      let trickData = null;
-      for (const section of filteredSections) {
-        if (section.category.id === categoryId) {
-          const trick = section.items?.find((item: any) => item.id === trickId);
-          if (trick) {
-            trickData = trick;
-            break;
-          }
-        }
-      }
-      if (!trickData) return;
-
-      trickDragTranslateX.value = 0;
-      trickDragTranslateY.value = 0;
-      trickDragScale.value = withSpring(1.05);
-
-      const newDraggedTrick = {
-        id: trickId,
-        title: trickData.title,
-        categoryId,
-        originalIndex: index,
-        data: trickData,
-        startX,
-        startY,
-      };
-
-      draggedTrickRef.current = newDraggedTrick;
-      isDraggingTrickRef.current = true;
-      setDraggedTrick(newDraggedTrick);
-
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    },
-    [filteredSections, trickDragTranslateX, trickDragTranslateY, trickDragScale]
-  );
-
-  const handleTrickDragMove = useCallback(
-    (translationX: number, translationY: number) => {
-      if (!draggedTrickRef.current || !isDraggingTrickRef.current) return;
-      trickDragTranslateX.value = translationX;
-      trickDragTranslateY.value = translationY;
-    },
-    [trickDragTranslateX, trickDragTranslateY]
-  );
-
-  const handleTrickDragEnd = useCallback(
-    async (finalX: number, finalY: number) => {
-      const currentDraggedTrick = draggedTrickRef.current;
-      if (!currentDraggedTrick || !userId) {
-        resetTrickDragState();
-        return;
-      }
-      resetTrickDragState();
-      if (
-        !dropTargetCategoryId ||
-        dropTargetCategoryId === currentDraggedTrick.categoryId
-      ) {
-        return;
-      }
-      try {
-        const moveTrick = async () => {
-          try {
-            await supabase
-              .from("trick_categories")
-              .delete()
-              .eq("trick_id", currentDraggedTrick.id)
-              .eq("category_id", currentDraggedTrick.categoryId);
-            await supabase.from("trick_categories").insert({
-              trick_id: currentDraggedTrick.id,
-              category_id: dropTargetCategoryId,
-            });
-            refresh();
-          } catch (error) {
-            console.error("Error moviendo truco:", error);
-          }
-        };
-        moveTrick();
-      } catch (error) {
-        console.error("Error en handleTrickDragEnd:", error);
-      }
-    },
-    [userId, dropTargetCategoryId, refresh]
-  );
-
-  const resetTrickDragState = useCallback(() => {
-    draggedTrickRef.current = null;
-    isDraggingTrickRef.current = false;
-    setDraggedTrick(null);
-    setDropTargetCategoryId(null);
-    trickDragTranslateX.value = 0;
-    trickDragTranslateY.value = 0;
-    trickDragScale.value = 1;
-  }, [trickDragTranslateX, trickDragTranslateY, trickDragScale]);
 
   // Totales
   useEffect(() => {
@@ -734,8 +296,7 @@ const LibrariesSection = memo(function LibrariesSection({
         if (!user) return;
 
         const newCategory = await createCategory(user.id, name);
-        if (newCategory && userId) {
-          await orderService.initializeCategoryOrder(userId, newCategory.id);
+        if (newCategory) {
           refresh();
         }
         setAddCategoryModalVisible(false);
@@ -743,7 +304,7 @@ const LibrariesSection = memo(function LibrariesSection({
         console.error("Error adding category:", error);
       }
     },
-    [refresh, userId]
+    [refresh]
   );
 
   const handleEditCategory = useCallback(
@@ -789,11 +350,10 @@ const LibrariesSection = memo(function LibrariesSection({
   );
 
   const confirmDeleteCategory = useCallback(async () => {
-    if (!categoryToDelete || !userId) return;
+    if (!categoryToDelete) return;
     try {
       const success = await deleteCategory(categoryToDelete.id);
       if (success) {
-        await orderService.cleanupCategoryOrder(userId, categoryToDelete.id);
         refresh();
       }
     } catch (error) {
@@ -802,7 +362,7 @@ const LibrariesSection = memo(function LibrariesSection({
       setShowDeleteModal(false);
       setCategoryToDelete(null);
     }
-  }, [categoryToDelete, refresh, userId]);
+  }, [categoryToDelete, refresh]);
 
   const openEditCategoryModal = useCallback((category: Category) => {
     setEditingCategory(category);
@@ -825,54 +385,9 @@ const LibrariesSection = memo(function LibrariesSection({
         });
       }
     },
-    [router, fetchItemData]
+    [router]
   );
 
-  // Scroll
-  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    setScrollY(e.nativeEvent.contentOffset.y);
-  }, []);
-
-  // === computeDropY: lo colocamos DESPUÉS de tener filteredSections y nonFavoriteSections ===
-  const DROP_LINE_HALF = 3;
-  const CATEGORY_ROW_HEIGHT = 68;
-
-  const computeDropY = useCallback((): number | null => {
-    if (!isDragging || hoveredIndex == null) return null;
-
-    const nonFav = nonFavoriteSections;
-    if (nonFav.length === 0) return null;
-
-    if (hoveredIndex < 0) return null;
-    if (hoveredIndex > nonFav.length) return null;
-
-    // Después de la última fila
-    if (hoveredIndex === nonFav.length) {
-      const lastId = nonFav[nonFav.length - 1]?.category.id;
-      const lastLayout = lastId ? rowLayoutsRef.current.get(lastId) : undefined;
-      if (lastLayout) {
-        const y = lastLayout.y + lastLayout.height - scrollY + 4;
-        return Math.max(0, y - DROP_LINE_HALF);
-      }
-      const approxY =
-        nonFav.length * CATEGORY_ROW_HEIGHT - scrollY + 4 - DROP_LINE_HALF;
-      return Math.max(0, approxY);
-    }
-
-    // Antes de la fila hoveredIndex
-    const targetId = nonFav[hoveredIndex].category.id;
-    const targetLayout = rowLayoutsRef.current.get(targetId);
-    if (targetLayout) {
-      const y = targetLayout.y - scrollY - 4;
-      return Math.max(0, y - DROP_LINE_HALF);
-    }
-
-    const approxY =
-      hoveredIndex * CATEGORY_ROW_HEIGHT - scrollY - DROP_LINE_HALF;
-    return Math.max(0, approxY);
-  }, [isDragging, hoveredIndex, nonFavoriteSections, scrollY]);
-
-  // Header / footer / empty
   const ListHeader = useCallback(
     () => (
       <StyledView className="flex-row justify-between items-center mb-2 px-4">
@@ -948,91 +463,32 @@ const LibrariesSection = memo(function LibrariesSection({
     );
   }, [searchQuery, searchFilters, t]);
 
-  // Render categoría (medimos layout de filas no-favoritas)
   const renderCategory = useCallback(
     ({ item }: { item: any; index: number }) => {
-      const isFavorites = item.category.name.toLowerCase().includes("favorit");
-      const canDrag = !hasActiveSearchOrFilters && !isFavorites;
-
-      const nonFavoriteIndex = nonFavoriteSections.findIndex(
-        (s) => s.category.id === item.category.id
-      );
-
-      if (!canDrag) {
-        return (
-          <CollapsibleCategoryOptimized
-            section={item}
-            searchQuery={searchQuery}
-            searchFilters={searchFilters}
-            onItemPress={handleItemPress}
-            onEditCategory={openEditCategoryModal}
-            onDeleteCategory={handleDeleteCategory}
-            onMoreOptions={handleMoreOptions}
-            isDragEnabled={false}
-            onExpandChange={(isExpanded) =>
-              handleExpandChange(item.category.id, isExpanded)
-            }
-            onTrickDragStart={handleTrickDragStart}
-            onTrickDragMove={handleTrickDragMove}
-            onTrickDragEnd={handleTrickDragEnd}
-            isDraggingTrick={isDraggingTrickRef.current}
-            draggedTrickId={draggedTrick?.id}
-            isDropTarget={dropTargetCategoryId === item.category.id}
-          />
-        );
-      }
-
       return (
-        <View
-          onLayout={(e) => {
-            const { y, height } = e.nativeEvent.layout;
-            registerRowLayout(item.category.id, y, height);
-          }}
-        >
-          <DraggableCategory
-            item={{
-              id: item.category.id,
-              name: item.category.name,
-              itemCount: item.items?.length || 0,
-              category: item.category,
-            }}
-            index={nonFavoriteIndex}
-            onDragStart={handleDragStart}
-            onDragMove={handleDragMove}
-            onDragEnd={handleDragEnd}
-            isDragging={isDragging}
-            draggedItemId={draggedItem?.id || null}
-            hoveredIndex={hoveredIndex}
-            onMoreOptions={() => handleMoreOptions(item.category)}
-            onToggleExpand={() =>
-              handleExpandChange(item.category.id, !item.isExpanded)
-            }
-          />
-        </View>
+        <CollapsibleCategoryOptimized
+          section={item}
+          searchQuery={searchQuery}
+          searchFilters={searchFilters}
+          onItemPress={handleItemPress}
+          onEditCategory={openEditCategoryModal}
+          onDeleteCategory={handleDeleteCategory}
+          onMoreOptions={handleMoreOptions}
+          isDragEnabled={false} // ya no hay drag de nada
+          onExpandChange={(isExpanded) =>
+            handleExpandChange(item.category.id, isExpanded)
+          }
+        />
       );
     },
     [
-      hasActiveSearchOrFilters,
       searchQuery,
       searchFilters,
       handleItemPress,
       openEditCategoryModal,
       handleDeleteCategory,
       handleMoreOptions,
-      handleDragStart,
-      handleDragMove,
-      handleDragEnd,
-      isDragging,
-      draggedItem,
-      hoveredIndex,
-      nonFavoriteSections,
       handleExpandChange,
-      handleTrickDragStart,
-      handleTrickDragMove,
-      handleTrickDragEnd,
-      draggedTrick,
-      dropTargetCategoryId,
-      registerRowLayout,
     ]
   );
 
@@ -1045,11 +501,7 @@ const LibrariesSection = memo(function LibrariesSection({
   }, [hasMore, loadingMore, loadMore]);
 
   const mainContent = (
-    <View
-      ref={overlayContainerRef}
-      style={{ flex: 1 }}
-      onLayout={measureOverlayContainer}
-    >
+    <View style={{ flex: 1 }}>
       <FlashList
         ref={flatListRef}
         data={filteredSections}
@@ -1079,30 +531,7 @@ const LibrariesSection = memo(function LibrariesSection({
         drawDistance={200}
         removeClippedSubviews={true}
         estimatedListSize={{ height: 600, width: 350 }}
-        scrollEnabled={!isDragging && !isDraggingTrickRef.current}
-        onScrollBeginDrag={measureOverlayContainer}
-        onMomentumScrollBegin={measureOverlayContainer}
-        onMomentumScrollEnd={measureOverlayContainer}
-        onScrollEndDrag={measureOverlayContainer}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-      />
-
-      {/* Overlay: tarjeta que sigue al dedo (centrada en X) */}
-      <DragOverlay
-        draggedItem={draggedItem}
-        translateX={dragTranslateX}
-        translateY={dragTranslateY}
-        scale={dragScale}
-        containerLeft={containerLeft}
-        containerTop={containerTop}
-        containerWidth={containerWidth}
-      />
-
-      {/* Overlay: línea de drop calculada con layouts + scroll */}
-      <DropLineOverlay
-        visible={isDragging && hoveredIndex != null}
-        y={computeDropY()}
+        scrollEnabled={true}
       />
     </View>
   );
@@ -1120,14 +549,6 @@ const LibrariesSection = memo(function LibrariesSection({
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {/* Overlay de TRUCOS */}
-      <TrickDragOverlay
-        draggedTrick={draggedTrick}
-        translateX={trickDragTranslateX}
-        translateY={trickDragTranslateY}
-        scale={trickDragScale}
-      />
-
       <StyledView className="flex-1">
         <ListHeader />
         {error ? (

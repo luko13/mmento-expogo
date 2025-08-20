@@ -409,7 +409,7 @@ const CollapsibleCategoryOptimized = ({
           : "bg-[white]/10 border-white/40"
       }`}
       style={{
-        height: CATEGORY_ROW_HEIGHT, // ✅ altura fija consistente con el cálculo
+        height: 36,
       }}
     >
       <StyledView className="flex-row items-center flex-1">
