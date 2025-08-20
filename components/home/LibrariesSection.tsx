@@ -17,7 +17,9 @@ import {
   Modal,
   RefreshControl,
   Platform,
-  Dimensions,
+  findNodeHandle,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -55,9 +57,34 @@ import { useSharedValue, withSpring } from "react-native-reanimated";
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 
-// Calculate safe area for navigation bar
 const NAVBAR_HEIGHT = 60;
 const BOTTOM_SPACING = Platform.select({ ios: 20, default: 10 });
+
+// Overlay absoluto para la línea de drop (por encima de la lista)
+const DropLineOverlay = ({
+  visible,
+  y,
+}: {
+  visible: boolean;
+  y: number | null;
+}) => {
+  if (!visible || y == null || Number.isNaN(y)) return null;
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        left: 24,
+        right: 24,
+        top: y,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: "#10b981",
+        zIndex: 9999,
+      }}
+    />
+  );
+};
 
 interface LibrariesSectionProps {
   searchQuery?: string;
@@ -74,7 +101,7 @@ const LibrariesSection = memo(function LibrariesSection({
   const [userId, setUserId] = useState<string | null>(null);
   const [isReordering, setIsReordering] = useState(false);
 
-  // Modal states
+  // Modales
   const [isAddCategoryModalVisible, setAddCategoryModalVisible] =
     useState(false);
   const [isEditCategoryModalVisible, setEditCategoryModalVisible] =
@@ -83,7 +110,6 @@ const LibrariesSection = memo(function LibrariesSection({
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [selectedTrickData, setSelectedTrickData] = useState<any>(null);
 
-  // Delete modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<{
     id: string;
@@ -95,28 +121,33 @@ const LibrariesSection = memo(function LibrariesSection({
   const [selectedCategoryForActions, setSelectedCategoryForActions] =
     useState<Category | null>(null);
 
-  // Total tricks count state
+  // Totales
   const [totalTricksCount, setTotalTricksCount] = useState(0);
 
-  // Order state
+  // Orden BD
   const [categoryOrder, setCategoryOrder] = useState<any[]>([]);
   const [trickOrders, setTrickOrders] = useState<Map<string, any[]>>(new Map());
 
-  // Drag and drop states for categories
-  const [draggedItem, setDraggedItem] = useState<any>(null);
+  // Drag categorías
+  const [draggedItem, setDraggedItem] = useState<{
+    id: string;
+    name: string;
+    itemCount: number;
+    originalIndex: number;
+    startX?: number;
+    startY?: number;
+  } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const flatListRef = useRef<FlashList<any>>(null);
-
-  // Ref para mantener el draggedItem durante todo el proceso
   const draggedItemRef = useRef<any>(null);
 
-  // Shared values para animaciones de drag
+  const flatListRef = useRef<FlashList<any> | null>(null);
+
   const dragTranslateX = useSharedValue(0);
   const dragTranslateY = useSharedValue(0);
   const dragScale = useSharedValue(1);
 
-  // Estados para drag & drop de trucos
+  // Drag trucos (igual que tenías)
   const [draggedTrick, setDraggedTrick] = useState<any>(null);
   const isDraggingTrickRef = useRef(false);
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
@@ -125,17 +156,70 @@ const LibrariesSection = memo(function LibrariesSection({
   >(null);
   const draggedTrickRef = useRef<any>(null);
 
-  // Shared values para animaciones de drag de trucos
   const trickDragTranslateX = useSharedValue(0);
   const trickDragTranslateY = useSharedValue(0);
   const trickDragScale = useSharedValue(1);
 
-  // Estado de expansión
+  // Estado expansión
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set()
   );
 
-  // Check if search or filters are active
+  // Overlay container y scroll
+  const overlayContainerRef = useRef<View | null>(null);
+  const [containerLeft, setContainerLeft] = useState(0);
+  const [containerTop, setContainerTop] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
+
+  // Layouts de filas (categorías no-favoritas)
+  const rowLayoutsRef = useRef<Map<string, { y: number; height: number }>>(
+    new Map()
+  );
+  const registerRowLayout = useCallback(
+    (categoryId: string, y: number, height: number) => {
+      const m = rowLayoutsRef.current;
+      const prev = m.get(categoryId);
+      if (!prev || prev.y !== y || prev.height !== height) {
+        m.set(categoryId, { y, height });
+      }
+    },
+    []
+  );
+  const clearRowLayouts = useCallback(() => {
+    rowLayoutsRef.current.clear();
+  }, []);
+
+  const measureOverlayContainer = useCallback(() => {
+    const node = findNodeHandle(overlayContainerRef.current);
+    if (!node || !overlayContainerRef.current) return;
+    overlayContainerRef.current.measureInWindow((x, y, w) => {
+      setContainerLeft(x || 0);
+      setContainerTop(y || 0);
+      setContainerWidth(w || 0);
+    });
+  }, []);
+
+  useEffect(() => {
+    // medir al montar (RAF envía timestamp; lo envolvemos)
+    requestAnimationFrame(() => measureOverlayContainer());
+  }, [measureOverlayContainer]);
+
+  // Hooks de datos
+  const { sections, loading, loadingMore, hasMore, error, loadMore, refresh } =
+    usePaginatedContent(searchQuery, searchFilters);
+
+  // Usuario
+  useEffect(() => {
+    const fetchUserId = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    fetchUserId();
+  }, []);
+
   const hasActiveSearchOrFilters = useMemo(() => {
     const hasSearch = searchQuery.trim() !== "";
     const hasFilters =
@@ -143,124 +227,78 @@ const LibrariesSection = memo(function LibrariesSection({
       (searchFilters.categories.length > 0 ||
         searchFilters.tags.length > 0 ||
         searchFilters.difficulties.length > 0 ||
-        searchFilters.resetTimes.min !== undefined ||
-        searchFilters.resetTimes.max !== undefined ||
-        searchFilters.durations.min !== undefined ||
-        searchFilters.durations.max !== undefined ||
-        searchFilters.angles.length > 0 ||
-        (searchFilters.isPublic !== null &&
-          searchFilters.isPublic !== undefined) ||
-        (searchFilters.sortOrder && searchFilters.sortOrder !== "recent"));
+        (searchFilters as any).resetTimes?.min !== undefined ||
+        (searchFilters as any).resetTimes?.max !== undefined ||
+        (searchFilters as any).durations?.min !== undefined ||
+        (searchFilters as any).durations?.max !== undefined ||
+        (searchFilters as any).angles?.length > 0 ||
+        ((searchFilters as any).isPublic !== null &&
+          (searchFilters as any).isPublic !== undefined) ||
+        ((searchFilters as any).sortOrder &&
+          (searchFilters as any).sortOrder !== "recent"));
     return hasSearch || hasFilters;
   }, [searchQuery, searchFilters]);
 
-  // Use paginated content hook
-  const {
-    sections,
-    loading,
-    loadingMore,
-    hasMore,
-    error,
-    loadMore,
-    refresh,
-    allCategories,
-  } = usePaginatedContent(searchQuery, searchFilters);
-
-  // Get user ID
-  useEffect(() => {
-    const fetchUserId = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-      }
-    };
-    fetchUserId();
-  }, []);
-
-  // Load custom order when user ID is available
   useEffect(() => {
     if (userId && !hasActiveSearchOrFilters) {
       loadCustomOrder();
     }
   }, [userId, hasActiveSearchOrFilters]);
 
-  // Load custom order from database
   const loadCustomOrder = async () => {
     if (!userId) return;
-
     const categoryOrderData = await orderService.getUserCategoryOrder(userId);
     const allTrickOrders = await orderService.getAllUserTrickOrders(userId);
-
     setCategoryOrder(categoryOrderData);
 
-    // Group trick orders by category
     const ordersByCategory = new Map<string, any[]>();
     allTrickOrders.forEach((order) => {
       const categoryOrders = ordersByCategory.get(order.category_id) || [];
       categoryOrders.push(order);
       ordersByCategory.set(order.category_id, categoryOrders);
     });
-
     setTrickOrders(ordersByCategory);
   };
 
-  // Apply custom order to sections
   const orderedSections = useMemo(() => {
     if (hasActiveSearchOrFilters || categoryOrder.length === 0) {
       return sections;
     }
 
-    // Create a map of category positions
     const positionMap = new Map<string, number>();
     categoryOrder.forEach((order) => {
       positionMap.set(order.category_id, order.position);
     });
 
-    // Sort sections based on custom order
     const sorted = [...sections].sort((a, b) => {
-      // Favorites always first
       const aIsFavorites = a.category.name.toLowerCase().includes("favorit");
       const bIsFavorites = b.category.name.toLowerCase().includes("favorit");
-
       if (aIsFavorites && !bIsFavorites) return -1;
       if (!aIsFavorites && bIsFavorites) return 1;
-
       const aPos = positionMap.get(a.category.id) ?? Number.MAX_VALUE;
       const bPos = positionMap.get(b.category.id) ?? Number.MAX_VALUE;
-
       return aPos - bPos;
     });
 
-    // Apply trick order within each category
     return sorted.map((section) => {
       const categoryTrickOrder = trickOrders.get(section.category.id);
-      if (!categoryTrickOrder || categoryTrickOrder.length === 0) {
-        return section;
-      }
+      if (!categoryTrickOrder?.length) return section;
 
-      // Create position map for tricks
       const trickPositionMap = new Map<string, number>();
       categoryTrickOrder.forEach((order) => {
         trickPositionMap.set(order.trick_id, order.position);
       });
 
-      // Sort items based on custom order
       const sortedItems = [...(section.items || [])].sort((a, b) => {
         const aPos = trickPositionMap.get(a.id) ?? Number.MAX_VALUE;
         const bPos = trickPositionMap.get(b.id) ?? Number.MAX_VALUE;
         return aPos - bPos;
       });
 
-      return {
-        ...section,
-        items: sortedItems,
-      };
+      return { ...section, items: sortedItems };
     });
   }, [sections, categoryOrder, trickOrders, hasActiveSearchOrFilters]);
 
-  // Filter sections to hide empty categories when there's an active search
   const filteredSections = useMemo(() => {
     const hasActiveSearch =
       searchQuery.trim() !== "" || hasActiveSearchOrFilters;
@@ -269,21 +307,16 @@ const LibrariesSection = memo(function LibrariesSection({
 
     if (hasActiveSearch) {
       result = orderedSections.filter((section) => {
-        if (section.items && section.items.length > 0) {
-          return true;
-        }
-
+        if (section.items && section.items.length > 0) return true;
         if (searchQuery.trim()) {
           const categoryNameLower = section.category.name.toLowerCase();
           const searchQueryLower = searchQuery.toLowerCase().trim();
           return categoryNameLower.includes(searchQueryLower);
         }
-
         return false;
       });
     }
 
-    // Añadir estado de expansión
     return result.map((section) => ({
       ...section,
       isExpanded: expandedCategories.has(section.category.id),
@@ -295,119 +328,110 @@ const LibrariesSection = memo(function LibrariesSection({
     expandedCategories,
   ]);
 
-  // Handle expand/collapse
+  const nonFavoriteSections = useMemo(
+    () =>
+      filteredSections.filter(
+        (s) => !s.category.name.toLowerCase().includes("favorit")
+      ),
+    [filteredSections]
+  );
+
+  // Si cambia el tamaño base, reseteo layouts del drop
+  useEffect(() => {
+    setHoveredIndex(null);
+    clearRowLayouts();
+    forceUpdate();
+  }, [nonFavoriteSections.length, clearRowLayouts]);
+
   const handleExpandChange = useCallback(
     (categoryId: string, isExpanded: boolean) => {
       setExpandedCategories((prev) => {
-        const newSet = new Set(prev);
-        if (isExpanded) {
-          newSet.add(categoryId);
-        } else {
-          newSet.delete(categoryId);
-        }
-        return newSet;
+        const next = new Set(prev);
+        if (isExpanded) next.add(categoryId);
+        else next.delete(categoryId);
+        return next;
       });
     },
     []
   );
 
-  // Handle drag start
+  const collapseIfExpanded = useCallback((categoryId: string) => {
+    setExpandedCategories((prev) => {
+      if (!prev.has(categoryId)) return prev;
+      const next = new Set(prev);
+      next.delete(categoryId);
+      return next;
+    });
+  }, []);
+
+  // --- DRAG categorías ---
   const handleDragStart = useCallback(
-    (itemId: string, index: number) => {
-      console.log("🟢 handleDragStart - INICIO", { itemId, index });
+    (itemId: string, index: number, startX?: number, startY?: number) => {
+      collapseIfExpanded(itemId);
 
       const section = filteredSections.find((s) => s.category.id === itemId);
-      if (!section) {
-        console.log("🟢 No se encontró la sección");
-        return;
-      }
+      if (!section) return;
+      if (section.category.name.toLowerCase().includes("favorit")) return;
 
-      if (section.category.name.toLowerCase().includes("favorit")) {
-        console.log("🟢 Es categoría de favoritos - no se puede arrastrar");
-        return;
-      }
-
-      const nonFavoriteSections = filteredSections.filter(
-        (s) => !s.category.name.toLowerCase().includes("favorit")
-      );
-
-      const realIndex = nonFavoriteSections.findIndex(
-        (s) => s.category.id === itemId
-      );
-
-      if (realIndex === -1) {
-        console.log("🟢 No se encontró el índice real");
-        return;
-      }
-
-      const itemHeight = 68;
-      const headerHeight = 40;
-      const originalY = headerHeight + realIndex * itemHeight;
-
-      // Resetear valores animados
       dragTranslateX.value = 0;
       dragTranslateY.value = 0;
-      dragScale.value = withSpring(1.1);
+      dragScale.value = withSpring(1.05);
 
-      const newDraggedItem = {
+      const nonFav = filteredSections.filter(
+        (s) => !s.category.name.toLowerCase().includes("favorit")
+      );
+      const realIndex = nonFav.findIndex((s) => s.category.id === itemId);
+      if (realIndex === -1) return;
+
+      const newDragged = {
         id: section.category.id,
         name: section.category.name,
         originalIndex: realIndex,
-        originalY: originalY,
         itemCount: section.items?.length || 0,
+        startX,
+        startY,
       };
 
-      console.log("🟢 Configurando draggedItem:", newDraggedItem);
-
-      // Guardar en ambos lugares para asegurar que no se pierda
-      draggedItemRef.current = newDraggedItem;
-      setDraggedItem(newDraggedItem);
+      draggedItemRef.current = newDragged;
+      setDraggedItem(newDragged);
       setIsDragging(true);
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     },
-    [filteredSections, dragTranslateX, dragTranslateY, dragScale]
+    [
+      filteredSections,
+      collapseIfExpanded,
+      dragTranslateX,
+      dragTranslateY,
+      dragScale,
+    ]
   );
 
-  // Handle drag move
   const handleDragMove = useCallback(
     (translationY: number) => {
-      // Actualizar la posición del overlay
       dragTranslateY.value = translationY;
 
-      // Calcular el índice basado en el desplazamiento
-      const itemHeight = 68;
-      const currentIndex = draggedItem?.originalIndex || 0;
-      const indexOffset = Math.round(translationY / itemHeight);
-      const newIndex = Math.max(0, currentIndex + indexOffset);
+      const currentIndex = draggedItem?.originalIndex ?? 0;
+      const nonFavLen = nonFavoriteSections.length;
 
-      const nonFavoriteSections = filteredSections.filter(
-        (s) => !s.category.name.toLowerCase().includes("favorit")
-      );
+      // Cambiar de slot cuando el centro cruza
+      const indexOffset = Math.floor((translationY + 68 / 2) / 68);
+      const proposed = currentIndex + indexOffset;
+      const newIndex = Math.max(0, Math.min(proposed, nonFavLen));
 
-      if (newIndex >= 0 && newIndex < nonFavoriteSections.length) {
+      if (newIndex !== hoveredIndex) {
         setHoveredIndex(newIndex);
-
-        // Haptic feedback solo cuando cambia el índice
-        if (newIndex !== hoveredIndex) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
-    [draggedItem, filteredSections, dragTranslateY, hoveredIndex]
+    [draggedItem, hoveredIndex, nonFavoriteSections.length, dragTranslateY]
   );
 
-  // Handle drag end
   const handleDragEnd = useCallback(
     async (finalY: number) => {
-      console.log("🔴 handleDragEnd - INICIO con finalY:", finalY);
-
-      // Usar el ref como respaldo si el state se perdió
       const currentDraggedItem = draggedItem || draggedItemRef.current;
-
-      if (!currentDraggedItem || !userId || isReordering) {
-        console.log("🔴 Saliendo temprano");
-        // Limpiar todo inmediatamente
+      if (!currentDraggedItem || !userId) {
+        // limpieza rápida
         draggedItemRef.current = null;
         setDraggedItem(null);
         setIsDragging(false);
@@ -417,89 +441,44 @@ const LibrariesSection = memo(function LibrariesSection({
         return;
       }
 
-      // IMPORTANTE: Limpiar estados visuales INMEDIATAMENTE
+      // --- LIMPIEZA INSTANTÁNEA DE UI ---
       draggedItemRef.current = null;
-      setDraggedItem(null);
       setIsDragging(false);
+      setDraggedItem(null);
       setHoveredIndex(null);
       dragTranslateY.value = 0;
       dragScale.value = 1;
 
       try {
-        const itemHeight = 68;
-        const indexOffset = Math.round(finalY / itemHeight);
-        const oldIndex = currentDraggedItem.originalIndex;
-
-        // Obtener las secciones no-favoritos para calcular el límite correcto
-        const nonFavoriteSections = filteredSections.filter(
-          (s) => !s.category.name.toLowerCase().includes("favorit")
-        );
-
+        const currentIndex = currentDraggedItem.originalIndex;
+        const indexOffset = Math.floor((finalY + 68 / 2) / 68);
+        const nonFavLen = nonFavoriteSections.length;
         const newIndex = Math.max(
           0,
-          Math.min(oldIndex + indexOffset, nonFavoriteSections.length - 1)
+          Math.min(currentIndex + indexOffset, nonFavLen)
         );
 
-        console.log("🔴 Cálculo de índices:", {
-          finalY,
-          indexOffset,
-          oldIndex,
-          newIndex,
-          totalNonFavorites: nonFavoriteSections.length,
-        });
-
-        if (oldIndex === newIndex) {
-          console.log("🔴 No se movió - ya limpiamos estados");
-          return;
-        }
-
-        // Prevenir múltiples reordenamientos
-        if (isReordering) {
-          console.log("🔴 Ya está reordenando");
+        if (currentIndex === newIndex || isReordering) {
           return;
         }
 
         setIsReordering(true);
 
-        // Validar índices
-        if (
-          oldIndex < 0 ||
-          oldIndex >= nonFavoriteSections.length ||
-          newIndex < 0 ||
-          newIndex >= nonFavoriteSections.length
-        ) {
-          console.error(
-            `Índice fuera de rango: oldIndex=${oldIndex}, newIndex=${newIndex}, max=${
-              nonFavoriteSections.length - 1
-            }`
-          );
-          setIsReordering(false);
-          return;
-        }
+        const nonFav = nonFavoriteSections;
+        const visualOrder = nonFav.map((s) => s.category.id);
+        const [moved] = visualOrder.splice(currentIndex, 1);
+        visualOrder.splice(newIndex, 0, moved);
 
-        // Reordenar categorías localmente
-        const visualOrder = nonFavoriteSections.map((s) => s.category.id);
-        console.log("🔴 Orden antes:", visualOrder);
-
-        const [movedItem] = visualOrder.splice(oldIndex, 1);
-        visualOrder.splice(newIndex, 0, movedItem);
-
-        console.log("🔴 Orden después:", visualOrder);
-
-        // Crear actualizaciones
         const updates = visualOrder.map((categoryId, index) => ({
           user_id: userId,
           category_id: categoryId,
           position: index,
         }));
-
-        // Actualizar estado local INMEDIATAMENTE
         setCategoryOrder(updates);
 
-        // Guardar en BD en background (sin await)
-        const saveToDatabase = async () => {
+        // Guardado en BD (no bloquea UI)
+        (async () => {
           try {
-            // Actualizar en la base de datos
             for (const update of updates) {
               await orderService.updateCategoryOrder(
                 userId,
@@ -507,44 +486,31 @@ const LibrariesSection = memo(function LibrariesSection({
                 update.position
               );
             }
-
-            // Forzar flush de actualizaciones
             await orderService.flushUpdates();
-
-            // Recargar el orden personalizado
             await loadCustomOrder();
-
-            console.log("🔴 Base de datos actualizada exitosamente");
           } catch (error) {
-            console.error("🔴 Error actualizando base de datos:", error);
-            // Opcionalmente: revertir cambios locales si falla
-            // loadCustomOrder();
+            console.error("Error actualizando base de datos:", error);
           } finally {
             setIsReordering(false);
           }
-        };
-
-        // Ejecutar guardado en background
-        saveToDatabase();
+        })();
       } catch (error) {
-        console.error("🔴 Error en handleDragEnd:", error);
+        console.error("Error en handleDragEnd:", error);
         setIsReordering(false);
       }
-
-      console.log("🔴 handleDragEnd - FIN (UI actualizada)");
     },
     [
       draggedItem,
       userId,
       isReordering,
-      filteredSections,
+      nonFavoriteSections,
       loadCustomOrder,
       dragScale,
       dragTranslateY,
     ]
   );
 
-  // Handle trick drag start
+  // --- DRAG TRUCOS (igual que tenías) ---
   const handleTrickDragStart = useCallback(
     (
       trickId: string,
@@ -553,16 +519,6 @@ const LibrariesSection = memo(function LibrariesSection({
       startX: number,
       startY: number
     ) => {
-      console.log("📍 LIBRARIES - handleTrickDragStart con posición inicial", {
-        trickId,
-        categoryId,
-        index,
-        startX,
-        startY,
-        screenHeight: Dimensions.get("window").height,
-      });
-
-      // Buscar el truco en las secciones
       let trickData = null;
       for (const section of filteredSections) {
         if (section.category.id === categoryId) {
@@ -573,36 +529,24 @@ const LibrariesSection = memo(function LibrariesSection({
           }
         }
       }
+      if (!trickData) return;
 
-      if (!trickData) {
-        console.log("📍 LIBRARIES - No se encontró el truco");
-        return;
-      }
-
-      // Resetear valores animados
       trickDragTranslateX.value = 0;
       trickDragTranslateY.value = 0;
       trickDragScale.value = withSpring(1.05);
 
-      // NO aplicar offset aquí - el overlay se centrará automáticamente
       const newDraggedTrick = {
         id: trickId,
         title: trickData.title,
-        categoryId: categoryId,
+        categoryId,
         originalIndex: index,
         data: trickData,
-        startX: startX,
-        startY: startY, // Sin offset
+        startX,
+        startY,
       };
-
-      console.log(
-        "📍 LIBRARIES - Configurando draggedTrick con posición:",
-        newDraggedTrick
-      );
 
       draggedTrickRef.current = newDraggedTrick;
       isDraggingTrickRef.current = true;
-
       setDraggedTrick(newDraggedTrick);
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -610,185 +554,82 @@ const LibrariesSection = memo(function LibrariesSection({
     [filteredSections, trickDragTranslateX, trickDragTranslateY, trickDragScale]
   );
 
-  // Handle trick drag move
   const handleTrickDragMove = useCallback(
     (translationX: number, translationY: number) => {
-      console.log("📍 LIBRARIES - handleTrickDragMove llamado", {
-        translationX,
-        translationY,
-        isDraggingTrick: isDraggingTrickRef.current,
-        draggedTrick: draggedTrickRef.current?.id,
-      });
-
-      // Usar refs en lugar de state
-      if (!draggedTrickRef.current || !isDraggingTrickRef.current) {
-        console.log("📍 LIBRARIES - Saliendo temprano de handleTrickDragMove");
-        return;
-      }
-
-      // Actualizar la posición del overlay
+      if (!draggedTrickRef.current || !isDraggingTrickRef.current) return;
       trickDragTranslateX.value = translationX;
       trickDragTranslateY.value = translationY;
-
-      // Calcular sobre qué categoría está el truco
-      const itemHeight = 50;
-      const categoryHeight = 68;
-      const headerHeight = 40;
-
-      // Estimar la posición Y actual basándose en el desplazamiento
-      let accumulatedHeight = headerHeight;
-      let targetCategory = null;
-
-      for (const section of filteredSections) {
-        const sectionTop = accumulatedHeight;
-        const sectionHeight =
-          categoryHeight +
-          (section.isExpanded ? (section.items?.length || 0) * itemHeight : 0);
-
-        // Si el centro del drag está dentro de esta sección
-        if (
-          translationY + 200 >= sectionTop - accumulatedHeight &&
-          translationY + 200 < sectionTop + sectionHeight - accumulatedHeight
-        ) {
-          targetCategory = section.category.id;
-          break;
-        }
-
-        accumulatedHeight += sectionHeight + 8; // 8px margin
-      }
-
-      // Actualizar el objetivo de drop si cambió
-      if (targetCategory !== dropTargetCategoryId) {
-        console.log("📍 LIBRARIES - Cambiando categoría objetivo", {
-          anterior: dropTargetCategoryId,
-          nueva: targetCategory,
-        });
-        setDropTargetCategoryId(targetCategory);
-        if (targetCategory) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-      }
     },
-    [
-      filteredSections,
-      trickDragTranslateX,
-      trickDragTranslateY,
-      dropTargetCategoryId,
-    ]
+    [trickDragTranslateX, trickDragTranslateY]
   );
 
-  // Handle trick drag end
   const handleTrickDragEnd = useCallback(
     async (finalX: number, finalY: number) => {
-      console.log("🎯 handleTrickDragEnd", { finalX, finalY });
-
       const currentDraggedTrick = draggedTrickRef.current;
-
       if (!currentDraggedTrick || !userId) {
-        console.log("🎯 No hay truco o usuario - limpiando");
         resetTrickDragState();
         return;
       }
-
-      // Limpiar estados visuales inmediatamente
       resetTrickDragState();
-
-      // Si no hay categoría objetivo o es la misma, no hacer nada
       if (
         !dropTargetCategoryId ||
         dropTargetCategoryId === currentDraggedTrick.categoryId
       ) {
-        console.log("🎯 No hay cambio de categoría");
         return;
       }
-
       try {
-        console.log(
-          "🎯 Moviendo truco de",
-          currentDraggedTrick.categoryId,
-          "a",
-          dropTargetCategoryId
-        );
-
-        // Actualizar la base de datos en background
         const moveTrick = async () => {
           try {
-            // 1. Eliminar de la categoría actual
             await supabase
               .from("trick_categories")
               .delete()
               .eq("trick_id", currentDraggedTrick.id)
               .eq("category_id", currentDraggedTrick.categoryId);
-
-            // 2. Añadir a la nueva categoría
             await supabase.from("trick_categories").insert({
               trick_id: currentDraggedTrick.id,
               category_id: dropTargetCategoryId,
             });
-
-            // 3. Actualizar el orden en ambas categorías
-            // TODO: Implementar lógica de orden
-
-            console.log("🎯 Truco movido exitosamente");
-
-            // Refrescar los datos
             refresh();
           } catch (error) {
-            console.error("🎯 Error moviendo truco:", error);
+            console.error("Error moviendo truco:", error);
           }
         };
-
-        // Ejecutar en background
         moveTrick();
       } catch (error) {
-        console.error("🎯 Error en handleTrickDragEnd:", error);
+        console.error("Error en handleTrickDragEnd:", error);
       }
     },
     [userId, dropTargetCategoryId, refresh]
   );
 
-  // Función helper para resetear el estado del drag de trucos
   const resetTrickDragState = useCallback(() => {
-    console.log("🎯 Reseteando estado del drag de trucos");
-
     draggedTrickRef.current = null;
     isDraggingTrickRef.current = false;
-
     setDraggedTrick(null);
     setDropTargetCategoryId(null);
-
     trickDragTranslateX.value = 0;
     trickDragTranslateY.value = 0;
     trickDragScale.value = 1;
   }, [trickDragTranslateX, trickDragTranslateY, trickDragScale]);
 
-  // Calculate total tricks count whenever sections update
+  // Totales
   useEffect(() => {
-    const calculateTotalTricks = () => {
-      const total = sections.reduce((acc, section) => {
-        const categoryName = section.category.name.toLowerCase().trim();
-        const isFavoritesCategory = [
-          "favoritos",
-          "favorites",
-          "favourites",
-          "favorito",
-          "favorite",
-          "favourite",
-        ].includes(categoryName);
-
-        if (isFavoritesCategory) {
-          return acc;
-        }
-
-        return acc + (section.items?.length || 0);
-      }, 0);
-      setTotalTricksCount(total);
-    };
-
-    calculateTotalTricks();
+    const total = sections.reduce((acc, section) => {
+      const categoryName = section.category.name.toLowerCase().trim();
+      const isFavoritesCategory = [
+        "favoritos",
+        "favorites",
+        "favourites",
+        "favorito",
+        "favorite",
+        "favourite",
+      ].includes(categoryName);
+      if (isFavoritesCategory) return acc;
+      return acc + (section.items?.length || 0);
+    }, 0);
+    setTotalTricksCount(total);
   }, [sections]);
 
-  // Update when a trick is deleted
   useEffect(() => {
     if (deletedTrickId) {
       const clearCacheAndRefresh = async () => {
@@ -800,12 +641,11 @@ const LibrariesSection = memo(function LibrariesSection({
           refresh();
         }
       };
-
       clearCacheAndRefresh();
     }
   }, [deletedTrickId, refresh]);
 
-  // Fetch item data
+  // Fetch item
   const fetchItemData = async (item: any) => {
     try {
       const {
@@ -832,7 +672,7 @@ const LibrariesSection = memo(function LibrariesSection({
         if (angles && typeof angles === "string") {
           try {
             angles = JSON.parse(angles);
-          } catch (e) {
+          } catch {
             angles = [];
           }
         }
@@ -846,9 +686,7 @@ const LibrariesSection = memo(function LibrariesSection({
             .eq("id", categoryId)
             .single();
 
-          if (categoryData) {
-            categoryName = categoryData.name;
-          }
+          if (categoryData) categoryName = categoryData.name;
         }
 
         const { data: photosData } = await supabase
@@ -867,7 +705,7 @@ const LibrariesSection = memo(function LibrariesSection({
           effect_video_url: data.effect_video_url,
           secret_video_url: data.secret_video_url,
           photo_url: data.photo_url,
-          photos: photos,
+          photos,
           script: data.scripts?.[0]?.content || "",
           angles: angles || [],
           duration: data.duration || 0,
@@ -886,7 +724,7 @@ const LibrariesSection = memo(function LibrariesSection({
     }
   };
 
-  // Handle category actions
+  // CRUD categorías
   const handleAddCategory = useCallback(
     async (name: string) => {
       try {
@@ -896,12 +734,10 @@ const LibrariesSection = memo(function LibrariesSection({
         if (!user) return;
 
         const newCategory = await createCategory(user.id, name);
-
         if (newCategory && userId) {
           await orderService.initializeCategoryOrder(userId, newCategory.id);
           refresh();
         }
-
         setAddCategoryModalVisible(false);
       } catch (error) {
         console.error("Error adding category:", error);
@@ -913,14 +749,11 @@ const LibrariesSection = memo(function LibrariesSection({
   const handleEditCategory = useCallback(
     async (name: string) => {
       if (!editingCategory) return;
-
       try {
         const success = await updateCategory(editingCategory.id, name);
-
         if (success) {
           refresh();
         }
-
         setEditingCategory(null);
         setEditCategoryModalVisible(false);
       } catch (error) {
@@ -957,7 +790,6 @@ const LibrariesSection = memo(function LibrariesSection({
 
   const confirmDeleteCategory = useCallback(async () => {
     if (!categoryToDelete || !userId) return;
-
     try {
       const success = await deleteCategory(categoryToDelete.id);
       if (success) {
@@ -989,17 +821,58 @@ const LibrariesSection = memo(function LibrariesSection({
       if (itemData) {
         router.push({
           pathname: "/trick/[id]",
-          params: {
-            id: itemData.id,
-            trick: JSON.stringify(itemData),
-          },
+          params: { id: itemData.id, trick: JSON.stringify(itemData) },
         });
       }
     },
     [router, fetchItemData]
   );
 
-  // Render functions
+  // Scroll
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setScrollY(e.nativeEvent.contentOffset.y);
+  }, []);
+
+  // === computeDropY: lo colocamos DESPUÉS de tener filteredSections y nonFavoriteSections ===
+  const DROP_LINE_HALF = 3;
+  const CATEGORY_ROW_HEIGHT = 68;
+
+  const computeDropY = useCallback((): number | null => {
+    if (!isDragging || hoveredIndex == null) return null;
+
+    const nonFav = nonFavoriteSections;
+    if (nonFav.length === 0) return null;
+
+    if (hoveredIndex < 0) return null;
+    if (hoveredIndex > nonFav.length) return null;
+
+    // Después de la última fila
+    if (hoveredIndex === nonFav.length) {
+      const lastId = nonFav[nonFav.length - 1]?.category.id;
+      const lastLayout = lastId ? rowLayoutsRef.current.get(lastId) : undefined;
+      if (lastLayout) {
+        const y = lastLayout.y + lastLayout.height - scrollY + 4;
+        return Math.max(0, y - DROP_LINE_HALF);
+      }
+      const approxY =
+        nonFav.length * CATEGORY_ROW_HEIGHT - scrollY + 4 - DROP_LINE_HALF;
+      return Math.max(0, approxY);
+    }
+
+    // Antes de la fila hoveredIndex
+    const targetId = nonFav[hoveredIndex].category.id;
+    const targetLayout = rowLayoutsRef.current.get(targetId);
+    if (targetLayout) {
+      const y = targetLayout.y - scrollY - 4;
+      return Math.max(0, y - DROP_LINE_HALF);
+    }
+
+    const approxY =
+      hoveredIndex * CATEGORY_ROW_HEIGHT - scrollY - DROP_LINE_HALF;
+    return Math.max(0, approxY);
+  }, [isDragging, hoveredIndex, nonFavoriteSections, scrollY]);
+
+  // Header / footer / empty
   const ListHeader = useCallback(
     () => (
       <StyledView className="flex-row justify-between items-center mb-2 px-4">
@@ -1030,7 +903,6 @@ const LibrariesSection = memo(function LibrariesSection({
 
   const ListFooter = useCallback(() => {
     if (!loadingMore) return null;
-
     return (
       <StyledView className="py-4">
         <MagicLoader size="small" />
@@ -1076,12 +948,15 @@ const LibrariesSection = memo(function LibrariesSection({
     );
   }, [searchQuery, searchFilters, t]);
 
-  // Render category
+  // Render categoría (medimos layout de filas no-favoritas)
   const renderCategory = useCallback(
-    ({ item, index }: { item: any; index: number }) => {
+    ({ item }: { item: any; index: number }) => {
       const isFavorites = item.category.name.toLowerCase().includes("favorit");
-      const canDrag =
-        !hasActiveSearchOrFilters && !isFavorites && !item.isExpanded;
+      const canDrag = !hasActiveSearchOrFilters && !isFavorites;
+
+      const nonFavoriteIndex = nonFavoriteSections.findIndex(
+        (s) => s.category.id === item.category.id
+      );
 
       if (!canDrag) {
         return (
@@ -1107,28 +982,33 @@ const LibrariesSection = memo(function LibrariesSection({
         );
       }
 
-      const nonFavoriteIndex = filteredSections
-        .filter((s) => !s.category.name.toLowerCase().includes("favorit"))
-        .findIndex((s) => s.category.id === item.category.id);
-
       return (
-        <DraggableCategory
-          item={{
-            id: item.category.id,
-            name: item.category.name,
-            itemCount: item.items?.length || 0,
-            category: item.category,
+        <View
+          onLayout={(e) => {
+            const { y, height } = e.nativeEvent.layout;
+            registerRowLayout(item.category.id, y, height);
           }}
-          index={nonFavoriteIndex}
-          onDragStart={handleDragStart}
-          onDragMove={handleDragMove}
-          onDragEnd={handleDragEnd}
-          isDragging={isDragging}
-          draggedItemId={draggedItem?.id}
-          hoveredIndex={hoveredIndex}
-          onMoreOptions={() => handleMoreOptions(item.category)}
-          onToggleExpand={() => handleExpandChange(item.category.id, true)}
-        />
+        >
+          <DraggableCategory
+            item={{
+              id: item.category.id,
+              name: item.category.name,
+              itemCount: item.items?.length || 0,
+              category: item.category,
+            }}
+            index={nonFavoriteIndex}
+            onDragStart={handleDragStart}
+            onDragMove={handleDragMove}
+            onDragEnd={handleDragEnd}
+            isDragging={isDragging}
+            draggedItemId={draggedItem?.id || null}
+            hoveredIndex={hoveredIndex}
+            onMoreOptions={() => handleMoreOptions(item.category)}
+            onToggleExpand={() =>
+              handleExpandChange(item.category.id, !item.isExpanded)
+            }
+          />
+        </View>
       );
     },
     [
@@ -1145,13 +1025,14 @@ const LibrariesSection = memo(function LibrariesSection({
       isDragging,
       draggedItem,
       hoveredIndex,
-      filteredSections,
+      nonFavoriteSections,
       handleExpandChange,
       handleTrickDragStart,
       handleTrickDragMove,
       handleTrickDragEnd,
       draggedTrick,
       dropTargetCategoryId,
+      registerRowLayout,
     ]
   );
 
@@ -1163,9 +1044,12 @@ const LibrariesSection = memo(function LibrariesSection({
     }
   }, [hasMore, loadingMore, loadMore]);
 
-  // Main content
   const mainContent = (
-    <View style={{ flex: 1 }}>
+    <View
+      ref={overlayContainerRef}
+      style={{ flex: 1 }}
+      onLayout={measureOverlayContainer}
+    >
       <FlashList
         ref={flatListRef}
         data={filteredSections}
@@ -1190,26 +1074,39 @@ const LibrariesSection = memo(function LibrariesSection({
           />
         }
         contentContainerStyle={{
-          paddingBottom: NAVBAR_HEIGHT + BOTTOM_SPACING,
+          paddingBottom: NAVBAR_HEIGHT + (BOTTOM_SPACING || 0),
         }}
         drawDistance={200}
         removeClippedSubviews={true}
-        estimatedListSize={{
-          height: 600,
-          width: 350,
-        }}
+        estimatedListSize={{ height: 600, width: 350 }}
         scrollEnabled={!isDragging && !isDraggingTrickRef.current}
+        onScrollBeginDrag={measureOverlayContainer}
+        onMomentumScrollBegin={measureOverlayContainer}
+        onMomentumScrollEnd={measureOverlayContainer}
+        onScrollEndDrag={measureOverlayContainer}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       />
+
+      {/* Overlay: tarjeta que sigue al dedo (centrada en X) */}
       <DragOverlay
         draggedItem={draggedItem}
         translateX={dragTranslateX}
         translateY={dragTranslateY}
         scale={dragScale}
+        containerLeft={containerLeft}
+        containerTop={containerTop}
+        containerWidth={containerWidth}
+      />
+
+      {/* Overlay: línea de drop calculada con layouts + scroll */}
+      <DropLineOverlay
+        visible={isDragging && hoveredIndex != null}
+        y={computeDropY()}
       />
     </View>
   );
 
-  // Main render
   if (loading && sections.length === 0 && !error) {
     return (
       <StyledView className="flex-1">
@@ -1223,7 +1120,7 @@ const LibrariesSection = memo(function LibrariesSection({
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {/* ① TRICK OVERLAY A NIVEL RAÍZ - FUERA DE CUALQUIER CONTENEDOR */}
+      {/* Overlay de TRUCOS */}
       <TrickDragOverlay
         draggedTrick={draggedTrick}
         translateX={trickDragTranslateX}
@@ -1231,10 +1128,8 @@ const LibrariesSection = memo(function LibrariesSection({
         scale={trickDragScale}
       />
 
-      {/* ② CONTENEDOR PRINCIPAL CON TODO LO DEMÁS */}
       <StyledView className="flex-1">
         <ListHeader />
-
         {error ? (
           <StyledView className="flex-1 justify-center items-center p-4">
             <Text
@@ -1269,7 +1164,7 @@ const LibrariesSection = memo(function LibrariesSection({
           mainContent
         )}
 
-        {/* Modals */}
+        {/* Modales */}
         <CategoryModal
           visible={isAddCategoryModalVisible || isEditCategoryModalVisible}
           onClose={() => {
@@ -1340,7 +1235,6 @@ const LibrariesSection = memo(function LibrariesSection({
             setCategoryItemCount(0);
           }}
           categoryName={categoryToDelete?.name}
-          itemCount={categoryItemCount}
         />
       </StyledView>
     </GestureHandlerRootView>

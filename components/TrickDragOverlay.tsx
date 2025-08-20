@@ -48,49 +48,30 @@ export const TrickDragOverlay: React.FC<TrickDragOverlayProps> = ({
       };
     }
 
-    // Usar las posiciones iniciales directamente
     const startX = draggedTrick.startX || 0;
     const startY = draggedTrick.startY || 0;
 
-    // Calcular offsets dinámicamente
-    const FINGER_OFFSET_X = -overlayWidth / 2; // centrar horizontal
-    const FINGER_OFFSET_Y = -overlayHeight - 160; // justo encima del dedo 
+    const FINGER_OFFSET_X = -overlayWidth / 2;
+    const FINGER_OFFSET_Y = -overlayHeight - 160;
 
-    // Posición sin límites
     const rawX = startX + translateX.value + FINGER_OFFSET_X;
     const rawY = startY + translateY.value + FINGER_OFFSET_Y;
 
-    // Aplicar límites (clamp) para mantener el overlay dentro de la pantalla
     const clampedX = Math.max(
-      8, // margen izquierdo mínimo
-      Math.min(rawX, screenWidth - overlayWidth - 8) // margen derecho
+      8,
+      Math.min(rawX, screenWidth - overlayWidth - 8)
     );
-
     const clampedY = Math.max(
-      insets.top + 8, // no subir más allá del safe area top
-      Math.min(rawY, screenHeight - overlayHeight - insets.bottom - 8) // no bajar más allá del safe area bottom
+      insets.top + 8,
+      Math.min(rawY, screenHeight - overlayHeight - insets.bottom - 8)
     );
 
-    // Rotación basada en velocidad horizontal
     const rotation = interpolate(
       translateX.value,
       [-100, 0, 100],
       [-3, 0, 3],
       Extrapolate.CLAMP
     );
-
-    console.log("🟡 OVERLAY - Posición calculada", {
-      startX,
-      startY,
-      translateX: translateX.value,
-      translateY: translateY.value,
-      rawX,
-      rawY,
-      clampedX,
-      clampedY,
-      safeAreaTop: insets.top,
-      offsets: { x: FINGER_OFFSET_X, y: FINGER_OFFSET_Y },
-    });
 
     return {
       opacity: 1,
@@ -113,9 +94,7 @@ export const TrickDragOverlay: React.FC<TrickDragOverlayProps> = ({
     };
   });
 
-  if (!draggedTrick) {
-    return null;
-  }
+  if (!draggedTrick) return null;
 
   return (
     <View

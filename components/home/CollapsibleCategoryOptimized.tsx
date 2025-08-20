@@ -11,22 +11,21 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   Animated as RNAnimated,
-  LayoutChangeEvent,
 } from "react-native";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons, Entypo } from "@expo/vector-icons";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
-import { GestureDetector } from "react-native-gesture-handler";
 import { fontNames } from "../../app/_layout";
 import InlineProgressBar from "./TrickCompletionProgress";
 import { DraggableTrick } from "../DraggableTrick";
+import { CATEGORY_ROW_HEIGHT, TRICK_ROW_HEIGHT } from "../../utils/dragLayout";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
+const SHOW_DROP_TARGET_FILL = false;
 
 interface LibraryItem {
   id: string;
@@ -92,16 +91,14 @@ interface Props {
   isDropTarget?: boolean;
 }
 
-// Memoized library item row
+// Memoized library item row (solo tap, no drag)
 const LibraryItemRow = memo(
   ({
     item,
-    categoryId,
     onPress,
     searchQuery,
   }: {
     item: LibraryItem;
-    categoryId: string;
     onPress: () => void;
     searchQuery?: string;
   }) => {
@@ -110,94 +107,67 @@ const LibraryItemRow = memo(
 
       const query = searchQuery.toLowerCase().trim();
 
-      if (item.title.toLowerCase().includes(query)) {
-        return null;
-      }
-
-      if (item.notes?.toLowerCase().includes(query)) {
-        return "Notes";
-      }
-
-      if (item.secret?.toLowerCase().includes(query)) {
-        return "Secret";
-      }
-
-      if (item.effect?.toLowerCase().includes(query)) {
-        return "Effect";
-      }
-
+      if (item.title.toLowerCase().includes(query)) return null;
+      if (item.notes?.toLowerCase().includes(query)) return "Notes";
+      if (item.secret?.toLowerCase().includes(query)) return "Secret";
+      if (item.effect?.toLowerCase().includes(query)) return "Effect";
       return null;
     };
 
     const matchLocation = getSearchMatchLocation();
 
-    // Función para renderizar el contenido del elemento
-    const renderContent = () => (
-      <StyledView className="flex-row justify-between items-center">
-        <StyledView className="flex-1">
-          <Text
-            style={{
-              fontFamily: fontNames.light,
-              fontSize: 16,
-              color: "white",
-              marginLeft: 8,
-              includeFontPadding: false,
-            }}
-            numberOfLines={1}
-          >
-            {item.title}
-          </Text>
-          {matchLocation && (
+    return (
+      <StyledTouchableOpacity
+        style={{
+          paddingHorizontal: 8,
+          paddingVertical: 6,
+          borderRadius: 8,
+          marginBottom: 4,
+          minHeight: TRICK_ROW_HEIGHT, // ✅ altura mínima consistente
+          justifyContent: "center",
+          borderBottomWidth: 1,
+          borderBottomColor: "rgba(255, 255, 255, 0.1)",
+        }}
+        onPress={onPress}
+      >
+        <StyledView className="flex-row justify-between items-center">
+          <StyledView className="flex-1">
             <Text
               style={{
                 fontFamily: fontNames.light,
-                fontSize: 12,
-                color: "rgba(255, 255, 255, 0.6)",
+                fontSize: 16,
+                color: "white",
                 marginLeft: 8,
-                marginTop: 2,
                 includeFontPadding: false,
               }}
+              numberOfLines={1}
             >
-              In: {matchLocation}
+              {item.title}
             </Text>
-          )}
+            {matchLocation && (
+              <Text
+                style={{
+                  fontFamily: fontNames.light,
+                  fontSize: 12,
+                  color: "rgba(255, 255, 255, 0.6)",
+                  marginLeft: 8,
+                  marginTop: 2,
+                  includeFontPadding: false,
+                }}
+              >
+                In: {matchLocation}
+              </Text>
+            )}
+          </StyledView>
+          <InlineProgressBar item={item} />
         </StyledView>
-        <InlineProgressBar item={item} />
-      </StyledView>
-    );
-
-    const baseStyle = {
-      padding: 8,
-      borderRadius: 8,
-      marginBottom: 4,
-      borderBottomWidth: 1,
-      borderBottomColor: "rgba(255, 255, 255, 0.1)",
-    };
-
-    return (
-      <StyledTouchableOpacity style={baseStyle} onPress={onPress}>
-        {renderContent()}
       </StyledTouchableOpacity>
     );
   },
-  // Optimización de props para evitar re-renders innecesarios
-  (prevProps, nextProps) => {
-    return (
-      prevProps.item.id === nextProps.item.id &&
-      prevProps.item.title === nextProps.item.title &&
-      prevProps.item.is_shared === nextProps.item.is_shared &&
-      prevProps.item.is_favorite === nextProps.item.is_favorite &&
-      prevProps.item.effect_video_url === nextProps.item.effect_video_url &&
-      prevProps.item.effect === nextProps.item.effect &&
-      prevProps.item.secret_video_url === nextProps.item.secret_video_url &&
-      prevProps.item.secret === nextProps.item.secret &&
-      prevProps.item.duration === nextProps.item.duration &&
-      prevProps.item.reset === nextProps.item.reset &&
-      prevProps.item.difficulty === nextProps.item.difficulty &&
-      prevProps.searchQuery === nextProps.searchQuery &&
-      prevProps.categoryId === nextProps.categoryId
-    );
-  }
+  (prev, next) =>
+    prev.item.id === next.item.id &&
+    prev.item.title === next.item.title &&
+    prev.searchQuery === next.searchQuery
 );
 
 LibraryItemRow.displayName = "LibraryItemRow";
@@ -260,15 +230,13 @@ const CollapsibleCategoryOptimized = ({
     new RNAnimated.Value(isExpanded ? 1 : 0)
   ).current;
 
-  // Efecto para auto-expandir cuando es objetivo de drop
+  // Auto-expand si entra en drop target
   useEffect(() => {
     if (isDropTarget && !isExpanded) {
-      // Auto-expandir después de 500ms si un truco está sobre la categoría colapsada
       const timer = setTimeout(() => {
         setIsExpanded(true);
         onExpandChange?.(true);
       }, 500);
-
       return () => clearTimeout(timer);
     }
   }, [isDropTarget, isExpanded, onExpandChange]);
@@ -303,7 +271,7 @@ const CollapsibleCategoryOptimized = ({
 
   const filteredItems = useMemo(() => {
     if (!section.items) return [];
-
+    // Filtrado tal cual lo tenías
     return section.items.filter((item) => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase().trim();
@@ -321,9 +289,7 @@ const CollapsibleCategoryOptimized = ({
         searchFilters.isPublic !== null
       ) {
         const itemIsPublic = (item as any).is_public;
-        if (itemIsPublic !== searchFilters.isPublic) {
-          return false;
-        }
+        if (itemIsPublic !== searchFilters.isPublic) return false;
       }
 
       if (searchFilters?.difficulties?.length) {
@@ -347,50 +313,42 @@ const CollapsibleCategoryOptimized = ({
         searchFilters?.resetTimes?.min !== undefined ||
         searchFilters?.resetTimes?.max !== undefined
       ) {
-        if (item.reset === null || item.reset === undefined) return false;
-
+        if (item.reset == null) return false;
         if (
           searchFilters.resetTimes.min !== undefined &&
           item.reset < searchFilters.resetTimes.min
-        ) {
+        )
           return false;
-        }
         if (
           searchFilters.resetTimes.max !== undefined &&
           item.reset > searchFilters.resetTimes.max
-        ) {
+        )
           return false;
-        }
       }
 
       if (
         searchFilters?.durations?.min !== undefined ||
         searchFilters?.durations?.max !== undefined
       ) {
-        if (item.duration === null || item.duration === undefined) return false;
-
+        if (item.duration == null) return false;
         if (
           searchFilters.durations.min !== undefined &&
           item.duration < searchFilters.durations.min
-        ) {
+        )
           return false;
-        }
         if (
           searchFilters.durations.max !== undefined &&
           item.duration > searchFilters.durations.max
-        ) {
+        )
           return false;
-        }
       }
 
       if (searchFilters?.angles?.length) {
         if (!item.angles || !Array.isArray(item.angles)) return false;
-
         const itemAngles = item.angles.map((angle) => String(angle));
         const hasMatchingAngle = searchFilters.angles.some((filterAngle) =>
           itemAngles.includes(filterAngle)
         );
-
         if (!hasMatchingAngle) return false;
       }
 
@@ -416,8 +374,6 @@ const CollapsibleCategoryOptimized = ({
 
     const newExpandedState = !isExpanded;
     setIsExpanded(newExpandedState);
-
-    // Notificar al padre sobre el cambio
     onExpandChange?.(newExpandedState);
   }, [isExpanded, animatedHeight, animatedRotation, onExpandChange]);
 
@@ -445,10 +401,6 @@ const CollapsibleCategoryOptimized = ({
     .toLowerCase()
     .includes("favorit");
 
-  const containerStyle = [
-    { marginBottom: 8, paddingHorizontal: 16, position: "relative" as const },
-  ];
-
   const headerContent = (
     <StyledView
       className={`flex-row justify-between items-center px-3 border rounded-lg mb-2 ${
@@ -456,6 +408,9 @@ const CollapsibleCategoryOptimized = ({
           ? "bg-emerald-900/30 border-emerald-500/60"
           : "bg-[white]/10 border-white/40"
       }`}
+      style={{
+        height: CATEGORY_ROW_HEIGHT, // ✅ altura fija consistente con el cálculo
+      }}
     >
       <StyledView className="flex-row items-center flex-1">
         <RNAnimated.View
@@ -512,61 +467,21 @@ const CollapsibleCategoryOptimized = ({
       }}
     >
       {filteredItems.length > 0 ? (
-        filteredItems.map((item, index) => {
-          // Añadir el log aquí, antes del return
-          console.log("🟢 COLLAPSIBLE - Renderizando DraggableTrick", {
-            item: item.id,
-            categoryId: section.category.id,
-            callbacks: {
-              onTrickDragStart: typeof onTrickDragStart,
-              onTrickDragMove: typeof onTrickDragMove,
-              onTrickDragEnd: typeof onTrickDragEnd,
-              hasCallbacks:
-                !!onTrickDragStart && !!onTrickDragMove && !!onTrickDragEnd,
-            },
-            dragState: {
-              isDraggingTrick: isDraggingTrick,
-              draggedTrickId: draggedTrickId,
-            },
-          });
-
-          return (
-            <DraggableTrick
-              key={`${item.type}-${item.id}`}
-              item={item}
-              categoryId={section.category.id}
-              index={index}
-              onPress={() => handleItemPress(item)}
-              onDragStart={
-                onTrickDragStart ||
-                (() => {
-                  console.log(
-                    "🟢 COLLAPSIBLE - onTrickDragStart es undefined, usando función vacía"
-                  );
-                })
-              }
-              onDragMove={
-                onTrickDragMove ||
-                (() => {
-                  console.log(
-                    "🟢 COLLAPSIBLE - onTrickDragMove es undefined, usando función vacía"
-                  );
-                })
-              }
-              onDragEnd={
-                onTrickDragEnd ||
-                (() => {
-                  console.log(
-                    "🟢 COLLAPSIBLE - onTrickDragEnd es undefined, usando función vacía"
-                  );
-                })
-              }
-              isDragging={isDraggingTrick || false}
-              draggedTrickId={draggedTrickId || null}
-              searchQuery={searchQuery}
-            />
-          );
-        })
+        filteredItems.map((item, index) => (
+          <DraggableTrick
+            key={`${item.type}-${item.id}`}
+            item={item}
+            categoryId={section.category.id}
+            index={index}
+            onPress={() => handleItemPress(item)}
+            onDragStart={onTrickDragStart || (() => {})}
+            onDragMove={onTrickDragMove || (() => {})}
+            onDragEnd={onTrickDragEnd || (() => {})}
+            isDragging={isDraggingTrick || false}
+            draggedTrickId={draggedTrickId || null}
+            searchQuery={searchQuery}
+          />
+        ))
       ) : (
         <StyledView className="border-b border-white/20 p-2 mb-1 rounded-lg">
           <Text
@@ -587,9 +502,14 @@ const CollapsibleCategoryOptimized = ({
     </RNAnimated.View>
   );
 
-  // Renderizado normal
   return (
-    <StyledView style={containerStyle}>
+    <StyledView
+      style={{
+        marginBottom: 8,
+        paddingHorizontal: 16,
+        position: "relative",
+      }}
+    >
       {/* Indicador visual cuando la categoría es objetivo de drop */}
       {isDropTarget && (
         <Animated.View
@@ -601,13 +521,16 @@ const CollapsibleCategoryOptimized = ({
             bottom: 0,
             borderRadius: 8,
             borderWidth: 2,
-            borderColor: "rgba(16, 185, 129, 0.6)",
-            backgroundColor: "rgba(16, 185, 129, 0.1)",
+            borderColor: "rgba(16, 185, 129, 0.7)",
+            backgroundColor: SHOW_DROP_TARGET_FILL
+              ? "rgba(16, 185, 129, 0.12)"
+              : "transparent",
             pointerEvents: "none",
-            zIndex: 10,
+            zIndex: 20, // suficiente para estar sobre la tarjeta, pero por debajo del indicador de drop (que no está dentro)
           }}
         />
       )}
+
       <StyledTouchableOpacity onPress={toggleExpanded} activeOpacity={0.7}>
         {headerContent}
       </StyledTouchableOpacity>
@@ -617,5 +540,4 @@ const CollapsibleCategoryOptimized = ({
 };
 
 CollapsibleCategoryOptimized.displayName = "CollapsibleCategoryOptimized";
-
 export default CollapsibleCategoryOptimized;
