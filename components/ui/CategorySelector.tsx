@@ -5,15 +5,12 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Modal,
   Alert,
-  Dimensions,
+  Platform,
 } from "react-native";
 import { styled } from "nativewind";
 import { Feather } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { supabase } from "../../lib/supabase";
-import { BlurView } from "expo-blur";
 import {
   getUserCategories,
   getPredefinedCategories,
@@ -27,8 +24,6 @@ const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTextInput = styled(TextInput);
 const StyledTouchableOpacity = styled(TouchableOpacity);
-const StyledModal = styled(Modal);
-const StyledBlurView = styled(BlurView);
 
 interface CategorySelectorProps {
   selectedCategories: string[];
@@ -259,13 +254,25 @@ export default function CategorySelector({
       <StyledView className="mb-6">
         <StyledView className="flex-row items-center">
           {iconComponent}
-          <StyledView className="flex-1 flex-row items-center text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]">
+
+          {/* Contenedor del input: altura fija, padding aplicado aquí */}
+          <StyledView className="flex-1 flex-row items-center bg-[#D4D4D4]/10 rounded-lg border border-[#5bb9a3] h-12 pl-3 pr-2">
+            {/* Glyph-safe inset: evita que la primera letra toque/borde y se “muerda” */}
+            <StyledView style={{ width: 2 }} />
+
+            {/* TextInput estable (iOS + Android) sin padding horizontal propio */}
             <StyledTextInput
-              className="flex-1 text-white text-base bg-transparent"
+              className="flex-1 text-white bg-transparent"
               style={{
                 fontFamily: fontNames.light,
                 fontSize: 16,
+                height: 48, // altura fija
+                lineHeight: 22, // no corta descendentes
+                paddingVertical: 0, // sin padding vertical
                 includeFontPadding: false,
+                ...(Platform.OS === "android"
+                  ? { textAlignVertical: "center" as any }
+                  : { paddingTop: 1 }), // baseline fino iOS
               }}
               placeholder={placeholder}
               placeholderTextColor="rgba(255, 255, 255, 0.5)"
@@ -275,7 +282,10 @@ export default function CategorySelector({
               autoCorrect={false}
               returnKeyType="done"
               onSubmitEditing={handleAddCategory}
+              allowFontScaling={false}
+              multiline={false}
             />
+
             {allowCreate && (
               <StyledTouchableOpacity
                 onPress={handleAddCategory}
@@ -299,7 +309,7 @@ export default function CategorySelector({
           <StyledView className="mt-4" style={{ height: 44 }}>
             <ScrollView
               ref={scrollRef}
-              horizontal={true}
+              horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{
                 alignItems: "center",

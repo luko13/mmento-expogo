@@ -61,7 +61,7 @@
   },
   "titleAndCategories": "Título y Categorías",
   "effect": "Efecto",
-  "secret": "Secreto",
+  "secret": "Método",
   "extras": "Extras",
   "title": "Título",
   "enterTrickTitle": "Introduce el título del truco",
@@ -121,7 +121,7 @@
   "activityHistory": "Historial de Actividad",
   "logout": "Cerrar Sesión",
   "editCategory": "Editar Categoría",
-  "description": "Descripción (opcional)",
+  "description": "Descripción",
   "noSearchResults": "No se encontraron resultados",
   "category": "Categoría",
   "newCategory": "Nueva Categoría",
@@ -170,7 +170,7 @@
   "gimmicksSelected": "Gimmicks seleccionados",
   "gimmicks": "Gimmicks",
   "writeScript": "Escribir guión",
-  "registerMagic": "Registrar magia",
+  "registerMagic": "Registrar Item Mágico",
   "common": {
     "error": "Error",
     "success": "Éxito",
@@ -180,7 +180,7 @@
     "delete": "Eliminar"
   },
   "forms": {
-    "registerMagic": "Registrar Magia",
+    "registerMagic": "Registrar Item Mágico",
     "magicTitlePlaceholder": "Título del truco*",
     "categoryPlaceholder": "Categoría/s*",
     "tagPlaceholder": "Etiqueta/s",

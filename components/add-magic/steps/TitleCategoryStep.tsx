@@ -7,22 +7,15 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
-  Dimensions,
   TouchableWithoutFeedback,
   Keyboard,
   ScrollView,
+  Platform,
+  Dimensions,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
-import {
-  Feather,
-  Ionicons,
-  FontAwesome6,
-  MaterialIcons,
-  AntDesign,
-  FontAwesome5,
-} from "@expo/vector-icons";
+import { Feather, Ionicons, FontAwesome6, AntDesign } from "@expo/vector-icons";
 import { supabase } from "../../../lib/supabase";
 import type { MagicTrick } from "../../../types/magicTrick";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -68,89 +61,54 @@ export default function TitleCategoryStep({
 }: StepProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState<string | undefined>();
 
   // Validación en tiempo real del título
   const titleValidation = useMemo(() => {
-    if (!trickData.title) {
-      return { isValid: false, message: "" };
+    if (!trickData.title) return { isValid: false, message: "" };
+
+    const trimmed = trickData.title.trim();
+    if (trimmed.length === 0) {
+      return { isValid: false, message: t("validation.titleRequired") };
     }
-
-    const trimmedTitle = trickData.title.trim();
-
-    if (trimmedTitle.length === 0) {
-      return {
-        isValid: false,
-        message: t("validation.titleRequired"),
-      };
+    if (trimmed.length < 3) {
+      return { isValid: false, message: t("validation.titleTooShort") };
     }
-
-    if (trimmedTitle.length < 3) {
-      return {
-        isValid: false,
-        message: t("validation.titleTooShort"),
-      };
+    if (trimmed.length > 100) {
+      return { isValid: false, message: t("validation.titleTooLong") };
     }
-
-    if (trimmedTitle.length > 100) {
-      return {
-        isValid: false,
-        message: t("validation.titleTooLong"),
-      };
-    }
-
     return { isValid: true, message: "" };
   }, [trickData.title, t]);
 
   // Validación de categoría
   const categoryValidation = useMemo(() => {
     if (!trickData.selectedCategoryId) {
-      return {
-        isValid: false,
-        message: t("validation.categoryRequired"),
-      };
+      return { isValid: false, message: t("validation.categoryRequired") };
     }
     return { isValid: true, message: "" };
   }, [trickData.selectedCategoryId, t]);
 
-  // Validación general para el botón Next
   const isFormValid = titleValidation.isValid && categoryValidation.isValid;
 
-  // Obtener el usuario actual
+  // Usuario
   useEffect(() => {
-    const fetchUser = async () => {
+    (async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-      }
-    };
-    fetchUser();
+      if (user) setUserId(user.id);
+    })();
   }, []);
 
   // Handlers
-  const handleTitleChange = (text: string) => {
-    updateTrickData({ title: text });
-  };
-
-  const handleCategoriesChange = (categories: string[]) => {
-    // Como solo permitimos una categoría, tomamos la primera
+  const handleTitleChange = (text: string) => updateTrickData({ title: text });
+  const handleCategoriesChange = (categories: string[]) =>
     updateTrickData({
       selectedCategoryId: categories[0] || undefined,
       categories: trickData.categories,
     });
-  };
-
-  const handleTagsChange = (tags: string[]) => {
-    updateTrickData({ tags });
-  };
-
-  // Function to dismiss keyboard
-  const dismissKeyboard = () => {
-    Keyboard.dismiss();
-  };
+  const handleTagsChange = (tags: string[]) => updateTrickData({ tags });
+  const dismissKeyboard = () => Keyboard.dismiss();
 
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>
@@ -173,7 +131,7 @@ export default function TitleCategoryStep({
               >
                 {isEditMode
                   ? t("forms.editMagic", "Editar Magia")
-                  : t("forms.registerMagic")}
+                  : t("forms.registerMagic", "Registrar Item Mágico")}
               </StyledText>
 
               <StyledTouchableOpacity
@@ -181,9 +139,7 @@ export default function TitleCategoryStep({
                   !isFormValid || isSubmitting ? "opacity-30" : ""
                 }`}
                 onPress={() => {
-                  if (isFormValid && onSave) {
-                    onSave();
-                  }
+                  if (isFormValid && onSave) onSave();
                 }}
                 disabled={!isFormValid || isSubmitting}
               >
@@ -214,9 +170,7 @@ export default function TitleCategoryStep({
               {t("clasify", "Clasificar")}
             </StyledText>
 
-            {/* Contenedor de campos con distribución equidistante */}
             <StyledView className="flex-1 justify-between">
-              {/* Grupo de campos del formulario */}
               <StyledView className="flex-1 justify-evenly">
                 {/* Magic Title Field */}
                 <StyledView style={{ minHeight: 88 }}>
@@ -235,23 +189,37 @@ export default function TitleCategoryStep({
                           />
                         </StyledView>
                       </CustomTooltip>
-                      <StyledTextInput
-                        className="flex-1 text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#5bb9a3]"
-                        style={{
-                          fontFamily: fontNames.light,
-                          fontSize: 16,
-                          includeFontPadding: false,
-                        }}
-                        placeholder={t("forms.magicTitlePlaceholder")}
-                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                        value={trickData.title}
-                        onChangeText={handleTitleChange}
-                        maxLength={100}
-                        autoCapitalize="sentences"
-                        autoCorrect={false}
-                        returnKeyType="next"
-                      />
+
+                      {/* Contenedor: MISMO alto y borde que Category/Tag; sin padding izq */}
+                      <StyledView className="flex-1 h-12 bg-[#D4D4D4]/10 border border-[#5bb9a3] rounded-lg flex-row items-center pr-2">
+                        <StyledTextInput
+                          className="flex-1 text-[#FFFFFF]/70 bg-transparent"
+                          style={{
+                            fontFamily: fontNames.light,
+                            fontSize: 16,
+                            height: 48, // altura fija
+                            lineHeight: 22, // no corta descendentes
+                            paddingVertical: 0, // sin padding vertical
+                            paddingLeft: 14, // inset real: evita mordisco y ALINEA con Category/Tag
+                            includeFontPadding: false,
+                            ...(Platform.OS === "android"
+                              ? { textAlignVertical: "center" as any }
+                              : { paddingTop: 1 }), // iOS baseline fino
+                          }}
+                          placeholder={t("forms.magicTitlePlaceholder")}
+                          placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                          value={trickData.title}
+                          onChangeText={handleTitleChange}
+                          maxLength={100}
+                          autoCapitalize="sentences"
+                          autoCorrect={false}
+                          returnKeyType="next"
+                          allowFontScaling={false}
+                          multiline={false}
+                        />
+                      </StyledView>
                     </StyledView>
+
                     {trickData.title && !titleValidation.isValid && (
                       <StyledText
                         className="text-red-400 text-xs ml-11 mt-1"
@@ -349,7 +317,6 @@ export default function TitleCategoryStep({
 
           {/* Bottom Section */}
           <StyledView className="justify-end pt-6 px-6 pb-6">
-            {/* Step indicator */}
             <StyledText
               className="text-center text-white/60 mb-4"
               style={{
@@ -361,7 +328,6 @@ export default function TitleCategoryStep({
               {`${currentStep} de ${totalSteps}`}
             </StyledText>
 
-            {/* Next Step Button */}
             <StyledTouchableOpacity
               className={`w-full py-4 rounded-lg items-center justify-center flex-row ${
                 isFormValid && !isSubmitting && !isLastStep
@@ -370,9 +336,7 @@ export default function TitleCategoryStep({
               }`}
               disabled={!isFormValid || isSubmitting || isLastStep}
               onPress={() => {
-                if (isFormValid && onNext) {
-                  onNext();
-                }
+                if (isFormValid && onNext) onNext();
               }}
             >
               <StyledText

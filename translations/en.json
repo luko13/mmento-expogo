@@ -92,7 +92,7 @@
   "gimmicks": "Gimmicks",
   "titleAndCategories": "Title & Categories",
   "effect": "Effect",
-  "secret": "Secret",
+  "secret": "Method",
   "script": "Script",
   "extras": "Extras",
   "title": "Title",
@@ -184,7 +184,7 @@
     "delete": "Delete"
   },
   "forms": {
-    "registerMagic": "Register Magic",
+    "registerMagic": "Register Magic Item",
     "magicTitlePlaceholder": "Magic Title*",
     "categoryPlaceholder": "Category*",
     "tagPlaceholder": "Tag",
@@ -338,5 +338,5 @@
   "imageSizeWarning": "Image size should not exceed 10MB.",
   "writeScript": "Write script",
   "saving": "Saving...",
-  "registerMagic": "Register magic"
+  "registerMagic": "Register Magic Item"
 }

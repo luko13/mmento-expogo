@@ -5,9 +5,8 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Modal,
   Alert,
-  Dimensions,
+  Platform,
 } from "react-native";
 import { styled } from "nativewind";
 import { Feather } from "@expo/vector-icons";
@@ -21,7 +20,6 @@ const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTextInput = styled(TextInput);
 const StyledTouchableOpacity = styled(TouchableOpacity);
-const StyledModal = styled(Modal);
 
 interface Tag {
   id: string;
@@ -91,14 +89,14 @@ export default function TagSelector({
   const sortTagsBySelectionAndUsage = () => {
     let filtered = [...tags];
 
-    // Filtrar por búsqueda si hay texto
+    // Filtro por búsqueda
     if (newTag.trim() !== "") {
       filtered = tags.filter((tag) =>
         tag.name.toLowerCase().includes(newTag.toLowerCase())
       );
     }
 
-    // Ordenar: seleccionadas primero (manteniendo orden de selección), luego por uso
+    // Seleccionadas primero (manteniendo orden de selección), luego por uso desc
     const sorted = filtered.sort((a, b) => {
       const aSelected = selectedTags.includes(a.id);
       const bSelected = selectedTags.includes(b.id);
@@ -106,12 +104,10 @@ export default function TagSelector({
       if (aSelected && !bSelected) return -1;
       if (!aSelected && bSelected) return 1;
 
-      // Si ambas están seleccionadas, mantener el orden de selección
       if (aSelected && bSelected) {
         return selectedTags.indexOf(a.id) - selectedTags.indexOf(b.id);
       }
 
-      // Si ninguna está seleccionada, ordenar por uso (mayor a menor)
       return (b.usage_count || 0) - (a.usage_count || 0);
     });
 
@@ -119,13 +115,13 @@ export default function TagSelector({
   };
 
   const toggleTag = async (tagId: string) => {
-    const updatedTags = selectedTags.includes(tagId)
+    const updated = selectedTags.includes(tagId)
       ? selectedTags.filter((id) => id !== tagId)
       : [...selectedTags, tagId];
 
-    onTagsChange(updatedTags);
+    onTagsChange(updated);
 
-    // Hacer scroll al inicio cuando se selecciona
+    // Scroll al inicio cuando se selecciona
     if (!selectedTags.includes(tagId)) {
       setTimeout(() => {
         scrollRef.current?.scrollTo({ x: 0, animated: true });
@@ -159,8 +155,8 @@ export default function TagSelector({
         .from("predefined_tags")
         .insert({
           user_id: userId,
-          name: name,
-          color: color,
+          name,
+          color,
           usage_count: 0,
         })
         .select("id, name, color, usage_count")
@@ -185,13 +181,25 @@ export default function TagSelector({
       <StyledView className="mb-6">
         <StyledView className="flex-row items-center">
           {iconComponent}
-          <StyledView className="flex-1 flex-row items-center text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40">
+
+          {/* Contenedor del input: altura fija, padding aplicado aquí */}
+          <StyledView className="flex-1 flex-row items-center bg-[#D4D4D4]/10 rounded-lg border border-[#eafffb]/40 h-12 pl-3 pr-2">
+            {/* Glyph-safe inset: evita que la primera letra se “muerda” con el borde */}
+            <StyledView style={{ width: 2 }} />
+
+            {/* TextInput estable (iOS + Android) sin padding horizontal propio */}
             <StyledTextInput
-              className="flex-1 text-white text-base bg-transparent"
+              className="flex-1 text-white bg-transparent"
               style={{
                 fontFamily: fontNames.light,
                 fontSize: 16,
+                height: 48, // altura fija
+                lineHeight: 22, // no corta descendentes
+                paddingVertical: 0, // sin padding vertical
                 includeFontPadding: false,
+                ...(Platform.OS === "android"
+                  ? { textAlignVertical: "center" as any }
+                  : { paddingTop: 1 }), // iOS baseline fino
               }}
               placeholder={placeholder}
               placeholderTextColor="rgba(255, 255, 255, 0.5)"
@@ -201,7 +209,10 @@ export default function TagSelector({
               autoCorrect={false}
               returnKeyType="done"
               onSubmitEditing={handleAddTag}
+              allowFontScaling={false}
+              multiline={false}
             />
+
             {allowCreate && (
               <StyledTouchableOpacity
                 onPress={handleAddTag}
@@ -223,7 +234,7 @@ export default function TagSelector({
           <StyledView className="mt-4" style={{ height: 44 }}>
             <ScrollView
               ref={scrollRef}
-              horizontal={true}
+              horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{
                 alignItems: "center",
@@ -243,10 +254,12 @@ export default function TagSelector({
                     onPress={() => toggleTag(tag.id)}
                     style={{
                       backgroundColor: isSelected
-                        ? tagColor + "30" // 30 for selected (more opaque)
-                        : tagColor + "15", // 15 for unselected (more transparent)
+                        ? tagColor + "30" // más opaco si está seleccionado
+                        : tagColor + "15", // más transparente si no
                       borderWidth: 1,
-                      borderColor: isSelected ? textColor + "80" : tagColor + "60",
+                      borderColor: isSelected
+                        ? textColor + "80"
+                        : tagColor + "60",
                       borderRadius: 20,
                       paddingHorizontal: 16,
                       paddingVertical: 8,
