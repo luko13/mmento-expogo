@@ -1,11 +1,17 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   Modal,
-  Alert,
+  Animated,
 } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
@@ -26,7 +32,6 @@ const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledModal = styled(Modal);
 const StyledBlurView = styled(BlurView);
 
-// Lista de nombres de categorías reservadas
 const RESERVED_CATEGORY_NAMES = [
   "favoritos",
   "favorites",
@@ -42,7 +47,7 @@ interface CategoryModalProps {
   onConfirm: (name: string) => void;
   initialName?: string;
   mode?: "create" | "edit";
-  currentCategoryId?: string; // Para excluir la categoría actual al editar
+  currentCategoryId?: string;
 }
 
 const CategoryModal: React.FC<CategoryModalProps> = ({
@@ -56,100 +61,124 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
   const { t } = useTranslation();
   const [categoryName, setCategoryName] = useState(initialName);
   const [userId, setUserId] = useState<string | null>(null);
-  const [isEditingName, setIsEditingName] = useState(mode === "create");
+  const [isEditingName, setIsEditingName] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
 
-  // Obtener userId del storage cuando se monta el componente
+  const inputRef = useRef<TextInput>(null);
+
+  // cursor inline
+  const cursorOpacity = useRef(new Animated.Value(1)).current;
+  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
+
   useEffect(() => {
-    const getUserId = async () => {
+    (async () => {
       try {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        if (user) {
-          setUserId(user.id);
-        }
-      } catch (error) {
-        console.error("Error getting user:", error);
+        if (user) setUserId(user.id);
+      } catch (e) {
+        console.error("Error getting user:", e);
       }
-    };
-    getUserId();
+    })();
   }, []);
 
   useEffect(() => {
     setCategoryName(initialName);
-    setIsEditingName(mode === "create");
     setError("");
+    setIsFocused(false);
+    setIsEditingName(false); // siempre arrancamos sin edición
   }, [initialName, mode, visible]);
 
-  const validateCategoryName = useCallback(
-    async (name: string): Promise<string | null> => {
-      const trimmedName = name.trim();
+  // create: parpadea si vacío y no editando
+  // edit:   parpadea siempre que no edites
+  const shouldShowBlink = useMemo(() => {
+    if (!visible || isSubmitting || isEditingName) return false;
+    if (mode === "edit") return true;
+    return categoryName.trim().length === 0;
+  }, [visible, isSubmitting, isEditingName, mode, categoryName]);
 
-      // Validar longitud mínima
-      if (trimmedName.length < 3) {
+  useEffect(() => {
+    if (shouldShowBlink) {
+      loopRef.current?.stop?.();
+      loopRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(cursorOpacity, {
+            toValue: 0,
+            duration: 530,
+            useNativeDriver: true,
+          }),
+          Animated.timing(cursorOpacity, {
+            toValue: 1,
+            duration: 530,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      cursorOpacity.setValue(1);
+      loopRef.current.start();
+    } else {
+      loopRef.current?.stop?.();
+      cursorOpacity.setValue(0);
+    }
+    return () => {
+      loopRef.current?.stop?.();
+      cursorOpacity.setValue(1);
+    };
+  }, [shouldShowBlink, cursorOpacity]);
+
+  const validateCategoryName = useCallback(
+    async (name: string) => {
+      const trimmed = name.trim();
+      if (trimmed.length < 3)
         return t(
           "validation.minLength",
           "Category name must be at least 3 characters"
         );
-      }
-
-      // Validar nombres reservados
-      if (RESERVED_CATEGORY_NAMES.includes(trimmedName.toLowerCase())) {
+      if (RESERVED_CATEGORY_NAMES.includes(trimmed.toLowerCase()))
         return t(
           "validation.reservedCategory",
           "This category name is reserved and cannot be used"
         );
-      }
-
-      // Validar duplicados
       if (userId) {
         try {
-          const existingCategories = await getUserCategories(userId);
-          const isDuplicate = existingCategories.some(
+          const existing = await getUserCategories(userId);
+          const dup = existing.some(
             (cat) =>
-              cat.name.toLowerCase() === trimmedName.toLowerCase() &&
-              cat.id !== currentCategoryId // Excluir la categoría actual al editar
+              cat.name.toLowerCase() === trimmed.toLowerCase() &&
+              cat.id !== currentCategoryId
           );
-
-          if (isDuplicate) {
+          if (dup)
             return t(
               "validation.duplicateCategory",
               "A category with this name already exists"
             );
-          }
-        } catch (error) {
-          console.error("Error checking duplicates:", error);
+        } catch (e) {
+          console.error("Error checking duplicates:", e);
         }
       }
-
       return null;
     },
     [userId, currentCategoryId, t]
   );
 
   const handleConfirm = useCallback(async () => {
-    if (isSubmitting) return; // Prevenir múltiples envíos
-
-    const trimmedName = categoryName.trim();
-
-    // Validar antes de confirmar
+    if (isSubmitting) return;
+    const trimmed = categoryName.trim();
     setIsSubmitting(true);
-    const validationError = await validateCategoryName(trimmedName);
-
+    const validationError = await validateCategoryName(trimmed);
     if (validationError) {
       setError(validationError);
       setIsSubmitting(false);
       return;
     }
-
-    // Si todo está bien, confirmar
     try {
-      await onConfirm(trimmedName);
+      await onConfirm(trimmed);
       handleClose();
-    } catch (error) {
-      console.error("Error confirming category:", error);
+    } catch (e) {
+      console.error("Error confirming category:", e);
       setError(t("errors.generic", "An error occurred. Please try again."));
     } finally {
       setIsSubmitting(false);
@@ -161,12 +190,18 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
     setError("");
     setIsEditingName(false);
     setIsSubmitting(false);
+    setIsFocused(false);
     onClose();
   }, [initialName, onClose]);
 
   const handleNameChange = (text: string) => {
     setCategoryName(text);
-    setError(""); // Limpiar error al escribir
+    setError("");
+  };
+
+  const handlePillPress = () => {
+    setIsEditingName(true);
+    setTimeout(() => inputRef.current?.focus(), 50);
   };
 
   return (
@@ -177,139 +212,185 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
         experimentalBlurMethod="dimezisBlurView"
       >
         <StyledView className={modalClasses.mainContainer}>
-          <StyledBlurView
-            {...blurConfig.containerBlur}
-            experimentalBlurMethod="dimezisBlurView"
-            className={modalClasses.containerBlur}
-            style={modalStyles.modalContainer}
-          >
-            {/* Encabezado + Input */}
-            <StyledView className="pt-6 pb-4 px-6">
-              <StyledView className="flex-row items-center justify-center mb-4">
-                <StyledText
-                  className={`${modalClasses.titleText} mr-3`}
-                  style={{
-                    fontFamily: fontNames.semiBold,
-                    fontSize: 18,
-                    includeFontPadding: false,
-                  }}
-                >
-                  {mode === "create"
-                    ? t("forms.create", "Create")
-                    : t("forms.edit", "Edit")}
-                </StyledText>
+          {/* ⬇ wrapper con sombras y radio */}
+          <View style={modalStyles.modalCardShadow}>
+            {/* ⬇ Blur que recorta el radio (overflow hidden aquí) */}
+            <StyledBlurView
+              {...blurConfig.containerBlur}
+              experimentalBlurMethod="dimezisBlurView"
+              className={modalClasses.containerBlur}
+              style={modalStyles.modalCardBlur}
+            >
+              {/* Encabezado + Input */}
+              <StyledView className="pt-6 pb-4 px-6">
+                <StyledView className="flex-row items-center justify-center mb-4">
+                  <StyledText
+                    className={`${modalClasses.titleText} mr-3`}
+                    style={{
+                      fontFamily: fontNames.semiBold,
+                      fontSize: 18,
+                      includeFontPadding: false,
+                    }}
+                  >
+                    {mode === "create"
+                      ? t("forms.create", "Create")
+                      : t("forms.edit", "Edit")}
+                  </StyledText>
 
-                {/* Píldora editable del nombre */}
-                <StyledTouchableOpacity
-                  onPress={() => setIsEditingName(true)}
-                  className="px-4 py-2 rounded-lg"
-                  style={modalStyles.pillContainer}
-                  disabled={isEditingName}
-                >
-                  {isEditingName ? (
-                    <StyledTextInput
-                      value={categoryName}
-                      onChangeText={handleNameChange}
-                      onBlur={() => {
-                        if (mode === "edit") {
-                          setIsEditingName(false);
-                        }
-                      }}
-                      autoFocus
-                      style={{
-                        ...modalStyles.pillInput,
-                        fontFamily: fontNames.regular,
-                        includeFontPadding: false,
-                      }}
-                      className="text-base"
-                      placeholder={t("categoryName", "Category name")}
-                      placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                      editable={!isSubmitting}
-                    />
-                  ) : (
-                    <StyledText
-                      style={{
-                        ...modalStyles.pillText,
-                        fontFamily: fontNames.medium,
-                        includeFontPadding: false,
-                      }}
-                      className="font-medium"
+                  {/* Píldora editable */}
+                  <StyledTouchableOpacity
+                    onPress={handlePillPress}
+                    className="px-4 py-2 rounded-lg"
+                    style={[
+                      { overflow: "visible" },
+                      /* base de pill: */ {
+                        backgroundColor: "rgba(104,104,104,0.027)",
+                        borderColor: "rgba(255, 255, 255, 0.568)",
+                        borderWidth: 1,
+                        borderRadius: 8,
+                      },
+                    ]}
+                    disabled={isEditingName}
+                  >
+                    <StyledView
+                      className="flex-row items-center justify-center"
+                      style={{ minWidth: 140, height: 28, gap: 6 }}
                     >
-                      {categoryName || t("categoryName", "Category name")}
-                    </StyledText>
-                  )}
-                </StyledTouchableOpacity>
+                      {isEditingName ? (
+                        <StyledTextInput
+                          ref={inputRef}
+                          value={categoryName}
+                          onChangeText={handleNameChange}
+                          onFocus={() => setIsFocused(true)}
+                          onBlur={() => {
+                            setIsFocused(false);
+                            if (mode === "edit") setIsEditingName(false);
+                          }}
+                          style={{
+                            color: "#fff",
+                            fontWeight: "500",
+                            minWidth: 80,
+                            textAlign: "center",
+                            fontFamily: fontNames.regular,
+                            includeFontPadding: false,
+                            paddingVertical: 0,
+                          }}
+                          className="text-base"
+                          placeholder={t("categoryName", "Category name")}
+                          placeholderTextColor="rgba(255,255,255,0.5)"
+                          editable={!isSubmitting}
+                        />
+                      ) : (
+                        <>
+                          <StyledText
+                            style={{
+                              color: "#fff",
+                              fontFamily: fontNames.medium,
+                              includeFontPadding: false,
+                              opacity:
+                                mode === "create" &&
+                                categoryName.trim().length === 0
+                                  ? 0.6
+                                  : 1,
+                            }}
+                            className="font-medium"
+                            numberOfLines={1}
+                          >
+                            {categoryName || t("categoryName", "Category name")}
+                          </StyledText>
+
+                          {shouldShowBlink && (
+                            <Animated.Text
+                              style={{
+                                opacity: cursorOpacity,
+                                color: "#ffffff",
+                                fontFamily: fontNames.medium,
+                                includeFontPadding: false,
+                                fontSize: 16,
+                                lineHeight: 20,
+                              }}
+                            >
+                              |
+                            </Animated.Text>
+                          )}
+                        </>
+                      )}
+                    </StyledView>
+                  </StyledTouchableOpacity>
+                </StyledView>
+
+                {/* Error */}
+                {error ? (
+                  <StyledText
+                    className="text-red-400 text-sm text-center mt-2"
+                    style={{
+                      fontFamily: fontNames.regular,
+                      includeFontPadding: false,
+                    }}
+                  >
+                    {error}
+                  </StyledText>
+                ) : null}
               </StyledView>
 
-              {/* Mensaje de error */}
-              {error ? (
-                <StyledText
-                  className="text-red-400 text-sm text-center mt-2"
-                  style={{
-                    fontFamily: fontNames.regular,
-                    includeFontPadding: false,
-                  }}
-                >
-                  {error}
-                </StyledText>
-              ) : null}
-            </StyledView>
-
-            {/* Acciones */}
-            <StyledView
-              style={modalStyles.footerContainer}
-              className={modalClasses.flexRow}
-            >
-              <StyledTouchableOpacity
-                className={modalClasses.centerContent}
-                style={modalStyles.buttonLeft}
-                onPress={handleClose}
-                disabled={isSubmitting}
+              {/* Acciones */}
+              <StyledView
+                style={modalStyles.footerContainer}
+                className={modalClasses.flexRow}
               >
-                <StyledText
-                  className={modalClasses.cancelButtonText}
+                <StyledTouchableOpacity
+                  className={modalClasses.centerContent}
                   style={{
-                    fontFamily: fontNames.medium,
-                    fontSize: 16,
-                    includeFontPadding: false,
-                    opacity: isSubmitting ? 0.5 : 1,
+                    borderRightWidth: 0.5,
+                    borderColor: "rgba(200,200,200,0.4)",
                   }}
+                  onPress={handleClose}
+                  disabled={isSubmitting}
                 >
-                  {t("common.cancel", "Cancel")}
-                </StyledText>
-              </StyledTouchableOpacity>
+                  <StyledText
+                    className={modalClasses.cancelButtonText}
+                    style={{
+                      fontFamily: fontNames.medium,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                      opacity: isSubmitting ? 0.5 : 1,
+                    }}
+                  >
+                    {t("common.cancel", "Cancel")}
+                  </StyledText>
+                </StyledTouchableOpacity>
 
-              <StyledTouchableOpacity
-                className={modalClasses.centerContent}
-                style={modalStyles.buttonRight}
-                onPress={handleConfirm}
-                disabled={
-                  !categoryName.trim() ||
-                  categoryName.trim().length < 3 ||
-                  isSubmitting
-                }
-              >
-                <StyledText
-                  className="text-base font-medium text-white"
-                  style={{
-                    color:
-                      categoryName.trim().length >= 3 && !isSubmitting
-                        ? "#ffffff"
-                        : "rgba(255, 255, 255, 0.4)",
-                    fontFamily: fontNames.medium,
-                    fontSize: 16,
-                    includeFontPadding: false,
-                  }}
+                <StyledTouchableOpacity
+                  className={modalClasses.centerContent}
+                  onPress={handleConfirm}
+                  disabled={
+                    !categoryName.trim() ||
+                    categoryName.trim().length < 3 ||
+                    isSubmitting
+                  }
                 >
-                  {isSubmitting
-                    ? t("common.saving", "Saving...")
-                    : mode === "create"
-                    ? t("common.create", "Create")
-                    : t("common.save", "Save")}
-                </StyledText>
-              </StyledTouchableOpacity>
-            </StyledView>
-          </StyledBlurView>
+                  <StyledText
+                    className="text-base font-medium text-white"
+                    style={{
+                      color:
+                        categoryName.trim().length >= 3 && !isSubmitting
+                          ? "#ffffff"
+                          : "rgba(255, 255, 255, 0.4)",
+                      fontFamily: fontNames.medium,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                    }}
+                  >
+                    {isSubmitting
+                      ? t("common.saving", "Saving...")
+                      : mode === "create"
+                      ? t("common.create", "Create")
+                      : t("common.save", "Save")}
+                  </StyledText>
+                </StyledTouchableOpacity>
+              </StyledView>
+            </StyledBlurView>
+          </View>
         </StyledView>
       </StyledBlurView>
     </StyledModal>

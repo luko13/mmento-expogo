@@ -17,7 +17,25 @@ export const modalStyles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
-
+  modalCardShadow: {
+    width: screenWidth * 0.9,
+    maxWidth: 400,
+    borderRadius: 16,
+    // sombras
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
+    backgroundColor: "transparent",
+  },
+  modalCardBlur: {
+    borderRadius: 16,
+    overflow: "hidden", // <- aquí recortamos el blur/bordes
+    backgroundColor: "rgba(255, 255, 255, 0.30)",
+    borderWidth: 1,
+    borderColor: "rgba(200, 200, 200, 0.4)",
+  },
   // Contenedor alternativo para modales de acción (usa el mismo estilo base)
   actionModalContainer: {
     width: screenWidth * 0.9,
@@ -128,7 +146,7 @@ export const blurConfig = {
 
   // Blur alternativo oscuro para fondos
   backgroundBlurDark: {
-    intensity: 100, 
+    intensity: 100,
     tint: "dark" as const,
   },
 
@@ -149,34 +167,34 @@ export const blurConfig = {
 export const modalClasses = {
   // Clase para el BlurView de fondo
   backgroundBlur: "flex-1 justify-center items-center",
-  
+
   // Clase para el contenedor de vista principal
   mainContainer: "flex-1 justify-center items-center px-6",
-  
+
   // Clase para el contenedor de vista principal con padding vertical
   mainContainerWithPadding: "flex-1 justify-center items-center px-3 py-6",
-  
+
   // Clase para BlurView del contenedor
   containerBlur: "overflow-hidden",
-  
+
   // Clase para flex row
   flexRow: "flex-row",
-  
+
   // Clase para centrar contenido
   centerContent: "flex-1 justify-center items-center",
-  
+
   // Clases de texto
   titleText: "text-white text-2xl font-light",
   titleTextCentered: "text-white text-2xl font-light text-center",
   titleTextWithOpacity: "text-white/90 text-2xl font-light text-center",
-  
+
   subtitleText: "text-white/60 text-base text-center",
   subtitleTextSmall: "text-white/60 text-sm text-center",
-  
+
   buttonText: "text-white text-base font-medium",
   buttonTextLight: "text-white/60 text-base font-light",
   buttonTextBold: "text-white text-base font-bold",
-  
+
   cancelButtonText: "text-white/60 text-base font-light",
   deleteButtonText: "text-red-500 text-base font-medium",
   deleteButtonTextLight: "text-red-400 text-base font-light",
