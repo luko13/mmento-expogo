@@ -12,16 +12,55 @@ import {
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import {
-  MaterialIcons,
-  Ionicons,
-  MaterialCommunityIcons,
-} from "@expo/vector-icons";
+import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { fontNames } from "../../app/_layout";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
+
+/* -------------------- DEBUG FLAGS -------------------- */
+const DEBUG_GUARD = false;
+const DEBUG_WDYR = false;
+/* ----------------------------------------------------- */
+
+/* -------------------- DEBUG HOOKS -------------------- */
+function useInfiniteLoopGuard(name: string, limit = 60) {
+  const countRef = useRef(0);
+  useEffect(() => {
+    countRef.current++;
+    if (countRef.current > limit) {
+      throw new Error(`Render loop detected in <${name}>`);
+    }
+    const id = setTimeout(() => {
+      countRef.current = 0;
+    }, 0);
+    return () => clearTimeout(id);
+  });
+}
+
+function useWhyDidYouUpdate<T extends Record<string, any>>(
+  name: string,
+  props: T
+) {
+  const prev = useRef<T | null>(null);
+  useEffect(() => {
+    if (prev.current) {
+      const keys = Object.keys({ ...prev.current, ...props });
+      const changes: Record<string, { from: any; to: any }> = {};
+      keys.forEach((k) => {
+        if (prev.current![k] !== props[k]) {
+          changes[k] = { from: prev.current![k], to: props[k] };
+        }
+      });
+      if (Object.keys(changes).length > 0) {
+        console.log(`[WDYR] StatsPanel`, changes);
+      }
+    }
+    prev.current = props;
+  });
+}
+/* ----------------------------------------------------- */
 
 interface StatsPanelProps {
   visible: boolean;
@@ -40,9 +79,20 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
   duration,
   difficulty,
 }) => {
+  if (DEBUG_GUARD) useInfiniteLoopGuard("StatsPanel");
+  if (DEBUG_WDYR)
+    useWhyDidYouUpdate("StatsPanel", {
+      visible,
+      angle,
+      resetTime,
+      duration,
+      difficulty,
+    });
+
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [isPressed, setIsPressed] = useState(false);
 
+  // ⚠️ Importante: depender solo de `visible`
   useEffect(() => {
     Animated.spring(slideAnim, {
       toValue: visible ? 1 : 0,
@@ -50,20 +100,14 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
       friction: 11,
       useNativeDriver: true,
     }).start();
-  }, [visible]);
+  }, [visible]); // <- NO incluir slideAnim
 
-  // Función para convertir dificultad numérica a color
   const getDifficultyColor = (level = 0) => {
-    if (level <= 2) return "#ffffff78"; // green-400
-    if (level <= 4) return "#ffffff78"; // cyan-400
-    if (level <= 6) return "#ffffff78"; // yellow-400
-    if (level <= 8) return "#ffffff78"; // orange-400
-    return "#ffffff78"; // red-400
+    return "#ffffff78";
   };
 
   return (
     <StyledView style={styles.container}>
-      {/* Toggle Button - Always visible */}
       <StyledTouchableOpacity
         onPress={onToggle}
         onPressIn={() => setIsPressed(true)}
@@ -96,7 +140,6 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
         </BlurView>
       </StyledTouchableOpacity>
 
-      {/* Expandable Stats Panel */}
       <Animated.View
         style={[
           styles.statsContainer,
@@ -137,7 +180,12 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
               },
             ]}
           >
-            <BlurView intensity={50} tint="dark" experimentalBlurMethod="dimezisBlurView" style={styles.statItemBlur}>
+            <BlurView
+              intensity={50}
+              tint="dark"
+              experimentalBlurMethod="dimezisBlurView"
+              style={styles.statItemBlur}
+            >
               <LinearGradient
                 colors={["#ffffff15", "#ffffff08"]}
                 start={{ x: 0, y: 0 }}
@@ -167,7 +215,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
             </BlurView>
           </Animated.View>
 
-          {/* Tiempo de reset */}
+          {/* Reset */}
           <Animated.View
             style={[
               styles.statItemContainer,
@@ -183,7 +231,12 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
               },
             ]}
           >
-            <BlurView intensity={50} tint="dark" experimentalBlurMethod="dimezisBlurView" style={styles.statItemBlur}>
+            <BlurView
+              intensity={50}
+              tint="dark"
+              experimentalBlurMethod="dimezisBlurView"
+              style={styles.statItemBlur}
+            >
               <LinearGradient
                 colors={["#ffffff15", "#ffffff08"]}
                 start={{ x: 0, y: 0 }}
@@ -227,7 +280,12 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
               },
             ]}
           >
-            <BlurView intensity={50} tint="dark" experimentalBlurMethod="dimezisBlurView" style={styles.statItemBlur}>
+            <BlurView
+              intensity={50}
+              tint="dark"
+              experimentalBlurMethod="dimezisBlurView"
+              style={styles.statItemBlur}
+            >
               <LinearGradient
                 colors={["#ffffff15", "#ffffff08"]}
                 start={{ x: 0, y: 0 }}
@@ -271,7 +329,12 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
               },
             ]}
           >
-            <BlurView intensity={50} tint="dark" experimentalBlurMethod="dimezisBlurView" style={styles.statItemBlur}>
+            <BlurView
+              intensity={50}
+              tint="dark"
+              experimentalBlurMethod="dimezisBlurView"
+              style={styles.statItemBlur}
+            >
               <LinearGradient
                 colors={["#ffffff15", "#ffffff08"]}
                 start={{ x: 0, y: 0 }}
@@ -283,7 +346,6 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
                   <StyledView style={styles.innerStatGradient}>
                     {difficulty !== null && difficulty !== undefined ? (
                       <>
-                        {/* Barra de progreso */}
                         <StyledView style={styles.progressBarContainer}>
                           <StyledView
                             style={[
@@ -295,7 +357,6 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
                             ]}
                           />
                         </StyledView>
-                        {/* Número centrado */}
                         <StyledText
                           style={[styles.difficultyValue, { fontSize: 18 }]}
                         >
@@ -383,10 +444,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     width: 64,
     height: 80,
-  },
-  innerStatBlur: {
-    borderRadius: 12,
-    overflow: "hidden",
   },
   innerStatGradient: {
     flex: 1,

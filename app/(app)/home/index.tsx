@@ -109,7 +109,7 @@ export default function Home() {
   const handleViewItem = () => {
     setShowSuccessModal(false);
     if (createdTrickData) {
-      router.push(`/(app)/tricks/${createdTrickData.id}`);
+      router.push(`/(app)/trick/${createdTrickData.id}`);
     }
   };
 

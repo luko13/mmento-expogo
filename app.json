@@ -16,7 +16,11 @@
     "supportsTablet": true,
     "bundleIdentifier": "com.yourcompany.mmento",
     "infoPlist": {
-      "ITSAppUsesNonExemptEncryption": false
+      "ITSAppUsesNonExemptEncryption": false,
+      "NSCameraUsageDescription": "mmento necesita acceso a tu cámara para capturar fotos y grabar videos de tus trucos de magia",
+      "NSMicrophoneUsageDescription": "mmento necesita acceso a tu micrófono para grabar audio en los videos de tus trucos",
+      "NSPhotoLibraryUsageDescription": "mmento necesita acceso a tu galería para seleccionar fotos y videos existentes",
+      "NSPhotoLibraryAddUsageDescription": "mmento necesita permiso para guardar las fotos y videos capturados en tu galería"
     }
   },
   "android": {
@@ -26,7 +30,13 @@
     },
     "package": "com.yourcompany.mmento",
     "softwareKeyboardLayoutMode": "pan",
-    "windowSoftInputMode": "adjustResize"
+    "windowSoftInputMode": "adjustResize",
+    "permissions": [
+      "CAMERA",
+      "RECORD_AUDIO",
+      "READ_EXTERNAL_STORAGE",
+      "WRITE_EXTERNAL_STORAGE"
+    ]
   },
   "androidStatusBar": {
     "backgroundColor": "#00000000",
@@ -45,6 +55,29 @@
   "plugins": [
     "expo-router",
     "expo-font",
+    [
+      "expo-camera",
+      {
+        "cameraPermission": "Permitir a mmento acceder a tu cámara para capturar fotos y videos",
+        "microphonePermission": "Permitir a mmento acceder a tu micrófono para grabar audio en videos",
+        "recordAudioAndroid": true
+      }
+    ],
+    [
+      "expo-image-picker",
+      {
+        "photosPermission": "mmento necesita acceso a tus fotos para que puedas seleccionar imágenes de tus trucos",
+        "cameraPermission": "mmento necesita acceso a tu cámara para capturar nuevas fotos y videos"
+      }
+    ],
+    [
+      "expo-media-library",
+      {
+        "photosPermission": "mmento necesita acceso a tu galería para guardar y acceder a tus fotos y videos",
+        "savePhotosPermission": "mmento necesita permiso para guardar fotos y videos en tu dispositivo",
+        "isAccessMediaLocationEnabled": true
+      }
+    ],
     [
       "react-native-compressor",
       {
@@ -67,6 +100,9 @@
     [
       "expo-build-properties",
       {
+        "ios": {
+          "deploymentTarget": "15.1"
+        },
         "android": {
           "compileSdkVersion": 35,
           "targetSdkVersion": 35,

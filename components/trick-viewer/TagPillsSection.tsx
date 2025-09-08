@@ -1,10 +1,17 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { useEffect, useMemo, useState, useRef } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 import { fontNames } from "../../app/_layout";
 import { getContrastTextColor } from "../../utils/colorUtils";
@@ -12,6 +19,7 @@ import { getContrastTextColor } from "../../utils/colorUtils";
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledScrollView = styled(ScrollView);
+const StyledTouchableOpacity = styled(TouchableOpacity);
 
 export interface Tag {
   id: string;
@@ -23,45 +31,126 @@ export interface Tag {
 interface TagPillsSectionProps {
   tagIds: string[]; // IDs de las tags del truco
   userId?: string;
+  onRemoveTag?: (tagId: string) => void;
+  editable?: boolean;
 }
+
+/* -------------------- DEBUG FLAGS -------------------- */
+const DEBUG_GUARD = false;
+const DEBUG_WDYR = false;
+/* ----------------------------------------------------- */
+
+/* -------------------- DEBUG HOOKS -------------------- */
+function useInfiniteLoopGuard(name: string, limit = 60) {
+  const countRef = useRef(0);
+  useEffect(() => {
+    countRef.current++;
+    if (countRef.current > limit) {
+      throw new Error(`Render loop detected in <${name}>`);
+    }
+    const id = setTimeout(() => {
+      countRef.current = 0;
+    }, 0);
+    return () => clearTimeout(id);
+  });
+}
+
+function useWhyDidYouUpdate<T extends Record<string, any>>(
+  name: string,
+  props: T
+) {
+  const prev = useRef<T | null>(null);
+  useEffect(() => {
+    if (prev.current) {
+      const keys = Object.keys({ ...prev.current, ...props });
+      const changes: Record<string, { from: any; to: any }> = {};
+      keys.forEach((k) => {
+        if (prev.current![k] !== props[k]) {
+          changes[k] = { from: prev.current![k], to: props[k] };
+        }
+      });
+      if (Object.keys(changes).length > 0) {
+        console.log(`[WDYR] TagPillsSection`, changes);
+      }
+    }
+    prev.current = props;
+  });
+}
+/* ----------------------------------------------------- */
 
 const TagPillsSection: React.FC<TagPillsSectionProps> = ({
   tagIds,
   userId,
+  onRemoveTag,
+  editable = false,
 }) => {
+  if (DEBUG_GUARD) useInfiniteLoopGuard("TagPillsSection");
+  if (DEBUG_WDYR)
+    useWhyDidYouUpdate("TagPillsSection", {
+      userId,
+      tagCount: tagIds?.length ?? 0,
+    });
+
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Clave estable: ordenamos + stringify para evitar deps por identidad/orden
+  const tagsKey = useMemo(() => {
+    const sorted = Array.isArray(tagIds) ? [...tagIds].sort() : [];
+    return JSON.stringify(sorted);
+  }, [tagIds]);
+
   useEffect(() => {
-    if (userId && tagIds && tagIds.length > 0) {
+    const fetchUserTags = async () => {
+      if (!userId) return;
+      const ids = JSON.parse(tagsKey) as string[];
+      if (!ids.length) {
+        setTags((prev) => (prev.length ? [] : prev)); // evita set redundante
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("predefined_tags")
+          .select("id, name, color, usage_count")
+          .eq("user_id", userId)
+          .in("id", ids);
+
+        if (data && !error) {
+          setTags((prev) => {
+            const same =
+              prev.length === data.length &&
+              prev.every(
+                (p, i) =>
+                  p.id === data[i].id &&
+                  p.name === data[i].name &&
+                  p.color === data[i].color
+              );
+            return same ? prev : data;
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching user tags:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (userId) {
       fetchUserTags();
     } else {
-      setTags([]);
+      setTags((prev) => (prev.length ? [] : prev)); // ⚠️ solo si cambia
     }
-  }, [userId, tagIds.join(",")]);
+  }, [userId, tagsKey]);
 
-  const fetchUserTags = async () => {
-    if (!userId || !tagIds || tagIds.length === 0) return;
-
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("predefined_tags")
-        .select("id, name, color, usage_count")
-        .eq("user_id", userId)
-        .in("id", tagIds);
-
-      if (data && !error) {
-        setTags(data);
-      }
-    } catch (error) {
-      console.error("Error fetching user tags:", error);
-    } finally {
-      setLoading(false);
+  const handleRemoveTag = (tagId: string) => {
+    if (editable && onRemoveTag) {
+      onRemoveTag(tagId);
     }
   };
 
-  // IMPORTANTE: Siempre renderizar el contenedor para mantener el espacio
+  // Siempre renderizamos contenedor para mantener el espacio
   return (
     <StyledView style={styles.container}>
       {tags && tags.length > 0 ? (
@@ -82,15 +171,18 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
                   experimentalBlurMethod="dimezisBlurView"
                   style={styles.blurContainer}
                 >
-                  <StyledView
+                  <StyledTouchableOpacity
                     style={[
                       styles.tagContent,
                       {
-                        backgroundColor: tagColor + "20", // Transparencia suave
+                        backgroundColor: tagColor + "20",
                         borderColor: textColor + "60",
                         borderWidth: 1,
                       },
                     ]}
+                    onPress={() => editable && handleRemoveTag(tag.id)}
+                    activeOpacity={editable ? 0.7 : 1}
+                    disabled={!editable}
                   >
                     <StyledText
                       style={[
@@ -103,14 +195,21 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
                     >
                       {tag.name}
                     </StyledText>
-                  </StyledView>
+                    {editable && (
+                      <Ionicons
+                        name="close-circle"
+                        size={16}
+                        color={textColor}
+                        style={styles.removeIcon}
+                      />
+                    )}
+                  </StyledTouchableOpacity>
                 </BlurView>
               </StyledView>
             );
           })}
         </StyledScrollView>
       ) : (
-        // Espacio vacío del mismo tamaño cuando no hay tags
         <StyledView style={styles.emptySpace} />
       )}
     </StyledView>
@@ -121,7 +220,7 @@ const styles = StyleSheet.create({
   container: {
     marginHorizontal: 12,
     marginBottom: 12,
-    minHeight: 48, // Altura mínima para mantener el espacio
+    minHeight: 48, // mantener espacio
   },
   scrollContent: {
     paddingVertical: 4,
@@ -136,6 +235,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   tagContent: {
+    flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
     paddingHorizontal: 14,
@@ -145,8 +245,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     includeFontPadding: false,
   },
+  removeIcon: {
+    marginLeft: 6,
+  },
   emptySpace: {
-    height: 48, // Mismo alto que tendrían los tags
+    height: 48,
   },
 });
 

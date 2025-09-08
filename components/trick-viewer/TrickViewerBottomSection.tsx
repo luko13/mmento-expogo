@@ -4,7 +4,7 @@ import type React from "react";
 import { useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { styled } from "nativewind";
-import TagPillsSection from "../trick-viewer/TagPillsSection";
+import TagPillsSection from "./TagPillsSection";
 import StageInfoSection, { type StageType } from "./StageInfoSection";
 import StatsPanel from "./StatsPanel";
 
@@ -23,6 +23,10 @@ interface TrickViewerBottomSectionProps {
   onRemoveTag?: (tagId: string) => void;
   stageExpanded?: boolean;
   onStageExpandedChange?: (expanded: boolean) => void;
+
+  // 👇 Props de depuración (opcionales)
+  debugShowTags?: boolean;
+  debugShowStats?: boolean;
 }
 
 const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
@@ -38,6 +42,8 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
   onRemoveTag,
   stageExpanded,
   onStageExpandedChange,
+  debugShowTags = true,
+  debugShowStats = true,
 }) => {
   const [statsVisible, setStatsVisible] = useState(false);
 
@@ -47,15 +53,17 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
 
   return (
     <StyledView style={styles.container}>
-      {/* Sección de etiquetas */}
-      <TagPillsSection
-        tagIds={tagIds}
-        userId={userId}
-        onRemoveTag={onRemoveTag}
-        editable={!!onRemoveTag}
-      />
+      {/* Tags (toggleable por debug) */}
+      {debugShowTags && (
+        <TagPillsSection
+          tagIds={tagIds}
+          userId={userId}
+          onRemoveTag={onRemoveTag}
+          editable={!!onRemoveTag}
+        />
+      )}
 
-      {/* Información de etapa y categoría */}
+      {/* Info de etapa */}
       <StageInfoSection
         stage={stage}
         category={category}
@@ -64,15 +72,17 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
         onExpandedChange={onStageExpandedChange}
       />
 
-      {/* Panel de estadísticas posicionado encima de las tags */}
-      <StatsPanel
-        visible={statsVisible}
-        onToggle={toggleStats}
-        angle={angle}
-        resetTime={resetTime}
-        duration={duration}
-        difficulty={difficulty}
-      />
+      {/* Stats (toggleable por debug) */}
+      {debugShowStats && (
+        <StatsPanel
+          visible={statsVisible}
+          onToggle={toggleStats}
+          angle={angle}
+          resetTime={resetTime}
+          duration={duration}
+          difficulty={difficulty}
+        />
+      )}
     </StyledView>
   );
 };
@@ -81,10 +91,6 @@ const styles = StyleSheet.create({
   container: {
     position: "relative",
     paddingBottom: 16,
-  },
-  tagsRow: {
-    flexDirection: "row",
-    alignItems: "center",
   },
 });
 
