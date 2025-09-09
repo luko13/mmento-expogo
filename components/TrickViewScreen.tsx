@@ -1,3 +1,4 @@
+// components/TrickViewScreen.tsx
 "use client";
 
 import type React from "react";
@@ -73,9 +74,6 @@ interface TrickViewScreenProps {
   onClose?: () => void;
 }
 
-const EPS = 0.05; // ~50 ms
-const TICK_MS = 120; // polling tiempos
-
 const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   trick,
   userId,
@@ -86,102 +84,128 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const router = useRouter();
   const { notifyTrickDeleted } = useTrickDeletion();
 
-  // navegación / UI
+  // Estados básicos
   const [currentSection, setCurrentSection] = useState<StageType>("effect");
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
-  // reproducción
+  // Estados de reproducción - Iniciar con video reproduciendo
   const [isEffectPlaying, setIsEffectPlaying] = useState(true);
   const [isSecretPlaying, setIsSecretPlaying] = useState(true);
 
-  // blur overlay
+  // Estados de overlay
   const [isStageExpanded, setIsStageExpanded] = useState(false);
   const blurOpacity = useRef(new Animated.Value(0)).current;
 
-  // estados previos para restaurar tras overlay
+  // Estados previos
   const [wasEffectPlaying, setWasEffectPlaying] = useState(true);
   const [wasSecretPlaying, setWasSecretPlaying] = useState(true);
 
-  // subida ficheros
+  // Estados de carga
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessingSelection, setIsProcessingSelection] = useState(false);
 
-  // modales
+  // Estados de modales
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [trickIsPublic, setTrickIsPublic] = useState(false);
+  const [trickIsPublic, setTrickIsPublic] = useState(trick.is_public || false);
 
-  // barra de progreso
+  // Estados de progress bar
   const [showProgressBar, setShowProgressBar] = useState(true);
   const progressBarHideTimer = useRef<NodeJS.Timeout | null>(null);
   const [isSeekingVideo, setIsSeekingVideo] = useState(false);
 
-  // favoritos
-  const { isFavorite, toggleFavorite } = useFavorites(trick.id, "magic");
-
-  // videos/fotos
+  // Estados de videos
   const [effectVideoUrl, setEffectVideoUrl] = useState<string | null>(null);
   const [secretVideoUrl, setSecretVideoUrl] = useState<string | null>(null);
   const [isLoadingVideos, setIsLoadingVideos] = useState(true);
   const [videoLoadError, setVideoLoadError] = useState<string | null>(null);
 
+  // Estados de fotos
   const [decryptedPhotos, setDecryptedPhotos] = useState<string[]>([]);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(true);
   const [photoLoadError, setPhotoLoadError] = useState<string | null>(null);
 
-  // tags / usuario
+  // Estados de tags
   const [localTagIds, setLocalTagIds] = useState<string[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // tiempos/duraciones controlados por el padre
+  // Estados de tiempo
   const [effectDuration, setEffectDuration] = useState(0);
   const [secretDuration, setSecretDuration] = useState(0);
   const [effectTime, setEffectTime] = useState(0);
   const [secretTime, setSecretTime] = useState(0);
 
-  // helper construir URL pública desde path (Supabase)
-  const getPublicUrl = (path: string, bucket: string = "magic_trick_media") => {
-    if (!path || path === "") return null;
-    if (path.startsWith("http://") || path.startsWith("https://")) return path;
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-    return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
-  };
+  // Referencias para tracking
+  const lastEffectTimeRef = useRef(0);
+  const lastSecretTimeRef = useRef(0);
 
-  // init del player MEMOIZADO (solo loop=true)
-  const initEffectPlayer = useCallback((p: any) => {
-    p.loop = true;
-  }, []);
-  const initSecretPlayer = useCallback((p: any) => {
-    p.loop = true;
-  }, []);
+  // Hook de favoritos
+  const { isFavorite, toggleFavorite } = useFavorites(trick.id, "magic");
 
-  // players
-  const effectPlayer = useVideoPlayer(effectVideoUrl || "", initEffectPlayer);
-  const secretPlayer = useVideoPlayer(secretVideoUrl || "", initSecretPlayer);
+  // Helper para URLs - MEMOIZADO
+  const getPublicUrl = useCallback(
+    (path: string, bucket: string = "magic_trick_media") => {
+      if (!path || path === "") return null;
+      if (path.startsWith("http://") || path.startsWith("https://"))
+        return path;
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
+    },
+    []
+  );
 
-  // refs a players (para evitar deps en useEffect)
+  // URLs de videos memoizadas
+  const effectVideoUrlMemo = useMemo(() => {
+    return trick.effect_video_url ? getPublicUrl(trick.effect_video_url) : "";
+  }, [trick.effect_video_url, getPublicUrl]);
+
+  const secretVideoUrlMemo = useMemo(() => {
+    return trick.secret_video_url ? getPublicUrl(trick.secret_video_url) : "";
+  }, [trick.secret_video_url, getPublicUrl]);
+
+  // Players con URLs estables
+  const effectPlayer = useVideoPlayer(
+    effectVideoUrlMemo,
+    useCallback((player: any) => {
+      player.loop = true;
+      player.play(); // Auto-reproducir
+    }, [])
+  );
+
+  const secretPlayer = useVideoPlayer(
+    secretVideoUrlMemo,
+    useCallback((player: any) => {
+      player.loop = true;
+      player.pause(); // El secreto empieza pausado
+    }, [])
+  );
+
+  // Referencias a los players
   const effectPlayerRef = useRef(effectPlayer);
   const secretPlayerRef = useRef(secretPlayer);
+
   useEffect(() => {
     effectPlayerRef.current = effectPlayer;
   }, [effectPlayer]);
+
   useEffect(() => {
     secretPlayerRef.current = secretPlayer;
   }, [secretPlayer]);
 
-  // fotos a usar
+  // Fotos memoizadas
   const photos = useMemo(
     () => trick.photos || (trick.photo_url ? [trick.photo_url] : []),
     [trick.photos, trick.photo_url]
   );
 
-  // mostrar/ocultar progress bar con timer
+  // Timer para ocultar progress bar
   const showProgressBarWithTimer = useCallback(() => {
     setShowProgressBar(true);
-    if (progressBarHideTimer.current)
+    if (progressBarHideTimer.current) {
       clearTimeout(progressBarHideTimer.current);
+    }
     if (!isSeekingVideo) {
       progressBarHideTimer.current = setTimeout(() => {
         if (!isSeekingVideo) setShowProgressBar(false);
@@ -189,231 +213,193 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     }
   }, [isSeekingVideo]);
 
+  // Limpiar timer al desmontar
   useEffect(() => {
     return () => {
-      if (progressBarHideTimer.current)
+      if (progressBarHideTimer.current) {
         clearTimeout(progressBarHideTimer.current);
+      }
     };
   }, []);
 
-  // cerrar
-  const handleClose = () => {
-    if (onClose) onClose();
-    else router.push("/(app)/home");
-  };
-
-  // usuario actual
+  // Cargar usuario actual
   useEffect(() => {
-    const getCurrentUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) setCurrentUserId(user.id);
+    let mounted = true;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (mounted && user) {
+        setCurrentUserId(user.id);
+        console.log("Current user ID set:", user.id);
+      }
+    });
+    return () => {
+      mounted = false;
     };
-    getCurrentUser();
   }, []);
 
-  // permisos de edición
-  const canEdit =
-    currentUserId && (currentUserId === trick.user_id || !trick.user_id);
+  // Configurar URLs de videos
+  useEffect(() => {
+    setEffectVideoUrl(effectVideoUrlMemo);
+    setSecretVideoUrl(secretVideoUrlMemo);
+    setIsLoadingVideos(false);
+  }, [effectVideoUrlMemo, secretVideoUrlMemo]);
 
-  // subir con compresión
-  const uploadFileWithCompression = async (
-    uri: string,
-    folder: string,
-    fileType: string,
-    fileName: string,
-    userId: string
-  ): Promise<string | null> => {
-    try {
-      const compressionResult = await compressionService.compressFile(
-        uri,
-        fileType,
-        {
-          quality: 0.7,
-          maxWidth: 1920,
-        }
-      );
-      const uploadUrl = await uploadFileToStorage(
-        compressionResult.uri,
-        userId,
-        folder,
-        fileType,
-        fileName
-      );
-      return uploadUrl;
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      return null;
-    }
-  };
+  // Cargar fotos
+  useEffect(() => {
+    setIsLoadingPhotos(true);
+    const publicPhotos = photos.map((photo) => getPublicUrl(photo) || photo);
+    setDecryptedPhotos(publicPhotos);
+    setIsLoadingPhotos(false);
+  }, [photos, getPublicUrl]);
 
-  // seleccionar + subir video
-  const handleVideoUpload = async (type: "effect" | "secret") => {
-    if (!canEdit) return;
+  // Obtener duración del video effect
+  useEffect(() => {
+    if (!effectPlayer || !effectVideoUrlMemo) return;
 
-    try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          t("permissionRequired", "Permission Required"),
-          t("mediaLibraryPermission", "We need access to your gallery.")
-        );
-        return;
+    const checkDuration = () => {
+      const d = effectPlayer.duration;
+      if (typeof d === "number" && d > 0) {
+        setEffectDuration(d);
+        return true;
       }
+      return false;
+    };
 
-      setIsProcessingSelection(true);
+    if (checkDuration()) return;
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["videos"],
-        allowsMultipleSelection: false,
-        quality: 0.5,
-        videoMaxDuration: 60,
-      });
-
-      if (result.canceled || !result.assets[0]) {
-        setIsProcessingSelection(false);
-        return;
+    const interval = setInterval(() => {
+      if (checkDuration()) {
+        clearInterval(interval);
       }
+    }, 200);
 
-      setIsProcessingSelection(false);
-      setIsUploading(true);
+    const timeout = setTimeout(() => clearInterval(interval), 5000);
 
-      const asset = result.assets[0];
-      const folder =
-        type === "effect"
-          ? `${currentUserId}/effects`
-          : `${currentUserId}/secrets`;
-      const fileName = `${type}_${Date.now()}.mp4`;
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [effectPlayer, effectVideoUrlMemo]);
 
-      const uploadedUrl = await uploadFileWithCompression(
-        asset.uri,
-        folder,
-        "video/mp4",
-        fileName,
-        currentUserId!
-      );
+  // Obtener duración del video secret
+  useEffect(() => {
+    if (!secretPlayer || !secretVideoUrlMemo) return;
 
-      if (uploadedUrl) {
-        const updateData =
-          type === "effect"
-            ? { effect_video_url: uploadedUrl }
-            : { secret_video_url: uploadedUrl };
+    const checkDuration = () => {
+      const d = secretPlayer.duration;
+      if (typeof d === "number" && d > 0) {
+        setSecretDuration(d);
+        return true;
+      }
+      return false;
+    };
 
-        const { error } = await supabase
-          .from("magic_tricks")
-          .update(updateData)
-          .eq("id", trick.id);
+    if (checkDuration()) return;
 
-        if (!error) {
-          if (type === "effect") setEffectVideoUrl(uploadedUrl);
-          else setSecretVideoUrl(uploadedUrl);
-        } else {
-          Alert.alert(
-            t("error"),
-            t("errorUpdatingTrick", "Error updating trick")
-          );
+    const interval = setInterval(() => {
+      if (checkDuration()) {
+        clearInterval(interval);
+      }
+    }, 200);
+
+    const timeout = setTimeout(() => clearInterval(interval), 5000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [secretPlayer, secretVideoUrlMemo]);
+
+  // Tracking de tiempo actual (effect)
+  useEffect(() => {
+    if (
+      !effectPlayerRef.current ||
+      currentSection !== "effect" ||
+      isSeekingVideo ||
+      !isEffectPlaying
+    )
+      return;
+
+    const interval = setInterval(() => {
+      const player = effectPlayerRef.current;
+      if (!player) return;
+
+      const time = player.currentTime;
+      if (typeof time === "number" && !isNaN(time)) {
+        const delta = Math.abs(time - lastEffectTimeRef.current);
+        if (delta >= 0.05) {
+          lastEffectTimeRef.current = time;
+          setEffectTime(time);
         }
       }
+    }, 100);
 
-      setIsUploading(false);
-    } catch (error) {
-      console.error("Error uploading video:", error);
-      Alert.alert(
-        t("error"),
-        t("errorUploadingVideo", "Error uploading video")
-      );
-      setIsUploading(false);
-      setIsProcessingSelection(false);
-    }
-  };
+    return () => clearInterval(interval);
+  }, [currentSection, isSeekingVideo, isEffectPlaying]);
 
-  // seleccionar + subir fotos
-  const handlePhotoUpload = async () => {
-    if (!canEdit) return;
+  // Tracking de tiempo actual (secret)
+  useEffect(() => {
+    if (
+      !secretPlayerRef.current ||
+      currentSection !== "secret" ||
+      isSeekingVideo ||
+      !isSecretPlaying
+    )
+      return;
 
-    try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          t("permissionRequired", "Permission Required"),
-          t("mediaLibraryPermission", "We need access to your gallery.")
-        );
-        return;
-      }
+    const interval = setInterval(() => {
+      const player = secretPlayerRef.current;
+      if (!player) return;
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsMultipleSelection: true,
-        quality: 0.7,
-      });
-
-      if (result.canceled || result.assets.length === 0) return;
-
-      setIsUploading(true);
-
-      const uploadedPhotos: string[] = [];
-      for (let i = 0; i < result.assets.length; i++) {
-        const asset = result.assets[i];
-        const fileName = `photo_${Date.now()}_${i}.jpg`;
-
-        const uploadedUrl = await uploadFileWithCompression(
-          asset.uri,
-          `${currentUserId}/photos`,
-          "image/jpeg",
-          fileName,
-          currentUserId!
-        );
-
-        if (uploadedUrl) uploadedPhotos.push(uploadedUrl);
-      }
-
-      if (uploadedPhotos.length > 0) {
-        const updateData: any = {};
-        if (!trick.photo_url) updateData.photo_url = uploadedPhotos[0];
-
-        const { error } = await supabase
-          .from("magic_tricks")
-          .update(updateData)
-          .eq("id", trick.id);
-
-        if (!error) {
-          setDecryptedPhotos((prev) => [...prev, ...uploadedPhotos]);
-        } else {
-          Alert.alert(
-            t("error"),
-            t("errorUpdatingTrick", "Error updating trick")
-          );
+      const time = player.currentTime;
+      if (typeof time === "number" && !isNaN(time)) {
+        const delta = Math.abs(time - lastSecretTimeRef.current);
+        if (delta >= 0.05) {
+          lastSecretTimeRef.current = time;
+          setSecretTime(time);
         }
       }
+    }, 100);
 
-      setIsUploading(false);
-    } catch (error) {
-      console.error("Error uploading photos:", error);
-      Alert.alert(
-        t("error"),
-        t("errorUploadingPhotos", "Error uploading photos")
-      );
-      setIsUploading(false);
+    return () => clearInterval(interval);
+  }, [currentSection, isSeekingVideo, isSecretPlaying]);
+
+  // Control de reproducción al cambiar sección
+  useEffect(() => {
+    if (isStageExpanded) {
+      effectPlayerRef.current?.pause();
+      secretPlayerRef.current?.pause();
+      return;
     }
-  };
 
-  // cargar tags del truco
+    if (currentSection === "effect") {
+      if (isEffectPlaying) effectPlayerRef.current?.play();
+      else effectPlayerRef.current?.pause();
+      secretPlayerRef.current?.pause();
+    } else if (currentSection === "secret") {
+      if (isSecretPlaying) secretPlayerRef.current?.play();
+      else secretPlayerRef.current?.pause();
+      effectPlayerRef.current?.pause();
+    } else {
+      effectPlayerRef.current?.pause();
+      secretPlayerRef.current?.pause();
+    }
+  }, [currentSection, isEffectPlaying, isSecretPlaying, isStageExpanded]);
+
+  // Cargar tags - MEJORADO CON LOGS
   useEffect(() => {
     const loadTrickTags = async () => {
       try {
+        console.log("Loading tags for trick:", trick.id);
         const { data, error } = await supabase
           .from("trick_tags")
           .select("tag_id")
           .eq("trick_id", trick.id);
 
         if (data && !error) {
-          const tagIds = data.map((item) => item.tag_id);
-          setLocalTagIds(tagIds);
+          console.log("Tags loaded:", data);
+          setLocalTagIds(data.map((item) => item.tag_id));
         } else if (error) {
-          console.error("❌ Error loading tags:", error);
+          console.error("Error loading trick tags:", error);
         }
       } catch (error) {
         console.error("Error loading trick tags:", error);
@@ -423,186 +409,50 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     if (trick.id) loadTrickTags();
   }, [trick.id]);
 
-  // cargar estado is_public
+  // Log para debug de tags
   useEffect(() => {
-    const loadTrickPublicState = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("magic_tricks")
-          .select("is_public, user_id")
-          .eq("id", trick.id)
-          .single();
+    console.log("TrickViewScreen - Tags Debug:", {
+      trickId: trick.id,
+      currentUserId,
+      localTagIds,
+      trickUserId: trick.user_id,
+      userIdToUse: trick.user_id || currentUserId,
+    });
+  }, [trick.id, currentUserId, localTagIds, trick.user_id]);
 
-        if (data && !error) {
-          setTrickIsPublic(data.is_public);
-          if (!trick.user_id && data.user_id) {
-            trick.user_id = data.user_id;
-          }
-        }
-      } catch (error) {
-        console.error("Error loading trick public state:", error);
-      }
-    };
+  const canEdit =
+    currentUserId && (currentUserId === trick.user_id || !trick.user_id);
 
-    if (trick.id) loadTrickPublicState();
-  }, [trick.id]);
+  // Handlers
+  const handleClose = () => {
+    if (onClose) onClose();
+    else router.push("/(app)/home");
+  };
 
-  // cargar videos
-  useEffect(() => {
-    const loadVideos = async () => {
-      try {
-        setIsLoadingVideos(true);
-        setVideoLoadError(null);
+  const handleLikePress = async () => {
+    await toggleFavorite();
+  };
 
-        const effectUrl = trick.effect_video_url
-          ? getPublicUrl(trick.effect_video_url)
-          : null;
-        const secretUrl = trick.secret_video_url
-          ? getPublicUrl(trick.secret_video_url)
-          : null;
+  const handleMorePress = () => {
+    effectPlayerRef.current?.pause();
+    secretPlayerRef.current?.pause();
+    setIsEffectPlaying(false);
+    setIsSecretPlaying(false);
+    setShowActionsModal(true);
+  };
 
-        setEffectVideoUrl(effectUrl);
-        setSecretVideoUrl(secretUrl);
-      } catch (error) {
-        console.error("❌ Error general cargando videos:", error);
-        setVideoLoadError(
-          error instanceof Error ? error.message : "Error desconocido"
-        );
-      } finally {
-        setIsLoadingVideos(false);
-      }
-    };
+  const handleScroll = (event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const sectionIndex = Math.round(offsetY / height);
 
-    loadVideos();
-  }, [trick.id, trick.effect_video_url, trick.secret_video_url]);
+    const newSection =
+      sectionIndex === 0 ? "effect" : sectionIndex === 1 ? "secret" : "extra";
 
-  // cargar fotos
-  useEffect(() => {
-    const loadPhotos = async () => {
-      try {
-        setIsLoadingPhotos(true);
-        setPhotoLoadError(null);
-        const publicPhotos = photos.map(
-          (photo) => getPublicUrl(photo) || photo
-        );
-        setDecryptedPhotos(publicPhotos);
-      } catch (error) {
-        console.error("❌ Error general cargando fotos:", error);
-        setPhotoLoadError(
-          error instanceof Error ? error.message : "Error desconocido"
-        );
-        const fallback = photos.map((photo) => getPublicUrl(photo) || photo);
-        setDecryptedPhotos(fallback);
-      } finally {
-        setIsLoadingPhotos(false);
-      }
-    };
-
-    loadPhotos();
-  }, [trick.id, photos]);
-
-  // descubrir DURACIÓN (effect)
-  useEffect(() => {
-    const p = effectPlayerRef.current;
-    if (!p) {
-      setEffectDuration(0);
-      return;
+    if (newSection !== currentSection) {
+      setCurrentSection(newSection as StageType);
     }
-    const d0 = typeof p.duration === "number" ? p.duration : 0;
-    if (d0 > 0) setEffectDuration(d0);
-    if (d0 > 0) return;
+  };
 
-    const iv = setInterval(() => {
-      const d =
-        typeof effectPlayerRef.current?.duration === "number"
-          ? effectPlayerRef.current!.duration
-          : 0;
-      if (d > 0) {
-        setEffectDuration(d);
-        clearInterval(iv);
-      }
-    }, 150);
-    const to = setTimeout(() => clearInterval(iv), 5000);
-
-    return () => {
-      clearInterval(iv);
-      clearTimeout(to);
-    };
-  }, [effectVideoUrl, effectPlayer]);
-
-  // descubrir DURACIÓN (secret)
-  useEffect(() => {
-    const p = secretPlayerRef.current;
-    if (!p) {
-      setSecretDuration(0);
-      return;
-    }
-    const d0 = typeof p.duration === "number" ? p.duration : 0;
-    if (d0 > 0) setSecretDuration(d0);
-    if (d0 > 0) return;
-
-    const iv = setInterval(() => {
-      const d =
-        typeof secretPlayerRef.current?.duration === "number"
-          ? secretPlayerRef.current!.duration
-          : 0;
-      if (d > 0) {
-        setSecretDuration(d);
-        clearInterval(iv);
-      }
-    }, 150);
-    const to = setTimeout(() => clearInterval(iv), 5000);
-
-    return () => {
-      clearInterval(iv);
-      clearTimeout(to);
-    };
-  }, [secretVideoUrl, secretPlayer]);
-
-  // actualizar TIEMPO ACTUAL (tick)
-  useEffect(() => {
-    const shouldTrackEffect =
-      currentSection === "effect" &&
-      isEffectPlaying &&
-      !isStageExpanded &&
-      !isSeekingVideo &&
-      effectDuration > 0;
-
-    const shouldTrackSecret =
-      currentSection === "secret" &&
-      isSecretPlaying &&
-      !isStageExpanded &&
-      !isSeekingVideo &&
-      secretDuration > 0;
-
-    if (!shouldTrackEffect && !shouldTrackSecret) return;
-
-    const iv = setInterval(() => {
-      if (shouldTrackEffect) {
-        const p = effectPlayerRef.current;
-        const t = p && typeof p.currentTime === "number" ? p.currentTime : null;
-        if (t !== null && Math.abs(t - effectTime) >= EPS) setEffectTime(t);
-      } else if (shouldTrackSecret) {
-        const p = secretPlayerRef.current;
-        const t = p && typeof p.currentTime === "number" ? p.currentTime : null;
-        if (t !== null && Math.abs(t - secretTime) >= EPS) setSecretTime(t);
-      }
-    }, TICK_MS);
-
-    return () => clearInterval(iv);
-  }, [
-    currentSection,
-    isEffectPlaying,
-    isSecretPlaying,
-    isStageExpanded,
-    isSeekingVideo,
-    effectDuration,
-    secretDuration,
-    effectTime,
-    secretTime,
-  ]);
-
-  // expand/collapse blur + pausa/reanuda
   const handleStageExpandedChange = useCallback(
     (expanded: boolean) => {
       setIsStageExpanded(expanded);
@@ -642,101 +492,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     ]
   );
 
-  // play/pause al cambiar sección o flags (sin tocar estado)
-  useEffect(() => {
-    if (isStageExpanded) {
-      effectPlayerRef.current?.pause();
-      secretPlayerRef.current?.pause();
-      return;
-    }
-
-    if (currentSection === "effect") {
-      if (isEffectPlaying) effectPlayerRef.current?.play();
-      else effectPlayerRef.current?.pause();
-      secretPlayerRef.current?.pause();
-    } else if (currentSection === "secret") {
-      if (isSecretPlaying) secretPlayerRef.current?.play();
-      else secretPlayerRef.current?.pause();
-      effectPlayerRef.current?.pause();
-    } else {
-      effectPlayerRef.current?.pause();
-      secretPlayerRef.current?.pause();
-    }
-  }, [currentSection, isEffectPlaying, isSecretPlaying, isStageExpanded]);
-
-  // scroll vertical → cambia sección
-  const handleScroll = useCallback(
-    (event: any) => {
-      const offsetY = event.nativeEvent.contentOffset.y;
-      const sectionIndex = Math.floor(offsetY / height + 0.5);
-
-      if (sectionIndex === 0 && currentSection !== "effect") {
-        setCurrentSection("effect");
-      } else if (sectionIndex === 1 && currentSection !== "secret") {
-        setCurrentSection("secret");
-      } else if (sectionIndex === 2 && currentSection !== "extra") {
-        setCurrentSection("extra");
-      }
-    },
-    [currentSection]
-  );
-
-  // navegar a sección
-  const navigateToSection = (section: StageType) => {
-    const sectionIndex =
-      section === "effect" ? 0 : section === "secret" ? 1 : 2;
-    scrollViewRef.current?.scrollTo({
-      y: sectionIndex * height,
-      animated: true,
-    });
-    setCurrentSection(section);
-  };
-
-  // toggle play/pause
-  const togglePlayPause = (type: "effect" | "secret") => {
-    if (isStageExpanded) return;
-    if (type === "effect") setIsEffectPlaying((p) => !p);
-    else setIsSecretPlaying((p) => !p);
-  };
-
-  // like
-  const handleLikePress = async () => {
-    await toggleFavorite();
-  };
-
-  // 🔧 FALTABAN ESTOS HANDLERS:
-  const handleMorePress = useCallback(() => {
-    // pausa ambos para que el modal no deje nada sonando
-    effectPlayerRef.current?.pause();
-    secretPlayerRef.current?.pause();
-    setIsEffectPlaying(false);
-    setIsSecretPlaying(false);
-    setShowActionsModal(true);
-  }, []);
-
-  const handlePrivacyPress = useCallback(() => {
-    setShowPrivacyModal(true);
-  }, []);
-
-  const handleDeletePress = useCallback(() => {
-    setShowDeleteModal(true);
-  }, []);
-
-  // compartir (lo dejamos por si lo usas en otro lado)
-  const handleSharePress = async () => {
-    try {
-      await Share.share({
-        message: `${t("checkOutThisTrick", "¡Mira este truco!")}: ${
-          trick.title
-        }\n\n${trick.effect}`,
-        title: trick.title,
-      });
-    } catch (error) {
-      console.error("Error compartiendo:", error);
-    }
-  };
-
-  // quitar tag
   const handleRemoveTag = (tagId: string) => {
     const prevIds = localTagIds;
     const updated = prevIds.filter((id) => id !== tagId);
@@ -761,17 +516,16 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     })();
   };
 
-  // render video
-  const renderVideo = (
-    url: string | null,
-    isPlaying: boolean,
-    isLoading: boolean,
-    type: "effect" | "secret"
-  ) => {
+  // Render del video
+  const renderVideo = (type: "effect" | "secret") => {
     const player =
       type === "effect" ? effectPlayerRef.current : secretPlayerRef.current;
+    const url = type === "effect" ? effectVideoUrl : secretVideoUrl;
+    const isPlaying = type === "effect" ? isEffectPlaying : isSecretPlaying;
+    const duration = type === "effect" ? effectDuration : secretDuration;
+    const time = type === "effect" ? effectTime : secretTime;
 
-    if (isLoading) {
+    if (isLoadingVideos) {
       return (
         <View
           style={{
@@ -788,47 +542,9 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
               fontSize: 18,
               marginTop: 16,
               fontFamily: fontNames.light,
-              includeFontPadding: false,
             }}
           >
-            {t("loadingVideo", "Cargando video...")}
-          </Text>
-        </View>
-      );
-    }
-
-    if (videoLoadError && !url) {
-      return (
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "#15322C",
-          }}
-        >
-          <Ionicons name="alert-circle-outline" size={50} color="white" />
-          <Text
-            style={{
-              color: "white",
-              fontSize: 18,
-              marginTop: 16,
-              fontFamily: fontNames.light,
-              includeFontPadding: false,
-            }}
-          >
-            {t("videoLoadError", "Error al cargar el video")}
-          </Text>
-          <Text
-            style={{
-              color: "rgba(255,255,255,0.7)",
-              fontSize: 14,
-              marginTop: 8,
-              fontFamily: fontNames.light,
-              includeFontPadding: false,
-            }}
-          >
-            {videoLoadError}
+            {t("loadingVideo", "Loading video...")}
           </Text>
         </View>
       );
@@ -844,71 +560,18 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             backgroundColor: "#15322C",
           }}
         >
-          {isProcessingSelection ? (
-            <Text
-              style={{
-                color: "#5BB9A3",
-                fontSize: 16,
-                marginTop: 16,
-                fontFamily: fontNames.regular,
-                includeFontPadding: false,
-              }}
-            >
-              {t("processingSelection", "Processing selection...")}
-            </Text>
-          ) : isUploading ? (
-            <>
-              <ActivityIndicator size="large" color="#5BB9A3" />
-              <Text
-                style={{
-                  color: "white",
-                  fontSize: 18,
-                  marginTop: 16,
-                  fontFamily: fontNames.light,
-                  includeFontPadding: false,
-                }}
-              >
-                {t("uploadingVideo", "Uploading video...")}
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text
-                style={{
-                  color: "white",
-                  fontSize: 20,
-                  fontFamily: fontNames.light,
-                  includeFontPadding: false,
-                }}
-              >
-                {t("noVideo", "No Video")}
-              </Text>
-              {canEdit && (
-                <TouchableOpacity
-                  onPress={() => handleVideoUpload(type)}
-                  style={{ marginTop: 16 }}
-                >
-                  <Text
-                    style={{
-                      color: "#5BB9A3",
-                      fontSize: 18,
-                      fontFamily: fontNames.light,
-                      includeFontPadding: false,
-                    }}
-                  >
-                    {t("uploadVideo", "Upload video")}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </>
-          )}
+          <Text
+            style={{
+              color: "white",
+              fontSize: 20,
+              fontFamily: fontNames.light,
+            }}
+          >
+            {t("noVideo", "No Video")}
+          </Text>
         </View>
       );
     }
-
-    // valores controlados por tipo
-    const duration = type === "effect" ? effectDuration : secretDuration;
-    const time = type === "effect" ? effectTime : secretTime;
 
     return (
       <View style={{ flex: 1, backgroundColor: "#15322C" }}>
@@ -921,25 +584,30 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           nativeControls={false}
         />
 
-        {/* Play/Pause overlay */}
         <TouchableOpacity
           style={{
             position: "absolute",
             top: 0,
             left: 0,
             right: 0,
-            bottom: 0,
+            bottom: 200, // Dejar espacio para la barra de progreso
             justifyContent: "center",
             alignItems: "center",
           }}
           activeOpacity={1}
           onPress={() => {
-            if (!isStageExpanded && player) {
-              showProgressBarWithTimer();
-              if (isPlaying) (player as any).pause();
-              else (player as any).play();
-              if (type === "effect") setIsEffectPlaying((p) => !p);
-              else setIsSecretPlaying((p) => !p);
+            if (!player || isStageExpanded) return;
+
+            showProgressBarWithTimer();
+
+            if (isPlaying) {
+              player.pause();
+              if (type === "effect") setIsEffectPlaying(false);
+              else setIsSecretPlaying(false);
+            } else {
+              player.play();
+              if (type === "effect") setIsEffectPlaying(true);
+              else setIsSecretPlaying(true);
             }
           }}
         >
@@ -955,79 +623,24 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             </View>
           )}
         </TouchableOpacity>
-
-        {/* Barra de progreso controlada */}
-        {currentSection === type && (
-          <VideoProgressBar
-            duration={duration}
-            currentTime={time}
-            visible={showProgressBar && !isStageExpanded}
-            onSeekStart={() => {
-              setIsSeekingVideo(true);
-              if (player && isPlaying) {
-                (player as any).pause();
-                if (type === "effect") setIsEffectPlaying(false);
-                else setIsSecretPlaying(false);
-              }
-            }}
-            onSeek={(t) => {
-              // Vista previa del tiempo
-              if (type === "effect") setEffectTime(t);
-              else setSecretTime(t);
-            }}
-            onSeekEnd={(t) => {
-              setIsSeekingVideo(false);
-              const p = player as any;
-              if (p && typeof p.currentTime === "number") {
-                const delta = t - p.currentTime;
-                if (Math.abs(delta) > EPS) p.seekBy(delta);
-              }
-              if (p) {
-                p.play();
-                if (type === "effect") setIsEffectPlaying(true);
-                else setIsSecretPlaying(true);
-              }
-              showProgressBarWithTimer();
-            }}
-          />
-        )}
       </View>
     );
   };
 
-  // galería de fotos
+  // Render de galería de fotos
   const renderPhotoGallery = () => {
     if (isLoadingPhotos) {
       return (
-        <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "#15322C",
+          }}
+        >
           <ActivityIndicator size="large" color="white" />
-          <StyledText
-            className="text-white text-lg mt-4"
-            style={{ fontFamily: fontNames.light, includeFontPadding: false }}
-          >
-            {t("loadingPhotos", "Cargando fotos...")}
-          </StyledText>
-        </StyledView>
-      );
-    }
-
-    if (photoLoadError) {
-      return (
-        <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-black/80">
-          <Ionicons name="alert-circle-outline" size={50} color="white" />
-          <StyledText
-            className="text-white text-lg mt-4"
-            style={{ fontFamily: fontNames.light, includeFontPadding: false }}
-          >
-            {t("photoLoadError", "Error al cargar las fotos")}
-          </StyledText>
-          <StyledText
-            className="text-white/70 text-sm mt-2"
-            style={{ fontFamily: fontNames.light, includeFontPadding: false }}
-          >
-            {photoLoadError}
-          </StyledText>
-        </StyledView>
+        </View>
       );
     }
 
@@ -1036,60 +649,24 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
     if (photosToDisplay.length === 0) {
       return (
-        <StyledView className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center bg-[#15322C]">
-          {isProcessingSelection ? (
-            <StyledText
-              className="text-[#5BB9A3] text-base mt-4"
-              style={{
-                fontFamily: fontNames.regular,
-                includeFontPadding: false,
-              }}
-            >
-              {t("processingSelection", "Processing selection...")}
-            </StyledText>
-          ) : isUploading ? (
-            <>
-              <ActivityIndicator size="large" color="#5BB9A3" />
-              <StyledText
-                className="text-white text-lg mt-4"
-                style={{
-                  fontFamily: fontNames.light,
-                  includeFontPadding: false,
-                }}
-              >
-                {t("uploadingPhotos", "Uploading photos...")}
-              </StyledText>
-            </>
-          ) : (
-            <>
-              <StyledText
-                className="text-white text-xl"
-                style={{
-                  fontFamily: fontNames.light,
-                  includeFontPadding: false,
-                }}
-              >
-                {t("noPhotos", "No Photos")}
-              </StyledText>
-              {canEdit && (
-                <TouchableOpacity
-                  onPress={handlePhotoUpload}
-                  style={{ marginTop: 16 }}
-                >
-                  <StyledText
-                    className="text-[#5BB9A3] text-lg"
-                    style={{
-                      fontFamily: fontNames.light,
-                      includeFontPadding: false,
-                    }}
-                  >
-                    {t("uploadPhotos", "Upload photos")}
-                  </StyledText>
-                </TouchableOpacity>
-              )}
-            </>
-          )}
-        </StyledView>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "#15322C",
+          }}
+        >
+          <Text
+            style={{
+              color: "white",
+              fontSize: 20,
+              fontFamily: fontNames.light,
+            }}
+          >
+            {t("noPhotos", "No Photos")}
+          </Text>
+        </View>
       );
     }
 
@@ -1105,58 +682,41 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             const index = Math.round(event.nativeEvent.contentOffset.x / width);
             setCurrentPhotoIndex(index);
           }}
-          renderItem={({ item }) => {
-            if (!item || typeof item !== "string" || item.length < 10) {
-              return (
-                <View
-                  style={{
-                    width,
-                    height,
-                    backgroundColor: "#333",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: "white",
-                      fontFamily: fontNames.light,
-                      includeFontPadding: false,
-                    }}
-                  >
-                    Error loading image
-                  </Text>
-                </View>
-              );
-            }
-
-            return (
-              <Image
-                source={{ uri: item }}
-                style={{ width, height }}
-                resizeMode="contain"
-                onError={(e) =>
-                  console.error(
-                    "❌ Error cargando imagen:",
-                    e.nativeEvent.error
-                  )
-                }
-              />
-            );
-          }}
+          renderItem={({ item }) => (
+            <Image
+              source={{ uri: item as string }}
+              style={{ width, height }}
+              resizeMode="contain"
+            />
+          )}
         />
-
         {photosToDisplay.length > 1 && (
-          <StyledView className="absolute bottom-20 left-0 right-0 flex-row justify-center">
+          <View
+            style={{
+              position: "absolute",
+              bottom: 20,
+              left: 0,
+              right: 0,
+              flexDirection: "row",
+              justifyContent: "center",
+            }}
+          >
             {photosToDisplay.map((_, index) => (
-              <StyledView
+              <View
                 key={`dot-${index}`}
-                className={`w-2 h-2 mx-1 rounded-full ${
-                  index === currentPhotoIndex ? "bg-white" : "bg-white/30"
-                }`}
+                style={{
+                  width: 8,
+                  height: 8,
+                  marginHorizontal: 4,
+                  borderRadius: 4,
+                  backgroundColor:
+                    index === currentPhotoIndex
+                      ? "white"
+                      : "rgba(255,255,255,0.3)",
+                }}
               />
             ))}
-          </StyledView>
+          </View>
         )}
       </StyledView>
     );
@@ -1175,7 +735,8 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     }
   };
 
-  const ownerId = trick.user_id;
+  // Determinar el userId correcto para las tags
+  const userIdForTags = trick.user_id || currentUserId || undefined;
 
   return (
     <StyledView className="flex-1 bg-[#15322C]">
@@ -1195,37 +756,118 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         snapToInterval={height}
         snapToAlignment="start"
         style={{ flex: 1 }}
-        contentInsetAdjustmentBehavior="never"
       >
-        {/* Efecto */}
         <View style={{ width, height, backgroundColor: "#15322C" }}>
-          {renderVideo(
-            effectVideoUrl,
-            isEffectPlaying,
-            isLoadingVideos,
-            "effect"
-          )}
+          {renderVideo("effect")}
         </View>
 
-        {/* Secreto */}
         <View style={{ width, height, backgroundColor: "#15322C" }}>
-          {renderVideo(
-            secretVideoUrl,
-            isSecretPlaying,
-            isLoadingVideos,
-            "secret"
-          )}
+          {renderVideo("secret")}
         </View>
 
-        {/* Fotos/Detalles */}
-        <StyledView style={{ width, height }}>
-          <StyledView className="flex-1 bg-[#15322C]">
-            {renderPhotoGallery()}
-          </StyledView>
-        </StyledView>
+        <View style={{ width, height }}>{renderPhotoGallery()}</View>
       </StyledScrollView>
 
-      {/* Blur overlay */}
+
+      {/* Barra de progreso FUERA del ScrollView y de todo */}
+      {(currentSection === "effect" || currentSection === "secret") && (
+        <>
+          <View
+            style={{
+              position: "absolute",
+              bottom: 20,
+              left: 0,
+              right: 0,
+              zIndex: 9999,
+              elevation: 999,
+            }}
+            pointerEvents="box-none"
+          >
+            <VideoProgressBar
+              duration={
+                currentSection === "effect" ? effectDuration : secretDuration
+              }
+              currentTime={
+                currentSection === "effect" ? effectTime : secretTime
+              }
+              visible={showProgressBar && !isStageExpanded}
+              onBarInteraction={() => {
+                showProgressBarWithTimer();
+              }}
+              onSeekStart={() => {
+                setIsSeekingVideo(true);
+                const player =
+                  currentSection === "effect"
+                    ? effectPlayerRef.current
+                    : secretPlayerRef.current;
+                const isPlaying =
+                  currentSection === "effect"
+                    ? isEffectPlaying
+                    : isSecretPlaying;
+
+                if (player && isPlaying) {
+                  player.pause();
+                  if (currentSection === "effect") setIsEffectPlaying(false);
+                  else setIsSecretPlaying(false);
+                }
+              }}
+              onSeek={(seekTime) => {
+                if (currentSection === "effect") {
+                  setEffectTime(seekTime);
+                  lastEffectTimeRef.current = seekTime;
+                } else {
+                  setSecretTime(seekTime);
+                  lastSecretTimeRef.current = seekTime;
+                }
+              }}
+              onSeekEnd={(seekTime) => {
+                setIsSeekingVideo(false);
+                const player =
+                  currentSection === "effect"
+                    ? effectPlayerRef.current
+                    : secretPlayerRef.current;
+
+                if (player) {
+                  const currentTime = player.currentTime || 0;
+                  const delta = seekTime - currentTime;
+                  if (Math.abs(delta) > 0.1) {
+                    player.seekBy(delta);
+                  }
+                  player.play();
+                  if (currentSection === "effect") {
+                    setIsEffectPlaying(true);
+                    lastEffectTimeRef.current = seekTime;
+                  } else {
+                    setIsSecretPlaying(true);
+                    lastSecretTimeRef.current = seekTime;
+                  }
+                }
+                showProgressBarWithTimer();
+              }}
+            />
+          </View>
+
+          {/* Área táctil invisible cuando la barra está oculta */}
+          {!showProgressBar && !isStageExpanded && (
+            <TouchableOpacity
+              style={{
+                position: "absolute",
+                bottom: 20,
+                left: 0,
+                right: 0,
+                height: 60,
+                zIndex: 10000,
+                backgroundColor: "transparent",
+              }}
+              activeOpacity={1}
+              onPress={() => {
+                showProgressBarWithTimer();
+              }}
+            />
+          )}
+        </>
+      )}
+
       <Animated.View
         style={{
           position: "absolute",
@@ -1251,7 +893,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Top bar */}
       <StyledView
         style={{
           position: "absolute",
@@ -1271,7 +912,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         />
       </StyledView>
 
-      {/* Bottom section */}
       <StyledView
         style={{
           position: "absolute",
@@ -1284,7 +924,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       >
         <TrickViewerBottomSection
           tagIds={localTagIds}
-          userId={ownerId || currentUserId || undefined}
+          userId={userIdForTags}
           stage={currentSection}
           category={trick.category}
           description={getCurrentDescription()}
@@ -1292,13 +932,14 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           resetTime={trick.reset || 10}
           duration={trick.duration || 110}
           difficulty={trick.difficulty}
-          onRemoveTag={currentUserId === ownerId ? handleRemoveTag : undefined}
+          onRemoveTag={
+            currentUserId === trick.user_id ? handleRemoveTag : undefined
+          }
           stageExpanded={isStageExpanded}
           onStageExpandedChange={handleStageExpandedChange}
         />
       </StyledView>
 
-      {/* Modals */}
       <TrickActionsModal
         visible={showActionsModal}
         onClose={() => setShowActionsModal(false)}
@@ -1308,8 +949,8 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             params: { trickId: trick.id },
           })
         }
-        onPrivacy={handlePrivacyPress}
-        onDelete={handleDeletePress}
+        onPrivacy={() => setShowPrivacyModal(true)}
+        onDelete={() => setShowDeleteModal(true)}
         isPublic={trickIsPublic}
         isOwner={currentUserId === trick.user_id}
       />
@@ -1331,18 +972,9 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             if (success) {
               notifyTrickDeleted(trick.id);
               router.push("/(app)/home");
-            } else {
-              Alert.alert(
-                t("error"),
-                t("errorDeletingTrick", "Error deleting trick")
-              );
             }
           } catch (error) {
-            console.error("Error deleting trick:", error);
-            Alert.alert(
-              t("error"),
-              t("errorDeletingTrick", "Error deleting trick")
-            );
+            Alert.alert(t("error"), t("errorDeletingTrick"));
           }
         }}
         itemName={trick.title}

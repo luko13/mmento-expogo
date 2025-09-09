@@ -1,3 +1,4 @@
+//components/trick-viewer/StatsPanel.tsx
 "use client";
 
 import type React from "react";
@@ -414,7 +415,7 @@ const styles = StyleSheet.create({
   },
   statsColumn: {
     flexDirection: "column",
-    gap: 20,
+    gap: 15,
   },
   statItemContainer: {
     borderRadius: 16,

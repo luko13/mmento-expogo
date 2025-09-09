@@ -53,20 +53,12 @@ const MakePublicModal: React.FC<MakePublicModalProps> = ({
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
 
+  // CORREGIDO: Un solo useEffect para cargar datos cuando el modal se abre
   useEffect(() => {
-    console.log("useEffect triggered, visible:", visible, "trickId:", trickId);
     if (visible && trickId) {
       fetchTrickData();
     }
   }, [visible, trickId]);
-
-  // Forzar la carga cuando el modal se abre
-  useEffect(() => {
-    if (visible) {
-      console.log("Modal became visible, fetching data...");
-      fetchTrickData();
-    }
-  }, [visible]);
 
   useEffect(() => {
     setIsPublic(initialIsPublic);
@@ -74,8 +66,6 @@ const MakePublicModal: React.FC<MakePublicModalProps> = ({
 
   const checkMissingFields = (trick: MagicTrick): string[] => {
     const missing: string[] = [];
-
-    console.log("Checking fields for trick:", trick);
 
     if (!trick.title) missing.push(t("fields.title", "Title"));
     if (!trick.selectedCategoryId)
@@ -96,7 +86,6 @@ const MakePublicModal: React.FC<MakePublicModalProps> = ({
     if (!trick.reset) missing.push(t("fields.resetTime", "Reset Time"));
     if (!trick.difficulty) missing.push(t("fields.difficulty", "Difficulty"));
 
-    console.log("Missing fields:", missing);
     setMissingFields(missing);
     return missing;
   };

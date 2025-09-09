@@ -1,6 +1,7 @@
+// app/(app)/trick/[id].tsx
 import { useLocalSearchParams } from "expo-router";
 import { View, ActivityIndicator, Text } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import TrickViewScreen from "../../../components/TrickViewScreen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { supabase } from "../../../lib/supabase";
@@ -24,10 +25,22 @@ export default function TrickViewRoute() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Si viene el truco serializado, úsalo
-  const trickData = params.trick ? JSON.parse(params.trick as string) : null;
+  // Memoizar el trickData parseado para evitar que se recree en cada render
+  const trickData = useMemo(() => {
+    if (params.trick) {
+      try {
+        return JSON.parse(params.trick as string);
+      } catch (e) {
+        console.error("Error parsing trick data:", e);
+        return null;
+      }
+    }
+    return null;
+  }, [params.trick]);
+
   const trickId = params.id as string;
 
+  // CORRECCIÓN: Remover trickData de las dependencias ya que ahora está memoizado
   useEffect(() => {
     // Si ya tenemos los datos del truco, no necesitamos cargarlos
     if (trickData) {
@@ -40,7 +53,7 @@ export default function TrickViewRoute() {
     if (trickId) {
       loadTrick();
     }
-  }, [trickId, trickData]);
+  }, [trickId]); // Solo trickId como dependencia
 
   const loadTrick = async () => {
     try {

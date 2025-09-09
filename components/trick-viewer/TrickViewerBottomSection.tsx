@@ -1,3 +1,4 @@
+// components/trick-viewer/TrickViewerBottomSection.tsx
 "use client";
 
 import type React from "react";
@@ -23,8 +24,6 @@ interface TrickViewerBottomSectionProps {
   onRemoveTag?: (tagId: string) => void;
   stageExpanded?: boolean;
   onStageExpandedChange?: (expanded: boolean) => void;
-
-  // 👇 Props de depuración (opcionales)
   debugShowTags?: boolean;
   debugShowStats?: boolean;
 }
@@ -53,7 +52,6 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
 
   return (
     <StyledView style={styles.container}>
-      {/* Tags (toggleable por debug) */}
       {debugShowTags && (
         <TagPillsSection
           tagIds={tagIds}
@@ -63,7 +61,6 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
         />
       )}
 
-      {/* Info de etapa */}
       <StageInfoSection
         stage={stage}
         category={category}
@@ -72,7 +69,6 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
         onExpandedChange={onStageExpandedChange}
       />
 
-      {/* Stats (toggleable por debug) */}
       {debugShowStats && (
         <StatsPanel
           visible={statsVisible}
@@ -90,7 +86,7 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: "relative",
-    paddingBottom: 16,
+    paddingBottom: 28,
   },
 });
 

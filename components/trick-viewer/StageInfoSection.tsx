@@ -1,3 +1,4 @@
+//components/trick-viewer/StageInfoSection.tsx
 "use client";
 
 import type React from "react";

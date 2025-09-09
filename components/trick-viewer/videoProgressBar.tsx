@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useCallback, memo, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -6,194 +6,266 @@ import {
   Animated,
   Dimensions,
   Text,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { fontNames } from "../../app/_layout";
 
 const { width: screenWidth } = Dimensions.get("window");
 
 interface VideoProgressBarProps {
-  // ⬇️ Componente controlado por el padre
-  duration: number; // duración total en segundos
-  currentTime: number; // tiempo actual en segundos
+  duration: number;
+  currentTime: number;
   visible?: boolean;
-
-  // callbacks de interacción
   onSeekStart?: () => void;
-  onSeek?: (time: number) => void; // mientras arrastras
-  onSeekEnd?: (time: number) => void; // al soltar
+  onSeek?: (time: number) => void;
+  onSeekEnd?: (time: number) => void;
+   onBarInteraction?: () => void;
 }
 
-const VideoProgressBar: React.FC<VideoProgressBarProps> = ({
-  duration,
-  currentTime,
-  visible = true,
-  onSeekStart,
-  onSeek,
-  onSeekEnd,
-}) => {
-  const progressAnimation = useRef(new Animated.Value(0)).current;
-  const thumbAnimation = useRef(new Animated.Value(1)).current;
-  const barOpacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
-  const progressBarWidth = screenWidth - 24; // 12px de margen por lado
+const VideoProgressBar = memo<VideoProgressBarProps>(
+  ({
+    duration,
+    currentTime,
+    visible = true,
+    onSeekStart,
+    onSeek,
+    onSeekEnd,
+    onBarInteraction,
+  }) => {
+    const thumbAnimation = useRef(new Animated.Value(1)).current;
+    const barOpacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
+    const progressBarWidth = screenWidth - 24;
 
-  // anima visibilidad (solo depende de visible)
-  useEffect(() => {
-    Animated.timing(barOpacity, {
-      toValue: visible ? 1 : 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-  }, [visible]);
+    // Usar estado para el progreso
+    const [progressPercent, setProgressPercent] = useState(0);
+    const thumbPosition = useRef(new Animated.Value(0)).current;
 
-  // anima avance (derivado de props)
-  useEffect(() => {
-    const pct =
-      duration > 0 ? Math.max(0, Math.min(1, currentTime / duration)) : 0;
-    progressAnimation.setValue(pct);
-  }, [currentTime, duration, progressAnimation]);
+    // Referencias para evitar re-renders
+    const isDraggingRef = useRef(false);
+    const progressBarRef = useRef<View>(null);
 
-  // PanResponder (no muta estado interno, solo callbacks + animaciones)
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+    // Animación de visibilidad
+    useEffect(() => {
+      Animated.timing(barOpacity, {
+        toValue: visible ? 1 : 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }, [visible, barOpacity]);
 
-      onPanResponderGrant: (evt) => {
-        onSeekStart?.();
+    // Actualización del progreso cuando no estamos arrastrando
+    useEffect(() => {
+      if (isDraggingRef.current) return;
 
-        Animated.spring(thumbAnimation, {
-          toValue: 1.5,
-          friction: 3,
-          tension: 100,
-          useNativeDriver: true,
-        }).start();
+      const progress =
+        duration > 0 ? Math.max(0, Math.min(1, currentTime / duration)) : 0;
 
-        const touchX = evt.nativeEvent.locationX;
-        const percentage = Math.max(0, Math.min(1, touchX / progressBarWidth));
-        const seekTime = percentage * (duration || 0);
+      setProgressPercent(progress);
+
+      // Animar la posición del thumb suavemente
+      Animated.timing(thumbPosition, {
+        toValue: progress * progressBarWidth,
+        duration: 100,
+        useNativeDriver: true,
+      }).start();
+    }, [currentTime, duration, progressBarWidth, thumbPosition]);
+
+    // Función para manejar el toque directo en la barra
+    const handleBarPress = useCallback(
+      (evt: any) => {
+        const locationX = evt.nativeEvent.locationX;
+        const percentage = Math.max(
+          0,
+          Math.min(1, locationX / progressBarWidth)
+        );
+        const seekTime = percentage * duration;
+
+        // Actualizar visual inmediatamente
+        setProgressPercent(percentage);
+        thumbPosition.setValue(percentage * progressBarWidth);
+
+        // Notificar el cambio
         onSeek?.(seekTime);
-      },
-
-      onPanResponderMove: (evt) => {
-        const touchX = evt.nativeEvent.locationX;
-        const percentage = Math.max(0, Math.min(1, touchX / progressBarWidth));
-        const seekTime = percentage * (duration || 0);
-        onSeek?.(seekTime);
-        // actualiza visualmente la barra mientras arrastras
-        progressAnimation.setValue(percentage);
-      },
-
-      onPanResponderRelease: (evt) => {
-        Animated.spring(thumbAnimation, {
-          toValue: 1,
-          friction: 3,
-          tension: 100,
-          useNativeDriver: true,
-        }).start();
-
-        const touchX = evt.nativeEvent.locationX;
-        const percentage = Math.max(0, Math.min(1, touchX / progressBarWidth));
-        const seekTime = percentage * (duration || 0);
         onSeekEnd?.(seekTime);
       },
-    })
-  ).current;
+      [duration, progressBarWidth, thumbPosition, onSeek, onSeekEnd]
+    );
 
-  const progressWidth = progressAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, progressBarWidth],
-  });
+    // PanResponder para el arrastre
+    const panResponder = useRef(
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
 
-  const formatTime = (seconds: number) => {
-    const s = Math.max(0, Math.floor(seconds || 0));
-    const mins = Math.floor(s / 60);
-    const secs = s % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
+        onPanResponderGrant: (evt) => {
+          onBarInteraction?.(); // AÑADIR ESTA LÍNEA
+          isDraggingRef.current = true;
+          onSeekStart?.();
 
-  return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          opacity: barOpacity,
+          // Animar el tamaño del thumb
+          Animated.spring(thumbAnimation, {
+            toValue: 1.5,
+            friction: 3,
+            tension: 100,
+            useNativeDriver: true,
+          }).start();
+
+          const locationX = evt.nativeEvent.locationX;
+          const percentage = Math.max(
+            0,
+            Math.min(1, locationX / progressBarWidth)
+          );
+          const seekTime = percentage * duration;
+
+          onSeek?.(seekTime);
+          setProgressPercent(percentage);
+          thumbPosition.setValue(percentage * progressBarWidth);
         },
-      ]}
-      pointerEvents={visible ? "auto" : "none"}
-    >
-      {/* Tiempo transcurrido y duración */}
-      <View style={styles.timeContainer}>
-        <Text style={styles.timeText}>
-          {formatTime(currentTime)} / {formatTime(duration)}
-        </Text>
-      </View>
 
-      <View style={styles.progressBarContainer}>
-        {/* Fondo */}
-        <View style={styles.progressBarBackground} />
+        onPanResponderMove: (evt) => {
+          const locationX = evt.nativeEvent.locationX;
+          const percentage = Math.max(
+            0,
+            Math.min(1, locationX / progressBarWidth)
+          );
+          const seekTime = percentage * duration;
 
-        {/* Progreso */}
-        <Animated.View
-          style={[
-            styles.progressBarFill,
-            {
-              width: progressWidth,
-            },
-          ]}
-        />
+          onSeek?.(seekTime);
+          setProgressPercent(percentage);
+          thumbPosition.setValue(percentage * progressBarWidth);
+        },
 
-        {/* Área táctil + thumb */}
-        <View style={styles.touchArea} {...panResponder.panHandlers}>
-          <Animated.View
-            style={[
-              styles.thumbContainer,
-              {
-                transform: [
-                  {
-                    translateX: progressAnimation.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, progressBarWidth],
-                    }),
-                  },
-                  { scale: thumbAnimation },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.thumbOuter}>
-              <View style={styles.thumb} />
-            </View>
-          </Animated.View>
+        onPanResponderRelease: (evt) => {
+          isDraggingRef.current = false;
+
+          // Restaurar tamaño del thumb
+          Animated.spring(thumbAnimation, {
+            toValue: 1,
+            friction: 3,
+            tension: 100,
+            useNativeDriver: true,
+          }).start();
+
+          const locationX = evt.nativeEvent.locationX;
+          const percentage = Math.max(
+            0,
+            Math.min(1, locationX / progressBarWidth)
+          );
+          const seekTime = percentage * duration;
+          onSeekEnd?.(seekTime);
+        },
+      })
+    ).current;
+
+    const formatTime = useCallback((seconds: number) => {
+      const s = Math.max(0, Math.floor(seconds || 0));
+      const mins = Math.floor(s / 60);
+      const secs = s % 60;
+      return `${mins}:${secs.toString().padStart(2, "0")}`;
+    }, []);
+
+    return (
+      <Animated.View
+        style={[styles.container, { opacity: barOpacity }]}
+        pointerEvents={visible ? "auto" : "none"}
+      >
+        <View style={styles.timeContainer}>
+          <Text style={styles.timeText}>
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </Text>
         </View>
-      </View>
-    </Animated.View>
-  );
-};
+
+        {/* Área táctil grande para capturar toques */}
+        <TouchableWithoutFeedback onPress={handleBarPress}>
+          <View style={styles.touchableArea}>
+            {/* Área de arrastre con PanResponder */}
+            <View
+              ref={progressBarRef}
+              style={styles.touchAreaContainer}
+              {...panResponder.panHandlers}
+            >
+              <View style={styles.progressBarContainer}>
+                {/* Barra de fondo */}
+                <View style={styles.progressBarBackground} />
+
+                {/* Barra de progreso con width calculado */}
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    {
+                      width: `${progressPercent * 100}%`,
+                    },
+                  ]}
+                />
+
+                {/* Thumb animado */}
+                <Animated.View
+                  style={[
+                    styles.thumbContainer,
+                    {
+                      transform: [
+                        { translateX: thumbPosition },
+                        { scale: thumbAnimation },
+                      ],
+                    },
+                  ]}
+                  pointerEvents="none"
+                >
+                  
+                    <View style={styles.thumb} />
+                  
+                </Animated.View>
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Animated.View>
+    );
+  }
+);
+
+VideoProgressBar.displayName = "VideoProgressBar";
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
+    position: "relative",
+  },
+  invisibleTouchArea: {
     position: "absolute",
-    bottom: 0,
     left: 0,
     right: 0,
+    height: 80, // Área táctil grande para facilitar el toque
+    zIndex: 1,
+  },
+  container: {
     paddingHorizontal: 12,
-    paddingBottom: 12,
-    zIndex: 100,
+    paddingVertical: 8,
   },
   timeContainer: {
     paddingHorizontal: 4,
-    paddingBottom: 8,
+    paddingBottom: 0,
   },
   timeText: {
     color: "white",
     fontSize: 12,
     fontFamily: fontNames.regular,
-    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
+  },
+  touchableArea: {
+    // Área táctil expandida
+    paddingVertical: 20,
+    marginVertical: -20,
+  },
+  touchAreaContainer: {
+    // Contenedor para el PanResponder
+    paddingVertical: 10,
   },
   progressBarContainer: {
-    height: 40,
+    height: 3,
     justifyContent: "center",
     position: "relative",
   },
@@ -215,38 +287,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 2,
   },
-  touchArea: {
-    position: "absolute",
-    height: 40,
-    left: 0,
-    right: 0,
-    justifyContent: "center",
-  },
   thumbContainer: {
     position: "absolute",
     width: 20,
     height: 20,
-    marginLeft: -10,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  thumbOuter: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    marginLeft: -4,
+    marginTop: -1,
     justifyContent: "center",
     alignItems: "center",
   },
   thumb: {
-    width: 14,
-    height: 14,
+    width: 12,
+    height: 12,
     borderRadius: 7,
     backgroundColor: "white",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
     elevation: 5,
   },
 });

@@ -1,5 +1,5 @@
 // hooks/useFavorites.ts
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { favoritesService } from "../utils/favoritesService";
 import { supabase } from "../lib/supabase";
 
@@ -9,11 +9,11 @@ export const useFavorites = (contentId: string, contentType: ContentType) => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    checkFavoriteStatus();
-  }, [contentId, contentType]);
+  // SOLUCIÓN: Memoizar checkFavoriteStatus con useCallback
+  const checkFavoriteStatus = useCallback(async () => {
+    // No hacer nada si no hay contentId
+    if (!contentId) return;
 
-  const checkFavoriteStatus = async () => {
     try {
       const {
         data: { user },
@@ -29,7 +29,12 @@ export const useFavorites = (contentId: string, contentType: ContentType) => {
     } catch (error) {
       console.error("Error checking favorite status:", error);
     }
-  };
+  }, [contentId, contentType]); // Dependencias correctas
+
+  // useEffect con la función memoizada
+  useEffect(() => {
+    checkFavoriteStatus();
+  }, [checkFavoriteStatus]); // Ahora checkFavoriteStatus es estable
 
   const toggleFavorite = async () => {
     try {

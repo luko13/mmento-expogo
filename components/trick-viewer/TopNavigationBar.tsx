@@ -1,3 +1,4 @@
+//components/trick-viewer/TopNavigationBar.tsx
 import type React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { styled } from "nativewind";

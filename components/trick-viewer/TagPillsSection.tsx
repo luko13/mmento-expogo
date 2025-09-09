@@ -1,3 +1,4 @@
+//components/trick-viewer/TagPillsSection.tsx
 "use client";
 
 import type React from "react";
@@ -35,62 +36,12 @@ interface TagPillsSectionProps {
   editable?: boolean;
 }
 
-/* -------------------- DEBUG FLAGS -------------------- */
-const DEBUG_GUARD = false;
-const DEBUG_WDYR = false;
-/* ----------------------------------------------------- */
-
-/* -------------------- DEBUG HOOKS -------------------- */
-function useInfiniteLoopGuard(name: string, limit = 60) {
-  const countRef = useRef(0);
-  useEffect(() => {
-    countRef.current++;
-    if (countRef.current > limit) {
-      throw new Error(`Render loop detected in <${name}>`);
-    }
-    const id = setTimeout(() => {
-      countRef.current = 0;
-    }, 0);
-    return () => clearTimeout(id);
-  });
-}
-
-function useWhyDidYouUpdate<T extends Record<string, any>>(
-  name: string,
-  props: T
-) {
-  const prev = useRef<T | null>(null);
-  useEffect(() => {
-    if (prev.current) {
-      const keys = Object.keys({ ...prev.current, ...props });
-      const changes: Record<string, { from: any; to: any }> = {};
-      keys.forEach((k) => {
-        if (prev.current![k] !== props[k]) {
-          changes[k] = { from: prev.current![k], to: props[k] };
-        }
-      });
-      if (Object.keys(changes).length > 0) {
-        console.log(`[WDYR] TagPillsSection`, changes);
-      }
-    }
-    prev.current = props;
-  });
-}
-/* ----------------------------------------------------- */
-
 const TagPillsSection: React.FC<TagPillsSectionProps> = ({
   tagIds,
   userId,
   onRemoveTag,
   editable = false,
 }) => {
-  if (DEBUG_GUARD) useInfiniteLoopGuard("TagPillsSection");
-  if (DEBUG_WDYR)
-    useWhyDidYouUpdate("TagPillsSection", {
-      userId,
-      tagCount: tagIds?.length ?? 0,
-    });
-
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -102,14 +53,17 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
 
   useEffect(() => {
     const fetchUserTags = async () => {
-      if (!userId) return;
-      const ids = JSON.parse(tagsKey) as string[];
-      if (!ids.length) {
-        setTags((prev) => (prev.length ? [] : prev)); // evita set redundante
+      if (!userId) {
         return;
       }
 
+      const ids = JSON.parse(tagsKey) as string[];
+      if (!ids.length) {
+        setTags((prev) => (prev.length ? [] : prev));
+        return;
+      }
       setLoading(true);
+
       try {
         const { data, error } = await supabase
           .from("predefined_tags")
@@ -117,7 +71,9 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
           .eq("user_id", userId)
           .in("id", ids);
 
-        if (data && !error) {
+        if (error) {
+          console.error("TagPillsSection: Error fetching tags:", error);
+        } else if (data) {
           setTags((prev) => {
             const same =
               prev.length === data.length &&
@@ -129,9 +85,10 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
               );
             return same ? prev : data;
           });
+        } else {
         }
       } catch (error) {
-        console.error("Error fetching user tags:", error);
+        console.error("TagPillsSection: Error fetching user tags:", error);
       } finally {
         setLoading(false);
       }
@@ -140,7 +97,7 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
     if (userId) {
       fetchUserTags();
     } else {
-      setTags((prev) => (prev.length ? [] : prev)); // ⚠️ solo si cambia
+      setTags((prev) => (prev.length ? [] : prev));
     }
   }, [userId, tagsKey]);
 
@@ -209,6 +166,10 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
             );
           })}
         </StyledScrollView>
+      ) : loading ? (
+        <StyledView style={styles.loadingContainer}>
+          <StyledText style={styles.loadingText}>Loading tags...</StyledText>
+        </StyledView>
       ) : (
         <StyledView style={styles.emptySpace} />
       )}
@@ -219,8 +180,8 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginHorizontal: 12,
-    marginBottom: 12,
-    minHeight: 48, // mantener espacio
+    marginBottom: 0,
+    minHeight: 48,
   },
   scrollContent: {
     paddingVertical: 4,
@@ -250,6 +211,16 @@ const styles = StyleSheet.create({
   },
   emptySpace: {
     height: 48,
+  },
+  loadingContainer: {
+    height: 48,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    color: "rgba(255, 255, 255, 0.5)",
+    fontSize: 12,
+    fontFamily: fontNames.light,
   },
 });
 
