@@ -388,7 +388,6 @@ export default function EffectStep({
                 includeFontPadding: false,
               }}
             >
-              {t("optional", "(Opcional)")}
             </StyledText>
             <Feather
               name="chevron-right"
