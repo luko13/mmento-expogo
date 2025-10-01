@@ -23,9 +23,6 @@ import * as NavigationBar from "expo-navigation-bar";
 export default function App() {
   const colorScheme = useColorScheme();
 
-  /**
-   * Configura el idioma de la aplicación según el idioma del dispositivo
-   */
   useEffect(() => {
     const getDeviceLanguage = () => {
       const deviceLanguage =
@@ -51,29 +48,26 @@ export default function App() {
     setAppLanguage();
   }, []);
 
-  /**
-   * Configurar StatusBar y NavigationBar para Android
-   */
   useEffect(() => {
     if (Platform.OS === "android") {
       StatusBar.setTranslucent(true);
       StatusBar.setBackgroundColor("transparent");
       StatusBar.setBarStyle("light-content");
-
-      // Hacer la barra de navegación transparente
       NavigationBar.setBackgroundColorAsync("#00000001");
       NavigationBar.setButtonStyleAsync("light");
     }
   }, []);
+
+  // 👇 Check seguro y con tipos para Hermes / entorno
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isHermes = (global as any).HermesInternal != null;
     console.log("MMKV sanity", {
       appOwnership: Constants.appOwnership, // 'guest' (dev build), 'standalone' (prod) o 'expo' (Expo Go)
-      isHermes: !!global.HermesInternal, // true = on-device sin debug remoto
+      isHermes, // true = on-device sin debug remoto
     });
   }, []);
-  /**
-   * Configuración del tema de la aplicación
-   */
+
   const theme = {
     ...(colorScheme === "dark" ? DarkTheme : DefaultTheme),
     colors: {
@@ -81,9 +75,6 @@ export default function App() {
     },
   };
 
-  /**
-   * Renderizado principal de la aplicación
-   */
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <DragPortalProvider>

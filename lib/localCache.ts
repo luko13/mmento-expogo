@@ -1,9 +1,145 @@
 // utils/localCache.ts
-import { MMKV } from "react-native-mmkv";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 
-export const mmkv = new MMKV({ id: "mmento-cache" });
+/** =========================================================
+ *  Detección de entorno
+ *  - Expo Go o Debug Remoto => Fallback (sin MMKV nativo)
+ *  - Dev/Prod on-device (Hermes activo) => MMKV nativo
+ * ========================================================= */
+const isExpoGo = Constants.appOwnership === "expo";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const HermesInternal: any | undefined;
+const isRemoteDebugging = typeof HermesInternal === "undefined";
+const shouldFallback = isExpoGo || isRemoteDebugging;
 
-/** --- Tipos --- */
+/** =========================================================
+ *  MMKV lazy + Fallback en memoria hidratado con AsyncStorage
+ * ========================================================= */
+let nativeMMKV: any = null;
+function getNativeMMKV() {
+  if (!nativeMMKV) {
+    // carga en runtime para evitar crashear en entornos no soportados
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { MMKV } = require("react-native-mmkv");
+    nativeMMKV = new MMKV({ id: "mmento-cache" });
+  }
+  return nativeMMKV;
+}
+
+// Fallback sincronizado
+const mem = new Map<string, string>();
+let hydrated = false;
+(async () => {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    if (keys && keys.length) {
+      const pairs = await AsyncStorage.multiGet(keys);
+      for (const [k, v] of pairs) {
+        if (k != null && v != null) mem.set(k, v);
+      }
+    }
+  } catch {}
+  hydrated = true;
+})();
+
+// Helpers fallback <-> AsyncStorage
+function setAsyncFallback(key: string, value: string | null) {
+  if (value === null) {
+    AsyncStorage.removeItem(key).catch(() => {});
+    mem.delete(key);
+  } else {
+    AsyncStorage.setItem(key, value).catch(() => {});
+    mem.set(key, value);
+  }
+}
+
+/** =========================================================
+ *  API compatible con MMKV (wrapper)
+ * ========================================================= */
+export const mmkv = {
+  set(key: string, value: string | number | boolean) {
+    if (!shouldFallback) {
+      const s = getNativeMMKV();
+      if (typeof value === "string") s.set(key, value);
+      else if (typeof value === "number") s.set(key, value);
+      else s.set(key, value ? 1 : 0);
+      return;
+    }
+    setAsyncFallback(key, String(value));
+  },
+
+  getString(key: string): string | undefined {
+    if (!shouldFallback) return getNativeMMKV().getString(key) ?? undefined;
+    return mem.get(key) ?? undefined;
+  },
+
+  getNumber(key: string): number | undefined {
+    if (!shouldFallback) {
+      const n = getNativeMMKV().getNumber(key);
+      return typeof n === "number" ? n : undefined;
+    }
+    const raw = mem.get(key);
+    if (raw == null) return undefined;
+    const n = Number(raw);
+    return Number.isNaN(n) ? undefined : n;
+  },
+
+  getBoolean(key: string): boolean | undefined {
+    if (!shouldFallback) {
+      const b = getNativeMMKV().getBoolean(key);
+      return typeof b === "boolean" ? b : undefined;
+    }
+    const raw = mem.get(key);
+    if (raw == null) return undefined;
+    if (raw === "true" || raw === "1") return true;
+    if (raw === "false" || raw === "0") return false;
+    return undefined;
+  },
+
+  delete(key: string) {
+    if (!shouldFallback) {
+      getNativeMMKV().delete(key);
+      return;
+    }
+    setAsyncFallback(key, null);
+  },
+
+  clearAll() {
+    if (!shouldFallback) {
+      getNativeMMKV().clearAll();
+      return;
+    }
+    mem.clear();
+    AsyncStorage.clear().catch(() => {});
+  },
+
+  getAllKeys(): string[] {
+    if (!shouldFallback) return getNativeMMKV().getAllKeys();
+    return Array.from(mem.keys());
+  },
+};
+
+// Helpers JSON cómodos
+const safeStringify = (v: unknown) => {
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return "";
+  }
+};
+const safeParse = <T = any>(txt: string | undefined | null): T | null => {
+  if (!txt) return null;
+  try {
+    return JSON.parse(txt) as T;
+  } catch {
+    return null;
+  }
+};
+
+/** =========================================================
+ *  Claves y Tipos tal y como tenías
+ * ========================================================= */
 export interface SnapshotKeyParts {
   userId: string;
   page: number; // normalmente 0 para primer render
@@ -29,22 +165,6 @@ export interface SectionsSnapshot extends SnapshotMeta {
 }
 
 const SNAP_VER = 1;
-
-const safeStringify = (v: unknown) => {
-  try {
-    return JSON.stringify(v);
-  } catch {
-    return "";
-  }
-};
-const safeParse = <T = any>(txt: string | undefined | null): T | null => {
-  if (!txt) return null;
-  try {
-    return JSON.parse(txt) as T;
-  } catch {
-    return null;
-  }
-};
 
 const K = {
   lastUserId: "lastUserId",
@@ -143,9 +263,17 @@ export const cacheSections = {
     try {
       const keys = mmkv.getAllKeys();
       keys.forEach((k) => {
-        if (k.startsWith(`snapshot:${userId}:`) || k === K.profile(userId))
+        if (k.startsWith(`snapshot:${userId}:`) || k === K.profile(userId)) {
           mmkv.delete(k);
+        }
       });
     } catch {}
   },
 };
+
+/** Debug helpers */
+export const localCacheDebug = {
+  isUsingFallback: () => shouldFallback,
+  isHydrated: () => hydrated,
+};
+export default mmkv;
