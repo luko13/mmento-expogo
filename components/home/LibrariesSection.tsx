@@ -18,9 +18,9 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { supabase } from "../../lib/supabase";
 import {
   type Category,
-  createCategory,
-  deleteCategory,
-  updateCategory,
+  createCategory as createCategoryService,
+  deleteCategory as deleteCategoryService,
+  updateCategory as updateCategoryService,
 } from "../../utils/categoryService";
 import TrickViewScreen from "../TrickViewScreen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -30,12 +30,14 @@ import CantDeleteModal from "../ui/CantDeleteModal";
 import CategoryActionsModal from "../ui/CategoryActionsModal";
 import CategoryModal from "../ui/CategoryModal";
 import { useRouter } from "expo-router";
-import { usePaginatedContent } from "../../hooks/usePaginatedContent";
+import { useLibraryData } from "../../context/LibraryDataContext";
 import CollapsibleCategoryOptimized from "./CollapsibleCategoryOptimized";
 import { fontNames } from "../../app/_layout";
 import MagicLoader from "../ui/MagicLoader";
 import { useTrickDeletion } from "../../context/TrickDeletionContext";
-import { paginatedContentService } from "../../utils/paginatedContentService";
+import { Dimensions } from "react-native";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
@@ -56,17 +58,24 @@ const LibrariesSection = memo(function LibrariesSection({
   const { t } = useTranslation();
   const { deletedTrickId } = useTrickDeletion();
 
-  // Hook con booting (hidrata) + loading (red)
+  // Usar Context en lugar del hook viejo
   const {
     sections,
     loading,
-    booting,
-    loadingMore,
-    hasMore,
+    initializing,
     error,
-    loadMore,
     refresh,
-  } = usePaginatedContent(searchQuery, searchFilters);
+    toggleFavorite,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    applyFilters,
+  } = useLibraryData();
+
+  // Aplicar filtros cuando cambien
+  useEffect(() => {
+    applyFilters(searchQuery, searchFilters);
+  }, [searchQuery, searchFilters, applyFilters]);
 
   // Modales/estado UI
   const [isAddCategoryModalVisible, setAddCategoryModalVisible] =
@@ -92,7 +101,6 @@ const LibrariesSection = memo(function LibrariesSection({
     new Set()
   );
 
-  // Totales (excluye favoritos)
   const totalTricksCount = useMemo(() => {
     return sections.reduce((acc, section) => {
       const name = (section.category?.name || "").toLowerCase().trim();
@@ -109,7 +117,6 @@ const LibrariesSection = memo(function LibrariesSection({
     }, 0);
   }, [sections]);
 
-  // Ordenar: Favoritos primero (si coincide por nombre)
   const orderedSections = useMemo(() => {
     const sorted = [...sections].sort((a, b) => {
       const aFav = a.category.name?.toLowerCase?.().includes("favorit");
@@ -124,7 +131,6 @@ const LibrariesSection = memo(function LibrariesSection({
     }));
   }, [sections, expandedCategories]);
 
-  // Borrado -> refresh
   useEffect(() => {
     if (deletedTrickId) refresh();
   }, [deletedTrickId, refresh]);
@@ -144,33 +150,27 @@ const LibrariesSection = memo(function LibrariesSection({
   const handleAddCategory = useCallback(
     async (name: string) => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) return;
-        const newCategory = await createCategory(user.id, name);
-        if (newCategory) refresh();
+        await createCategory(name);
         setAddCategoryModalVisible(false);
       } catch (e) {
         console.error(e);
       }
     },
-    [refresh]
+    [createCategory]
   );
 
   const handleEditCategory = useCallback(
     async (name: string) => {
       if (!editingCategory) return;
       try {
-        const success = await updateCategory(editingCategory.id, name);
-        if (success) refresh();
+        await updateCategory(editingCategory.id, name);
         setEditingCategory(null);
         setEditCategoryModalVisible(false);
       } catch (e) {
         console.error(e);
       }
     },
-    [editingCategory, refresh]
+    [editingCategory, updateCategory]
   );
 
   const handleDeleteCategory = useCallback(
@@ -201,13 +201,12 @@ const LibrariesSection = memo(function LibrariesSection({
   const confirmDeleteCategory = useCallback(async () => {
     if (!categoryToDelete) return;
     try {
-      const ok = await deleteCategory(categoryToDelete.id);
-      if (ok) refresh();
+      await deleteCategory(categoryToDelete.id);
     } finally {
       setShowDeleteModal(false);
       setCategoryToDelete(null);
     }
-  }, [categoryToDelete, refresh]);
+  }, [categoryToDelete, deleteCategory]);
 
   const openEditCategoryModal = useCallback((category: Category) => {
     setEditingCategory(category);
@@ -228,7 +227,7 @@ const LibrariesSection = memo(function LibrariesSection({
       if (!user) return null;
 
       if (item.type === "magic") {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("magic_tricks")
           .select(
             `
@@ -239,6 +238,32 @@ const LibrariesSection = memo(function LibrariesSection({
           )
           .eq("id", item.id)
           .single();
+
+        if (error) {
+          console.warn(
+            "[LibrariesSection] Error fetching trick details:",
+            error.message
+          );
+          return {
+            id: item.id,
+            title: item.title || "Unknown",
+            category: "Unknown",
+            effect: item.effect || "",
+            secret: item.secret || "",
+            effect_video_url: item.effect_video_url || null,
+            secret_video_url: item.secret_video_url || null,
+            photo_url: item.photo_url || null,
+            photos: [],
+            script: "",
+            angles: Array.isArray(item.angles) ? item.angles : [],
+            duration: item.duration || 0,
+            reset: item.reset || 0,
+            difficulty: item.difficulty || 0,
+            notes: item.notes || "",
+            is_shared: item.is_shared || false,
+            owner_info: item.is_shared ? item.owner_id : null,
+          };
+        }
 
         if (!data) return null;
 
@@ -255,12 +280,12 @@ const LibrariesSection = memo(function LibrariesSection({
         let categoryName = "Unknown";
         if (data.trick_categories && data.trick_categories.length > 0) {
           const categoryId = data.trick_categories[0].category_id;
-          const { data: cat } = await supabase
+          const { data: cat, error: catError } = await supabase
             .from("user_categories")
             .select("name")
             .eq("id", categoryId)
             .single();
-          if (cat) categoryName = cat.name;
+          if (cat && !catError) categoryName = cat.name;
         }
 
         const { data: photosData } = await supabase
@@ -291,9 +316,27 @@ const LibrariesSection = memo(function LibrariesSection({
       }
 
       return null;
-    } catch (e) {
-      console.error("fetchItemData error:", e);
-      return null;
+    } catch (e: any) {
+      console.error("[LibrariesSection] fetchItemData error:", e.message);
+      return {
+        id: item.id,
+        title: item.title || "Unknown Trick",
+        category: "Unknown",
+        effect: item.effect || "",
+        secret: item.secret || "",
+        effect_video_url: null,
+        secret_video_url: null,
+        photo_url: null,
+        photos: [],
+        script: "",
+        angles: [],
+        duration: 0,
+        reset: 0,
+        difficulty: 0,
+        notes: "",
+        is_shared: false,
+        owner_info: null,
+      };
     }
   }, []);
 
@@ -337,15 +380,6 @@ const LibrariesSection = memo(function LibrariesSection({
     ),
     [totalTricksCount, t]
   );
-
-  const ListFooter = useCallback(() => {
-    if (!loadingMore) return null;
-    return (
-      <StyledView className="py-4">
-        <MagicLoader size="small" />
-      </StyledView>
-    );
-  }, [loadingMore]);
 
   const ListEmpty = useCallback(() => {
     return (
@@ -416,10 +450,6 @@ const LibrariesSection = memo(function LibrariesSection({
 
   const keyExtractor = useCallback((item: any) => item.category.id, []);
 
-  const handleEndReached = useCallback(() => {
-    if (hasMore && !loadingMore) loadMore();
-  }, [hasMore, loadingMore, loadMore]);
-
   const mainContent = (
     <View style={{ flex: 1 }}>
       <FlashList
@@ -428,23 +458,17 @@ const LibrariesSection = memo(function LibrariesSection({
         renderItem={renderCategory}
         keyExtractor={keyExtractor}
         ListEmptyComponent={
-          booting || (loading && sections.length === 0) ? null : ListEmpty
+          initializing || (loading && sections.length === 0) ? null : ListEmpty
         }
-        ListFooterComponent={ListFooter}
-        onEndReached={handleEndReached}
-        onEndReachedThreshold={0.5}
         estimatedItemSize={100}
         getItemType={() => "category"}
         refreshControl={
           <RefreshControl
-            refreshing={false}
+            refreshing={loading && sections.length > 0}
             onRefresh={refresh}
-            tintColor="transparent"
-            title="Refresh... ↓"
+            tintColor="rgba(255, 255, 255, 0.6)"
+            title=""
             titleColor="rgba(255, 255, 255, 0.6)"
-            colors={["transparent"]}
-            progressBackgroundColor="transparent"
-            progressViewOffset={-50}
           />
         }
         contentContainerStyle={{
@@ -452,25 +476,32 @@ const LibrariesSection = memo(function LibrariesSection({
         }}
         drawDistance={200}
         removeClippedSubviews={true}
-        estimatedListSize={{ height: 600, width: 350 }}
+        estimatedListSize={{
+          height: 600,
+          width: SCREEN_WIDTH,
+        }}
         scrollEnabled={true}
       />
     </View>
   );
 
-  // 1) Hidratación: si hay snapshot, se ve; si no, solo cabecera (sin vacío/loader)
-  if (booting) {
+  if (initializing) {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <StyledView className="flex-1">
           <ListHeader />
-          {sections.length > 0 ? mainContent : null}
+          {sections.length > 0 ? (
+            mainContent
+          ) : (
+            <StyledView className="flex-1 justify-center items-center">
+              <MagicLoader size="large" />
+            </StyledView>
+          )}
         </StyledView>
       </GestureHandlerRootView>
     );
   }
 
-  // 2) Primera carga real sin snapshot: loader centrado (sin “no categories” intermedio)
   if (loading && sections.length === 0 && !error) {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -484,7 +515,6 @@ const LibrariesSection = memo(function LibrariesSection({
     );
   }
 
-  // 3) Render normal
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StyledView className="flex-1">
@@ -523,7 +553,6 @@ const LibrariesSection = memo(function LibrariesSection({
           mainContent
         )}
 
-        {/* Modales */}
         <CategoryModal
           visible={isAddCategoryModalVisible || isEditCategoryModalVisible}
           onClose={() => {

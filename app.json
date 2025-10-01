@@ -108,11 +108,15 @@
           "targetSdkVersion": 35,
           "minSdkVersion": 24,
           "packagingOptions": {
-            "pickFirst": ["**/libc++_shared.so", "**/libjsc.so"]
+            "pickFirst": [
+              "**/libc++_shared.so",
+              "**/libjsc.so"
+            ]
           }
         }
       }
-    ]
+    ],
+    "expo-asset"
   ],
   "extra": {
     "router": {

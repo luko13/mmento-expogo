@@ -167,7 +167,7 @@ export default function EffectStep({
           showsVerticalScrollIndicator={false}
         >
           {/* Effect Section */}
-          <StyledView className="mt-1">
+          <StyledView className="mt-2">
             <StyledText
               className="text-white text-lg mb-2"
               style={{

@@ -1,15 +1,13 @@
 // components/home/UserProfile.tsx
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { View, Image, TouchableOpacity, Text, Animated } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
-import { supabase } from "../../lib/supabase";
-import { useRouter } from "expo-router";
 import { fontNames } from "../../app/_layout";
-import { cacheAuth, cacheProfile } from "../../lib/localCache";
+import { useLibraryData } from "../../context/LibraryDataContext";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
@@ -27,64 +25,14 @@ export default function UserProfile({
   onCloseSearch,
 }: UserProfileProps) {
   const { t, i18n } = useTranslation();
-  const [userName, setUserName] = useState("...");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [greeting, setGreeting] = useState("");
   const buttonOpacity = useRef(new Animated.Value(0)).current;
 
-  // Pintar saludo según idioma
-  useEffect(() => {
-    const currentLang = i18n.language || "en";
-    setGreeting(currentLang.startsWith("es") ? t("hola") : t("hello"));
-  }, [t, i18n.language]);
+  // Leer datos del Context (ya están cargados)
+  const { userName, avatarUrl } = useLibraryData();
 
-  // Hidratar al instante desde MMKV + actualizar en background desde Supabase
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      // 1) Hydration instantánea por si ya tenemos snapshot
-      const lastUserId = cacheAuth.getLastUserId();
-      if (lastUserId) {
-        const snap = cacheProfile.get(lastUserId);
-        if (snap && mounted) {
-          setUserName(snap.userName);
-          setAvatarUrl(snap.avatarUrl);
-          // no devolvemos aquí; después refrescamos igualmente desde supabase
-        }
-      }
-
-      // 2) Obtener usuario actual y refrescar
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) return;
-      cacheAuth.setLastUserId(user.id);
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("username, email, avatar_url")
-        .eq("id", user.id)
-        .single();
-
-      const computedName =
-        profile?.username || profile?.email?.split("@")[0] || "Usuario";
-
-      if (!mounted) return;
-      setUserName(computedName);
-      setAvatarUrl(profile?.avatar_url || null);
-
-      // Guardar snapshot de perfil para hidratación futura
-      cacheProfile.set(user.id, {
-        userName: computedName,
-        avatarUrl: profile?.avatar_url || null,
-      });
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  // Determinar saludo según idioma
+  const currentLang = i18n.language || "en";
+  const greeting = currentLang.startsWith("es") ? t("hola") : t("hello");
 
   // Animación botón cerrar búsqueda
   useEffect(() => {

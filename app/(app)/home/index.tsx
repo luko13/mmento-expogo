@@ -22,8 +22,6 @@ import LibrariesSection from "../../../components/home/LibrariesSection";
 import CompactSearchBar from "../../../components/home/CompactSearchBar";
 import SuccessCreationModal from "../../../components/ui/SuccessCreationModal";
 import FiltersModal from "../../../components/ui/FilterModal";
-import { supabase } from "../../../lib/supabase";
-import { paginatedContentService } from "../../../utils/paginatedContentService";
 import { useSearch } from "../../../context/SearchContext";
 import { useTrickDeletion } from "../../../context/TrickDeletionContext";
 import { useIsFocused } from "@react-navigation/native";
@@ -50,7 +48,6 @@ export default function Home() {
     id: string;
     title: string;
   } | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
 
   useEffect(() => {
@@ -72,17 +69,6 @@ export default function Home() {
       });
       setShowSuccessModal(true);
 
-      (async () => {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          paginatedContentService.clearUserCache(user.id); // mantenemos snapshot persistido
-        }
-      })();
-
-      setRefreshKey((prev) => prev + 1);
-
       router.setParams({
         showSuccessModal: undefined,
         trickId: undefined,
@@ -91,25 +77,19 @@ export default function Home() {
     }
   }, [params.showSuccessModal, params.trickId, params.trickTitle, router]);
 
-  useEffect(() => {
-    if (isFocused && deletedTrickId) {
-      setRefreshKey((prev) => prev + 1);
-    }
-  }, [isFocused, deletedTrickId]);
-
   const handleViewItem = () => {
     setShowSuccessModal(false);
     if (createdTrickData) router.push(`/(app)/trick/${createdTrickData.id}`);
   };
+
   const handleAddAnother = () => {
     setShowSuccessModal(false);
     router.push("/(app)/add-magic");
   };
+
   const handleCloseModal = () => setShowSuccessModal(false);
   const handleSearchQueryChange = (query: string) => setSearchQuery(query);
-  const dismissKeyboard = () => {
-    Keyboard.dismiss();
-  };
+  const dismissKeyboard = () => Keyboard.dismiss();
   const handleOpenFiltersModal = () => setShowFiltersModal(true);
 
   const getTotalFiltersCount = () => {
@@ -163,7 +143,6 @@ export default function Home() {
               }}
             >
               <LibrariesSection
-                key={refreshKey}
                 searchQuery={searchQuery}
                 searchFilters={searchFilters}
               />

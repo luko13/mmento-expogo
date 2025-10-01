@@ -1,4 +1,4 @@
-// hooks/usePaginatedContent.ts
+/* // hooks/usePaginatedContent.ts
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { paginatedContentService } from "../utils/paginatedContentService";
 import { supabase } from "../lib/supabase";
@@ -655,3 +655,4 @@ function mergeUniqueSections(
   });
   return merged;
 }
+ */

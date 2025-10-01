@@ -1,75 +1,98 @@
-// utils/storage.ts
-import AsyncStorage from "@react-native-async-storage/async-storage";
+// utils/auth.ts
+import { AuthService } from "../services/authService";
+import { setAuthToken, removeAuthToken } from "./storage";
 
-let mmkvAvailable = false;
-let mmkv: any;
+const authService = AuthService.getInstance();
 
-try {
-  // Carga dinámica para evitar romper web/tests y capturar errores de JSI o arquitectura
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { MMKV } = require("react-native-mmkv");
-  // El constructor puede lanzar si no hay JSI (debug remoto) o si la arch. nueva no está activa.
-  mmkv = new MMKV({ id: "mmento-storage" });
-  // Pequeña sonda para verificar que realmente podemos usarlo
-  mmkv.set("mmkv_probe", "1");
-  mmkvAvailable = mmkv.getString("mmkv_probe") === "1";
-  if (mmkvAvailable) mmkv.delete("mmkv_probe");
-} catch (_e) {
-  mmkvAvailable = false;
-}
+/**
+ * Inicia sesión del usuario
+ */
+export const signIn = async (
+  email: string,
+  password: string
+): Promise<boolean> => {
+  try {
+    const result = await authService.signIn(email, password);
 
-// --- API de bajo nivel (clave/valor) ---
-export const storage = {
-  async getItem(key: string): Promise<string | null> {
-    if (mmkvAvailable) {
-      const v = mmkv.getString(key);
-      return v ?? null;
+    // Guardar token de sesión
+    if (result.session?.access_token) {
+      await setAuthToken(result.session.access_token);
     }
-    return AsyncStorage.getItem(key);
-  },
 
-  async setItem(key: string, value: string): Promise<void> {
-    if (mmkvAvailable) {
-      mmkv.set(key, value);
-      return;
-    }
-    await AsyncStorage.setItem(key, value);
-  },
-
-  async removeItem(key: string): Promise<void> {
-    if (mmkvAvailable) {
-      mmkv.delete(key);
-      return;
-    }
-    await AsyncStorage.removeItem(key);
-  },
-
-  async getJSON<T = any>(key: string, fallback: T): Promise<T> {
-    const raw = await this.getItem(key);
-    if (!raw) return fallback;
-    try {
-      return JSON.parse(raw) as T;
-    } catch {
-      return fallback;
-    }
-  },
-
-  async setJSON(key: string, value: any): Promise<void> {
-    await this.setItem(key, JSON.stringify(value));
-  },
+    return true;
+  } catch (error) {
+    console.error("Error en signIn:", error);
+    throw error;
+  }
 };
 
-// --- Helpers específicos que ya usa tu auth.ts ---
-const AUTH_TOKEN_KEY = "authToken";
+/**
+ * Registra un nuevo usuario
+ */
+export const signUp = async (
+  email: string,
+  password: string,
+  username?: string
+): Promise<boolean> => {
+  try {
+    const result = await authService.signUp(email, password, username);
 
-export const getAuthToken = async (): Promise<string | null> => {
-  return storage.getItem(AUTH_TOKEN_KEY);
+    // Guardar token de sesión si está disponible
+    if (result.session?.access_token) {
+      await setAuthToken(result.session.access_token);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error en signUp:", error);
+    throw error;
+  }
 };
 
-export const setAuthToken = async (token: string): Promise<void> => {
-  await storage.setItem(AUTH_TOKEN_KEY, token);
+/**
+ * Cierra la sesión del usuario
+ */
+export const signOut = async (): Promise<void> => {
+  try {
+    await authService.signOut();
+    await removeAuthToken();
+  } catch (error) {
+    console.error("Error en signOut:", error);
+    throw error;
+  }
 };
 
-export const removeAuthToken = async (): Promise<void> => {
-  await storage.removeItem(AUTH_TOKEN_KEY);
+/**
+ * Obtiene el usuario actual
+ */
+export const getCurrentUser = async () => {
+  return authService.getCurrentUser();
+};
+
+/**
+ * Verifica si hay una sesión activa
+ */
+export const isAuthenticated = async (): Promise<boolean> => {
+  return authService.isAuthenticated();
+};
+
+/**
+ * Envía email para restablecer contraseña
+ */
+export const resetPassword = async (email: string): Promise<boolean> => {
+  return authService.resetPassword(email);
+};
+
+/**
+ * Actualiza la contraseña del usuario
+ */
+export const updatePassword = async (newPassword: string): Promise<boolean> => {
+  return authService.updatePassword(newPassword);
+};
+
+/**
+ * Refresca la sesión actual
+ */
+export const refreshSession = async (): Promise<boolean> => {
+  return authService.refreshSession();
 };

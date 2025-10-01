@@ -1,4 +1,4 @@
-// utils/paginatedContentService.ts - mem cache + MMKV snapshot + logs
+/* // utils/paginatedContentService.ts - mem cache + MMKV snapshot + logs
 import { supabase } from "../lib/supabase";
 import { MMKV } from "react-native-mmkv";
 import { Category, Trick, Technique, Gimmick } from "./categoryService";
@@ -366,3 +366,4 @@ export class PaginatedContentService {
 }
 
 export const paginatedContentService = PaginatedContentService.getInstance();
+ */
