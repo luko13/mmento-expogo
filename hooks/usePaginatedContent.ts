@@ -3,6 +3,11 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { paginatedContentService } from "../utils/paginatedContentService";
 import { supabase } from "../lib/supabase";
 import { orderService } from "../services/orderService";
+import {
+  cacheAuth,
+  cacheSections,
+  type CategorySection as SnapSection,
+} from "../lib/localCache";
 
 // ============================================================================
 // función debounce para evitar múltiples llamadas rápidas
@@ -11,63 +16,54 @@ function debounce<T extends (...args: any[]) => any>(
   func: T,
   wait: number
 ): T & { cancel: () => void } {
-  let timeout: NodeJS.Timeout | null = null;
-
+  let timeout: ReturnType<typeof setTimeout> | null = null;
   const debounced = (...args: Parameters<T>) => {
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
-
-  debounced.cancel = () => {
+  (debounced as any).cancel = () => {
     if (timeout) clearTimeout(timeout);
   };
-
   return debounced as T & { cancel: () => void };
 }
 
 // ============================================================================
 // Tipos de datos
 // ============================================================================
-interface LibraryItem {
+export interface LibraryItem {
   id: string;
   title: string;
   type: "magic";
   difficulty?: number | null;
-  status?: string;
-  created_at?: string;
+  status?: string | null;
+  created_at?: string | null;
   duration?: number | null;
-  category_id?: string;
+  category_id?: string | null;
   tags?: string[];
-  description?: string;
-  notes?: string;
+  description?: string | null;
+  notes?: string | null;
   reset?: number | null;
   angles?: string[];
   is_shared?: boolean;
-  owner_id?: string;
+  owner_id?: string | null;
   is_favorite?: boolean;
-  // Progress tracking fields
-  effect_video_url?: string;
-  effect?: string;
-  secret_video_url?: string;
-  secret?: string;
-  is_public?: boolean;
+  effect_video_url?: string | null;
+  effect?: string | null;
+  secret_video_url?: string | null;
+  secret?: string | null;
+  is_public?: boolean | null;
 }
 
-interface CategorySection {
-  category: {
-    id: string;
-    name: string;
-    [key: string]: any;
-  };
+export interface CategorySection {
+  category: { id: string; name: string; [key: string]: any };
   items: LibraryItem[];
 }
 
-// Actualizar la interfaz SearchFilters para coincidir con FiltersModal
-interface SearchFilters {
+export interface SearchFilters {
   categories?: string[];
   tags?: string[];
   tagsMode?: "and" | "or";
-  difficulties?: number[]; // Cambiar a number[] para coincidir con CompactSearchBar
+  difficulties?: number[];
   resetTimes?: { min?: number; max?: number };
   durations?: { min?: number; max?: number };
   angles?: string[];
@@ -75,6 +71,16 @@ interface SearchFilters {
   sortOrder?: "recent" | "last";
 }
 
+type ProcessedContent = {
+  categories: any[];
+  tricks: any[];
+  hasMore: boolean;
+  nextPage: number;
+};
+
+// ============================================================================
+// Hook principal
+// ============================================================================
 export function usePaginatedContent(
   searchQuery: string = "",
   searchFilters?: SearchFilters
@@ -84,7 +90,8 @@ export function usePaginatedContent(
   // --------------------------------------------------------------------------
   const [sections, setSections] = useState<CategorySection[]>([]);
   const [allCategories, setAllCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(true); // red
+  const [booting, setBooting] = useState<boolean>(true); // hidratación MMKV
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [hasMore, setHasMore] = useState<boolean>(true);
   const [page, setPage] = useState<number>(0);
@@ -94,29 +101,59 @@ export function usePaginatedContent(
     null
   );
 
-  // --------------------------------------------------------------------------
-  // Refs para controlar el estado de montaje
-  // --------------------------------------------------------------------------
   const isMounted = useRef<boolean>(true);
+
+  // --------------------------------------------------------------------------
+  // Helpers
+  // --------------------------------------------------------------------------
+  const parseJsonSafely = <T = any>(value: any, defaultValue: T): T => {
+    if (value == null) return defaultValue;
+    if (typeof value !== "string") return value as T;
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return defaultValue;
+    }
+  };
+
+  const normalizeFilters = (filters?: SearchFilters) => ({
+    categories: filters?.categories ?? [],
+    tags: filters?.tags ?? [],
+    tagsMode: filters?.tagsMode ?? "or",
+    difficulties: filters?.difficulties ?? [],
+    resetTimes: filters?.resetTimes ?? {},
+    durations: filters?.durations ?? {},
+    angles: filters?.angles ?? [],
+    isPublic: typeof filters?.isPublic === "boolean" ? filters?.isPublic : null,
+    sortOrder: filters?.sortOrder ?? "recent",
+  });
+
+  const makeSnapKeyParts = (
+    userId: string,
+    pageNum: number,
+    filters?: SearchFilters
+  ) => {
+    const f = normalizeFilters(filters);
+    const catsKey =
+      f.categories && f.categories.length ? f.categories.join(",") : "all";
+    const queryKey = searchQuery?.trim() ? searchQuery.trim() : "no-query";
+    const filterKey = JSON.stringify({ ...f, tagsMode: f.tagsMode ?? "or" });
+    return { userId, page: pageNum, catsKey, queryKey, filterKey };
+  };
 
   // --------------------------------------------------------------------------
   // Convertir datos crudos a secciones organizadas por categoría
   // --------------------------------------------------------------------------
   const processContentIntoSections = useCallback(
     async (
-      content: {
-        categories: any[];
-        tricks: any[];
-        hasMore: boolean;
-        nextPage: number;
-      },
-      query?: string, // Ya no necesarios
-      filters?: SearchFilters, // Ya no necesarios
+      content: ProcessedContent,
+      _query?: string,
+      _filters?: SearchFilters,
       userId?: string
     ): Promise<CategorySection[]> => {
       const sectionsMap = new Map<string, CategorySection>();
 
-      // Get user favorites to mark items
+      // Favoritos del usuario
       let userFavorites: Set<string> = new Set();
       if (userId) {
         const { data: favorites } = await supabase
@@ -124,92 +161,122 @@ export function usePaginatedContent(
           .select("content_id")
           .eq("user_id", userId)
           .eq("content_type", "magic");
+        if (favorites)
+          userFavorites = new Set(
+            favorites.map((f: { content_id: string }) => f.content_id)
+          );
+      }
 
-        if (favorites) {
-          userFavorites = new Set(favorites.map((f) => f.content_id));
+      // Categorías (Favoritos primero)
+      const sortedCategories = [...(content.categories || [])].sort(
+        (a: any, b: any) => {
+          if (a.name === "Favoritos") return -1;
+          if (b.name === "Favoritos") return 1;
+          return 0;
         }
-      }
+      );
 
-      // Sort categories to ensure Favoritos is first
-      const sortedCategories = [...content.categories].sort((a, b) => {
-        if (a.name === "Favoritos") return -1;
-        if (b.name === "Favoritos") return 1;
-        return 0;
+      sortedCategories.forEach((category: any) => {
+        sectionsMap.set(category.id, { category, items: [] });
       });
 
-      sortedCategories.forEach((category) => {
-        sectionsMap.set(category.id, {
-          category,
-          items: [],
-        });
-      });
+      const favCat = sortedCategories.find((c: any) => c.name === "Favoritos");
+      if (favCat) setFavoritesCategoryId(favCat.id);
 
-      // Store favorites category ID
-      const favCat = sortedCategories.find((c) => c.name === "Favoritos");
-      if (favCat) {
-        setFavoritesCategoryId(favCat.id);
-      }
-
-      // Track new tricks for order initialization
       const newTricks: Array<{ trickId: string; categoryId: string }> = [];
 
-      // Process tricks sin filtrar localmente
-      content.tricks.forEach((trick) => {
+      (content.tricks || []).forEach((trick: any) => {
         const isFavorite = userFavorites.has(trick.id);
 
         const item: LibraryItem = {
           id: trick.id,
           title: trick.title || "Sin título",
           type: "magic",
-          difficulty: trick.difficulty,
-          status: trick.status,
-          created_at: trick.created_at,
-          duration: trick.duration,
-          tags: trick.trick_tags?.map((tt: any) => tt.tag_id) || [],
-          reset: trick.reset,
-          notes: trick.notes,
-          angles: parseJsonSafely(trick.angles, []),
-          owner_id: trick.user_id,
+          difficulty: trick.difficulty ?? null,
+          status: trick.status ?? null,
+          created_at: trick.created_at ?? null,
+          duration: trick.duration ?? null,
+          tags:
+            (trick.trick_tags?.map(
+              (tt: { tag_id: string }) => tt.tag_id
+            ) as string[]) || [],
+          reset: trick.reset ?? null,
+          notes: trick.notes ?? null,
+          angles: parseJsonSafely<string[]>(trick.angles, []),
+          owner_id: trick.user_id ?? null,
           is_favorite: isFavorite,
-          // Add progress tracking fields
-          category_id: trick.trick_categories?.[0]?.category_id,
-          effect_video_url: trick.effect_video_url,
-          effect: trick.effect,
-          secret_video_url: trick.secret_video_url,
-          secret: trick.secret,
-          is_public: trick.is_public,
+          category_id: trick.trick_categories?.[0]?.category_id ?? null,
+          effect_video_url: trick.effect_video_url ?? null,
+          effect: trick.effect ?? null,
+          secret_video_url: trick.secret_video_url ?? null,
+          secret: trick.secret ?? null,
+          is_public: trick.is_public ?? null,
         };
 
-        // Add to regular categories
-        trick.trick_categories?.forEach((tc: any) => {
-          const section = sectionsMap.get(tc.category_id);
-          if (section) {
-            section.items.push(item);
-            
-            // Track new tricks for order initialization
-            if (userId) {
-              newTricks.push({ trickId: trick.id, categoryId: tc.category_id });
+        (trick.trick_categories || []).forEach(
+          (tc: { category_id: string }) => {
+            const section = sectionsMap.get(tc.category_id);
+            if (section) {
+              section.items.push(item);
+              if (userId)
+                newTricks.push({
+                  trickId: trick.id,
+                  categoryId: tc.category_id,
+                });
             }
           }
-        });
+        );
 
-        // Also add to favorites category if it's a favorite
         if (isFavorite && favCat) {
           const favSection = sectionsMap.get(favCat.id);
           if (favSection) {
             favSection.items.push(item);
-            
-            // Also track for favorites
-            if (userId) {
+            if (userId)
               newTricks.push({ trickId: trick.id, categoryId: favCat.id });
-            }
           }
         }
       });
 
-      // Initialize order for new tricks and categories if needed
-      if (userId) {
-        await initializeOrdersIfNeeded(userId, sortedCategories, newTricks);
+      // Inicializar órdenes si hace falta (no bloquea hidratación)
+      if (userId && sortedCategories.length > 0) {
+        try {
+          const existingCategoryOrder = await orderService.getUserCategoryOrder(
+            userId
+          );
+          const existingCategoryIds = new Set(
+            existingCategoryOrder.map((o: any) => o.category_id)
+          );
+
+          for (const category of sortedCategories) {
+            if (!existingCategoryIds.has(category.id)) {
+              await orderService.initializeCategoryOrder(userId, category.id);
+            }
+          }
+
+          const allTrickOrders = await orderService.getAllUserTrickOrders(
+            userId
+          );
+          const existingTrickOrdersMap = new Map<string, Set<string>>();
+          (allTrickOrders || []).forEach((order: any) => {
+            const key = order.category_id as string;
+            if (!existingTrickOrdersMap.has(key))
+              existingTrickOrdersMap.set(key, new Set<string>());
+            existingTrickOrdersMap.get(key)!.add(order.trick_id as string);
+          });
+
+          for (const { trickId, categoryId } of newTricks) {
+            const categoryTricks = existingTrickOrdersMap.get(categoryId);
+            if (!categoryTricks || !categoryTricks.has(trickId)) {
+              await orderService.initializeTrickOrder(
+                userId,
+                categoryId,
+                trickId
+              );
+            }
+          }
+        } catch {
+          // silencioso
+        }
       }
 
       return Array.from(sectionsMap.values());
@@ -218,107 +285,178 @@ export function usePaginatedContent(
   );
 
   // --------------------------------------------------------------------------
-  // Initialize order for new categories and tricks
-  // --------------------------------------------------------------------------
-  const initializeOrdersIfNeeded = async (
-    userId: string,
-    categories: any[],
-    newTricks: Array<{ trickId: string; categoryId: string }>
-  ) => {
-    try {
-      // Get existing orders
-      const existingCategoryOrder = await orderService.getUserCategoryOrder(userId);
-      const existingCategoryIds = new Set(existingCategoryOrder.map(o => o.category_id));
-
-      // Initialize order for new categories
-      for (const category of categories) {
-        if (!existingCategoryIds.has(category.id)) {
-          await orderService.initializeCategoryOrder(userId, category.id);
-        }
-      }
-
-      // Get all existing trick orders
-      const allTrickOrders = await orderService.getAllUserTrickOrders(userId);
-      
-      // Create a map of existing trick orders by category
-      const existingTrickOrdersMap = new Map<string, Set<string>>();
-      allTrickOrders.forEach(order => {
-        const key = order.category_id;
-        if (!existingTrickOrdersMap.has(key)) {
-          existingTrickOrdersMap.set(key, new Set());
-        }
-        existingTrickOrdersMap.get(key)!.add(order.trick_id);
-      });
-
-      // Initialize order for new tricks
-      for (const { trickId, categoryId } of newTricks) {
-        const categoryTricks = existingTrickOrdersMap.get(categoryId);
-        if (!categoryTricks || !categoryTricks.has(trickId)) {
-          await orderService.initializeTrickOrder(userId, categoryId, trickId);
-        }
-      }
-    } catch (error) {
-      console.error('Error initializing orders:', error);
-    }
-  };
-
-  // --------------------------------------------------------------------------
   // Debounce de búsqueda para no disparar loadContent en cada pulsación
   // --------------------------------------------------------------------------
   const debouncedSearch = useMemo(
     () =>
       debounce((query: string, filters?: SearchFilters) => {
         setPage(0);
-        setSections([]);
-        loadContent(0, query, filters);
+        loadContent(0, query, filters, { keepUI: true });
       }, 300),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
   // --------------------------------------------------------------------------
-  // 1) Efecto principal: carga inicial de contenido
+  // Carga principal (con opción keepUI para no flickear)
+  // --------------------------------------------------------------------------
+  const loadContent = useCallback(
+    async (
+      pageToLoad: number,
+      query?: string,
+      filters?: SearchFilters,
+      opts?: { keepUI?: boolean }
+    ) => {
+      try {
+        if (pageToLoad === 0) {
+          if (!opts?.keepUI) {
+            setLoading(true);
+            setError(null);
+          }
+        } else {
+          setLoadingMore(true);
+        }
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user || !isMounted.current) return;
+        setCurrentUserId(user.id);
+        cacheAuth.setLastUserId(user.id);
+
+        const normalizedFilters = normalizeFilters(filters);
+        const selectedCategoryIds = normalizedFilters.categories || [];
+
+        const content = await paginatedContentService.getUserContentPaginated(
+          user.id,
+          pageToLoad,
+          selectedCategoryIds,
+          query,
+          normalizedFilters
+        );
+
+        if (!isMounted.current) return;
+
+        const newSections = await processContentIntoSections(
+          content,
+          undefined,
+          undefined,
+          user.id
+        );
+
+        if (pageToLoad === 0) {
+          setAllCategories(content.categories || []);
+          setSections(newSections);
+        } else {
+          setSections((prev) => mergeUniqueSections(prev, newSections));
+        }
+
+        setHasMore(content.hasMore);
+        setPage(content.nextPage);
+
+        // Guardar snapshot persistente (página 0) para arranque instantáneo
+        const parts = makeSnapKeyParts(user.id, 0, normalizedFilters);
+        const snapSections: SnapSection[] = (
+          pageToLoad === 0
+            ? newSections
+            : mergeUniqueSections(sections, newSections)
+        ).map((s) => ({ category: s.category, items: s.items }));
+        cacheSections.set(parts, snapSections, content.categories || [], {
+          hasMore: content.hasMore,
+          nextPage: content.nextPage,
+        });
+      } catch (err) {
+        console.error("Error cargando contenido:", err);
+        setError("Error al cargar el contenido");
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+        setBooting(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [processContentIntoSections, sections]
+  );
+
+  // --------------------------------------------------------------------------
+  // Forzar refresco completo (manteniendo UI)
+  // --------------------------------------------------------------------------
+  const refresh = useCallback(async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) paginatedContentService.clearUserCache(user.id);
+    setPage(0);
+    setHasMore(true);
+    setError(null);
+    setLoading(true);
+    await loadContent(0, searchQuery, searchFilters, { keepUI: true });
+  }, [loadContent, searchQuery, searchFilters]);
+
+  // --------------------------------------------------------------------------
+  // Mount: hidratación inmediata desde MMKV + background refresh
   // --------------------------------------------------------------------------
   useEffect(() => {
     isMounted.current = true;
 
-    if (!searchQuery && !searchFilters) {
-      loadContent(0);
-    }
+    (async () => {
+      // 1) Hydration inmediato con lastUserId + snapshot persistente
+      const lastUserId = cacheAuth.getLastUserId();
+      if (lastUserId) {
+        const parts = makeSnapKeyParts(lastUserId, 0, searchFilters);
+        const snap = cacheSections.getSync(parts);
+
+        if (snap && isMounted.current) {
+          const snappedSections: CategorySection[] = (snap.sections || []).map(
+            (s: SnapSection) => ({
+              category: s.category,
+              items: (s.items || []) as LibraryItem[],
+            })
+          );
+          setSections(snappedSections);
+          setAllCategories(snap.allCategories || []);
+          setHasMore(snap.hasMore);
+          setPage(snap.nextPage);
+          setLoading(false); // ya hay datos para pintar
+          setBooting(false);
+        }
+      }
+
+      // 2) Fetch de red en background para asegurar frescura
+      await loadContent(0, searchQuery, searchFilters, { keepUI: true });
+    })();
 
     return () => {
       isMounted.current = false;
-      debouncedSearch.cancel();
+      (debouncedSearch as any)?.cancel?.();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --------------------------------------------------------------------------
-  // 2) Efecto para disparar búsqueda cuando cambien query o filters
+  // Reaccionar a cambios de query/filtros
   // --------------------------------------------------------------------------
   useEffect(() => {
     debouncedSearch(searchQuery, searchFilters);
   }, [searchQuery, searchFilters, debouncedSearch]);
 
   // --------------------------------------------------------------------------
-  // 3) Suscripción a cambios en tiempo real (opcional pero recomendado)
+  // Suscripción realtime
   // --------------------------------------------------------------------------
   useEffect(() => {
     if (!currentUserId) return;
 
-    const subscription = supabase
+    const channel = supabase
       .channel(`user_tricks_${currentUserId}`)
       .on(
         "postgres_changes",
         {
-          event: "*", // Escuchar INSERT, UPDATE, DELETE
+          event: "*",
           schema: "public",
           table: "magic_tricks",
           filter: `user_id=eq.${currentUserId}`,
         },
-        (payload) => {
-          console.log("📡 Cambio detectado en magic_tricks:", payload);
-
-          // Limpiar caché y refrescar
-          paginatedContentService.clearUserCache(currentUserId);
+        () => {
           refresh();
         }
       )
@@ -329,129 +467,16 @@ export function usePaginatedContent(
           schema: "public",
           table: "trick_categories",
         },
-        (payload) => {
-          console.log("📡 Cambio detectado en trick_categories:", payload);
-
-          // Verificar si el cambio afecta al usuario actual
-          paginatedContentService.clearUserCache(currentUserId);
+        () => {
           refresh();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "magic_tricks",
-          filter: `user_id=eq.${currentUserId}`,
-        },
-        async (payload) => {
-          console.log("📡 Nuevo truco creado:", payload);
-          
-          // Inicializar orden para el nuevo truco
-          if (payload.new && payload.new.id) {
-            const trickId = payload.new.id;
-            
-            // Obtener la categoría del truco
-            const { data: trickCategories } = await supabase
-              .from("trick_categories")
-              .select("category_id")
-              .eq("trick_id", trickId);
-            
-            if (trickCategories && trickCategories.length > 0) {
-              for (const tc of trickCategories) {
-                await orderService.initializeTrickOrder(currentUserId, tc.category_id, trickId);
-              }
-            }
-          }
         }
       )
       .subscribe();
 
     return () => {
-      subscription.unsubscribe();
+      channel.unsubscribe();
     };
-  }, [currentUserId]);
-
-  // --------------------------------------------------------------------------
-  // Función principal para cargar contenido paginado
-  // --------------------------------------------------------------------------
-  const loadContent = useCallback(
-    async (pageToLoad: number, query?: string, filters?: SearchFilters) => {
-      try {
-        if (pageToLoad === 0) {
-          setLoading(true);
-          setError(null);
-        } else {
-          setLoadingMore(true);
-        }
-
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user || !isMounted.current) return;
-
-        setCurrentUserId(user.id);
-
-        // Ensure favorites category exists
-        await ensureFavoritesCategory(user.id);
-
-        const selectedCategoryIds: string[] = filters?.categories || [];
-
-        // Convertir difficulties de number[] a number[] (ya no es necesaria conversión)
-        const convertedFilters = filters ? {
-          ...filters,
-          difficulties: filters.difficulties || []
-        } : undefined;
-
-        // Pasar query y filters al servicio
-        const content = await paginatedContentService.getUserContentPaginated(
-          user.id,
-          pageToLoad,
-          selectedCategoryIds, // Pasar array de categorías
-          query,
-          convertedFilters
-        );
-        
-        if (!isMounted.current) return;
-
-        // Ya no necesitamos filtrar localmente
-        const newSections = await processContentIntoSections(
-          content,
-          undefined, // No pasar query ni filters aquí
-          undefined,
-          user.id
-        );
-
-        if (pageToLoad === 0) {
-          setAllCategories(content.categories);
-          setSections(newSections);
-        } else {
-          setSections((prev) => mergeUniqueSections(prev, newSections));
-        }
-
-        setHasMore(content.hasMore);
-        setPage(content.nextPage);
-
-        // Prefetch siguiente página si hay más
-        if (content.hasMore) {
-          // Comentado temporalmente hasta que se implemente el método
-          // paginatedContentService.prefetchNextPage(
-          //   user.id,
-          //   pageToLoad,
-          //   selectedCategoryId
-          // );
-        }
-      } catch (err) {
-        console.error("Error cargando contenido:", err);
-        setError("Error al cargar el contenido");
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    },
-    [processContentIntoSections]
-  );
+  }, [currentUserId, refresh]);
 
   // --------------------------------------------------------------------------
   // Ensure favorites category exists for user
@@ -475,10 +500,11 @@ export function usePaginatedContent(
         .select()
         .single();
 
-      // Initialize order for the new favorites category
-      if (newCategory) {
-        await orderService.initializeCategoryOrder(userId, newCategory.id);
-      }
+      if (newCategory)
+        await orderService.initializeCategoryOrder(
+          userId,
+          newCategory.id as string
+        );
     }
   };
 
@@ -486,39 +512,12 @@ export function usePaginatedContent(
   // Cargar siguiente página si hay más
   // --------------------------------------------------------------------------
   const loadMore = useCallback(() => {
-    if (!loadingMore && hasMore) {
-      loadContent(page, searchQuery, searchFilters);
-    }
+    if (!loadingMore && hasMore)
+      loadContent(page, searchQuery, searchFilters, { keepUI: true });
   }, [page, loadingMore, hasMore, loadContent, searchQuery, searchFilters]);
 
   // --------------------------------------------------------------------------
-  // Forzar refresco completo (limpia caché y recarga desde página 0)
-  // --------------------------------------------------------------------------
-  const refresh = useCallback(async () => {
-    console.log("🔄 Iniciando refresh completo");
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
-      // Limpiar TODO el caché del usuario
-      paginatedContentService.clearUserCache(user.id);
-    }
-
-    // Resetear todos los estados
-    setSections([]);
-    setAllCategories([]);
-    setPage(0);
-    setHasMore(true);
-    setError(null);
-    setLoading(true);
-
-    // Forzar recarga desde página 0
-    await loadContent(0, searchQuery, searchFilters);
-  }, [loadContent, searchQuery, searchFilters]);
-
-  // --------------------------------------------------------------------------
-  // Toggle favorite status and update sections
+  // Toggle favorite
   // --------------------------------------------------------------------------
   const toggleFavorite = useCallback(
     async (itemId: string, contentType: string) => {
@@ -531,15 +530,12 @@ export function usePaginatedContent(
 
       try {
         if (item.is_favorite) {
-          // Remove from favorites
           await supabase
             .from("user_favorites")
             .delete()
             .eq("user_id", currentUserId)
             .eq("content_id", itemId)
             .eq("content_type", contentType);
-
-          // Remove from favorites order
           await supabase
             .from("user_trick_order")
             .delete()
@@ -547,122 +543,115 @@ export function usePaginatedContent(
             .eq("category_id", favoritesCategoryId)
             .eq("trick_id", itemId);
         } else {
-          // Add to favorites
-          await supabase.from("user_favorites").insert({
-            user_id: currentUserId,
-            content_id: itemId,
-            content_type: contentType,
-          });
-
-          // Initialize order in favorites
-          await orderService.initializeTrickOrder(currentUserId, favoritesCategoryId, itemId);
+          await supabase
+            .from("user_favorites")
+            .insert({
+              user_id: currentUserId,
+              content_id: itemId,
+              content_type: contentType,
+            });
+          await orderService.initializeTrickOrder(
+            currentUserId,
+            favoritesCategoryId,
+            itemId
+          );
         }
 
-        // Update sections locally
-        setSections((prevSections) => {
-          return prevSections.map((section) => {
-            const updatedItems = section.items.map((i) => {
-              if (i.id === itemId) {
-                return { ...i, is_favorite: !i.is_favorite };
-              }
-              return i;
-            });
-
-            // Handle favorites category
+        // Update UI local
+        setSections((prev) =>
+          prev.map((section) => {
+            const updatedItems = section.items.map((i) =>
+              i.id === itemId ? { ...i, is_favorite: !i.is_favorite } : i
+            );
             if (section.category.name === "Favoritos") {
               if (!item.is_favorite) {
-                // Add to favorites
                 const newItem = { ...item, is_favorite: true };
                 return { ...section, items: [...updatedItems, newItem] };
               } else {
-                // Remove from favorites
                 return {
                   ...section,
                   items: updatedItems.filter((i) => i.id !== itemId),
                 };
               }
             }
-
             return { ...section, items: updatedItems };
-          });
+          })
+        );
+
+        // Re-snapshot tras cambio local
+        const parts = makeSnapKeyParts(currentUserId, 0, searchFilters);
+        const snap = sections.map((s) => ({
+          category: s.category,
+          items: s.items,
+        }));
+        cacheSections.set(parts, snap, allCategories, {
+          hasMore,
+          nextPage: page,
         });
-      } catch (error) {
-        console.error("Error toggling favorite:", error);
+      } catch (e) {
+        console.error("Error toggling favorite:", e);
       }
     },
-    [currentUserId, favoritesCategoryId, sections]
+    [
+      currentUserId,
+      favoritesCategoryId,
+      sections,
+      allCategories,
+      hasMore,
+      page,
+      searchFilters,
+    ]
   );
 
-  // --------------------------------------------------------------------------
-  // Función para manejar cuando se crea un nuevo truco
-  // --------------------------------------------------------------------------
   const handleNewTrickCreated = useCallback(
     async (trickId: string, categoryId: string) => {
       if (!currentUserId) return;
-
       try {
-        // Inicializar el orden para el nuevo truco
-        await orderService.initializeTrickOrder(currentUserId, categoryId, trickId);
-        
-        // Limpiar caché y refrescar
-        paginatedContentService.clearUserCache(currentUserId);
+        await orderService.initializeTrickOrder(
+          currentUserId,
+          categoryId,
+          trickId
+        );
         await refresh();
-      } catch (error) {
-        console.error('Error initializing trick order:', error);
+      } catch (e) {
+        console.error("Error initializing trick order:", e);
       }
     },
     [currentUserId, refresh]
   );
 
-  // --------------------------------------------------------------------------
-  // Devolvemos todo lo que necesita el componente que lo use
-  // --------------------------------------------------------------------------
   return {
     sections,
     allCategories,
     loading,
+    booting, // <- importante en UI
     loadingMore,
     hasMore,
     error,
     loadMore,
     refresh,
     toggleFavorite,
-    handleNewTrickCreated, // Nueva función exportada
+    handleNewTrickCreated,
   };
 }
 
 // ============================================================================
-// FUNCIONES AUXILIARES
+// Utils
 // ============================================================================
-
-function parseJsonSafely(value: any, defaultValue: any = null): any {
-  if (value == null) return defaultValue;
-  if (typeof value !== "string") return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return defaultValue;
-  }
-}
-
 function mergeUniqueSections(
   existing: CategorySection[],
-  newSections: CategorySection[]
+  next: CategorySection[]
 ): CategorySection[] {
   const merged = [...existing];
-
-  newSections.forEach((newSec) => {
-    const idx = merged.findIndex((s) => s.category.id === newSec.category.id);
+  next.forEach((ns) => {
+    const idx = merged.findIndex((s) => s.category.id === ns.category.id);
     if (idx >= 0) {
       const existingIds = new Set(merged[idx].items.map((i) => i.id));
-      const uniqueNewItems = newSec.items.filter(
-        (item) => !existingIds.has(item.id)
-      );
-      merged[idx].items.push(...uniqueNewItems);
+      const uniqueNew = ns.items.filter((it) => !existingIds.has(it.id));
+      merged[idx].items.push(...uniqueNew);
     } else {
-      merged.push(newSec);
+      merged.push(ns);
     }
   });
-
   return merged;
 }

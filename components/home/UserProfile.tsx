@@ -1,4 +1,4 @@
-//components/home/UserProfile.tsx
+// components/home/UserProfile.tsx
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -8,8 +8,8 @@ import { useTranslation } from "react-i18next";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "expo-router";
-// Importar los nombres de fuentes desde _layout.tsx
 import { fontNames } from "../../app/_layout";
+import { cacheAuth, cacheProfile } from "../../lib/localCache";
 
 const StyledView = styled(View);
 const StyledTouchableOpacity = styled(TouchableOpacity);
@@ -21,92 +21,72 @@ interface UserProfileProps {
   onCloseSearch?: () => void;
 }
 
-// Cache de datos de usuario
-let userCache: {
-  userName: string;
-  avatarUrl: string | null;
-  timestamp: number;
-} | null = null;
-
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
-
 export default function UserProfile({
   onProfilePress,
   isSearchVisible = false,
   onCloseSearch,
 }: UserProfileProps) {
   const { t, i18n } = useTranslation();
-  const [userName, setUserName] = useState("");
+  const [userName, setUserName] = useState("...");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [greeting, setGreeting] = useState("");
-  const router = useRouter();
   const buttonOpacity = useRef(new Animated.Value(0)).current;
 
+  // Pintar saludo según idioma
   useEffect(() => {
-    // Saludo dependiendo del idioma actual
-    const currentLanguage = i18n.language || "en";
-    setGreeting(currentLanguage.startsWith("es") ? t("hola") : t("hello"));
+    const currentLang = i18n.language || "en";
+    setGreeting(currentLang.startsWith("es") ? t("hola") : t("hello"));
   }, [t, i18n.language]);
 
+  // Hidratar al instante desde MMKV + actualizar en background desde Supabase
   useEffect(() => {
-    const getUserInfo = async () => {
-      try {
-        // Verificar cache primero
-        if (userCache && Date.now() - userCache.timestamp < CACHE_DURATION) {
-          setUserName(userCache.userName);
-          setAvatarUrl(userCache.avatarUrl);
-          return;
+    let mounted = true;
+    (async () => {
+      // 1) Hydration instantánea por si ya tenemos snapshot
+      const lastUserId = cacheAuth.getLastUserId();
+      if (lastUserId) {
+        const snap = cacheProfile.get(lastUserId);
+        if (snap && mounted) {
+          setUserName(snap.userName);
+          setAvatarUrl(snap.avatarUrl);
+          // no devolvemos aquí; después refrescamos igualmente desde supabase
         }
-
-        // Obtener el usuario autenticado
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-          console.error("Error getting auth user:", authError);
-          return;
-        }
-
-        // Única consulta optimizada a la base de datos
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("username, email, avatar_url")
-          .eq("id", user.id)
-          .single();
-
-        if (profileError) {
-          console.error("Error fetching user profile:", profileError);
-          // Usar email como fallback
-          const fallbackName = user.email?.split("@")[0] || "Usuario";
-          setUserName(fallbackName);
-          return;
-        }
-
-        const displayName =
-          profile.username || profile.email?.split("@")[0] || "Usuario";
-
-        // Actualizar estado
-        setUserName(displayName);
-        setAvatarUrl(profile.avatar_url);
-
-        // Guardar en cache
-        userCache = {
-          userName: displayName,
-          avatarUrl: profile.avatar_url,
-          timestamp: Date.now(),
-        };
-      } catch (error) {
-        console.error("Unexpected error fetching user info:", error);
-        setUserName("Usuario");
       }
-    };
 
-    getUserInfo();
+      // 2) Obtener usuario actual y refrescar
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+      cacheAuth.setLastUserId(user.id);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username, email, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      const computedName =
+        profile?.username || profile?.email?.split("@")[0] || "Usuario";
+
+      if (!mounted) return;
+      setUserName(computedName);
+      setAvatarUrl(profile?.avatar_url || null);
+
+      // Guardar snapshot de perfil para hidratación futura
+      cacheProfile.set(user.id, {
+        userName: computedName,
+        avatarUrl: profile?.avatar_url || null,
+      });
+    })();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Animar el botón cuando cambie isSearchVisible
+  // Animación botón cerrar búsqueda
   useEffect(() => {
     Animated.timing(buttonOpacity, {
       toValue: isSearchVisible ? 1 : 0,
@@ -179,8 +159,3 @@ export default function UserProfile({
     </StyledView>
   );
 }
-
-// Función para limpiar el cache cuando el usuario cierra sesión
-export const clearUserCache = () => {
-  userCache = null;
-};

@@ -55,9 +55,20 @@ const LibrariesSection = memo(function LibrariesSection({
   const router = useRouter();
   const { t } = useTranslation();
   const { deletedTrickId } = useTrickDeletion();
-  const [userId, setUserId] = useState<string | null>(null);
 
-  // Modales
+  // Hook con booting (hidrata) + loading (red)
+  const {
+    sections,
+    loading,
+    booting,
+    loadingMore,
+    hasMore,
+    error,
+    loadMore,
+    refresh,
+  } = usePaginatedContent(searchQuery, searchFilters);
+
+  // Modales/estado UI
   const [isAddCategoryModalVisible, setAddCategoryModalVisible] =
     useState(false);
   const [isEditCategoryModalVisible, setEditCategoryModalVisible] =
@@ -65,7 +76,6 @@ const LibrariesSection = memo(function LibrariesSection({
   const [newCategoryName, setNewCategoryName] = useState("");
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [selectedTrickData, setSelectedTrickData] = useState<any>(null);
-
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<{
     id: string;
@@ -77,90 +87,47 @@ const LibrariesSection = memo(function LibrariesSection({
   const [selectedCategoryForActions, setSelectedCategoryForActions] =
     useState<Category | null>(null);
 
-  // Totales
-  const [totalTricksCount, setTotalTricksCount] = useState(0);
-
   const flatListRef = useRef<FlashList<any> | null>(null);
-
-  // Estado expansión
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set()
   );
 
-  // Datos
-  const { sections, loading, loadingMore, hasMore, error, loadMore, refresh } =
-    usePaginatedContent(searchQuery, searchFilters);
+  // Totales (excluye favoritos)
+  const totalTricksCount = useMemo(() => {
+    return sections.reduce((acc, section) => {
+      const name = (section.category?.name || "").toLowerCase().trim();
+      const isFav = [
+        "favoritos",
+        "favorites",
+        "favourites",
+        "favorito",
+        "favorite",
+        "favourite",
+      ].includes(name);
+      if (isFav) return acc;
+      return acc + (section.items?.length || 0);
+    }, 0);
+  }, [sections]);
 
-  // Usuario
-  useEffect(() => {
-    const fetchUserId = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) setUserId(user.id);
-    };
-    fetchUserId();
-  }, []);
-
-  const hasActiveSearchOrFilters = useMemo(() => {
-    const hasSearch = searchQuery.trim() !== "";
-    const hasFilters =
-      searchFilters &&
-      (searchFilters.categories.length > 0 ||
-        searchFilters.tags.length > 0 ||
-        searchFilters.difficulties.length > 0 ||
-        (searchFilters as any).resetTimes?.min !== undefined ||
-        (searchFilters as any).resetTimes?.max !== undefined ||
-        (searchFilters as any).durations?.min !== undefined ||
-        (searchFilters as any).durations?.max !== undefined ||
-        (searchFilters as any).angles?.length > 0 ||
-        ((searchFilters as any).isPublic !== null &&
-          (searchFilters as any).isPublic !== undefined) ||
-        ((searchFilters as any).sortOrder &&
-          (searchFilters as any).sortOrder !== "recent"));
-    return hasSearch || hasFilters;
-  }, [searchQuery, searchFilters]);
-
-  // Solo favoritos primero; resto en orden del backend
+  // Ordenar: Favoritos primero (si coincide por nombre)
   const orderedSections = useMemo(() => {
     const sorted = [...sections].sort((a, b) => {
-      const aFav = a.category.name.toLowerCase().includes("favorit");
-      const bFav = b.category.name.toLowerCase().includes("favorit");
+      const aFav = a.category.name?.toLowerCase?.().includes("favorit");
+      const bFav = b.category.name?.toLowerCase?.().includes("favorit");
       if (aFav && !bFav) return -1;
       if (!aFav && bFav) return 1;
       return 0;
     });
-    return sorted;
-  }, [sections]);
-
-  const filteredSections = useMemo(() => {
-    const hasActiveSearch =
-      searchQuery.trim() !== "" || hasActiveSearchOrFilters;
-
-    let result = orderedSections;
-
-    if (hasActiveSearch) {
-      result = orderedSections.filter((section) => {
-        if (section.items && section.items.length > 0) return true;
-        if (searchQuery.trim()) {
-          const categoryNameLower = section.category.name.toLowerCase();
-          const searchQueryLower = searchQuery.toLowerCase().trim();
-          return categoryNameLower.includes(searchQueryLower);
-        }
-        return false;
-      });
-    }
-
-    return result.map((section) => ({
-      ...section,
-      isExpanded: expandedCategories.has(section.category.id),
+    return sorted.map((sec) => ({
+      ...sec,
+      isExpanded: expandedCategories.has(sec.category.id),
     }));
-  }, [
-    orderedSections,
-    searchQuery,
-    hasActiveSearchOrFilters,
-    expandedCategories,
-  ]);
+  }, [sections, expandedCategories]);
+
+  // Borrado -> refresh
+  useEffect(() => {
+    if (deletedTrickId) refresh();
+  }, [deletedTrickId, refresh]);
 
   const handleExpandChange = useCallback(
     (categoryId: string, isExpanded: boolean) => {
@@ -174,119 +141,6 @@ const LibrariesSection = memo(function LibrariesSection({
     []
   );
 
-  // Totales
-  useEffect(() => {
-    const total = sections.reduce((acc, section) => {
-      const categoryName = section.category.name.toLowerCase().trim();
-      const isFavoritesCategory = [
-        "favoritos",
-        "favorites",
-        "favourites",
-        "favorito",
-        "favorite",
-        "favourite",
-      ].includes(categoryName);
-      if (isFavoritesCategory) return acc;
-      return acc + (section.items?.length || 0);
-    }, 0);
-    setTotalTricksCount(total);
-  }, [sections]);
-
-  useEffect(() => {
-    if (deletedTrickId) {
-      const clearCacheAndRefresh = async () => {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          paginatedContentService.clearUserCache(user.id);
-          refresh();
-        }
-      };
-      clearCacheAndRefresh();
-    }
-  }, [deletedTrickId, refresh]);
-
-  // Fetch item
-  const fetchItemData = async (item: any) => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      if (item.type === "magic") {
-        const { data, error } = await supabase
-          .from("magic_tricks")
-          .select(
-            `
-            *,
-            trick_categories!inner(category_id),
-            scripts(id, title, content)
-          `
-          )
-          .eq("id", item.id)
-          .single();
-
-        if (error || !data) return null;
-
-        let angles = data.angles;
-        if (angles && typeof angles === "string") {
-          try {
-            angles = JSON.parse(angles);
-          } catch {
-            angles = [];
-          }
-        }
-
-        let categoryName = "Unknown";
-        if (data.trick_categories && data.trick_categories.length > 0) {
-          const categoryId = data.trick_categories[0].category_id;
-          const { data: categoryData } = await supabase
-            .from("user_categories")
-            .select("name")
-            .eq("id", categoryId)
-            .single();
-
-          if (categoryData) categoryName = categoryData.name;
-        }
-
-        const { data: photosData } = await supabase
-          .from("trick_photos")
-          .select("photo_url")
-          .eq("trick_id", item.id);
-
-        const photos = photosData?.map((p) => p.photo_url) || [];
-
-        return {
-          id: data.id,
-          title: data.title,
-          category: categoryName,
-          effect: data.effect || "",
-          secret: data.secret || "",
-          effect_video_url: data.effect_video_url,
-          secret_video_url: data.secret_video_url,
-          photo_url: data.photo_url,
-          photos,
-          script: data.scripts?.[0]?.content || "",
-          angles: angles || [],
-          duration: data.duration || 0,
-          reset: data.reset || 0,
-          difficulty: data.difficulty || 0,
-          notes: data.notes || "",
-          is_shared: item.is_shared || false,
-          owner_info: item.is_shared ? item.owner_id : null,
-        };
-      }
-
-      return null;
-    } catch (error) {
-      console.error("Error in fetchItemData:", error);
-      return null;
-    }
-  };
-
-  // CRUD categorías
   const handleAddCategory = useCallback(
     async (name: string) => {
       try {
@@ -294,14 +148,11 @@ const LibrariesSection = memo(function LibrariesSection({
           data: { user },
         } = await supabase.auth.getUser();
         if (!user) return;
-
         const newCategory = await createCategory(user.id, name);
-        if (newCategory) {
-          refresh();
-        }
+        if (newCategory) refresh();
         setAddCategoryModalVisible(false);
-      } catch (error) {
-        console.error("Error adding category:", error);
+      } catch (e) {
+        console.error(e);
       }
     },
     [refresh]
@@ -312,38 +163,36 @@ const LibrariesSection = memo(function LibrariesSection({
       if (!editingCategory) return;
       try {
         const success = await updateCategory(editingCategory.id, name);
-        if (success) {
-          refresh();
-        }
+        if (success) refresh();
         setEditingCategory(null);
         setEditCategoryModalVisible(false);
-      } catch (error) {
-        console.error("Error updating category:", error);
+      } catch (e) {
+        console.error(e);
       }
     },
     [editingCategory, refresh]
   );
 
   const handleDeleteCategory = useCallback(
-    async (categoryId: string) => {
-      const category = sections.find(
-        (s) => s.category.id === categoryId
-      )?.category;
-      if (!category) return;
-
+    (categoryId: string) => {
       const categorySection = sections.find(
-        (section) => section.category.id === categoryId
+        (s) => s.category.id === categoryId
       );
       const itemCount = categorySection?.items.length || 0;
 
       if (itemCount > 0) {
-        setCategoryToDelete({ id: category.id, name: category.name });
+        setCategoryToDelete({
+          id: categoryId,
+          name: categorySection?.category.name || "",
+        });
         setCategoryItemCount(itemCount);
         setShowCantDeleteModal(true);
         return;
       }
-
-      setCategoryToDelete({ id: category.id, name: category.name });
+      setCategoryToDelete({
+        id: categoryId,
+        name: categorySection?.category.name || "",
+      });
       setShowDeleteModal(true);
     },
     [sections]
@@ -352,12 +201,8 @@ const LibrariesSection = memo(function LibrariesSection({
   const confirmDeleteCategory = useCallback(async () => {
     if (!categoryToDelete) return;
     try {
-      const success = await deleteCategory(categoryToDelete.id);
-      if (success) {
-        refresh();
-      }
-    } catch (error) {
-      console.error("Error deleting category:", error);
+      const ok = await deleteCategory(categoryToDelete.id);
+      if (ok) refresh();
     } finally {
       setShowDeleteModal(false);
       setCategoryToDelete(null);
@@ -375,6 +220,83 @@ const LibrariesSection = memo(function LibrariesSection({
     setShowActionsModal(true);
   }, []);
 
+  const fetchItemData = useCallback(async (item: any) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      if (item.type === "magic") {
+        const { data } = await supabase
+          .from("magic_tricks")
+          .select(
+            `
+            *,
+            trick_categories!inner(category_id),
+            scripts(id, title, content)
+          `
+          )
+          .eq("id", item.id)
+          .single();
+
+        if (!data) return null;
+
+        let angles: string[] = [];
+        if (Array.isArray(data.angles)) angles = data.angles;
+        else if (typeof data.angles === "string") {
+          try {
+            angles = JSON.parse(data.angles);
+          } catch {
+            angles = [];
+          }
+        }
+
+        let categoryName = "Unknown";
+        if (data.trick_categories && data.trick_categories.length > 0) {
+          const categoryId = data.trick_categories[0].category_id;
+          const { data: cat } = await supabase
+            .from("user_categories")
+            .select("name")
+            .eq("id", categoryId)
+            .single();
+          if (cat) categoryName = cat.name;
+        }
+
+        const { data: photosData } = await supabase
+          .from("trick_photos")
+          .select("photo_url")
+          .eq("trick_id", item.id);
+        const photos = photosData?.map((p) => p.photo_url) || [];
+
+        return {
+          id: data.id,
+          title: data.title,
+          category: categoryName,
+          effect: data.effect || "",
+          secret: data.secret || "",
+          effect_video_url: data.effect_video_url,
+          secret_video_url: data.secret_video_url,
+          photo_url: data.photo_url,
+          photos,
+          script: data.scripts?.[0]?.content || "",
+          angles,
+          duration: data.duration || 0,
+          reset: data.reset || 0,
+          difficulty: data.difficulty || 0,
+          notes: data.notes || "",
+          is_shared: item.is_shared || false,
+          owner_info: item.is_shared ? item.owner_id : null,
+        };
+      }
+
+      return null;
+    } catch (e) {
+      console.error("fetchItemData error:", e);
+      return null;
+    }
+  }, []);
+
   const handleItemPress = useCallback(
     async (item: any) => {
       const itemData = await fetchItemData(item);
@@ -385,7 +307,7 @@ const LibrariesSection = memo(function LibrariesSection({
         });
       }
     },
-    [router]
+    [fetchItemData, router]
   );
 
   const ListHeader = useCallback(
@@ -464,7 +386,7 @@ const LibrariesSection = memo(function LibrariesSection({
   }, [searchQuery, searchFilters, t]);
 
   const renderCategory = useCallback(
-    ({ item }: { item: any; index: number }) => {
+    ({ item }: { item: any }) => {
       return (
         <CollapsibleCategoryOptimized
           section={item}
@@ -474,7 +396,7 @@ const LibrariesSection = memo(function LibrariesSection({
           onEditCategory={openEditCategoryModal}
           onDeleteCategory={handleDeleteCategory}
           onMoreOptions={handleMoreOptions}
-          isDragEnabled={false} // ya no hay drag de nada
+          isDragEnabled={false}
           onExpandChange={(isExpanded) =>
             handleExpandChange(item.category.id, isExpanded)
           }
@@ -495,19 +417,19 @@ const LibrariesSection = memo(function LibrariesSection({
   const keyExtractor = useCallback((item: any) => item.category.id, []);
 
   const handleEndReached = useCallback(() => {
-    if (hasMore && !loadingMore) {
-      loadMore();
-    }
+    if (hasMore && !loadingMore) loadMore();
   }, [hasMore, loadingMore, loadMore]);
 
   const mainContent = (
     <View style={{ flex: 1 }}>
       <FlashList
         ref={flatListRef}
-        data={filteredSections}
+        data={orderedSections}
         renderItem={renderCategory}
         keyExtractor={keyExtractor}
-        ListEmptyComponent={ListEmpty}
+        ListEmptyComponent={
+          booting || (loading && sections.length === 0) ? null : ListEmpty
+        }
         ListFooterComponent={ListFooter}
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
@@ -536,17 +458,33 @@ const LibrariesSection = memo(function LibrariesSection({
     </View>
   );
 
-  if (loading && sections.length === 0 && !error) {
+  // 1) Hidratación: si hay snapshot, se ve; si no, solo cabecera (sin vacío/loader)
+  if (booting) {
     return (
-      <StyledView className="flex-1">
-        <ListHeader />
-        <StyledView className="flex-1 justify-center items-center">
-          <MagicLoader size="large" />
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <StyledView className="flex-1">
+          <ListHeader />
+          {sections.length > 0 ? mainContent : null}
         </StyledView>
-      </StyledView>
+      </GestureHandlerRootView>
     );
   }
 
+  // 2) Primera carga real sin snapshot: loader centrado (sin “no categories” intermedio)
+  if (loading && sections.length === 0 && !error) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <StyledView className="flex-1">
+          <ListHeader />
+          <StyledView className="flex-1 justify-center items-center">
+            <MagicLoader size="large" />
+          </StyledView>
+        </StyledView>
+      </GestureHandlerRootView>
+    );
+  }
+
+  // 3) Render normal
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StyledView className="flex-1">
@@ -623,15 +561,13 @@ const LibrariesSection = memo(function LibrariesSection({
             setSelectedCategoryForActions(null);
           }}
           onEdit={() => {
-            if (selectedCategoryForActions) {
+            if (selectedCategoryForActions)
               openEditCategoryModal(selectedCategoryForActions);
-            }
             setShowActionsModal(false);
           }}
           onDelete={() => {
-            if (selectedCategoryForActions) {
+            if (selectedCategoryForActions)
               handleDeleteCategory(selectedCategoryForActions.id);
-            }
             setShowActionsModal(false);
           }}
           categoryName={selectedCategoryForActions?.name}
@@ -655,7 +591,7 @@ const LibrariesSection = memo(function LibrariesSection({
             setCategoryToDelete(null);
             setCategoryItemCount(0);
           }}
-          categoryName={categoryToDelete?.name}
+          categoryName={selectedCategoryForActions?.name}
         />
       </StyledView>
     </GestureHandlerRootView>

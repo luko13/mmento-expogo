@@ -1,6 +1,7 @@
 // App.tsx
 import "react-native-gesture-handler";
 import "react-native-reanimated";
+import Constants from "expo-constants";
 import { useEffect } from "react";
 import {
   useColorScheme,
@@ -64,7 +65,12 @@ export default function App() {
       NavigationBar.setButtonStyleAsync("light");
     }
   }, []);
-
+  useEffect(() => {
+    console.log("MMKV sanity", {
+      appOwnership: Constants.appOwnership, // 'guest' (dev build), 'standalone' (prod) o 'expo' (Expo Go)
+      isHermes: !!global.HermesInternal, // true = on-device sin debug remoto
+    });
+  }, []);
   /**
    * Configuración del tema de la aplicación
    */
