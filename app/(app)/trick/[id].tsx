@@ -7,7 +7,6 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { supabase } from "../../../lib/supabase";
 import { fontNames } from "../../_layout";
 
-// Definir tipos para la respuesta de categoría
 interface CategoryData {
   category_id: string;
   user_categories:
@@ -25,13 +24,27 @@ export default function TrickViewRoute() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Memoizar el trickData parseado para evitar que se recree en cada render
+  console.log("🔴 [TrickViewRoute] Component rendered with params:", {
+    hasParams: !!params,
+    id: params.id,
+    hasTrick: !!params.trick,
+    allParams: Object.keys(params),
+  });
+
+  // Memoizar el trickData parseado
   const trickData = useMemo(() => {
     if (params.trick) {
       try {
-        return JSON.parse(params.trick as string);
+        const parsed = JSON.parse(params.trick as string);
+        console.log("🔴 [TrickViewRoute] Parsed trick data:", {
+          id: parsed.id,
+          title: parsed.title,
+          hasEffect: !!parsed.effect,
+          hasSecret: !!parsed.secret,
+        });
+        return parsed;
       } catch (e) {
-        console.error("Error parsing trick data:", e);
+        console.error("🔴 [TrickViewRoute] Error parsing trick data:", e);
         return null;
       }
     }
@@ -40,26 +53,33 @@ export default function TrickViewRoute() {
 
   const trickId = params.id as string;
 
-  // CORRECCIÓN: Remover trickData de las dependencias ya que ahora está memoizado
   useEffect(() => {
-    // Si ya tenemos los datos del truco, no necesitamos cargarlos
+    console.log("🔴 [TrickViewRoute] useEffect triggered");
+
+    // Si ya tenemos los datos del truco desde cache, usarlos directamente
     if (trickData) {
+      console.log(
+        "🔴 [TrickViewRoute] Using cached trick data, no Supabase call needed"
+      );
       setTrick(trickData);
       setLoading(false);
       return;
     }
 
-    // Si solo tenemos el ID, cargar el truco desde la BD
-    if (trickId) {
+    // Solo si NO tenemos datos en cache, cargar desde Supabase
+    if (trickId && !trickData) {
+      console.log(
+        "🔴 [TrickViewRoute] No cached data, loading from Supabase..."
+      );
       loadTrick();
     }
-  }, [trickId]); // Solo trickId como dependencia
+  }, [trickId, trickData]);
 
   const loadTrick = async () => {
     try {
+      console.log("🔴 [TrickViewRoute] loadTrick() started");
       setLoading(true);
 
-      // Primero, cargar el truco
       const { data: trickData, error: trickError } = await supabase
         .from("magic_tricks")
         .select("*")
@@ -68,7 +88,6 @@ export default function TrickViewRoute() {
 
       if (trickError) throw trickError;
 
-      // Luego, cargar la categoría si existe
       let categoryName = "General";
 
       const { data: categoryData, error: categoryError } = await supabase
@@ -85,10 +104,8 @@ export default function TrickViewRoute() {
         .single();
 
       if (categoryData && !categoryError) {
-        // Tipar correctamente categoryData
         const typedCategoryData = categoryData as CategoryData;
 
-        // user_categories podría ser un array o un objeto
         if (Array.isArray(typedCategoryData.user_categories)) {
           categoryName =
             typedCategoryData.user_categories[0]?.name || "General";
@@ -97,16 +114,18 @@ export default function TrickViewRoute() {
         }
       }
 
-      // Formatear los datos para que coincidan con lo que espera TrickViewScreen
       const formattedTrick = {
         ...trickData,
         category: categoryName,
       };
 
+      console.log(
+        "🔴 [TrickViewRoute] Trick loaded from Supabase:",
+        formattedTrick.id
+      );
       setTrick(formattedTrick);
     } catch (err) {
-      console.error("Error loading trick:", err);
-      // Manejar el error correctamente según su tipo
+      console.error("🔴 [TrickViewRoute] Error loading trick:", err);
       if (err instanceof Error) {
         setError(err.message);
       } else if (typeof err === "string") {
@@ -168,9 +187,11 @@ export default function TrickViewRoute() {
   }
 
   if (!trick) {
+    console.log("🔴 [TrickViewRoute] No trick data available");
     return <View style={{ flex: 1, backgroundColor: "#15322C" }} />;
   }
 
+  console.log("🔴 [TrickViewRoute] Rendering TrickViewScreen");
   return (
     <SafeAreaProvider>
       <TrickViewScreen trick={trick} />

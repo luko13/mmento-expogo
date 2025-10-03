@@ -91,7 +91,6 @@ interface Props {
   isDropTarget?: boolean;
 }
 
-// Memoized library item row (solo tap, no drag)
 const LibraryItemRow = memo(
   ({
     item,
@@ -123,7 +122,7 @@ const LibraryItemRow = memo(
           paddingVertical: 6,
           borderRadius: 8,
           marginBottom: 4,
-          minHeight: TRICK_ROW_HEIGHT, // ✅ altura mínima consistente
+          minHeight: TRICK_ROW_HEIGHT,
           justifyContent: "center",
           borderBottomWidth: 1,
           borderBottomColor: "rgba(255, 255, 255, 0.1)",
@@ -191,7 +190,6 @@ const CollapsibleCategoryOptimized = ({
   isDropTarget,
 }: Props) => {
   const { t } = useTranslation();
-
   const hasActiveSearch = useMemo(() => {
     if (searchQuery && searchQuery.trim() !== "") return true;
 
@@ -230,7 +228,6 @@ const CollapsibleCategoryOptimized = ({
     new RNAnimated.Value(isExpanded ? 1 : 0)
   ).current;
 
-  // Auto-expand si entra en drop target
   useEffect(() => {
     if (isDropTarget && !isExpanded) {
       const timer = setTimeout(() => {
@@ -271,7 +268,6 @@ const CollapsibleCategoryOptimized = ({
 
   const filteredItems = useMemo(() => {
     if (!section.items) return [];
-    // Filtrado tal cual lo tenías
     return section.items.filter((item) => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase().trim();
@@ -467,21 +463,18 @@ const CollapsibleCategoryOptimized = ({
       }}
     >
       {filteredItems.length > 0 ? (
-        filteredItems.map((item, index) => (
-          <DraggableTrick
-            key={`${item.type}-${item.id}`}
-            item={item}
-            categoryId={section.category.id}
-            index={index}
-            onPress={() => handleItemPress(item)}
-            onDragStart={onTrickDragStart || (() => {})}
-            onDragMove={onTrickDragMove || (() => {})}
-            onDragEnd={onTrickDragEnd || (() => {})}
-            isDragging={isDraggingTrick || false}
-            draggedTrickId={draggedTrickId || null}
-            searchQuery={searchQuery}
-          />
-        ))
+        filteredItems.map((item, index) => {
+          return (
+            <DraggableTrick
+              key={`${item.type}-${item.id}`}
+              item={item}
+              categoryId={section.category.id}
+              index={index}
+              onPress={() => handleItemPress(item)}
+              searchQuery={searchQuery}
+            />
+          );
+        })
       ) : (
         <StyledView className="border-b border-white/20 p-2 mb-1 rounded-lg">
           <Text
@@ -510,7 +503,6 @@ const CollapsibleCategoryOptimized = ({
         position: "relative",
       }}
     >
-      {/* Indicador visual cuando la categoría es objetivo de drop */}
       {isDropTarget && (
         <Animated.View
           style={{
@@ -526,7 +518,7 @@ const CollapsibleCategoryOptimized = ({
               ? "rgba(16, 185, 129, 0.12)"
               : "transparent",
             pointerEvents: "none",
-            zIndex: 20, // suficiente para estar sobre la tarjeta, pero por debajo del indicador de drop (que no está dentro)
+            zIndex: 20,
           }}
         />
       )}

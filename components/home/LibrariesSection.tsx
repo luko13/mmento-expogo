@@ -15,13 +15,7 @@ import { useTranslation } from "react-i18next";
 import { AntDesign, Feather } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { supabase } from "../../lib/supabase";
-import {
-  type Category,
-  createCategory as createCategoryService,
-  deleteCategory as deleteCategoryService,
-  updateCategory as updateCategoryService,
-} from "../../utils/categoryService";
+import { type Category } from "../../utils/categoryService";
 import TrickViewScreen from "../TrickViewScreen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import type { SearchFilters } from "./CompactSearchBar";
@@ -58,9 +52,10 @@ const LibrariesSection = memo(function LibrariesSection({
   const { t } = useTranslation();
   const { deletedTrickId } = useTrickDeletion();
 
-  // Usar Context en lugar del hook viejo
+  // Usar Context
   const {
     sections,
+    allCategories,
     loading,
     initializing,
     error,
@@ -219,138 +214,61 @@ const LibrariesSection = memo(function LibrariesSection({
     setShowActionsModal(true);
   }, []);
 
-  const fetchItemData = useCallback(async (item: any) => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      if (item.type === "magic") {
-        const { data, error } = await supabase
-          .from("magic_tricks")
-          .select(
-            `
-            *,
-            trick_categories!inner(category_id),
-            scripts(id, title, content)
-          `
-          )
-          .eq("id", item.id)
-          .single();
-
-        if (error) {
-          console.warn(
-            "[LibrariesSection] Error fetching trick details:",
-            error.message
-          );
-          return {
-            id: item.id,
-            title: item.title || "Unknown",
-            category: "Unknown",
-            effect: item.effect || "",
-            secret: item.secret || "",
-            effect_video_url: item.effect_video_url || null,
-            secret_video_url: item.secret_video_url || null,
-            photo_url: item.photo_url || null,
-            photos: [],
-            script: "",
-            angles: Array.isArray(item.angles) ? item.angles : [],
-            duration: item.duration || 0,
-            reset: item.reset || 0,
-            difficulty: item.difficulty || 0,
-            notes: item.notes || "",
-            is_shared: item.is_shared || false,
-            owner_info: item.is_shared ? item.owner_id : null,
-          };
-        }
-
-        if (!data) return null;
-
-        let angles: string[] = [];
-        if (Array.isArray(data.angles)) angles = data.angles;
-        else if (typeof data.angles === "string") {
-          try {
-            angles = JSON.parse(data.angles);
-          } catch {
-            angles = [];
-          }
-        }
-
-        let categoryName = "Unknown";
-        if (data.trick_categories && data.trick_categories.length > 0) {
-          const categoryId = data.trick_categories[0].category_id;
-          const { data: cat, error: catError } = await supabase
-            .from("user_categories")
-            .select("name")
-            .eq("id", categoryId)
-            .single();
-          if (cat && !catError) categoryName = cat.name;
-        }
-
-        const { data: photosData } = await supabase
-          .from("trick_photos")
-          .select("photo_url")
-          .eq("trick_id", item.id);
-        const photos = photosData?.map((p) => p.photo_url) || [];
-
-        return {
-          id: data.id,
-          title: data.title,
-          category: categoryName,
-          effect: data.effect || "",
-          secret: data.secret || "",
-          effect_video_url: data.effect_video_url,
-          secret_video_url: data.secret_video_url,
-          photo_url: data.photo_url,
-          photos,
-          script: data.scripts?.[0]?.content || "",
-          angles,
-          duration: data.duration || 0,
-          reset: data.reset || 0,
-          difficulty: data.difficulty || 0,
-          notes: data.notes || "",
-          is_shared: item.is_shared || false,
-          owner_info: item.is_shared ? item.owner_id : null,
-        };
-      }
-
-      return null;
-    } catch (e: any) {
-      console.error("[LibrariesSection] fetchItemData error:", e.message);
-      return {
-        id: item.id,
-        title: item.title || "Unknown Trick",
-        category: "Unknown",
-        effect: item.effect || "",
-        secret: item.secret || "",
-        effect_video_url: null,
-        secret_video_url: null,
-        photo_url: null,
-        photos: [],
-        script: "",
-        angles: [],
-        duration: 0,
-        reset: 0,
-        difficulty: 0,
-        notes: "",
-        is_shared: false,
-        owner_info: null,
-      };
-    }
-  }, []);
-
   const handleItemPress = useCallback(
-    async (item: any) => {
-      const itemData = await fetchItemData(item);
-      if (itemData) {
-        router.push({
-          pathname: "/trick/[id]",
-          params: { id: itemData.id, trick: JSON.stringify(itemData) },
+    (item: any) => {
+      console.log("🟠 [LibrariesSection] handleItemPress called with item:", {
+        id: item.id,
+        title: item.title,
+        category_ids: item.category_ids,
+      });
+
+      try {
+        // El item YA tiene todos los datos del cache local
+        // Solo necesitamos el nombre de la categoría
+        const categoryName =
+          allCategories.find((cat) => item.category_ids?.includes(cat.id))
+            ?.name || "Unknown";
+
+        const itemData = {
+          id: item.id,
+          title: item.title,
+          category: categoryName,
+          effect: item.effect || "",
+          secret: item.secret || "",
+          effect_video_url: item.effect_video_url || null,
+          secret_video_url: item.secret_video_url || null,
+          photo_url: item.photo_url || null,
+          photos: [], // Se pueden cargar después si es necesario
+          script: "", // Se puede cargar después si es necesario
+          angles: Array.isArray(item.angles) ? item.angles : [],
+          duration: item.duration || 0,
+          reset: item.reset || 0,
+          difficulty: item.difficulty || 0,
+          notes: item.notes || "",
+          is_shared: item.is_shared || false,
+          owner_info: null,
+        };
+
+        console.log("🟠 [LibrariesSection] Navigating with data:", {
+          id: itemData.id,
+          title: itemData.title,
+          category: itemData.category,
         });
+
+        router.push({
+          pathname: "/(app)/trick/[id]",
+          params: {
+            id: itemData.id,
+            trick: JSON.stringify(itemData),
+          },
+        });
+
+        console.log("🟠 [LibrariesSection] Navigation triggered successfully");
+      } catch (error) {
+        console.error("❌ [LibrariesSection] Error in handleItemPress:", error);
       }
     },
-    [fetchItemData, router]
+    [allCategories, router]
   );
 
   const ListHeader = useCallback(
