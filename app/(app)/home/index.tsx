@@ -91,6 +91,7 @@ export default function Home() {
   const handleSearchQueryChange = (query: string) => setSearchQuery(query);
   const dismissKeyboard = () => Keyboard.dismiss();
   const handleOpenFiltersModal = () => setShowFiltersModal(true);
+  const handleNotificationsPress = () => router.push("/(app)/notifications");
 
   const getTotalFiltersCount = () => {
     let count = 0;
@@ -121,6 +122,7 @@ export default function Home() {
                 onProfilePress={() => router.push("/(app)/profile")}
                 isSearchVisible={false}
                 onCloseSearch={() => {}}
+                onNotificationsPress={handleNotificationsPress}
               />
             </StyledView>
 

@@ -61,9 +61,7 @@ export default function AppLayout() {
   // Determinar ruta activa
   const getActiveRoute = () => {
     if (pathname.includes("/home")) return "home";
-    if (pathname.includes("/notifications")) return "notifications";
     if (pathname.includes("/add-magic")) return "add";
-    if (pathname.includes("/videos")) return "video";
     if (pathname.includes("/ai")) return "ai";
     return "home";
   };
@@ -77,25 +75,11 @@ export default function AppLayout() {
       size: 24,
     },
     {
-      id: "notifications",
-      icon: "notifications-outline",
-      route: "/(app)/notifications",
-      library: "ionicons",
-      size: 24,
-    },
-    {
       id: "add",
       icon: "magic",
       route: "/(app)/add-magic",
       special: true,
       library: "fontawesome",
-      size: 24,
-    },
-    {
-      id: "video",
-      icon: "play-circle-outline",
-      route: "/(app)/videos",
-      library: "ionicons",
       size: 24,
     },
     {

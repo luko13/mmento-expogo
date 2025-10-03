@@ -17,12 +17,14 @@ interface UserProfileProps {
   onProfilePress?: () => void;
   isSearchVisible?: boolean;
   onCloseSearch?: () => void;
+  onNotificationsPress?: () => void;
 }
 
 export default function UserProfile({
   onProfilePress,
   isSearchVisible = false,
   onCloseSearch,
+  onNotificationsPress,
 }: UserProfileProps) {
   const { t, i18n } = useTranslation();
   const buttonOpacity = useRef(new Animated.Value(0)).current;
@@ -84,7 +86,7 @@ export default function UserProfile({
         </Text>
       </StyledTouchableOpacity>
 
-      {isSearchVisible && onCloseSearch && (
+      {isSearchVisible && onCloseSearch ? (
         <StyledAnimatedView
           style={{
             opacity: buttonOpacity,
@@ -94,15 +96,19 @@ export default function UserProfile({
           <StyledTouchableOpacity
             onPress={handleClosePress}
             className="w-10 h-10 rounded-full justify-center items-center ml-4"
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-              borderWidth: 1,
-              borderColor: "rgba(255, 255, 255, 0.2)",
-            }}
           >
             <Ionicons name="arrow-back" size={20} color="white" />
           </StyledTouchableOpacity>
         </StyledAnimatedView>
+      ) : (
+        onNotificationsPress && (
+          <StyledTouchableOpacity
+            onPress={onNotificationsPress}
+            className="w-10 h-10 rounded-full justify-center items-center ml-4"
+          >
+            <Ionicons name="notifications-outline" size={22} color="white" />
+          </StyledTouchableOpacity>
+        )
       )}
     </StyledView>
   );
