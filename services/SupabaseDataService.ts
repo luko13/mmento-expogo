@@ -2,10 +2,6 @@
 import { supabase } from "../lib/supabase";
 import type { LocalTrick, LocalCategory } from "./LocalDataService";
 
-/**
- * Servicio centralizado para todas las queries de Supabase
- * Separa la lógica de red del cache local
- */
 export class SupabaseDataService {
   private static instance: SupabaseDataService;
 
@@ -27,7 +23,6 @@ export class SupabaseDataService {
     try {
       console.log("[SupabaseData] Fetching all data for user:", userId);
 
-      // Fetch en paralelo para velocidad
       const [categoriesResult, tricksResult, favoritesResult] =
         await Promise.all([
           this.fetchCategories(userId),
@@ -37,7 +32,6 @@ export class SupabaseDataService {
 
       const favoriteIds = new Set(favoritesResult);
 
-      // Marcar favoritos en tricks
       const tricksWithFavorites = tricksResult.map((trick) => ({
         ...trick,
         is_favorite: favoriteIds.has(trick.id),
@@ -95,6 +89,31 @@ export class SupabaseDataService {
 
     if (error) throw error;
 
+    // Cargar todas las fotos adicionales en una sola query optimizada
+    const trickIds = (data || []).map((t) => t.id);
+    const photosMap = new Map<string, string[]>();
+
+    if (trickIds.length > 0) {
+      const { data: photosData, error: photosError } = await supabase
+        .from("trick_photos")
+        .select("trick_id, photo_url")
+        .in("trick_id", trickIds);
+
+      if (photosError) {
+        console.error("[SupabaseData] Error fetching photos:", photosError);
+      } else if (photosData) {
+        photosData.forEach((p) => {
+          if (!photosMap.has(p.trick_id)) {
+            photosMap.set(p.trick_id, []);
+          }
+          photosMap.get(p.trick_id)!.push(p.photo_url);
+        });
+        console.log(
+          `[SupabaseData] Loaded photos for ${photosMap.size} tricks`
+        );
+      }
+    }
+
     return (data || []).map((trick) => {
       // Parse angles si es string JSON
       let angles: string[] = [];
@@ -108,13 +127,14 @@ export class SupabaseDataService {
         }
       }
 
-      // Extraer category_ids
       const category_ids = (trick.trick_categories || []).map(
         (tc: any) => tc.category_id
       );
 
-      // Extraer tag_ids
       const tag_ids = (trick.trick_tags || []).map((tt: any) => tt.tag_id);
+
+      // Obtener fotos adicionales del map
+      const photos = photosMap.get(trick.id) || [];
 
       return {
         id: trick.id,
@@ -136,7 +156,8 @@ export class SupabaseDataService {
         user_id: trick.user_id,
         category_ids,
         tag_ids,
-        is_favorite: false, // se actualiza después con fetchFavorites
+        is_favorite: false,
+        photos, // Array de URLs de fotos adicionales
       };
     });
   }
@@ -173,14 +194,12 @@ export class SupabaseDataService {
       const sinceISO = new Date(since).toISOString();
       console.log("[SupabaseData] Fetching changes since:", sinceISO);
 
-      // Categorías modificadas
       const { data: categoriesData } = await supabase
         .from("user_categories")
         .select("*")
         .eq("user_id", userId)
         .gte("updated_at", sinceISO);
 
-      // Tricks modificados
       const { data: tricksData } = await supabase
         .from("magic_tricks")
         .select(
@@ -193,10 +212,28 @@ export class SupabaseDataService {
         .eq("user_id", userId)
         .gte("updated_at", sinceISO);
 
-      // Favoritos actualizados (no hay updated_at, fetch todos)
       const favoriteIds = new Set(await this.fetchFavorites(userId));
 
-      // Procesar tricks
+      // Cargar fotos para tricks modificados
+      const trickIds = (tricksData || []).map((t) => t.id);
+      const photosMap = new Map<string, string[]>();
+
+      if (trickIds.length > 0) {
+        const { data: photosData } = await supabase
+          .from("trick_photos")
+          .select("trick_id, photo_url")
+          .in("trick_id", trickIds);
+
+        if (photosData) {
+          photosData.forEach((p) => {
+            if (!photosMap.has(p.trick_id)) {
+              photosMap.set(p.trick_id, []);
+            }
+            photosMap.get(p.trick_id)!.push(p.photo_url);
+          });
+        }
+      }
+
       const tricks: LocalTrick[] = (tricksData || []).map((trick) => {
         let angles: string[] = [];
         if (Array.isArray(trick.angles)) angles = trick.angles;
@@ -205,6 +242,8 @@ export class SupabaseDataService {
             angles = JSON.parse(trick.angles);
           } catch {}
         }
+
+        const photos = photosMap.get(trick.id) || [];
 
         return {
           id: trick.id,
@@ -229,10 +268,10 @@ export class SupabaseDataService {
           ),
           tag_ids: (trick.trick_tags || []).map((tt: any) => tt.tag_id),
           is_favorite: favoriteIds.has(trick.id),
+          photos,
         };
       });
 
-      // Procesar categorías
       const categories: LocalCategory[] = (categoriesData || []).map((cat) => ({
         id: cat.id,
         name: cat.name,
@@ -246,7 +285,6 @@ export class SupabaseDataService {
         `[SupabaseData] Modified: ${tricks.length} tricks, ${categories.length} categories`
       );
 
-      // TODO: detectar eliminaciones (necesitas una tabla de audit log o comparar con cache)
       return {
         categories,
         tricks,
@@ -338,7 +376,6 @@ export class SupabaseDataService {
   ): Promise<boolean> {
     try {
       if (isFavorite) {
-        // Remover favorito
         const { error } = await supabase
           .from("user_favorites")
           .delete()
@@ -348,7 +385,6 @@ export class SupabaseDataService {
 
         if (error) throw error;
       } else {
-        // Agregar favorito
         const { error } = await supabase.from("user_favorites").insert({
           user_id: userId,
           content_id: trickId,

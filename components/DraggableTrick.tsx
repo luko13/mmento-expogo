@@ -25,6 +25,8 @@ interface DraggableTrickProps {
     secret?: string;
     duration?: number | null;
     reset?: number | null;
+    photos?: string[]; // ✅ AÑADIR ESTE CAMPO
+    photo_url?: string | null; // ✅ AÑADIR ESTE CAMPO
   };
   categoryId: string;
   index: number;
@@ -85,6 +87,32 @@ export const DraggableTrick: React.FC<DraggableTrickProps> = ({
   };
 
   const handlePress = () => {
+    // ✅ DEBUG: Log completo del item al hacer press
+    console.log("🔵 [DraggableTrick] Item pressed:", {
+      id: item.id,
+      title: item.title,
+      photo_url: item.photo_url,
+      photos: item.photos,
+      photosCount: item.photos?.length || 0,
+      photosArray: item.photos || [],
+    });
+
+    // ✅ DEBUG: Verificar si hay fotos
+    if (item.photos && item.photos.length > 0) {
+      console.log(
+        `✅ [DraggableTrick] Trick "${item.title}" has ${item.photos.length} photos`
+      );
+      item.photos.forEach((photo, index) => {
+        console.log(`   Photo ${index + 1}: ${photo}`);
+      });
+    } else if (item.photo_url) {
+      console.log(
+        `⚠️ [DraggableTrick] Trick "${item.title}" has only photo_url: ${item.photo_url}`
+      );
+    } else {
+      console.log(`❌ [DraggableTrick] Trick "${item.title}" has NO photos`);
+    }
+
     onPress();
   };
 
@@ -129,6 +157,22 @@ export const DraggableTrick: React.FC<DraggableTrickProps> = ({
                   }}
                 >
                   In: {matchLocation}
+                </Text>
+              )}
+              {/* ✅ DEBUG VISUAL: Mostrar contador de fotos */}
+              {(item.photos?.length || 0) > 0 && (
+                <Text
+                  style={{
+                    fontFamily: fontNames.light,
+                    fontSize: 10,
+                    color: "rgba(91, 185, 163, 0.8)",
+                    marginLeft: 8,
+                    marginTop: 2,
+                    includeFontPadding: false,
+                  }}
+                >
+                  📷 {item.photos?.length}{" "}
+                  {item.photos?.length === 1 ? "photo" : "photos"}
                 </Text>
               )}
             </StyledView>

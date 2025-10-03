@@ -25,6 +25,9 @@ import CategoryActionsModal from "../ui/CategoryActionsModal";
 import CategoryModal from "../ui/CategoryModal";
 import { useRouter } from "expo-router";
 import { useLibraryData } from "../../context/LibraryDataContext";
+
+import { localDataService } from "../../services/LocalDataService";
+
 import CollapsibleCategoryOptimized from "./CollapsibleCategoryOptimized";
 import { fontNames } from "../../app/_layout";
 import MagicLoader from "../ui/MagicLoader";
@@ -51,8 +54,6 @@ const LibrariesSection = memo(function LibrariesSection({
   const router = useRouter();
   const { t } = useTranslation();
   const { deletedTrickId } = useTrickDeletion();
-
-  // Usar Context
   const {
     sections,
     allCategories,
@@ -67,12 +68,10 @@ const LibrariesSection = memo(function LibrariesSection({
     applyFilters,
   } = useLibraryData();
 
-  // Aplicar filtros cuando cambien
   useEffect(() => {
     applyFilters(searchQuery, searchFilters);
   }, [searchQuery, searchFilters, applyFilters]);
 
-  // Modales/estado UI
   const [isAddCategoryModalVisible, setAddCategoryModalVisible] =
     useState(false);
   const [isEditCategoryModalVisible, setEditCategoryModalVisible] =
@@ -220,11 +219,11 @@ const LibrariesSection = memo(function LibrariesSection({
         id: item.id,
         title: item.title,
         category_ids: item.category_ids,
+        photos: item.photos,
+        photosCount: item.photos?.length || 0,
       });
 
       try {
-        // El item YA tiene todos los datos del cache local
-        // Solo necesitamos el nombre de la categoría
         const categoryName =
           allCategories.find((cat) => item.category_ids?.includes(cat.id))
             ?.name || "Unknown";
@@ -238,8 +237,8 @@ const LibrariesSection = memo(function LibrariesSection({
           effect_video_url: item.effect_video_url || null,
           secret_video_url: item.secret_video_url || null,
           photo_url: item.photo_url || null,
-          photos: [], // Se pueden cargar después si es necesario
-          script: "", // Se puede cargar después si es necesario
+          photos: item.photos || [], // Usar las fotos del cache
+          script: "",
           angles: Array.isArray(item.angles) ? item.angles : [],
           duration: item.duration || 0,
           reset: item.reset || 0,
@@ -253,6 +252,7 @@ const LibrariesSection = memo(function LibrariesSection({
           id: itemData.id,
           title: itemData.title,
           category: itemData.category,
+          photosCount: itemData.photos.length,
         });
 
         router.push({

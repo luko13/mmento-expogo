@@ -86,6 +86,7 @@ export interface LocalTrick {
   category_ids: string[];
   tag_ids: string[];
   is_favorite: boolean;
+  photos: string[]; // Array de URLs de fotos adicionales
 }
 
 export interface LocalCategory {
@@ -462,6 +463,7 @@ export class LocalDataService {
     }
   }
 }
+
 // ============================================================================
 // CACHE PERSISTENTE EN MEMORIA (sobrevive a unmount/remount de componentes)
 // ============================================================================
@@ -488,18 +490,13 @@ let inMemoryCache: InMemoryCache = {
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
-/**
- * Obtiene el cache en memoria si es válido
- */
 export function getInMemoryCache(userId: string): InMemoryCache | null {
-  // Verificar que el cache sea del mismo usuario
   if (inMemoryCache.userId !== userId) {
     console.log("[InMemoryCache] User mismatch, clearing cache");
     clearInMemoryCache();
     return null;
   }
 
-  // Verificar que no esté expirado
   const age = Date.now() - inMemoryCache.timestamp;
   if (age > CACHE_TTL) {
     console.log("[InMemoryCache] Cache expired, clearing");
@@ -507,21 +504,19 @@ export function getInMemoryCache(userId: string): InMemoryCache | null {
     return null;
   }
 
-  // Verificar que tenga datos
   if (!inMemoryCache.sections || !inMemoryCache.categories) {
     return null;
   }
 
   console.log(
-    `[InMemoryCache] Hit! ${inMemoryCache.sections.length} sections (age: ${Math.round(age / 1000)}s)`
+    `[InMemoryCache] Hit! ${
+      inMemoryCache.sections.length
+    } sections (age: ${Math.round(age / 1000)}s)`
   );
 
   return inMemoryCache;
 }
 
-/**
- * Guarda datos en el cache en memoria
- */
 export function setInMemoryCache(
   userId: string,
   sections: CategorySection[],
@@ -536,9 +531,6 @@ export function setInMemoryCache(
   console.log(`[InMemoryCache] Saved: ${sections.length} sections`);
 }
 
-/**
- * Limpia el cache en memoria
- */
 export function clearInMemoryCache(): void {
   inMemoryCache = {
     sections: null,

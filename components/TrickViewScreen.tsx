@@ -79,6 +79,16 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   userId,
   onClose,
 }) => {
+  useEffect(() => {
+    console.log("🟣 [TrickViewScreen] RECEIVED TRICK DATA:", {
+      id: trick.id,
+      title: trick.title,
+      photo_url: trick.photo_url,
+      photos: trick.photos,
+      photosCount: trick.photos?.length || 0,
+      photosArray: trick.photos || [],
+    });
+  }, [trick]);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -245,8 +255,27 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
   // Cargar fotos
   useEffect(() => {
+    console.log("🟣 [TrickViewScreen] Loading photos:", {
+      trickPhotos: trick.photos,
+      trickPhotoUrl: trick.photo_url,
+      photosFromMemo: photos,
+      photosCount: photos.length,
+    });
+
     setIsLoadingPhotos(true);
-    const publicPhotos = photos.map((photo) => getPublicUrl(photo) || photo);
+    const publicPhotos = photos.map((photo) => {
+      const url = getPublicUrl(photo) || photo;
+      console.log("🟣 [TrickViewScreen] Processing photo:", {
+        original: photo,
+        publicUrl: url,
+      });
+      return url;
+    });
+
+    console.log("🟣 [TrickViewScreen] Decrypted photos:", {
+      count: publicPhotos.length,
+      urls: publicPhotos,
+    });
     setDecryptedPhotos(publicPhotos);
     setIsLoadingPhotos(false);
   }, [photos, getPublicUrl]);
@@ -629,6 +658,14 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
   // Render de galería de fotos
   const renderPhotoGallery = () => {
+    console.log("🟣 [TrickViewScreen] renderPhotoGallery called:", {
+      isLoadingPhotos,
+      decryptedPhotosCount: decryptedPhotos.length,
+      photosCount: photos.length,
+      decryptedPhotos,
+      photos,
+    });
+
     if (isLoadingPhotos) {
       return (
         <View
@@ -646,7 +683,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
     const photosToDisplay =
       decryptedPhotos.length > 0 ? decryptedPhotos : photos;
-
+    console.log("🟣 [TrickViewScreen] Photos to display:", {
+      count: photosToDisplay.length,
+      photos: photosToDisplay,
+    });
     if (photosToDisplay.length === 0) {
       return (
         <View
@@ -767,7 +807,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
         <View style={{ width, height }}>{renderPhotoGallery()}</View>
       </StyledScrollView>
-
 
       {/* Barra de progreso FUERA del ScrollView y de todo */}
       {(currentSection === "effect" || currentSection === "secret") && (
