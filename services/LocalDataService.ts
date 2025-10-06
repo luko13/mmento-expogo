@@ -87,6 +87,8 @@ export interface LocalTrick {
   tag_ids: string[];
   is_favorite: boolean;
   photos: string[]; // Array de URLs de fotos adicionales
+  _pendingSync?: boolean; // Flag para indicar que está pendiente de sincronización
+  _isLocalOnly?: boolean; // Flag para trucos creados offline que aún no existen en server
 }
 
 export interface LocalCategory {
@@ -96,6 +98,8 @@ export interface LocalCategory {
   user_id: string;
   created_at: string;
   updated_at: string;
+  _pendingSync?: boolean; // Flag para indicar que está pendiente de sincronización
+  _isLocalOnly?: boolean; // Flag para categorías creadas offline que aún no existen en server
 }
 
 export interface LocalUserData {
@@ -265,14 +269,18 @@ export class LocalDataService {
     });
   }
 
-  addTrick(userId: string, trick: LocalTrick): boolean {
+  addTrick(userId: string, trick: LocalTrick, isLocalOnly = false): boolean {
     const existing = memoryCache.get(this.userDataKey(userId));
+
+    const trickToAdd = isLocalOnly
+      ? { ...trick, _isLocalOnly: true, _pendingSync: true }
+      : trick;
 
     if (!existing) {
       return this.saveUserData({
         userId,
         categories: [],
-        tricks: [trick],
+        tricks: [trickToAdd],
         lastSync: Date.now(),
         version: this.CURRENT_VERSION,
       });
@@ -287,7 +295,7 @@ export class LocalDataService {
 
     return this.saveUserData({
       ...data,
-      tricks: [...data.tricks, trick],
+      tricks: [...data.tricks, trickToAdd],
       lastSync: Date.now(),
     });
   }
@@ -295,7 +303,8 @@ export class LocalDataService {
   updateTrick(
     userId: string,
     trickId: string,
-    updates: Partial<LocalTrick>
+    updates: Partial<LocalTrick>,
+    markPending = false
   ): boolean {
     const existing = memoryCache.get(this.userDataKey(userId));
     if (!existing) return false;
@@ -303,7 +312,12 @@ export class LocalDataService {
     const data = JSON.parse(existing) as LocalUserData;
     const updatedTricks = data.tricks.map((trick) =>
       trick.id === trickId
-        ? { ...trick, ...updates, updated_at: new Date().toISOString() }
+        ? {
+            ...trick,
+            ...updates,
+            updated_at: new Date().toISOString(),
+            _pendingSync: markPending ? true : trick._pendingSync
+          }
         : trick
     );
 
@@ -328,13 +342,17 @@ export class LocalDataService {
     });
   }
 
-  addCategory(userId: string, category: LocalCategory): boolean {
+  addCategory(userId: string, category: LocalCategory, isLocalOnly = false): boolean {
     const existing = memoryCache.get(this.userDataKey(userId));
+
+    const categoryToAdd = isLocalOnly
+      ? { ...category, _isLocalOnly: true, _pendingSync: true }
+      : category;
 
     if (!existing) {
       return this.saveUserData({
         userId,
-        categories: [category],
+        categories: [categoryToAdd],
         tricks: [],
         lastSync: Date.now(),
         version: this.CURRENT_VERSION,
@@ -350,7 +368,7 @@ export class LocalDataService {
 
     return this.saveUserData({
       ...data,
-      categories: [...data.categories, category],
+      categories: [...data.categories, categoryToAdd],
       lastSync: Date.now(),
     });
   }
@@ -421,6 +439,52 @@ export class LocalDataService {
     }
   }
 
+  // Métodos para offline sync
+  getPendingTricks(userId: string): LocalTrick[] {
+    const existing = memoryCache.get(this.userDataKey(userId));
+    if (!existing) return [];
+
+    const data = JSON.parse(existing) as LocalUserData;
+    return data.tricks.filter((t) => t._pendingSync || t._isLocalOnly);
+  }
+
+  getPendingCategories(userId: string): LocalCategory[] {
+    const existing = memoryCache.get(this.userDataKey(userId));
+    if (!existing) return [];
+
+    const data = JSON.parse(existing) as LocalUserData;
+    return data.categories.filter((c) => c._pendingSync || c._isLocalOnly);
+  }
+
+  clearPendingFlags(userId: string, trickIds: string[], categoryIds: string[]): boolean {
+    const existing = memoryCache.get(this.userDataKey(userId));
+    if (!existing) return false;
+
+    const data = JSON.parse(existing) as LocalUserData;
+
+    const updatedTricks = data.tricks.map((trick) => {
+      if (trickIds.includes(trick.id)) {
+        const { _pendingSync, _isLocalOnly, ...rest } = trick;
+        return rest as LocalTrick;
+      }
+      return trick;
+    });
+
+    const updatedCategories = data.categories.map((cat) => {
+      if (categoryIds.includes(cat.id)) {
+        const { _pendingSync, _isLocalOnly, ...rest } = cat;
+        return rest as LocalCategory;
+      }
+      return cat;
+    });
+
+    return this.saveUserData({
+      ...data,
+      tricks: updatedTricks,
+      categories: updatedCategories,
+    });
+  }
+
   getDebugInfo(userId?: string): any {
     const info: any = {
       lastUserId: this.getLastUserId(),
@@ -435,9 +499,14 @@ export class LocalDataService {
       const raw = storage.getString(key);
       if (raw) {
         const data = JSON.parse(raw) as LocalUserData;
+        const pendingTricks = data.tricks.filter((t) => t._pendingSync || t._isLocalOnly);
+        const pendingCategories = data.categories.filter((c) => c._pendingSync || c._isLocalOnly);
+
         info.userData = {
           tricksCount: data.tricks.length,
           categoriesCount: data.categories.length,
+          pendingTricksCount: pendingTricks.length,
+          pendingCategoriesCount: pendingCategories.length,
           lastSync: new Date(data.lastSync).toISOString(),
           version: data.version,
         };

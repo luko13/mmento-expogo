@@ -1,6 +1,9 @@
 // services/trickService.ts
 import { supabase } from "../lib/supabase";
 import type { MagicTrick } from "../types/magicTrick";
+import { networkMonitorService } from "./NetworkMonitorService";
+import { offlineQueueService } from "../lib/offlineQueue";
+import { localDataService } from "./LocalDataService";
 
 export const trickService = {
   async getCompleteTrick(trickId: string): Promise<MagicTrick | null> {
@@ -82,6 +85,31 @@ export const trickService = {
   },
 
   async updateIsPublic(trickId: string, isPublic: boolean): Promise<boolean> {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    // Actualizar localmente primero
+    localDataService.updateTrick(
+      user.id,
+      trickId,
+      { is_public: isPublic },
+      !networkMonitorService.isOnline()
+    );
+
+    // Si estamos offline, encolar y retornar
+    if (!networkMonitorService.isOnline()) {
+      await offlineQueueService.enqueue({
+        userId: user.id,
+        type: "update_trick",
+        payload: { trickId, data: { is_public: isPublic } },
+      });
+      console.log("[TrickService] Offline: is_public change enqueued");
+      return true;
+    }
+
+    // Si estamos online, actualizar en servidor
     try {
       const { error } = await supabase
         .from("magic_tricks")
@@ -91,11 +119,37 @@ export const trickService = {
       return true;
     } catch (error) {
       console.error("Error updating is_public:", error);
+      // Encolar para retry
+      await offlineQueueService.enqueue({
+        userId: user.id,
+        type: "update_trick",
+        payload: { trickId, data: { is_public: isPublic } },
+      });
       return false;
     }
   },
 
   async deleteTrick(trickId: string): Promise<boolean> {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    // Eliminar localmente primero
+    localDataService.deleteTrick(user.id, trickId);
+
+    // Si estamos offline, encolar y retornar
+    if (!networkMonitorService.isOnline()) {
+      await offlineQueueService.enqueue({
+        userId: user.id,
+        type: "delete_trick",
+        payload: { trickId },
+      });
+      console.log("[TrickService] Offline: trick deletion enqueued");
+      return true;
+    }
+
+    // Si estamos online, eliminar del servidor
     try {
       await supabase
         .from("user_favorites")
@@ -106,6 +160,7 @@ export const trickService = {
       await supabase.from("trick_categories").delete().eq("trick_id", trickId);
       await supabase.from("trick_techniques").delete().eq("trick_id", trickId);
       await supabase.from("trick_gimmicks").delete().eq("trick_id", trickId);
+      await supabase.from("trick_photos").delete().eq("trick_id", trickId);
       await supabase.from("scripts").delete().eq("trick_id", trickId);
       await supabase
         .from("shared_content")
@@ -121,6 +176,12 @@ export const trickService = {
       return true;
     } catch (error) {
       console.error("Error deleting trick:", error);
+      // Encolar para retry
+      await offlineQueueService.enqueue({
+        userId: user.id,
+        type: "delete_trick",
+        payload: { trickId },
+      });
       return false;
     }
   },
@@ -129,6 +190,44 @@ export const trickService = {
     trickId: string,
     trickData: Partial<MagicTrick>
   ): Promise<boolean> {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    // Actualizar localmente primero
+    const localUpdates: any = {};
+    if (trickData.title !== undefined) localUpdates.title = trickData.title;
+    if (trickData.effect !== undefined) localUpdates.effect = trickData.effect;
+    if (trickData.secret !== undefined) localUpdates.secret = trickData.secret;
+    if (trickData.duration !== undefined) localUpdates.duration = trickData.duration;
+    if (trickData.reset !== undefined) localUpdates.reset = trickData.reset;
+    if (trickData.difficulty !== undefined) localUpdates.difficulty = trickData.difficulty;
+    if (trickData.angles !== undefined) localUpdates.angles = trickData.angles;
+    if (trickData.notes !== undefined) localUpdates.notes = trickData.notes;
+    if (trickData.photo_url !== undefined) localUpdates.photo_url = trickData.photo_url;
+    if (trickData.effect_video_url !== undefined) localUpdates.effect_video_url = trickData.effect_video_url;
+    if (trickData.secret_video_url !== undefined) localUpdates.secret_video_url = trickData.secret_video_url;
+
+    localDataService.updateTrick(
+      user.id,
+      trickId,
+      localUpdates,
+      !networkMonitorService.isOnline()
+    );
+
+    // Si estamos offline, encolar y retornar
+    if (!networkMonitorService.isOnline()) {
+      await offlineQueueService.enqueue({
+        userId: user.id,
+        type: "update_trick",
+        payload: { trickId, data: trickData },
+      });
+      console.log("[TrickService] Offline: trick update enqueued");
+      return true;
+    }
+
+    // Si estamos online, actualizar en servidor
     try {
       const { error: updateError } = await supabase
         .from("magic_tricks")
@@ -214,6 +313,12 @@ export const trickService = {
       return true;
     } catch (error) {
       console.error("Error updating trick:", error);
+      // Encolar para retry
+      await offlineQueueService.enqueue({
+        userId: user.id,
+        type: "update_trick",
+        payload: { trickId, data: trickData },
+      });
       return false;
     }
   },

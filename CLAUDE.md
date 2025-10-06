@@ -236,3 +236,126 @@ await fileUploadService.uploadVideo(
 - Optimized base64 encoding/decoding in `utils/optimizedBase64.ts`
 - Pagination service for large content (`utils/paginatedContentService.ts`)
 - Performance optimizer utilities in `utils/performanceOptimizer.ts`
+
+## Offline-First Architecture
+
+The app implements a comprehensive offline-first system that allows full functionality without network connection, with automatic background synchronization when connectivity is restored.
+
+### System Components
+
+**1. Network Monitor Service** (`services/NetworkMonitorService.ts`)
+- Monitors network connectivity in real-time
+- Provides connection status to entire app
+- Triggers sync operations when connection is restored
+
+**2. Offline Queue Service** (`lib/offlineQueue.ts`)
+- Queues operations performed offline
+- Automatic retry with exponential backoff (max 3 attempts)
+- Supports operations:
+  - `create_trick`: Create new tricks offline
+  - `update_trick`: Edit existing tricks
+  - `delete_trick`: Delete tricks
+  - `toggle_favorite`: Toggle favorite status
+  - `create_category`, `update_category`, `delete_category`
+
+**3. Local Data Service** (`services/LocalDataService.ts`)
+- AsyncStorage + in-memory cache for instant access
+- Tracks pending changes with `_pendingSync` and `_isLocalOnly` flags
+- Provides `getPendingTricks()` and `getPendingCategories()` methods
+
+**4. Offline Sync Context** (`context/OfflineSyncContext.tsx`)
+- Global state for offline/sync status
+- Automatic sync on:
+  - Network reconnection
+  - App foreground transition
+  - Manual trigger via `syncNow()`
+- Provides: `isOnline`, `isSyncing`, `pendingOperations`, `lastSyncTime`
+
+**5. Offline Indicator UI** (`components/ui/OfflineIndicator.tsx`)
+- Visual indicator at top of screen
+- Shows offline status, pending operations, sync progress
+- Tap to manually trigger sync
+
+### Implementation Pattern
+
+When performing operations that modify data:
+
+```typescript
+// 1. Update local cache immediately (optimistic update)
+localDataService.updateTrick(userId, trickId, updates, !networkMonitorService.isOnline());
+
+// 2. If offline, queue for later
+if (!networkMonitorService.isOnline()) {
+  await offlineQueueService.enqueue({
+    userId,
+    type: "update_trick",
+    payload: { trickId, data: updates }
+  });
+  return true; // User sees immediate feedback
+}
+
+// 3. If online, try server update
+try {
+  await supabase.from("magic_tricks").update(updates).eq("id", trickId);
+  return true;
+} catch (error) {
+  // Queue for retry if server fails
+  await offlineQueueService.enqueue({
+    userId,
+    type: "update_trick",
+    payload: { trickId, data: updates }
+  });
+  return false;
+}
+```
+
+### Integration Instructions
+
+**1. Wrap app with OfflineSyncProvider:**
+```typescript
+// app/_layout.tsx or App.tsx
+import { OfflineSyncProvider } from './context/OfflineSyncContext';
+
+<OfflineSyncProvider>
+  <YourApp />
+</OfflineSyncProvider>
+```
+
+**2. Add OfflineIndicator to layout:**
+```typescript
+import { OfflineIndicator } from './components/ui/OfflineIndicator';
+
+<View style={{ flex: 1 }}>
+  <OfflineIndicator />
+  <YourContent />
+</View>
+```
+
+**3. Use in components:**
+```typescript
+import { useOfflineSync } from './context/OfflineSyncContext';
+
+const { isOnline, syncNow, pendingOperations } = useOfflineSync();
+
+// Check if online before sensitive operations
+if (!isOnline) {
+  alert("Esta operación requiere conexión a internet");
+  return;
+}
+```
+
+### Conflict Resolution
+
+Currently implements "last write wins" strategy:
+- Operations are executed in chronological order (timestamp-based)
+- Server state is considered authoritative after sync
+- Failed operations after 3 retries are marked as `failed` status
+
+### Testing Offline Mode
+
+1. Enable airplane mode on device
+2. Perform operations (create/edit/delete tricks)
+3. Observe OfflineIndicator showing pending operations
+4. Disable airplane mode
+5. Automatic sync occurs within seconds
+6. Verify changes appear in Supabase database
