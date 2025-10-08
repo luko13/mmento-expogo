@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   Modal,
   Animated,
+  Pressable,
 } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
@@ -183,7 +184,12 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
         className={modalClasses.backgroundBlur}
         experimentalBlurMethod="dimezisBlurView"
       >
-        <StyledView className={modalClasses.mainContainer}>
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={handleClose}
+        >
+          <StyledView className={modalClasses.mainContainer}>
+            <Pressable onPress={(e) => e.stopPropagation()}>
           {/* ⬇ wrapper con sombras y radio */}
           <View style={modalStyles.modalCardShadow}>
             {/* ⬇ Blur que recorta el radio (overflow hidden aquí) */}
@@ -353,7 +359,9 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
               </StyledView>
             </StyledBlurView>
           </View>
-        </StyledView>
+            </Pressable>
+          </StyledView>
+        </Pressable>
       </StyledBlurView>
     </StyledModal>
   );

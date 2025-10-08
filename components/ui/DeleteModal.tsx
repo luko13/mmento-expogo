@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, Modal } from "react-native";
+import { View, Text, TouchableOpacity, Modal, Pressable } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
@@ -52,7 +52,12 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
         experimentalBlurMethod="dimezisBlurView"
         className={modalClasses.backgroundBlur}
       >
-        <StyledView className={modalClasses.mainContainer}>
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={onClose}
+        >
+          <StyledView className={modalClasses.mainContainer}>
+            <Pressable onPress={(e) => e.stopPropagation()}>
           <StyledBlurView
             {...blurConfig.containerBlur}
             experimentalBlurMethod="dimezisBlurView"
@@ -148,7 +153,9 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
               </StyledTouchableOpacity>
             </StyledView>
           </StyledBlurView>
-        </StyledView>
+            </Pressable>
+          </StyledView>
+        </Pressable>
       </StyledBlurView>
     </StyledModal>
   );

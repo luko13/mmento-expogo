@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Modal } from "react-native";
+import React from "react";
+import { View, Text, TouchableOpacity, Modal, Pressable } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
@@ -10,7 +10,6 @@ import {
   modalClasses,
 } from "../../styles/modalStyles";
 import { fontNames } from "../../app/_layout";
-import MakePublicModal from "./MakePublicModal";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -23,10 +22,8 @@ interface SuccessCreationModalProps {
   onClose: () => void;
   onViewItem: () => void;
   onAddAnother: () => void;
-  onMakePublic?: () => void;
   itemName: string;
   itemType: "trick" | "technique" | "gimmick";
-  itemId?: string;
 }
 
 const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
@@ -36,10 +33,8 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
   onAddAnother,
   itemName,
   itemType,
-  itemId,
 }) => {
   const { t } = useTranslation();
-  const [showMakePublicModal, setShowMakePublicModal] = useState(false);
 
   const getItemTypeText = () => {
     switch (itemType) {
@@ -54,22 +49,19 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
     }
   };
 
-  const handleMakePublic = () => {
-    onClose(); // Cierra el modal actual primero
-    setTimeout(() => {
-      setShowMakePublicModal(true);
-    }, 300);
-  };
-
   return (
-    <>
-      <StyledModal visible={visible} transparent animationType="fade">
-        <StyledBlurView
-          {...blurConfig.backgroundBlur}
-          experimentalBlurMethod="dimezisBlurView"
-          className={modalClasses.backgroundBlur}
+    <StyledModal visible={visible} transparent animationType="fade">
+      <StyledBlurView
+        {...blurConfig.backgroundBlur}
+        experimentalBlurMethod="dimezisBlurView"
+        className={modalClasses.backgroundBlur}
+      >
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={onClose}
         >
           <StyledView className={modalClasses.mainContainer}>
+            <Pressable onPress={(e) => e.stopPropagation()}>
             <StyledBlurView
               {...blurConfig.containerBlur}
               experimentalBlurMethod="dimezisBlurView"
@@ -152,26 +144,6 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
                   </StyledText>
                 </StyledTouchableOpacity>
 
-                {/* Make Public Button (solo para tricks) */}
-                {itemType === "trick" && itemId && (
-                  <StyledTouchableOpacity
-                    className="py-3 items-center"
-                    style={modalStyles.actionButton}
-                    onPress={handleMakePublic}
-                  >
-                    <StyledText
-                      className={modalClasses.buttonText}
-                      style={{
-                        fontFamily: fontNames.regular,
-                        fontSize: 16,
-                        includeFontPadding: false,
-                      }}
-                    >
-                      {t("successCreation.makePublic", "Make Public")}
-                    </StyledText>
-                  </StyledTouchableOpacity>
-                )}
-
                 {/* Register More Button */}
                 <StyledTouchableOpacity
                   className="py-3 items-center"
@@ -208,23 +180,11 @@ const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({
                 </StyledTouchableOpacity>
               </StyledView>
             </StyledBlurView>
+            </Pressable>
           </StyledView>
-        </StyledBlurView>
-      </StyledModal>
-
-      {/* Make Public Modal */}
-      {itemId && (
-        <MakePublicModal
-          visible={showMakePublicModal}
-          onClose={() => setShowMakePublicModal(false)}
-          trickId={itemId}
-          initialIsPublic={false}
-          onSuccess={() => {
-            setShowMakePublicModal(false);
-          }}
-        />
-      )}
-    </>
+        </Pressable>
+      </StyledBlurView>
+    </StyledModal>
   );
 };
 

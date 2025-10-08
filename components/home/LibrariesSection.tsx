@@ -246,6 +246,8 @@ const LibrariesSection = memo(function LibrariesSection({
           notes: item.notes || "",
           is_shared: item.is_shared || false,
           owner_info: null,
+          user_id: item.user_id || null,
+          is_public: item.is_public || false,
         };
 
         console.log("🟠 [LibrariesSection] Navigating with data:", {
@@ -253,6 +255,8 @@ const LibrariesSection = memo(function LibrariesSection({
           title: itemData.title,
           category: itemData.category,
           photosCount: itemData.photos.length,
+          user_id: itemData.user_id,
+          is_public: itemData.is_public,
         });
 
         router.push({
