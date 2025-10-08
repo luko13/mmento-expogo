@@ -101,7 +101,8 @@ const TrickActionsModal: React.FC<TrickActionsModalProps> = ({
                   )}
 
                   {/* Privacy Button - Only for owner */}
-                  {isOwner && (
+                  {/* TODO: Descomentar para MVP 2.0 - Funcionalidad de hacer público/privado */}
+                  {/* {isOwner && (
                     <StyledTouchableOpacity
                       className="py-4 items-center"
                       style={{
@@ -124,7 +125,7 @@ const TrickActionsModal: React.FC<TrickActionsModalProps> = ({
                           : t("privacy.makePublic", "Make Public")}
                       </StyledText>
                     </StyledTouchableOpacity>
-                  )}
+                  )} */}
 
                   {/* Delete Button - Only for owner */}
                   {isOwner && (

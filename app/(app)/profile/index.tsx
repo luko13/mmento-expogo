@@ -108,8 +108,15 @@ export default function Profile() {
         <StyledView className="p-4">
           {/* Profile Header */}
           <StyledView className="items-center mb-6">
-            <StyledView className="w-24 h-24 rounded-full overflow-hidden mb-4 bg-emerald-600 justify-center items-center">
-              <FontAwesome name="user" size={40} color="white" />
+            <StyledView
+              className="w-24 h-24 rounded-full overflow-hidden mb-4 justify-center items-center"
+              style={{
+                backgroundColor: '#10B981',
+                borderWidth: 3,
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+              }}
+            >
+              <FontAwesome name="user-circle" size={80} color="white" style={{ marginTop: -2 }} />
             </StyledView>
             <StyledText
               className="text-white text-2xl font-bold"

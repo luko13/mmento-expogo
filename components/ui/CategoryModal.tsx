@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   Modal,
   Animated,
+  Pressable,
 } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
@@ -24,6 +25,7 @@ import {
 import { fontNames } from "../../app/_layout";
 import { getUserCategories } from "../../utils/categoryService";
 import { supabase } from "../../lib/supabase";
+import BlinkingCursor from "./BlinkingCursor";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -48,6 +50,7 @@ interface CategoryModalProps {
   initialName?: string;
   mode?: "create" | "edit";
   currentCategoryId?: string;
+  placeholderText?: string;
 }
 
 const CategoryModal: React.FC<CategoryModalProps> = ({
@@ -57,6 +60,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
   initialName = "",
   mode = "create",
   currentCategoryId,
+  placeholderText,
 }) => {
   const { t } = useTranslation();
   const [categoryName, setCategoryName] = useState(initialName);
@@ -67,10 +71,6 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
   const [isFocused, setIsFocused] = useState(false);
 
   const inputRef = useRef<TextInput>(null);
-
-  // cursor inline
-  const cursorOpacity = useRef(new Animated.Value(1)).current;
-  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -89,7 +89,9 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
     setCategoryName(initialName);
     setError("");
     setIsFocused(false);
-    setIsEditingName(false); // siempre arrancamos sin edición
+    // En modo create: si hay initialName (texto pre-llenado), entramos directo a edición
+    // En modo edit: siempre empezamos sin editar (mostramos píldora)
+    setIsEditingName(mode === "create" && initialName.trim().length > 0);
   }, [initialName, mode, visible]);
 
   // create: parpadea si vacío y no editando
@@ -99,35 +101,6 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
     if (mode === "edit") return true;
     return categoryName.trim().length === 0;
   }, [visible, isSubmitting, isEditingName, mode, categoryName]);
-
-  useEffect(() => {
-    if (shouldShowBlink) {
-      loopRef.current?.stop?.();
-      loopRef.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(cursorOpacity, {
-            toValue: 0,
-            duration: 530,
-            useNativeDriver: true,
-          }),
-          Animated.timing(cursorOpacity, {
-            toValue: 1,
-            duration: 530,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      cursorOpacity.setValue(1);
-      loopRef.current.start();
-    } else {
-      loopRef.current?.stop?.();
-      cursorOpacity.setValue(0);
-    }
-    return () => {
-      loopRef.current?.stop?.();
-      cursorOpacity.setValue(1);
-    };
-  }, [shouldShowBlink, cursorOpacity]);
 
   const validateCategoryName = useCallback(
     async (name: string) => {
@@ -211,7 +184,12 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
         className={modalClasses.backgroundBlur}
         experimentalBlurMethod="dimezisBlurView"
       >
-        <StyledView className={modalClasses.mainContainer}>
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={handleClose}
+        >
+          <StyledView className={modalClasses.mainContainer}>
+            <Pressable onPress={(e) => e.stopPropagation()}>
           {/* ⬇ wrapper con sombras y radio */}
           <View style={modalStyles.modalCardShadow}>
             {/* ⬇ Blur que recorta el radio (overflow hidden aquí) */}
@@ -253,7 +231,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
                     disabled={isEditingName}
                   >
                     <StyledView
-                      className="flex-row items-center justify-center"
+                      className="flex-row items-center justify-start"
                       style={{ minWidth: 140, height: 28, gap: 6 }}
                     >
                       {isEditingName ? (
@@ -268,51 +246,41 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
                           }}
                           style={{
                             color: "#fff",
-                            fontWeight: "500",
+                            fontFamily: fontNames.medium,
+                            fontSize: 16,
                             minWidth: 80,
-                            textAlign: "center",
-                            fontFamily: fontNames.regular,
+                            textAlign: "left",
                             includeFontPadding: false,
                             paddingVertical: 0,
+                            paddingHorizontal: 0,
+                            margin: 0,
                           }}
-                          className="text-base"
                           placeholder={t("categoryName", "Category name")}
                           placeholderTextColor="rgba(255,255,255,0.5)"
                           editable={!isSubmitting}
                         />
                       ) : (
                         <>
+                          <BlinkingCursor visible={shouldShowBlink} />
+
                           <StyledText
                             style={{
                               color: "#fff",
                               fontFamily: fontNames.medium,
+                              fontSize: 16,
                               includeFontPadding: false,
                               opacity:
                                 mode === "create" &&
                                 categoryName.trim().length === 0
                                   ? 0.6
                                   : 1,
+                              marginLeft: 0,
                             }}
                             className="font-medium"
                             numberOfLines={1}
                           >
-                            {categoryName || t("categoryName", "Category name")}
+                            {categoryName || `${placeholderText || t("categoryName", "Category name")}`}
                           </StyledText>
-
-                          {shouldShowBlink && (
-                            <Animated.Text
-                              style={{
-                                opacity: cursorOpacity,
-                                color: "#ffffff",
-                                fontFamily: fontNames.medium,
-                                includeFontPadding: false,
-                                fontSize: 16,
-                                lineHeight: 20,
-                              }}
-                            >
-                              |
-                            </Animated.Text>
-                          )}
                         </>
                       )}
                     </StyledView>
@@ -391,7 +359,9 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
               </StyledView>
             </StyledBlurView>
           </View>
-        </StyledView>
+            </Pressable>
+          </StyledView>
+        </Pressable>
       </StyledBlurView>
     </StyledModal>
   );

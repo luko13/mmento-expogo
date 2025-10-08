@@ -7,6 +7,7 @@ import {
   Switch,
   ActivityIndicator,
   Alert,
+  Pressable,
 } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
@@ -273,7 +274,12 @@ const MakePublicModal: React.FC<MakePublicModalProps> = ({
         className={modalClasses.backgroundBlur}
         experimentalBlurMethod="dimezisBlurView"
       >
-        <StyledView className={modalClasses.mainContainer}>
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={onClose}
+        >
+          <StyledView className={modalClasses.mainContainer}>
+            <Pressable onPress={(e) => e.stopPropagation()}>
           <StyledBlurView
             {...blurConfig.containerBlur}
             experimentalBlurMethod="dimezisBlurView"
@@ -354,7 +360,9 @@ const MakePublicModal: React.FC<MakePublicModalProps> = ({
               </StyledTouchableOpacity>
             </StyledView>
           </StyledBlurView>
-        </StyledView>
+            </Pressable>
+          </StyledView>
+        </Pressable>
       </StyledBlurView>
     </StyledModal>
   );

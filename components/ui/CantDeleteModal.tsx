@@ -4,6 +4,7 @@ import {
   Text,
   TouchableOpacity,
   Modal,
+  Pressable,
 } from "react-native";
 import { styled } from "nativewind";
 import { BlurView } from "expo-blur";
@@ -44,7 +45,12 @@ const CantDeleteModal: React.FC<CategoryNotEmptyModalProps> = ({
         className={modalClasses.backgroundBlur}
         experimentalBlurMethod="dimezisBlurView"
       >
-        <StyledView className={modalClasses.mainContainer}>
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={handleClose}
+        >
+          <StyledView className={modalClasses.mainContainer}>
+            <Pressable onPress={(e) => e.stopPropagation()}>
           {/* Caja principal con desenfoque e intento de vidrio esmerilado */}
           <StyledBlurView
             {...blurConfig.containerBlur}
@@ -117,7 +123,9 @@ const CantDeleteModal: React.FC<CategoryNotEmptyModalProps> = ({
               </StyledTouchableOpacity>
             </StyledView>
           </StyledBlurView>
-        </StyledView>
+            </Pressable>
+          </StyledView>
+        </Pressable>
       </StyledBlurView>
     </StyledModal>
   );

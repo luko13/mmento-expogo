@@ -5,7 +5,6 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, ActivityInd
 import { styled } from "nativewind"
 import { useTranslation } from "react-i18next"
 import { Feather, Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { supabase } from "../../../lib/supabase"
 import {
@@ -15,6 +14,7 @@ import {
   type Category,
 } from "../../../utils/categoryService"
 import { fontNames } from "../../../app/_layout"
+import BlinkingCursor from "../../ui/BlinkingCursor"
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -49,6 +49,9 @@ export default function CategoryModal({
   const [newCategoryName, setNewCategoryName] = useState("")
   const [newCategoryDescription, setNewCategoryDescription] = useState("")
   const [creating, setCreating] = useState(false)
+  const [isFocusedName, setIsFocusedName] = useState(false)
+  const [isFocusedDescription, setIsFocusedDescription] = useState(false)
+  const [isFocusedSearch, setIsFocusedSearch] = useState(false)
 
   // Filter categories based on search query
   const filteredUserCategories = userCategories.filter(category => 
@@ -226,7 +229,15 @@ export default function CategoryModal({
                 {t('forms.categoryName', 'Category Name')}
                 <StyledText className="text-red-400"> *</StyledText>
               </StyledText>
-              <StyledView className="bg-white/10 rounded-lg border border-white/20 mb-4">
+              <StyledView className="bg-white/10 rounded-lg border border-white/20 mb-4" style={{ position: 'relative' }}>
+                <StyledView style={{ position: 'absolute', left: 12, top: 12, flexDirection: 'row', alignItems: 'center', pointerEvents: 'none', zIndex: 1 }}>
+                  <BlinkingCursor visible={!isFocusedName && newCategoryName.length === 0} color="rgba(255, 255, 255, 0.5)" />
+                  {!isFocusedName && newCategoryName.length === 0 && (
+                    <StyledText style={{ color: 'rgba(255, 255, 255, 0.5)', fontFamily: fontNames.regular, fontSize: 16, marginLeft: 4 }}>
+                      {t('forms.categoryNamePlaceholder', 'Enter category name')}
+                    </StyledText>
+                  )}
+                </StyledView>
                 <StyledTextInput
                   className="text-white p-3 text-base"
                   style={{
@@ -234,10 +245,12 @@ export default function CategoryModal({
                     fontSize: 16,
                     includeFontPadding: false,
                   }}
-                  placeholder={t('forms.categoryNamePlaceholder', 'Enter category name')}
+                  placeholder=""
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={newCategoryName}
                   onChangeText={setNewCategoryName}
+                  onFocus={() => setIsFocusedName(true)}
+                  onBlur={() => setIsFocusedName(false)}
                   autoCapitalize="sentences"
                   autoCorrect={false}
                   returnKeyType="next"
@@ -263,7 +276,15 @@ export default function CategoryModal({
                   ({t('forms.optional', 'Optional')})
                 </StyledText>
               </StyledText>
-              <StyledView className="bg-white/10 rounded-lg border border-white/20 mb-8">
+              <StyledView className="bg-white/10 rounded-lg border border-white/20 mb-8" style={{ position: 'relative' }}>
+                <StyledView style={{ position: 'absolute', left: 12, top: 12, flexDirection: 'row', alignItems: 'flex-start', pointerEvents: 'none', zIndex: 1 }}>
+                  <BlinkingCursor visible={!isFocusedDescription && newCategoryDescription.length === 0} color="rgba(255, 255, 255, 0.5)" />
+                  {!isFocusedDescription && newCategoryDescription.length === 0 && (
+                    <StyledText style={{ color: 'rgba(255, 255, 255, 0.5)', fontFamily: fontNames.regular, fontSize: 16, marginLeft: 4 }}>
+                      ... {t('forms.descriptionPlaceholder', 'Enter description (optional)')}
+                    </StyledText>
+                  )}
+                </StyledView>
                 <StyledTextInput
                   className="text-white p-3 text-base"
                   style={{
@@ -271,10 +292,12 @@ export default function CategoryModal({
                     fontSize: 16,
                     includeFontPadding: false,
                   }}
-                  placeholder={t('forms.descriptionPlaceholder', 'Enter description (optional)')}
+                  placeholder=""
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={newCategoryDescription}
                   onChangeText={setNewCategoryDescription}
+                  onFocus={() => setIsFocusedDescription(true)}
+                  onBlur={() => setIsFocusedDescription(false)}
                   multiline
                   numberOfLines={3}
                   textAlignVertical="top"
@@ -359,21 +382,33 @@ export default function CategoryModal({
 
             {/* Search Bar */}
             <StyledView className="px-4 mb-2">
-              <StyledView className="flex-row items-center bg-white/10 rounded-lg px-3 py-2">
+              <StyledView className="flex-row items-center bg-white/10 rounded-lg px-3 py-2" style={{ position: 'relative' }}>
                 <Feather name="search" size={20} color="rgba(255, 255, 255, 0.7)" />
-                <StyledTextInput
-                  className="flex-1 text-white ml-2 h-10"
-                  style={{
-                    fontFamily: fontNames.regular,
-                    fontSize: 16,
-                    includeFontPadding: false,
-                  }}
-                  placeholder={t('searchCategories', 'Search categories...')}
-                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  autoCapitalize="none"
-                />
+                <StyledView className="flex-1 ml-2" style={{ position: 'relative' }}>
+                  <StyledView style={{ position: 'absolute', left: 0, top: 10, flexDirection: 'row', alignItems: 'center', pointerEvents: 'none', zIndex: 1 }}>
+                    <BlinkingCursor visible={!isFocusedSearch && searchQuery.length === 0} color="rgba(255, 255, 255, 0.5)" />
+                    {!isFocusedSearch && searchQuery.length === 0 && (
+                      <StyledText style={{ color: 'rgba(255, 255, 255, 0.5)', fontFamily: fontNames.regular, fontSize: 16, marginLeft: 4 }}>
+                        ... {t('searchCategories', 'Search categories...')}
+                      </StyledText>
+                    )}
+                  </StyledView>
+                  <StyledTextInput
+                    className="flex-1 text-white h-10"
+                    style={{
+                      fontFamily: fontNames.regular,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                    }}
+                    placeholder=""
+                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    onFocus={() => setIsFocusedSearch(true)}
+                    onBlur={() => setIsFocusedSearch(false)}
+                    autoCapitalize="none"
+                  />
+                </StyledView>
                 {searchQuery.length > 0 && (
                   <StyledTouchableOpacity onPress={() => setSearchQuery("")}>
                     <Feather name="x" size={20} color="rgba(255, 255, 255, 0.7)" />

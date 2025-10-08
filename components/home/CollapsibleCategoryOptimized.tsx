@@ -410,7 +410,12 @@ const CollapsibleCategoryOptimized = ({
     >
       <StyledView className="flex-row items-center flex-1">
         <RNAnimated.View
-          style={{ transform: [{ rotate: rotateInterpolation }] }}
+          style={{
+            transform: [{ rotate: rotateInterpolation }],
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 3,
+          }}
         >
           <MaterialIcons name="chevron-right" size={20} color="white" />
         </RNAnimated.View>
@@ -421,6 +426,7 @@ const CollapsibleCategoryOptimized = ({
             color: "white",
             marginLeft: 8,
             includeFontPadding: false,
+            textAlignVertical: 'center',
           }}
         >
           {section.category.name}

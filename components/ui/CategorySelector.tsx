@@ -371,9 +371,11 @@ export default function CategorySelector({
         onClose={() => {
           setShowCreateModal(false);
           setNewCategory("");
+          setCategoryToCreate("");
         }}
         onConfirm={createNewCategory}
-        initialName={categoryToCreate}
+        initialName=""
+        placeholderText={categoryToCreate}
         mode="create"
       />
     </>
