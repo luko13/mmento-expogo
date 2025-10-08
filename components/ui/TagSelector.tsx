@@ -307,9 +307,11 @@ export default function TagSelector({
         onClose={() => {
           setShowCreateModal(false);
           setNewTag("");
+          setTagToCreate("");
         }}
         onConfirm={createTag}
-        initialName={tagToCreate}
+        initialName=""
+        placeholderText={tagToCreate}
         mode="create"
       />
     </>

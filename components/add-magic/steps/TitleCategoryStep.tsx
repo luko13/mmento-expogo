@@ -206,7 +206,7 @@ export default function TitleCategoryStep({
                               ? { textAlignVertical: "center" as any }
                               : { paddingTop: 1 }), // iOS baseline fino
                           }}
-                          placeholder={t("forms.magicTitlePlaceholder")}
+                          placeholder={`${t("forms.magicTitlePlaceholder")}`}
                           placeholderTextColor="rgba(255, 255, 255, 0.5)"
                           value={trickData.title}
                           onChangeText={handleTitleChange}

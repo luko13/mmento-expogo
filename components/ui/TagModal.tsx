@@ -18,6 +18,7 @@ import {
 } from "../../styles/modalStyles";
 import { fontNames } from "../../app/_layout";
 import { getContrastTextColor } from "../../utils/colorUtils";
+import BlinkingCursor from "./BlinkingCursor";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -33,6 +34,7 @@ interface TagModalProps {
   initialName?: string;
   initialColor?: string;
   mode?: "create" | "edit";
+  placeholderText?: string;
 }
 
 const TagModal: React.FC<TagModalProps> = ({
@@ -42,25 +44,23 @@ const TagModal: React.FC<TagModalProps> = ({
   initialName = "",
   initialColor = "#4CAF50",
   mode = "create",
+  placeholderText,
 }) => {
   const { t } = useTranslation();
   const [tagName, setTagName] = useState(initialName);
   const [selectedColor, setSelectedColor] = useState(initialColor);
 
-  // Arrancamos SIN edición para mostrar barrita en “reposo”
+  // Arrancamos SIN edición para mostrar barrita en "reposo"
   const [isEditingName, setIsEditingName] = useState(false);
-
-  // Animación cursor inline
-  const cursorOpacity = useRef(new Animated.Value(1)).current;
-  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     setTagName(initialName);
     setSelectedColor(initialColor);
-    // Siempre salimos de edición al abrir/cambiar modo para mostrar el cursor “reposo”
-    setIsEditingName(false);
+    // En modo create: si hay initialName (texto pre-llenado), entramos directo a edición
+    // En modo edit: siempre empezamos sin editar (mostramos píldora)
+    setIsEditingName(mode === "create" && initialName.trim().length > 0);
   }, [initialName, initialColor, mode, visible]);
 
   // Parpadeo:
@@ -71,35 +71,6 @@ const TagModal: React.FC<TagModalProps> = ({
     if (mode === "edit") return true;
     return tagName.trim().length === 0;
   }, [visible, isEditingName, mode, tagName]);
-
-  useEffect(() => {
-    if (shouldShowBlink) {
-      loopRef.current?.stop?.();
-      loopRef.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(cursorOpacity, {
-            toValue: 0,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(cursorOpacity, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      cursorOpacity.setValue(1);
-      loopRef.current.start();
-    } else {
-      loopRef.current?.stop?.();
-      cursorOpacity.setValue(0);
-    }
-    return () => {
-      loopRef.current?.stop?.();
-      cursorOpacity.setValue(1);
-    };
-  }, [shouldShowBlink, cursorOpacity]);
 
   const handleConfirm = () => {
     const trimmed = tagName.trim();
@@ -167,7 +138,7 @@ const TagModal: React.FC<TagModalProps> = ({
                     disabled={isEditingName}
                   >
                     {isEditingName ? (
-                      <StyledView className="flex-row items-center">
+                      <StyledView className="flex-row items-center justify-start" style={{ minWidth: 140 }}>
                         <StyledTextInput
                           ref={inputRef}
                           value={tagName}
@@ -177,24 +148,30 @@ const TagModal: React.FC<TagModalProps> = ({
                           }}
                           style={{
                             color: textColor,
-                            fontFamily: fontNames.regular,
+                            fontFamily: fontNames.medium,
                             fontSize: 16,
                             includeFontPadding: false,
-                            minWidth: 80,
-                            textAlign: "center",
+                            minWidth: 140,
+                            textAlign: "left",
                             paddingVertical: 0,
+                            paddingHorizontal: 0,
+                            margin: 0,
                           }}
-                          className="text-base"
                           placeholder={t("tagName", "Tag name")}
                           placeholderTextColor={textColor + "80"}
                         />
                       </StyledView>
                     ) : (
-                      // Vista “reposo” con barrita parpadeante inline
+                      // Vista "reposo" con barrita parpadeante inline
                       <StyledView
-                        className="flex-row items-center justify-center"
-                        style={{ gap: 6 }}
+                        className="flex-row items-center justify-start"
+                        style={{ gap: 6, minWidth: 140 }}
                       >
+                        <BlinkingCursor
+                          visible={shouldShowBlink}
+                          color={textColor}
+                        />
+
                         <StyledText
                           style={{
                             color: textColor,
@@ -205,27 +182,13 @@ const TagModal: React.FC<TagModalProps> = ({
                               mode === "create" && tagName.trim().length === 0
                                 ? 0.7
                                 : 1,
+                            marginLeft: 0,
                           }}
                           className="font-medium"
                           numberOfLines={1}
                         >
-                          {tagName || t("tagName", "Tag name")}
+                          {tagName || `${placeholderText || t("tagName", "Tag name")}`}
                         </StyledText>
-
-                        {shouldShowBlink && (
-                          <Animated.Text
-                            style={{
-                              opacity: cursorOpacity,
-                              color: textColor,
-                              fontFamily: fontNames.medium,
-                              includeFontPadding: false,
-                              fontSize: 16,
-                              lineHeight: 20,
-                            }}
-                          >
-                            |
-                          </Animated.Text>
-                        )}
                       </StyledView>
                     )}
                   </StyledTouchableOpacity>
