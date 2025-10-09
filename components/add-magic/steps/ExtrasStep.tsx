@@ -6,9 +6,7 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Alert,
   ScrollView,
-  Animated,
   TextInput,
   TouchableWithoutFeedback,
   Keyboard,
@@ -18,24 +16,18 @@ import {
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
-import {
-  Feather,
-  MaterialCommunityIcons,
-  MaterialIcons,
-} from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import type { MagicTrick } from "../../../types/magicTrick";
-import { supabase } from "../../../lib/supabase";
 import { LinearGradient } from "expo-linear-gradient";
-import CustomTooltip from "../../ui/Tooltip";
 import { fontNames } from "../../../app/_layout";
 
-// Importar modales
-import TechniquesModal from "../../../components/add-magic/ui/TechniquesModal";
-import GimmicksModal from "../../../components/add-magic/ui/GimmicksModal";
-import ScriptModal from "../../../components/add-magic/ui/ScriptModal";
+// Importar modales y componentes necesarios
 import DifficultySlider from "../../../components/add-magic/ui/DifficultySlider";
 import TimePickerModal from "../ui/TimePickerModal";
 import UploadProgressModal from "../ui/UploadProgressModal";
+import { FullScreenTextModal } from "../../ui/FullScreenTextModal";
+import { StatField } from "../../ui/StatField";
+import { useKeyboardScrolling } from "../../../hooks/useKeyboardScrolling";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -43,24 +35,22 @@ const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledScrollView = styled(ScrollView);
 const StyledTextInput = styled(TextInput);
 
-// Definir interfaces para técnica y gimmick
-interface Technique {
-  id: string;
-  name: string;
-  description?: string;
-}
+// Constantes
+const TOOLTIP_BG_COLOR = "rgba(91, 185, 163, 0.95)";
 
-interface Gimmick {
-  id: string;
-  name: string;
-  description?: string;
-}
+const LAYOUT_CONSTANTS = {
+  HEADER_HEIGHT: 120,
+  BOTTOM_BUTTON_HEIGHT: 100,
+  KEYBOARD_DEFAULT_HEIGHT: 300,
+  KEYBOARD_SCROLL_DELAY: 300,
+} as const;
 
-interface ScriptData {
-  id?: string;
-  title: string;
-  content: string;
-}
+const ANGLE_OPTIONS = [
+  { value: "90", label: "90°" },
+  { value: "120", label: "120°" },
+  { value: "180", label: "180°" },
+  { value: "360", label: "360°" },
+] as const;
 
 interface StepProps {
   trickData: MagicTrick;
@@ -89,7 +79,18 @@ export default function ExtrasStep({
   const { t } = useTranslation();
   const scrollViewRef = useRef<ScrollView>(null);
   const notesInputRef = useRef<View>(null);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Custom hook para manejo del teclado
+  const { keyboardHeight, scrollToInput } = useKeyboardScrolling(
+    scrollViewRef,
+    notesInputRef,
+    {
+      headerHeight: LAYOUT_CONSTANTS.HEADER_HEIGHT,
+      bottomHeight: LAYOUT_CONSTANTS.BOTTOM_BUTTON_HEIGHT,
+      scrollDelay: LAYOUT_CONSTANTS.KEYBOARD_SCROLL_DELAY,
+      defaultKeyboardHeight: LAYOUT_CONSTANTS.KEYBOARD_DEFAULT_HEIGHT,
+    }
+  );
 
   // Estados para el progreso de carga
   const [showUploadProgress, setShowUploadProgress] = useState(false);
@@ -100,89 +101,16 @@ export default function ExtrasStep({
   const [processedFiles, setProcessedFiles] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Estados para modales
-  const [techniquesModalVisible, setTechniquesModalVisible] = useState(false);
-  const [gimmicksModalVisible, setGimmicksModalVisible] = useState(false);
-  const [scriptModalVisible, setScriptModalVisible] = useState(false);
-
   // Estados para los selectores de tiempo
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [showResetPicker, setShowResetPicker] = useState(false);
 
-  // Estados para datos
-  const [techniques, setTechniques] = useState<Technique[]>([]);
-  const [gimmicks, setGimmicks] = useState<Gimmick[]>([]);
-  const [selectedTechniques, setSelectedTechniques] = useState<Technique[]>([]);
-  const [selectedGimmicks, setSelectedGimmicks] = useState<Gimmick[]>([]);
-  const [scriptData, setScriptData] = useState<ScriptData>({
-    title: "",
-    content: "",
-  });
+  // Estado para el modal de notas
+  const [showNotesModal, setShowNotesModal] = useState(false);
 
   // Function to dismiss keyboard
   const dismissKeyboard = () => {
     Keyboard.dismiss();
-  };
-
-  // Handle keyboard show/hide events
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      (e) => {
-        const height = e.endCoordinates.height;
-        setKeyboardHeight(height);
-
-        // Auto-scroll when keyboard shows if notes field is focused
-        if (notesInputRef.current) {
-          setTimeout(() => {
-            handleNotesFocus();
-          }, 100);
-        }
-      }
-    );
-
-    const keyboardDidHideListener = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-      () => {
-        setKeyboardHeight(0);
-      }
-    );
-
-    return () => {
-      keyboardDidShowListener.remove();
-      keyboardDidHideListener.remove();
-    };
-  }, []);
-
-  // Function to scroll to notes input when focused
-  const handleNotesFocus = () => {
-    setTimeout(() => {
-      if (notesInputRef.current && scrollViewRef.current) {
-        notesInputRef.current.measureLayout(
-          scrollViewRef.current as any,
-          (x, y, width, height) => {
-            // Calculate the position to scroll to
-            const screenHeight = Dimensions.get("window").height;
-            const keyboardSpace = keyboardHeight || 300; // Use default if keyboard height not yet available
-            const headerHeight = 120; // Approximate header height
-            const bottomButtonHeight = 100; // Height of bottom section
-            const visibleHeight =
-              screenHeight - keyboardSpace - headerHeight - bottomButtonHeight;
-
-            // Scroll to position the notes field in the middle of visible area
-            const targetY = y - visibleHeight / 2 + height / 2;
-
-            scrollViewRef.current?.scrollTo({
-              y: Math.max(0, targetY),
-              animated: true,
-            });
-          },
-          () => {
-            console.log("Failed to measure layout");
-          }
-        );
-      }
-    }, 300); // Increased delay to ensure keyboard is fully shown
   };
 
   // Cleanup timer on unmount
@@ -246,17 +174,10 @@ export default function ExtrasStep({
     }
   };
 
-  // Opciones de selección de ángulos
-  const angles = [
-    { value: "90", label: "90°" },
-    { value: "120", label: "120°" },
-    { value: "180", label: "180°" },
-    { value: "360", label: "360°" },
-  ];
-
-  // Seleccionar ángulo (estilo botón de radio) - OPCIÓN ÚNICA
+  // Seleccionar ángulo - toggle on/off
   const selectAngle = (angle: string): void => {
-    updateTrickData({ angles: [angle] });
+    const isSelected = trickData.angles.includes(angle);
+    updateTrickData({ angles: isSelected ? [] : [angle] });
   };
 
   // Manejar cambio de duración
@@ -276,178 +197,16 @@ export default function ExtrasStep({
     updateTrickData({ difficulty: value });
   };
 
-  // Obtener técnicas y gimmicks de la base de datos
-  useEffect(() => {
-    fetchTechniques();
-    fetchGimmicks();
+  // Formatear tiempo para mostrar (duración o reinicio)
+  const formatTime = (timeInSeconds: number | null, placeholder: string) => {
+    if (!timeInSeconds) return placeholder;
 
-    // Inicializar elementos seleccionados si los datos del truco los tienen
-    if (trickData.techniqueIds && trickData.techniqueIds.length > 0) {
-      fetchSelectedTechniques(trickData.techniqueIds);
-    }
+    const minutes = Math.floor(timeInSeconds / 60);
+    const seconds = timeInSeconds % 60;
 
-    if (trickData.gimmickIds && trickData.gimmickIds.length > 0) {
-      fetchSelectedGimmicks(trickData.gimmickIds);
-    }
-
-    // Inicializar datos del script si están disponibles
-    if (trickData.scriptId) {
-      fetchScriptData(trickData.scriptId);
-    }
-  }, []);
-
-  const fetchTechniques = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("techniques")
-        .select("id, name, description")
-        .eq("is_public", true);
-
-      if (error) throw error;
-      setTechniques(data || []);
-    } catch (error) {
-      console.error("Error al obtener técnicas:", error);
-      Alert.alert(
-        t("error", "Error"),
-        t("errorFetchingTechniques", "Error al obtener técnicas")
-      );
-    }
-  };
-
-  const fetchGimmicks = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("gimmicks")
-        .select("id, name, description")
-        .eq("is_public", true);
-
-      if (error) throw error;
-      setGimmicks(data || []);
-    } catch (error) {
-      console.error("Error al obtener gimmicks:", error);
-      Alert.alert(
-        t("error", "Error"),
-        t("errorFetchingGimmicks", "Error al obtener gimmicks")
-      );
-    }
-  };
-
-  const fetchSelectedTechniques = async (techniqueIds: string[]) => {
-    try {
-      const { data, error } = await supabase
-        .from("techniques")
-        .select("id, name, description")
-        .in("id", techniqueIds);
-
-      if (error) throw error;
-      setSelectedTechniques(data || []);
-    } catch (error) {
-      console.error("Error al obtener técnicas seleccionadas:", error);
-    }
-  };
-
-  const fetchSelectedGimmicks = async (gimmickIds: string[]) => {
-    try {
-      const { data, error } = await supabase
-        .from("gimmicks")
-        .select("id, name, description")
-        .in("id", gimmickIds);
-
-      if (error) throw error;
-      setSelectedGimmicks(data || []);
-    } catch (error) {
-      console.error("Error al obtener gimmicks seleccionados:", error);
-    }
-  };
-
-  const fetchScriptData = async (scriptId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("scripts")
-        .select("id, title, content")
-        .eq("id", scriptId)
-        .single();
-
-      if (error) throw error;
-      if (data) {
-        setScriptData(data);
-      }
-    } catch (error) {
-      console.error("Error al obtener datos del script:", error);
-    }
-  };
-
-  // Alternar selección de técnicas
-  const toggleTechniqueSelection = (technique: Technique) => {
-    const isSelected = selectedTechniques.some((t) => t.id === technique.id);
-
-    if (isSelected) {
-      setSelectedTechniques(
-        selectedTechniques.filter((t) => t.id !== technique.id)
-      );
-    } else {
-      setSelectedTechniques([...selectedTechniques, technique]);
-    }
-  };
-
-  // Alternar selección de gimmicks
-  const toggleGimmickSelection = (gimmick: Gimmick) => {
-    const isSelected = selectedGimmicks.some((g) => g.id === gimmick.id);
-
-    if (isSelected) {
-      setSelectedGimmicks(selectedGimmicks.filter((g) => g.id !== gimmick.id));
-    } else {
-      setSelectedGimmicks([...selectedGimmicks, gimmick]);
-    }
-  };
-
-  // Manejar datos de componentes modales
-  const handleSaveTechniques = (techniqueIds: string[]) => {
-    updateTrickData({ techniqueIds });
-    setTechniquesModalVisible(false);
-  };
-
-  const handleSaveGimmicks = (gimmickIds: string[]) => {
-    updateTrickData({ gimmickIds });
-    setGimmicksModalVisible(false);
-  };
-
-  const handleSaveScript = (scriptContent: string) => {
-    updateTrickData({ script: scriptContent });
-    setScriptModalVisible(false);
-  };
-
-  // Formatear tiempo de duración para mostrar
-  const formatDuration = (durationInSeconds: number | null) => {
-    if (!durationInSeconds)
-      return t("setDurationTime", "Establecer tiempo de duración");
-
-    const minutes = Math.floor(durationInSeconds / 60);
-    const seconds = durationInSeconds % 60;
-
-    if (minutes === 0) {
-      return `${seconds} s`;
-    } else if (seconds === 0) {
-      return `${minutes} min`;
-    } else {
-      return `${minutes} min ${seconds} s`;
-    }
-  };
-  // Formatear tiempo de reinicio para mostrar
-  const formatReset = (resetInSeconds: number | null) => {
-    if (!resetInSeconds)
-      return t("setResetTime", "Establecer tiempo de reinicio");
-
-    const minutes = Math.floor(resetInSeconds / 60);
-    const seconds = resetInSeconds % 60;
-
-    if (minutes === 0) {
-      return `${seconds} s`;
-    } else if (seconds === 0) {
-      return `${minutes} min`;
-    } else {
-      return `${minutes} min ${seconds} s`;
-    }
+    if (minutes === 0) return `${seconds} s`;
+    if (seconds === 0) return `${minutes} min`;
+    return `${minutes} min ${seconds} s`;
   };
 
   // Actualizar el contexto padre con el callback de progreso
@@ -515,188 +274,255 @@ export default function ExtrasStep({
             {/* Sección de Estadísticas */}
             <StyledView className="mt-3">
               <StyledText
-                className="text-white text-lg mb-2"
+                className="text-white text-lg mb-4"
                 style={{
                   fontFamily: fontNames.light,
                   fontSize: 20,
                   includeFontPadding: false,
                 }}
               >
-                {t("statistics", "Estadísticas")}
+                {t("statistics", "Statistics")}
               </StyledText>
 
               {/* Selección de Ángulos */}
-              <StyledView className="flex-row mb-6">
-                <CustomTooltip
-                  text={t("tooltips.angle")}
-                  backgroundColor="rgba(91, 185, 163, 0.95)"
-                  textColor="white"
-                >
-                  <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-                    <MaterialCommunityIcons
-                      name="angle-acute"
-                      size={32}
-                      color="white"
-                    />
-                  </StyledView>
-                </CustomTooltip>
-                <StyledView className="flex-1">
-                  <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between">
-                    {angles.map((angle) => (
-                      <StyledTouchableOpacity
-                        key={angle.value}
-                        onPress={() => selectAngle(angle.value)}
-                        className="flex-row items-center"
+              <StatField
+                icon={
+                  <MaterialCommunityIcons
+                    name="angle-acute"
+                    size={32}
+                    color="white"
+                  />
+                }
+                tooltip={t("tooltips.angle")}
+                tooltipBgColor={TOOLTIP_BG_COLOR}
+              >
+                <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between">
+                  {ANGLE_OPTIONS.map((angle) => (
+                    <StyledTouchableOpacity
+                      key={angle.value}
+                      onPress={() => selectAngle(angle.value)}
+                      className="flex-row items-center"
+                      accessible={true}
+                      accessibilityRole="radio"
+                      accessibilityLabel={`${angle.label} ${t("angle", "angle")}`}
+                      accessibilityState={{
+                        checked: trickData.angles.includes(angle.value),
+                      }}
+                      accessibilityHint={t(
+                        "accessibility.selectAngle",
+                        "Select this angle option"
+                      )}
+                    >
+                      <StyledView
+                        className={`w-5 h-5 rounded-full border ${
+                          trickData.angles.includes(angle.value)
+                            ? "border-white bg-white"
+                            : "border-white/50"
+                        } mr-2`}
                       >
-                        <StyledView
-                          className={`w-5 h-5 rounded-full border ${
-                            trickData.angles.includes(angle.value)
-                              ? "border-white bg-white"
-                              : "border-white/50"
-                          } mr-2`}
-                        >
-                          {trickData.angles.includes(angle.value) && (
-                            <StyledView className="w-3 h-3 rounded-full bg-emerald-800 m-auto" />
-                          )}
-                        </StyledView>
-                        <StyledText
-                          className="text-white"
-                          style={{
-                            fontFamily: fontNames.light,
-                            fontSize: 14,
-                            includeFontPadding: false,
-                          }}
-                        >
-                          {angle.label}
-                        </StyledText>
-                      </StyledTouchableOpacity>
-                    ))}
-                  </StyledView>
+                        {trickData.angles.includes(angle.value) && (
+                          <StyledView className="w-3 h-3 rounded-full bg-emerald-800 m-auto" />
+                        )}
+                      </StyledView>
+                      <StyledText
+                        className="text-white"
+                        style={{
+                          fontFamily: fontNames.light,
+                          fontSize: 14,
+                          includeFontPadding: false,
+                        }}
+                      >
+                        {angle.label}
+                      </StyledText>
+                    </StyledTouchableOpacity>
+                  ))}
                 </StyledView>
-              </StyledView>
+              </StatField>
 
               {/* Tiempo de Duración */}
-              <StyledView className="flex-row mb-6">
-                <CustomTooltip
-                  text={t("tooltips.duration")}
-                  backgroundColor="rgba(91, 185, 163, 0.95)"
-                  textColor="white"
+              <StatField
+                icon={<Feather name="clock" size={24} color="white" />}
+                tooltip={t("tooltips.duration")}
+                tooltipBgColor={TOOLTIP_BG_COLOR}
+              >
+                <StyledTouchableOpacity
+                  className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between"
+                  onPress={() => setShowDurationPicker(true)}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(
+                    "accessibility.setDuration",
+                    "Set duration time"
+                  )}
+                  accessibilityValue={{
+                    text: formatTime(
+                      trickData.duration,
+                      t("setDurationTime", "Set duration time")
+                    ),
+                  }}
                 >
-                  <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-                    <Feather name="clock" size={24} color="white" />
-                  </StyledView>
-                </CustomTooltip>
-                <StyledView className="flex-1">
-                  <StyledTouchableOpacity
-                    className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between"
-                    onPress={() => setShowDurationPicker(true)}
-                  >
-                    <StyledText
-                      className="text-white/70"
-                      style={{
-                        fontFamily: fontNames.light,
-                        fontSize: 16,
-                        includeFontPadding: false,
-                      }}
-                    >
-                      {formatDuration(trickData.duration)}
-                    </StyledText>
-                    <Feather name="plus" size={20} color="white" />
-                  </StyledTouchableOpacity>
-                </StyledView>
-              </StyledView>
-
-              {/* Tiempo de Reinicio */}
-              <StyledView className="flex-row mb-6">
-                <CustomTooltip
-                  text={t("tooltips.reset")}
-                  backgroundColor="rgba(91, 185, 163, 0.95)"
-                  textColor="white"
-                >
-                  <StyledView className="w-[48px] h-[48px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-                    <Feather name="refresh-cw" size={24} color="white" />
-                  </StyledView>
-                </CustomTooltip>
-                <StyledView className="flex-1">
-                  <StyledTouchableOpacity
-                    className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between"
-                    onPress={() => setShowResetPicker(true)}
-                  >
-                    <StyledText
-                      className="text-white/70"
-                      style={{
-                        fontFamily: fontNames.light,
-                        fontSize: 16,
-                        includeFontPadding: false,
-                      }}
-                    >
-                      {formatReset(trickData.reset)}
-                    </StyledText>
-                    <Feather name="plus" size={20} color="white" />
-                  </StyledTouchableOpacity>
-                </StyledView>
-              </StyledView>
-
-              {/* Deslizador de dificultad */}
-              <StyledView className="flex-row mb-6">
-                <CustomTooltip
-                  text={t("tooltips.difficulty")}
-                  backgroundColor="rgba(91, 185, 163, 0.95)"
-                  textColor="white"
-                >
-                  <StyledView className="w-[48px] h-[70px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-                    <Feather name="bar-chart" size={28} color="white" />
-                  </StyledView>
-                </CustomTooltip>
-                <StyledView className="flex-1">
-                  <StyledView className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg pb-3 border border-[#eafffb]/40">
-                    {/* Componente DifficultySlider */}
-                    <DifficultySlider
-                      value={trickData.difficulty}
-                      onChange={handleDifficultyChange}
-                      min={1}
-                      max={10}
-                      step={1}
-                    />
-                  </StyledView>
-                </StyledView>
-              </StyledView>
-
-              {/* Notes Field */}
-              <StyledView className="flex-row mb-6" ref={notesInputRef}>
-                <CustomTooltip
-                  text={t("tooltips.notes")}
-                  backgroundColor="rgba(91, 185, 163, 0.95)"
-                  textColor="white"
-                >
-                  <StyledView className="w-[48px] h-[180px] bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-                    <MaterialCommunityIcons
-                      name="text-box-outline"
-                      size={28}
-                      color="white"
-                    />
-                  </StyledView>
-                </CustomTooltip>
-                <StyledView className="flex-1">
-                  <StyledTextInput
-                    className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[180px]"
+                  <StyledText
+                    className="text-white/70"
                     style={{
                       fontFamily: fontNames.light,
                       fontSize: 16,
                       includeFontPadding: false,
                     }}
-                    placeholder={t("notes", "Notas")}
+                  >
+                    {formatTime(
+                      trickData.duration,
+                      t("setDurationTime", "Set duration time")
+                    )}
+                  </StyledText>
+                  <Feather name="plus" size={20} color="white" />
+                </StyledTouchableOpacity>
+              </StatField>
+
+              {/* Tiempo de Reinicio */}
+              <StatField
+                icon={<Feather name="refresh-cw" size={24} color="white" />}
+                tooltip={t("tooltips.reset")}
+                tooltipBgColor={TOOLTIP_BG_COLOR}
+              >
+                <StyledTouchableOpacity
+                  className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg px-3 py-[13.5px] border border-[#eafffb]/40 flex-row items-center justify-between"
+                  onPress={() => setShowResetPicker(true)}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(
+                    "accessibility.setReset",
+                    "Set reset time"
+                  )}
+                  accessibilityValue={{
+                    text: formatTime(
+                      trickData.reset,
+                      t("setResetTime", "Set reset time")
+                    ),
+                  }}
+                >
+                  <StyledText
+                    className="text-white/70"
+                    style={{
+                      fontFamily: fontNames.light,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                    }}
+                  >
+                    {formatTime(trickData.reset, t("setResetTime", "Set reset time"))}
+                  </StyledText>
+                  <Feather name="plus" size={20} color="white" />
+                </StyledTouchableOpacity>
+              </StatField>
+
+              {/* Deslizador de dificultad */}
+              <StatField
+                icon={<Feather name="bar-chart" size={28} color="white" />}
+                tooltip={t("tooltips.difficulty")}
+                tooltipBgColor={TOOLTIP_BG_COLOR}
+                iconHeight={70}
+              >
+                <StyledView
+                  className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg pb-3 border border-[#eafffb]/40"
+                  accessible={true}
+                  accessibilityRole="adjustable"
+                  accessibilityLabel={t(
+                    "accessibility.difficulty",
+                    "Difficulty level"
+                  )}
+                  accessibilityValue={{
+                    min: 1,
+                    max: 10,
+                    now: trickData.difficulty,
+                    text: `${trickData.difficulty} ${t("outOf", "out of")} 10`,
+                  }}
+                >
+                  {/* Componente DifficultySlider */}
+                  <DifficultySlider
+                    value={trickData.difficulty}
+                    onChange={handleDifficultyChange}
+                    min={1}
+                    max={10}
+                    step={1}
+                  />
+                </StyledView>
+              </StatField>
+            </StyledView>
+
+            {/* Sección Extra */}
+            <StyledView className="mt-6">
+              <StyledText
+                className="text-white text-lg mb-4"
+                style={{
+                  fontFamily: fontNames.light,
+                  fontSize: 20,
+                  includeFontPadding: false,
+                }}
+              >
+                {t("extra", "Extra")}
+              </StyledText>
+
+              {/* Notes Field */}
+              <StatField
+                icon={
+                  <MaterialCommunityIcons
+                    name="text-box-outline"
+                    size={28}
+                    color="white"
+                  />
+                }
+                tooltip={t("tooltips.notes")}
+                tooltipBgColor={TOOLTIP_BG_COLOR}
+                iconHeight={120}
+                inputRef={notesInputRef}
+              >
+                <StyledView className="flex-1 relative" style={{ height: 120 }}>
+                  <StyledTextInput
+                    className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40"
+                    style={{
+                      fontFamily: fontNames.light,
+                      fontSize: 16,
+                      includeFontPadding: false,
+                      paddingRight: 40,
+                      height: 120,
+                      maxHeight: 120,
+                    }}
+                    placeholder={t("notes", "Notes")}
                     placeholderTextColor="rgba(255, 255, 255, 0.5)"
                     value={trickData.notes || ""}
                     onChangeText={(text) => updateTrickData({ notes: text })}
                     multiline
                     numberOfLines={3}
                     textAlignVertical="top"
-                    onFocus={handleNotesFocus}
+                    scrollEnabled={true}
+                    onFocus={scrollToInput}
                     returnKeyType="default"
+                    accessible={true}
+                    accessibilityLabel={t("accessibility.notes", "Notes")}
+                    accessibilityHint={t(
+                      "accessibility.notesHint",
+                      "Add notes about this trick"
+                    )}
                   />
+                  {/* Expand button */}
+                  <StyledTouchableOpacity
+                    onPress={() => setShowNotesModal(true)}
+                    className="absolute bottom-2 right-2 w-8 h-8 rounded items-center justify-center"
+                    style={{ zIndex: 10 }}
+                    accessible={true}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(
+                      "accessibility.expandNotes",
+                      "Expand notes to full screen"
+                    )}
+                  >
+                    <Feather
+                      name="maximize-2"
+                      size={16}
+                      color="rgba(255, 255, 255, 0.7)"
+                    />
+                  </StyledTouchableOpacity>
                 </StyledView>
-              </StyledView>
+              </StatField>
             </StyledView>
           </StyledScrollView>
         </KeyboardAvoidingView>
@@ -711,7 +537,7 @@ export default function ExtrasStep({
               includeFontPadding: false,
             }}
           >
-            {`${currentStep} de ${totalSteps}`}
+            {`${currentStep} ${t("of", "of")} ${totalSteps}`}
           </StyledText>
 
           {/* Botón de Registro de Magia */}
@@ -721,6 +547,30 @@ export default function ExtrasStep({
             }`}
             disabled={isSubmitting}
             onPress={handleNext}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isSubmitting
+                ? t("accessibility.saving", "Saving magic trick")
+                : isEditMode
+                ? t("accessibility.updateMagic", "Update magic trick")
+                : t("accessibility.registerMagic", "Register magic trick")
+            }
+            accessibilityState={{
+              disabled: isSubmitting,
+              busy: isSubmitting,
+            }}
+            accessibilityHint={
+              isEditMode
+                ? t(
+                    "accessibility.updateMagicHint",
+                    "Save changes to your magic trick"
+                  )
+                : t(
+                    "accessibility.registerMagicHint",
+                    "Create a new magic trick in your library"
+                  )
+            }
           >
             <StyledText
               className="text-white font-semibold text-base"
@@ -731,10 +581,10 @@ export default function ExtrasStep({
               }}
             >
               {isSubmitting
-                ? t("saving", "Guardando...")
+                ? t("saving", "Saving...")
                 : isEditMode
-                ? t("updateMagic", "Actualizar Magia")
-                : t("registerMagic", "Registrar Magia")}
+                ? t("updateMagic", "Update Magic")
+                : t("registerMagic", "Register Magic")}
             </StyledText>
           </StyledTouchableOpacity>
         </StyledView>
@@ -748,40 +598,6 @@ export default function ExtrasStep({
           totalFiles={totalFiles}
           processedFiles={processedFiles}
         />
-
-        {/* Modales */}
-        {techniquesModalVisible && (
-          <TechniquesModal
-            visible={techniquesModalVisible}
-            onClose={() => setTechniquesModalVisible(false)}
-            techniques={techniques}
-            selectedTechniques={selectedTechniques}
-            onSave={handleSaveTechniques}
-            onToggleSelection={toggleTechniqueSelection}
-          />
-        )}
-
-        {gimmicksModalVisible && (
-          <GimmicksModal
-            visible={gimmicksModalVisible}
-            onClose={() => setGimmicksModalVisible(false)}
-            gimmicks={gimmicks}
-            selectedGimmicks={selectedGimmicks}
-            onSave={handleSaveGimmicks}
-            onToggleSelection={toggleGimmickSelection}
-          />
-        )}
-
-        {scriptModalVisible && (
-          <ScriptModal
-            visible={scriptModalVisible}
-            onClose={() => setScriptModalVisible(false)}
-            scriptData={scriptData}
-            onSave={handleSaveScript}
-            trickId={trickData.id}
-            userId={trickData.user_id}
-          />
-        )}
 
         {/* DateTimePicker nativo para duración */}
         {showDurationPicker && (
@@ -810,6 +626,16 @@ export default function ExtrasStep({
             title={t("setResetTime", "Set Reset Time")}
           />
         )}
+
+        {/* Modal de pantalla completa para notas */}
+        <FullScreenTextModal
+          visible={showNotesModal}
+          onClose={() => setShowNotesModal(false)}
+          value={trickData.notes || ""}
+          onSave={(text) => updateTrickData({ notes: text })}
+          title={t("notes", "Notes")}
+          placeholder={t("notes", "Notes")}
+        />
       </StyledView>
     </TouchableWithoutFeedback>
   );

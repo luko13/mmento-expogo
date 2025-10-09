@@ -23,6 +23,7 @@ import type { MagicTrick } from "../../../types/magicTrick";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomTooltip from "../../ui/Tooltip";
 import { MediaSelector, MediaSelectorRef } from "../../ui/MediaSelector";
+import { FullScreenTextModal } from "../../ui/FullScreenTextModal";
 import { fontNames } from "../../../app/_layout";
 
 const StyledView = styled(View);
@@ -60,6 +61,10 @@ export default function EffectStep({
   const effectVideoRef = useRef<MediaSelectorRef>(null);
   const secretVideoRef = useRef<MediaSelectorRef>(null);
   const photosRef = useRef<MediaSelectorRef>(null);
+
+  // Estados para los modales de pantalla completa
+  const [showEffectModal, setShowEffectModal] = useState(false);
+  const [showSecretModal, setShowSecretModal] = useState(false);
 
   // Function to dismiss keyboard
   const dismissKeyboard = () => {
@@ -170,6 +175,7 @@ export default function EffectStep({
           className="flex-1 px-6"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1 }}
         >
           {/* Effect Section */}
           <StyledView className="mt-2">
@@ -209,7 +215,7 @@ export default function EffectStep({
 
             {/* Effect Description */}
             <StyledView className="mb-4 mt-4">
-              <StyledView className="flex-row items-center">
+              <StyledView className="flex-row items-start">
                 <CustomTooltip
                   text={t("tooltips.effectDescription")}
                   backgroundColor="rgba(91, 185, 163, 0.95)"
@@ -223,13 +229,16 @@ export default function EffectStep({
                     />
                   </StyledView>
                 </CustomTooltip>
-                <StyledView className="flex-1 ">
+                <StyledView className="flex-1 relative" style={{ height: 80 }}>
                   <StyledTextInput
-                    className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[80px]"
+                    className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40"
                     style={{
                       fontFamily: fontNames.light,
                       fontSize: 16,
                       includeFontPadding: false,
+                      paddingRight: 40,
+                      height: 80,
+                      maxHeight: 80,
                     }}
                     placeholder={t(
                       "effectShortDescription",
@@ -241,7 +250,16 @@ export default function EffectStep({
                     multiline
                     numberOfLines={3}
                     textAlignVertical="top"
+                    scrollEnabled={true}
                   />
+                  {/* Expand button */}
+                  <StyledTouchableOpacity
+                    onPress={() => setShowEffectModal(true)}
+                    className="absolute bottom-2 right-2 w-8 h-8 rounded items-center justify-center"
+                    style={{ zIndex: 10 }}
+                  >
+                    <Feather name="maximize-2" size={16} color="rgba(255, 255, 255, 0.7)" />
+                  </StyledTouchableOpacity>
                 </StyledView>
               </StyledView>
             </StyledView>
@@ -285,7 +303,7 @@ export default function EffectStep({
 
             {/* Secret Description */}
             <StyledView className="mb-4 mt-4">
-              <StyledView className="flex-row items-center">
+              <StyledView className="flex-row items-start">
                 <CustomTooltip
                   text={t("tooltips.secretDescription")}
                   backgroundColor="rgba(91, 185, 163, 0.95)"
@@ -295,13 +313,16 @@ export default function EffectStep({
                     <Feather name="lock" size={24} color="white" />
                   </StyledView>
                 </CustomTooltip>
-                <StyledView className="flex-1 ">
+                <StyledView className="flex-1 relative" style={{ height: 80 }}>
                   <StyledTextInput
-                    className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40 min-h-[80px]"
+                    className="text-[#FFFFFF]/70 text-base bg-[#D4D4D4]/10 rounded-lg p-3 border border-[#eafffb]/40"
                     style={{
                       fontFamily: fontNames.light,
                       fontSize: 16,
                       includeFontPadding: false,
+                      paddingRight: 40,
+                      height: 80,
+                      maxHeight: 80,
                     }}
                     placeholder={t(
                       "effectSecretDescription",
@@ -313,7 +334,16 @@ export default function EffectStep({
                     multiline
                     numberOfLines={3}
                     textAlignVertical="top"
+                    scrollEnabled={true}
                   />
+                  {/* Expand button */}
+                  <StyledTouchableOpacity
+                    onPress={() => setShowSecretModal(true)}
+                    className="absolute bottom-2 right-2 w-8 h-8 rounded items-center justify-center"
+                    style={{ zIndex: 10 }}
+                  >
+                    <Feather name="maximize-2" size={16} color="rgba(255, 255, 255, 0.7)" />
+                  </StyledTouchableOpacity>
                 </StyledView>
               </StyledView>
             </StyledView>
@@ -402,6 +432,25 @@ export default function EffectStep({
             />
           </StyledTouchableOpacity>
         </StyledView>
+
+        {/* Modales de pantalla completa */}
+        <FullScreenTextModal
+          visible={showEffectModal}
+          onClose={() => setShowEffectModal(false)}
+          value={trickData.effect || ""}
+          onSave={(text) => updateTrickData({ effect: text })}
+          title={t("effectDescription", "Effect Description")}
+          placeholder={t("describeEffect", "Describe what the audience sees...")}
+        />
+
+        <FullScreenTextModal
+          visible={showSecretModal}
+          onClose={() => setShowSecretModal(false)}
+          value={trickData.secret || ""}
+          onSave={(text) => updateTrickData({ secret: text })}
+          title={t("secretDescription", "Secret Description")}
+          placeholder={t("describeSecret", "Describe how the trick works...")}
+        />
       </StyledView>
     </TouchableWithoutFeedback>
   );

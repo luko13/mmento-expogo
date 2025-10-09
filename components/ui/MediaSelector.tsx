@@ -18,6 +18,9 @@ import {
   Dimensions,
   Platform,
   AppState,
+  ActivityIndicator,
+  FlatList,
+  PanResponder,
 } from "react-native";
 import { styled } from "nativewind";
 import * as ImagePicker from "expo-image-picker";
@@ -593,6 +596,7 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
     const [isProcessing, setIsProcessing] = useState(false);
     const [showSourceModal, setShowSourceModal] = useState(false);
     const [showCamera, setShowCamera] = useState(false);
+    const scrollViewRef = useRef<ScrollView>(null);
 
     // Actualizar selectedFiles cuando cambien los initialFiles
     useEffect(() => {
@@ -893,7 +897,9 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
                   {getButtonText()}
                 </StyledText>
                 <StyledView className="flex-row items-center">
-                  {type === "video" && selectedFiles.length > 0 ? (
+                  {isProcessing ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : type === "video" && selectedFiles.length > 0 ? (
                     <Feather
                       name="x"
                       size={16}
@@ -911,48 +917,73 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
 
         {/* Preview en estilo pills SOLO PARA FOTOS */}
         {type === "photo" && selectedFiles.length > 0 && (
-          <StyledView className="mb-6 mt-3">
-            <StyledScrollView
+          <StyledView style={{ marginBottom: 24, marginTop: 12, height: 44 }}>
+            <ScrollView
+              ref={scrollViewRef}
               horizontal
               showsHorizontalScrollIndicator={false}
-              className="flex-row"
+              contentContainerStyle={{
+                alignItems: "center",
+                height: 44,
+              }}
+              style={{ flex: 1 }}
+              keyboardShouldPersistTaps="handled"
             >
               {selectedFiles.map((file, index) => (
-                <StyledView
+                <TouchableOpacity
                   key={`${file.uri}_${index}`}
-                  className="mr-2 bg-white/5 border border-emerald-500/20 rounded-full flex-row items-center px-2 py-1"
+                  style={{
+                    marginRight: index === selectedFiles.length - 1 ? 16 : 8,
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(234, 255, 251, 0.4)',
+                    borderRadius: 20,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingLeft: 4,
+                    paddingRight: 8,
+                    paddingVertical: 4,
+                    height: 36,
+                  }}
+                  activeOpacity={0.7}
                 >
                   {/* Thumbnail */}
-                  <StyledView className="relative">
-                    <StyledImage
-                      source={{ uri: file.uri }}
-                      className="w-6 h-6 rounded-full mr-2"
-                    />
-                  </StyledView>
+                  <Image
+                    source={{ uri: file.uri }}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      marginRight: 8
+                    }}
+                  />
 
                   {/* Nombre del archivo */}
-                  <StyledText
-                    className="text-white/50 text-xs mr-2"
+                  <Text
                     numberOfLines={1}
                     style={{
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      fontSize: 14,
+                      marginRight: 8,
                       fontFamily: fontNames.light,
-                      fontSize: 12,
                       includeFontPadding: false,
+                      maxWidth: 120,
                     }}
                   >
                     {file.fileName}
-                  </StyledText>
+                  </Text>
 
                   {/* Botón de eliminar */}
-                  <StyledTouchableOpacity
+                  <TouchableOpacity
                     onPress={() => removeFile(index)}
-                    className="p-1"
+                    style={{ padding: 4 }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <Feather name="x" size={12} color="rgba(255,255,255,0.5)" />
-                  </StyledTouchableOpacity>
-                </StyledView>
+                    <Feather name="x" size={14} color="rgba(255,255,255,0.7)" />
+                  </TouchableOpacity>
+                </TouchableOpacity>
               ))}
-            </StyledScrollView>
+            </ScrollView>
           </StyledView>
         )}
 

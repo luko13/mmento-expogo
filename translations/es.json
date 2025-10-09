@@ -401,5 +401,21 @@
   },
   "categoryNotEmpty": {
     "title": "No se puede eliminar la categoría"
-  }
+  },
+  "accessibility": {
+    "selectAngle": "Seleccionar esta opción de ángulo",
+    "setDuration": "Establecer tiempo de duración",
+    "setReset": "Establecer tiempo de reinicio",
+    "difficulty": "Nivel de dificultad",
+    "notes": "Notas",
+    "notesHint": "Agregar notas sobre este truco",
+    "expandNotes": "Expandir notas a pantalla completa",
+    "saving": "Guardando truco de magia",
+    "updateMagic": "Actualizar truco de magia",
+    "registerMagic": "Registrar truco de magia",
+    "updateMagicHint": "Guardar cambios en tu truco de magia",
+    "registerMagicHint": "Crear un nuevo truco de magia en tu biblioteca"
+  },
+  "angle": "ángulo",
+  "outOf": "de"
 }

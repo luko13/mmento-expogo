@@ -399,5 +399,21 @@
   },
   "categoryNotEmpty": {
     "title": "Can't delete category"
-  }
+  },
+  "accessibility": {
+    "selectAngle": "Select this angle option",
+    "setDuration": "Set duration time",
+    "setReset": "Set reset time",
+    "difficulty": "Difficulty level",
+    "notes": "Notes",
+    "notesHint": "Add notes about this trick",
+    "expandNotes": "Expand notes to full screen",
+    "saving": "Saving magic trick",
+    "updateMagic": "Update magic trick",
+    "registerMagic": "Register magic trick",
+    "updateMagicHint": "Save changes to your magic trick",
+    "registerMagicHint": "Create a new magic trick in your library"
+  },
+  "angle": "angle",
+  "outOf": "out of"
 }
