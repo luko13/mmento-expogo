@@ -12,7 +12,7 @@ interface StatFieldProps {
   children: React.ReactNode;
   iconHeight?: number;
   tooltipBgColor?: string;
-  inputRef?: React.RefObject<View>;
+  inputRef?: React.RefObject<View | null>;
 }
 
 export const StatField: React.FC<StatFieldProps> = ({

@@ -10,8 +10,8 @@ interface UseKeyboardScrollingOptions {
 }
 
 export const useKeyboardScrolling = (
-  scrollViewRef: RefObject<ScrollView>,
-  inputRef: RefObject<View>,
+  scrollViewRef: RefObject<ScrollView | null>,
+  inputRef: RefObject<View | null>,
   options: UseKeyboardScrollingOptions = {}
 ) => {
   const {

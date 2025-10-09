@@ -432,7 +432,7 @@ export default function ExtrasStep({
                   accessibilityValue={{
                     min: 1,
                     max: 10,
-                    now: trickData.difficulty,
+                    now: trickData.difficulty || undefined,
                     text: `${trickData.difficulty} ${t("outOf", "out of")} 10`,
                   }}
                 >
