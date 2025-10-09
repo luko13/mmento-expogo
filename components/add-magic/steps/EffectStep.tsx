@@ -152,11 +152,16 @@ export default function EffectStep({
               }}
               disabled={isSubmitting}
             >
-              {isSubmitting ? (
-                <Ionicons name="refresh" size={24} color="white" />
-              ) : (
-                <Feather name="save" size={24} color="white" />
-              )}
+              <StyledText
+                className="text-white font-semibold"
+                style={{
+                  fontFamily: fontNames.light,
+                  fontSize: 16,
+                  includeFontPadding: false,
+                }}
+              >
+                {isSubmitting ? t("saving", "Saving...") : t("save", "Save")}
+              </StyledText>
             </StyledTouchableOpacity>
           </StyledView>
         </StyledView>

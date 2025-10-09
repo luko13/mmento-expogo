@@ -249,8 +249,8 @@
     "done": "¡Hecho!"
   },
   "info": {
-    "secureMagic": "Tu magia está",
-    "safeEncryption": "Segura & Encriptada"
+    "secureMagic": "Seguro & Encriptado",
+    "safeEncryption": ""
   },
   "techniqueTitle": "Título de Técnica",
   "techniqueName": "Nombre de la técnica",
@@ -369,5 +369,37 @@
     "script": "Añade guión relacionado con tu truco",
     "imageSizeWarning": "Una o más imágenes son demasiado grandes. El límite es 10MB por imagen.",
     "notes": "Anota detalles importantes, observaciones o recordatorios sobre este truco"
+  },
+  "addTag": "Añadir etiqueta...",
+  "addCategoryPlaceholder": "Añadir categoría...",
+  "refreshing": "Actualizando...",
+  "selectTags": "Seleccionar etiquetas...",
+  "selectMinResetTime": "Seleccionar Tiempo Mínimo de Reset",
+  "selectMaxResetTime": "Seleccionar Tiempo Máximo de Reset",
+  "selectMinDuration": "Seleccionar Duración Mínima",
+  "selectMaxDuration": "Seleccionar Duración Máxima",
+  "selectTime": "Seleccionar Tiempo",
+  "scriptForTrick": "Guión para {{trickName}}",
+  "unknownTrick": "Truco Desconocido",
+  "scriptTitle": "Título del Guión",
+  "scriptContent": "Escribe tu guión de actuación aquí...",
+  "searchGimmicks": "Buscar gimmicks...",
+  "searchTechniques": "Buscar técnicas...",
+  "uploadEffectVideoPlaceholder": "Subir video del efecto*",
+  "secretVideoUpload": "Subir video del secreto",
+  "imagesUploadPlaceholder": "Subir Imágenes",
+  "notesPlaceholder": "Notas",
+  "tagName": "Nombre de etiqueta",
+  "makePublic": {
+    "title": "¿Hacer Público?"
+  },
+  "incomplete": {
+    "title": "Completa el Truco Primero"
+  },
+  "fields": {
+    "title": "Título"
+  },
+  "categoryNotEmpty": {
+    "title": "No se puede eliminar la categoría"
   }
 }

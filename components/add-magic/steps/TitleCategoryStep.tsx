@@ -143,11 +143,16 @@ export default function TitleCategoryStep({
                 }}
                 disabled={!isFormValid || isSubmitting}
               >
-                {isSubmitting ? (
-                  <Ionicons name="refresh" size={24} color="white" />
-                ) : (
-                  <Feather name="save" size={24} color="white" />
-                )}
+                <StyledText
+                  className="text-white font-semibold"
+                  style={{
+                    fontFamily: fontNames.light,
+                    fontSize: 16,
+                    includeFontPadding: false,
+                  }}
+                >
+                  {isSubmitting ? t("saving", "Saving...") : t("save", "Save")}
+                </StyledText>
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>
@@ -157,6 +162,7 @@ export default function TitleCategoryStep({
             className="flex-1 px-6"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1 }}
           >
             {/* Título de sección */}
             <StyledText
@@ -170,137 +176,132 @@ export default function TitleCategoryStep({
               {t("clasify", "Clasificar")}
             </StyledText>
 
-            <StyledView className="flex-1 justify-between">
-              <StyledView className="flex-1 justify-evenly">
-                {/* Magic Title Field */}
-                <StyledView style={{ minHeight: 88 }}>
-                  <StyledView>
-                    <StyledView className="flex-row items-center">
-                      <CustomTooltip
-                        text={t("tooltips.magicTitle")}
-                        backgroundColor="rgba(91, 185, 163, 0.95)"
-                        textColor="white"
-                      >
-                        <StyledView className="w-12 h-12 bg-[#D4D4D4]/10 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                          <FontAwesome6
-                            name="wand-magic-sparkles"
-                            size={18}
-                            color="white"
-                          />
-                        </StyledView>
-                      </CustomTooltip>
-
-                      {/* Contenedor: MISMO alto y borde que Category/Tag; sin padding izq */}
-                      <StyledView className="flex-1 h-12 bg-[#D4D4D4]/10 border border-[#5bb9a3] rounded-lg flex-row items-center pr-2">
-                        <StyledTextInput
-                          className="flex-1 text-[#FFFFFF]/70 bg-transparent"
-                          style={{
-                            fontFamily: fontNames.light,
-                            fontSize: 16,
-                            height: 48, // altura fija
-                            lineHeight: 22, // no corta descendentes
-                            paddingVertical: 0, // sin padding vertical
-                            paddingLeft: 14, // inset real: evita mordisco y ALINEA con Category/Tag
-                            includeFontPadding: false,
-                            ...(Platform.OS === "android"
-                              ? { textAlignVertical: "center" as any }
-                              : { paddingTop: 1 }), // iOS baseline fino
-                          }}
-                          placeholder={`${t("forms.magicTitlePlaceholder")}`}
-                          placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                          value={trickData.title}
-                          onChangeText={handleTitleChange}
-                          maxLength={100}
-                          autoCapitalize="sentences"
-                          autoCorrect={false}
-                          returnKeyType="next"
-                          allowFontScaling={false}
-                          multiline={false}
-                        />
-                      </StyledView>
+            {/* Magic Title Field */}
+            <StyledView style={{ minHeight: 88 }}>
+              <StyledView>
+                <StyledView className="flex-row items-center">
+                  <CustomTooltip
+                    text={t("tooltips.magicTitle")}
+                    backgroundColor="rgba(91, 185, 163, 0.95)"
+                    textColor="white"
+                  >
+                    <StyledView className="w-12 h-12 bg-[#D4D4D4]/10 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                      <FontAwesome6
+                        name="wand-magic-sparkles"
+                        size={18}
+                        color="white"
+                      />
                     </StyledView>
+                  </CustomTooltip>
 
-                    {trickData.title && !titleValidation.isValid && (
-                      <StyledText
-                        className="text-red-400 text-xs ml-11 mt-1"
-                        style={{
-                          fontFamily: fontNames.light,
-                          fontSize: 12,
-                          includeFontPadding: false,
-                        }}
-                      >
-                        {titleValidation.message}
-                      </StyledText>
-                    )}
+                  {/* Contenedor: MISMO alto y borde que Category/Tag; sin padding izq */}
+                  <StyledView className="flex-1 h-12 bg-[#D4D4D4]/10 border border-[#5bb9a3] rounded-lg flex-row items-center pr-2">
+                    <StyledTextInput
+                      className="flex-1 text-[#FFFFFF]/70 bg-transparent"
+                      style={{
+                        fontFamily: fontNames.light,
+                        fontSize: 16,
+                        height: 48, // altura fija
+                        lineHeight: 22, // no corta descendentes
+                        paddingVertical: 0, // sin padding vertical
+                        paddingLeft: 14, // inset real: evita mordisco y ALINEA con Category/Tag
+                        includeFontPadding: false,
+                        ...(Platform.OS === "android"
+                          ? { textAlignVertical: "center" as any }
+                          : { paddingTop: 1 }), // iOS baseline fino
+                      }}
+                      placeholder={`${t("forms.magicTitlePlaceholder")}`}
+                      placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                      value={trickData.title}
+                      onChangeText={handleTitleChange}
+                      maxLength={100}
+                      autoCapitalize="sentences"
+                      autoCorrect={false}
+                      returnKeyType="next"
+                      allowFontScaling={false}
+                      multiline={false}
+                    />
                   </StyledView>
                 </StyledView>
 
-                {/* Category Selector */}
-                <StyledView style={{ minHeight: 132 }}>
-                  <CategorySelector
-                    selectedCategories={
-                      trickData.selectedCategoryId
-                        ? [trickData.selectedCategoryId]
-                        : []
-                    }
-                    onCategoriesChange={handleCategoriesChange}
-                    allowCreate={true}
-                    allowMultiple={false}
-                    placeholder={t("forms.categoryPlaceholder")}
-                    userId={userId}
-                    iconComponent={
-                      <CustomTooltip
-                        text={t("tooltips.category")}
-                        backgroundColor="rgba(91, 185, 163, 0.95)"
-                        textColor="white"
-                      >
-                        <StyledView className="w-12 h-12 bg-[#D4D4D4]/10 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
-                          <Feather name="folder" size={24} color="white" />
-                        </StyledView>
-                      </CustomTooltip>
-                    }
-                  />
-                </StyledView>
-
-                {/* Tag Selector */}
-                <StyledView style={{ minHeight: 132 }}>
-                  <TagSelector
-                    selectedTags={trickData.tags}
-                    onTagsChange={handleTagsChange}
-                    allowCreate={true}
-                    placeholder={t("forms.tagPlaceholder")}
-                    userId={userId}
-                    iconComponent={
-                      <CustomTooltip
-                        text={t("tooltips.tags")}
-                        backgroundColor="rgba(91, 185, 163, 0.95)"
-                        textColor="white"
-                      >
-                        <StyledView className="w-12 h-12 bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
-                          <Feather name="tag" size={24} color="white" />
-                        </StyledView>
-                      </CustomTooltip>
-                    }
-                  />
-                </StyledView>
+                {trickData.title && !titleValidation.isValid && (
+                  <StyledText
+                    className="text-red-400 text-xs ml-11 mt-1"
+                    style={{
+                      fontFamily: fontNames.light,
+                      fontSize: 12,
+                      includeFontPadding: false,
+                    }}
+                  >
+                    {titleValidation.message}
+                  </StyledText>
+                )}
               </StyledView>
+            </StyledView>
 
-              {/* Info Message */}
-              <StyledView className="items-center py-6">
+            {/* Spacer after Title */}
+            <StyledView style={{ height: 6 }} />
+
+            {/* Category Selector */}
+            <StyledView style={{ minHeight: 132 }}>
+              <CategorySelector
+                selectedCategories={
+                  trickData.selectedCategoryId
+                    ? [trickData.selectedCategoryId]
+                    : []
+                }
+                onCategoriesChange={handleCategoriesChange}
+                allowCreate={true}
+                allowMultiple={false}
+                placeholder={t("forms.categoryPlaceholder")}
+                userId={userId}
+                iconComponent={
+                  <CustomTooltip
+                    text={t("tooltips.category")}
+                    backgroundColor="rgba(91, 185, 163, 0.95)"
+                    textColor="white"
+                  >
+                    <StyledView className="w-12 h-12 bg-[#D4D4D4]/10 border border-[#5bb9a3] rounded-lg items-center justify-center mr-3">
+                      <Feather name="folder" size={24} color="white" />
+                    </StyledView>
+                  </CustomTooltip>
+                }
+              />
+            </StyledView>
+
+            {/* Spacer after Category */}
+            <StyledView style={{ height: 16 }} />
+
+            {/* Tag Selector */}
+            <StyledView style={{ minHeight: 132 }}>
+              <TagSelector
+                selectedTags={trickData.tags}
+                onTagsChange={handleTagsChange}
+                allowCreate={true}
+                placeholder={t("forms.tagPlaceholder")}
+                userId={userId}
+                iconComponent={
+                  <CustomTooltip
+                    text={t("tooltips.tags")}
+                    backgroundColor="rgba(91, 185, 163, 0.95)"
+                    textColor="white"
+                  >
+                    <StyledView className="w-12 h-12 bg-[#D4D4D4]/10 border border-[#eafffb]/40 rounded-lg items-center justify-center mr-3">
+                      <Feather name="tag" size={24} color="white" />
+                    </StyledView>
+                  </CustomTooltip>
+                }
+              />
+            </StyledView>
+
+            {/* Spacer - Takes up remaining space and centers the message */}
+            <StyledView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 100 }}>
+              {/* Info Message - Centered vertically in remaining space */}
+              <StyledView className="items-center justify-center">
                 <StyledView className="mb-2">
                   <AntDesign name="Safety" size={32} color="#5BB9A3" />
                 </StyledView>
 
-                <StyledText
-                  className="text-[#5BB9A3] text-xs mt-2 text-center"
-                  style={{
-                    fontFamily: fontNames.light,
-                    fontSize: 12,
-                    includeFontPadding: false,
-                  }}
-                >
-                  {t("info.secureMagic", "Tu magia está")}
-                </StyledText>
                 <StyledText
                   className="text-[#5BB9A3] text-xs text-center"
                   style={{
@@ -309,7 +310,7 @@ export default function TitleCategoryStep({
                     includeFontPadding: false,
                   }}
                 >
-                  {t("info.safeEncryption", "Segura & Encriptada")}
+                  {t("info.secureMagic", "Seguro & Encriptado")}
                 </StyledText>
               </StyledView>
             </StyledView>

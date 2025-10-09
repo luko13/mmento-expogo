@@ -225,8 +225,8 @@
     "stepIndicator": "{{current}} of {{total}}"
   },
   "info": {
-    "secureMagic": "Your magic is",
-    "safeEncryption": "Secure & Encrypted"
+    "secureMagic": "Secure & Encrypted",
+    "safeEncryption": ""
   },
   "security": {
     "identitySafe": "Your identity is safe",
@@ -338,5 +338,66 @@
   "imageSizeWarning": "Image size should not exceed 10MB.",
   "writeScript": "Write script",
   "saving": "Saving...",
-  "registerMagic": "Register Magic Item"
+  "registerMagic": "Register Magic Item",
+  "addTag": "Add tag...",
+  "addCategoryPlaceholder": "Add category...",
+  "refreshing": "Refresh...",
+  "selectTags": "Select tags...",
+  "selectMinResetTime": "Select Minimum Reset Time",
+  "selectMaxResetTime": "Select Maximum Reset Time",
+  "selectMinDuration": "Select Minimum Duration",
+  "selectMaxDuration": "Select Maximum Duration",
+  "selectTime": "Select Time",
+  "scriptForTrick": "Script for {{trickName}}",
+  "unknownTrick": "Unknown Trick",
+  "scriptTitle": "Script Title",
+  "scriptContent": "Write your performance script here...",
+  "searchGimmicks": "Search gimmicks...",
+  "searchTechniques": "Search techniques...",
+  "uploadEffectVideoPlaceholder": "Upload effect video*",
+  "secretVideoUpload": "Upload secret video",
+  "imagesUploadPlaceholder": "Upload Images",
+  "notesPlaceholder": "Notes",
+  "tagName": "Tag name",
+  "techniqueTitle": "Technique Title",
+  "techniqueName": "Technique name",
+  "techniqueDescription": "Describe the technique in detail",
+  "basicInformation": "Basic Information",
+  "nameRequired": "Name is required",
+  "nameTooShort": "Name must be at least 3 characters",
+  "nameTooLong": "Name must not exceed 100 characters",
+  "descriptionRequired": "Description is required",
+  "descriptionTooShort": "Description must be at least 10 characters",
+  "details": "Details",
+  "media": "Media",
+  "uploadImage": "Upload Image",
+  "uploadVideo": "Upload Video",
+  "imageUploaded": "Image uploaded",
+  "additionalInformation": "Additional Information",
+  "addSpecialMaterial": "Add Special Material",
+  "enterMaterialName": "Enter special material name",
+  "price": "Price (optional)",
+  "makePublic": "Make this technique public",
+  "createTechnique": "Create Technique",
+  "techniqueCreatedSuccessfully": "Technique has been created successfully",
+  "errorCreatingTechnique": "Error creating technique",
+  "requiredFieldsMissing": "Please complete all required fields.",
+  "fileSizeWarning": "The selected file is too large. Please select a smaller file.",
+  "uploadError": "Upload Error",
+  "fileReadError": "File Read Error",
+  "couldNotReadFile": "Could not read the file. Please try a different file.",
+  "generalUploadError": "There was an error uploading the file. Please try again.",
+  "videoPickError": "There was an error selecting the video. Please try again.",
+  "makePublic": {
+    "title": "Make Public?"
+  },
+  "incomplete": {
+    "title": "Complete the Trick First"
+  },
+  "fields": {
+    "title": "Title"
+  },
+  "categoryNotEmpty": {
+    "title": "Can't delete category"
+  }
 }
