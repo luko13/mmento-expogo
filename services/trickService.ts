@@ -151,6 +151,49 @@ export const trickService = {
 
     // Si estamos online, eliminar del servidor
     try {
+      // 1. PRIMERO: Obtener el truco para acceder a las URLs de archivos
+      const { data: trick } = await supabase
+        .from("magic_tricks")
+        .select("effect_video_url, secret_video_url, photo_url")
+        .eq("id", trickId)
+        .single();
+
+      // 2. Eliminar archivos multimedia (videos y foto principal)
+      if (trick) {
+        const { deleteFileFromStorage } = await import("./fileUploadService");
+
+        if (trick.effect_video_url) {
+          console.log("🗑️ Eliminando video de efecto...");
+          await deleteFileFromStorage(trick.effect_video_url);
+        }
+
+        if (trick.secret_video_url) {
+          console.log("🗑️ Eliminando video de secreto...");
+          await deleteFileFromStorage(trick.secret_video_url);
+        }
+
+        if (trick.photo_url) {
+          console.log("🗑️ Eliminando foto principal...");
+          await deleteFileFromStorage(trick.photo_url);
+        }
+
+        // 2b. Eliminar fotos adicionales de la tabla trick_photos
+        const { data: photos } = await supabase
+          .from("trick_photos")
+          .select("photo_url")
+          .eq("trick_id", trickId);
+
+        if (photos && photos.length > 0) {
+          console.log(`🗑️ Eliminando ${photos.length} fotos adicionales...`);
+          for (const photo of photos) {
+            if (photo.photo_url) {
+              await deleteFileFromStorage(photo.photo_url);
+            }
+          }
+        }
+      }
+
+      // 3. Eliminar relaciones en tablas auxiliares
       await supabase
         .from("user_favorites")
         .delete()
@@ -168,11 +211,14 @@ export const trickService = {
         .eq("content_id", trickId)
         .eq("content_type", "magic_trick");
 
+      // 4. Finalmente, eliminar el registro del truco
       const { error } = await supabase
         .from("magic_tricks")
         .delete()
         .eq("id", trickId);
       if (error) throw error;
+
+      console.log("✅ Truco y archivos eliminados completamente");
       return true;
     } catch (error) {
       console.error("Error deleting trick:", error);
