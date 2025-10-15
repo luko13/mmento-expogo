@@ -4,6 +4,10 @@ import * as FileSystem from "expo-file-system";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import CloudflareStreamService from "./cloudflare/CloudflareStreamService";
+
+// Flag para usar Cloudflare Stream (no necesita compresión local)
+const USE_CLOUDFLARE_STREAM = true;
 
 // Detectar si estamos en Expo Go
 const isExpoGo =
@@ -13,8 +17,9 @@ const isExpoGo =
     !(global as any).nativeModulesProxy?.RNCVideoCompressor);
 
 // Intentar cargar react-native-compressor solo si no estamos en Expo Go
+// NOTA: Con Cloudflare Stream esto ya no es necesario
 let Video: any = null;
-if (!isExpoGo) {
+if (!isExpoGo && !USE_CLOUDFLARE_STREAM) {
   import("react-native-compressor")
     .then((module) => {
       Video = module.Video;
@@ -26,10 +31,17 @@ if (!isExpoGo) {
 
 class VideoService {
   // Comprimir video usando react-native-compressor o fallback
+  // NOTA: Con Cloudflare Stream, la compresión local ya no es necesaria
   async compressVideo(
     inputUri: string,
     quality: "low" | "medium" | "high" = "medium"
   ): Promise<string> {
+    // Si usamos Cloudflare Stream, no comprimimos localmente
+    if (USE_CLOUDFLARE_STREAM) {
+      console.log("ℹ️ Cloudflare Stream habilitado - compresión local omitida");
+      return inputUri;
+    }
+
     // Si no tenemos el módulo nativo, devolver el URI original
     if (!Video) {
       console.warn(
@@ -63,15 +75,34 @@ class VideoService {
 
   // Verificar si la compresión está disponible
   isCompressionAvailable(): boolean {
+    // Si usamos Cloudflare Stream, no necesitamos compresión local
+    if (USE_CLOUDFLARE_STREAM) {
+      return false; // No disponible porque no es necesaria
+    }
     return !!Video;
   }
 
   // Extraer thumbnail del video
+  // NOTA: Con Cloudflare Stream, los thumbnails se generan automáticamente
   async extractThumbnail(
     videoUri: string,
     time: number = 1000
   ): Promise<string> {
     try {
+      // Si es una URL de Cloudflare Stream, extraer el video ID y obtener thumbnail
+      if (USE_CLOUDFLARE_STREAM && videoUri.includes('cloudflarestream.com')) {
+        const videoId = CloudflareStreamService.extractVideoId(videoUri);
+        if (videoId) {
+          // Cloudflare Stream genera thumbnails automáticamente
+          const thumbnailUrl = CloudflareStreamService.getThumbnailUrl(videoId, {
+            time: `${Math.floor(time / 1000)}s`, // convertir ms a segundos
+          });
+          console.log('✅ Usando thumbnail de Cloudflare Stream');
+          return thumbnailUrl;
+        }
+      }
+
+      // Fallback a generación local
       const { uri } = await VideoThumbnails.getThumbnailAsync(videoUri, {
         time, // en milisegundos
         quality: 1.0,

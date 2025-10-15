@@ -6,9 +6,13 @@ import { decode } from 'base64-arraybuffer';
 import { supabase } from "../lib/supabase";
 import * as VideoThumbnails from "expo-video-thumbnails";
 import { compressionService } from "../utils/compressionService";
+import CloudflareStorageService from "./cloudflare/CloudflareStorageService";
 
-// Bucket constante
+// Bucket constante (legacy - para compatibilidad con Supabase)
 export const STORAGE_BUCKET = "magic_trick_media";
+
+// Flag para habilitar/deshabilitar Cloudflare
+const USE_CLOUDFLARE = true; // Cambiar a false para volver a Supabase temporalmente
 
 // Tipos de medios
 export type MediaType = "video" | "image";
@@ -28,6 +32,15 @@ export interface UploadResult {
   compressedSize?: number;
   compressionRatio?: number;
   wasCompressed: boolean;
+  thumbnailUrl?: string; // Para videos de Cloudflare Stream
+  mediaId?: string; // ID de Cloudflare (video ID o image ID)
+  variants?: {
+    thumbnail?: string;
+    medium?: string;
+    large?: string;
+    hls?: string;
+    dash?: string;
+  };
 }
 
 // Solicitar permisos de biblioteca de medios
@@ -255,72 +268,80 @@ export const uploadFileToStorage = async (
 ): Promise<string | null> => {
   try {
     console.log(`🚀 Iniciando subida de archivo: ${fileName}`);
-    
+
+    // Usar Cloudflare si está habilitado
+    if (USE_CLOUDFLARE) {
+      return await uploadToCloudflare(uri, userId, folder, fileType, fileName, onProgress);
+    }
+
+    // Fallback a Supabase (código original)
+    return await uploadToSupabase(uri, userId, folder, fileType, fileName, onProgress);
+  } catch (error) {
+    console.error("Error en uploadFileToStorage:", error);
+    return null;
+  }
+};
+
+// Nueva función: Subir a Cloudflare
+const uploadToCloudflare = async (
+  uri: string,
+  userId: string,
+  folder: string,
+  fileType: string,
+  fileName: string,
+  onProgress?: (progress: number) => void
+): Promise<string | null> => {
+  try {
+    console.log('☁️ Usando Cloudflare para almacenamiento');
+
     // Obtener información del archivo
     const fileInfo = await getFileInfo(uri);
     console.log(`📊 Tamaño original: ${fileInfo.size.toFixed(2)} MB`);
-    
-    // Comprimir el archivo si es necesario
+
     let fileToUpload = uri;
     let wasCompressed = false;
-    
-    // Determinar si necesita compresión basado en el tipo y tamaño
-    const shouldCompress = (fileType.startsWith('image/') && fileInfo.size > FILE_SIZE_LIMITS.IMAGE_SMALL) ||
-                          (fileType.startsWith('video/') && fileInfo.size > FILE_SIZE_LIMITS.VIDEO_SMALL);
-    
-    if (shouldCompress) {
-      console.log(`🗜️ Comprimiendo archivo...`);
-      
+
+    // Para videos, NO comprimimos (Cloudflare Stream lo hace automáticamente)
+    // Para imágenes, comprimimos antes solo si van a R2 (no a Cloudflare Images)
+    const isVideo = fileType.startsWith('video/');
+    const isImage = fileType.startsWith('image/');
+
+    if (isImage && fileInfo.size > FILE_SIZE_LIMITS.IMAGE_SMALL) {
+      console.log(`🗜️ Comprimiendo imagen antes de subir...`);
+
       const compressionResult = await compressionService.compressFile(
         uri,
         fileType,
         {
-          quality: fileType.startsWith('image/') ? 0.7 : undefined,
-          maxWidth: fileType.startsWith('image/') ? 1920 : undefined,
+          quality: 0.8,
+          maxWidth: 1920,
           forceCompress: true
         }
       );
-      
+
       if (compressionResult.wasCompressed) {
         fileToUpload = compressionResult.uri;
         wasCompressed = true;
-        
+
         const compressedInfo = await getFileInfo(fileToUpload);
         console.log(`✅ Compresión completada:`);
         console.log(`   - Tamaño original: ${fileInfo.size.toFixed(2)} MB`);
         console.log(`   - Tamaño comprimido: ${compressedInfo.size.toFixed(2)} MB`);
-        console.log(`   - Reducción: ${((1 - compressionResult.ratio) * 100).toFixed(1)}%`);
-      } else {
-        console.log(`ℹ️ No se aplicó compresión (beneficio insuficiente)`);
       }
     }
-    
-    // Elegir el método de subida adecuado
-    let uploadUrl: string | null = null;
-    
-    if (fileType.startsWith('video/') && fileInfo.size > FILE_SIZE_LIMITS.VIDEO_SMALL) {
-      // Para videos grandes, usar streaming con progreso
-      console.log(`📹 Subiendo video grande con streaming...`);
-      uploadUrl = await uploadFileStreaming(
-        fileToUpload, 
-        userId, 
-        folder, 
-        fileType, 
-        fileName, 
-        onProgress
-      );
-    } else {
-      // Para archivos pequeños, usar el método directo
-      console.log(`📎 Subiendo archivo directamente...`);
-      uploadUrl = await uploadFileDirectly(
-        fileToUpload, 
-        userId, 
-        folder, 
-        fileType, 
-        fileName
-      );
-    }
-    
+
+    // Subir usando el servicio unificado de Cloudflare
+    const result = await CloudflareStorageService.uploadFile(
+      fileToUpload,
+      fileName,
+      {
+        userId,
+        folder,
+        onProgress,
+        useImagesForPhotos: true, // Usar Cloudflare Images para fotos
+      }
+    );
+
     // Limpiar archivo temporal si fue comprimido
     if (wasCompressed && fileToUpload !== uri) {
       try {
@@ -330,10 +351,111 @@ export const uploadFileToStorage = async (
         console.warn("No se pudo eliminar archivo temporal:", error);
       }
     }
-    
+
+    if (!result.success) {
+      console.error('Error subiendo a Cloudflare:', result.error);
+      return null;
+    }
+
+    console.log(`✅ Archivo subido a Cloudflare: ${result.url}`);
+    return result.url || null;
+
+  } catch (error) {
+    console.error('Error en uploadToCloudflare:', error);
+    return null;
+  }
+};
+
+// Función legacy: Subir a Supabase (mantener para compatibilidad)
+const uploadToSupabase = async (
+  uri: string,
+  userId: string,
+  folder: string,
+  fileType: string,
+  fileName: string,
+  onProgress?: (progress: number) => void
+): Promise<string | null> => {
+  try {
+    console.log('📦 Usando Supabase Storage (legacy)');
+
+    // Obtener información del archivo
+    const fileInfo = await getFileInfo(uri);
+    console.log(`📊 Tamaño original: ${fileInfo.size.toFixed(2)} MB`);
+
+    // Comprimir el archivo si es necesario
+    let fileToUpload = uri;
+    let wasCompressed = false;
+
+    // Determinar si necesita compresión basado en el tipo y tamaño
+    const shouldCompress = (fileType.startsWith('image/') && fileInfo.size > FILE_SIZE_LIMITS.IMAGE_SMALL) ||
+                          (fileType.startsWith('video/') && fileInfo.size > FILE_SIZE_LIMITS.VIDEO_SMALL);
+
+    if (shouldCompress) {
+      console.log(`🗜️ Comprimiendo archivo...`);
+
+      const compressionResult = await compressionService.compressFile(
+        uri,
+        fileType,
+        {
+          quality: fileType.startsWith('image/') ? 0.7 : undefined,
+          maxWidth: fileType.startsWith('image/') ? 1920 : undefined,
+          forceCompress: true
+        }
+      );
+
+      if (compressionResult.wasCompressed) {
+        fileToUpload = compressionResult.uri;
+        wasCompressed = true;
+
+        const compressedInfo = await getFileInfo(fileToUpload);
+        console.log(`✅ Compresión completada:`);
+        console.log(`   - Tamaño original: ${fileInfo.size.toFixed(2)} MB`);
+        console.log(`   - Tamaño comprimido: ${compressedInfo.size.toFixed(2)} MB`);
+        console.log(`   - Reducción: ${((1 - compressionResult.ratio) * 100).toFixed(1)}%`);
+      } else {
+        console.log(`ℹ️ No se aplicó compresión (beneficio insuficiente)`);
+      }
+    }
+
+    // Elegir el método de subida adecuado
+    let uploadUrl: string | null = null;
+
+    if (fileType.startsWith('video/') && fileInfo.size > FILE_SIZE_LIMITS.VIDEO_SMALL) {
+      // Para videos grandes, usar streaming con progreso
+      console.log(`📹 Subiendo video grande con streaming...`);
+      uploadUrl = await uploadFileStreaming(
+        fileToUpload,
+        userId,
+        folder,
+        fileType,
+        fileName,
+        onProgress
+      );
+    } else {
+      // Para archivos pequeños, usar el método directo
+      console.log(`📎 Subiendo archivo directamente...`);
+      uploadUrl = await uploadFileDirectly(
+        fileToUpload,
+        userId,
+        folder,
+        fileType,
+        fileName
+      );
+    }
+
+    // Limpiar archivo temporal si fue comprimido
+    if (wasCompressed && fileToUpload !== uri) {
+      try {
+        await FileSystem.deleteAsync(fileToUpload, { idempotent: true });
+        console.log(`🧹 Archivo temporal eliminado`);
+      } catch (error) {
+        console.warn("No se pudo eliminar archivo temporal:", error);
+      }
+    }
+
     return uploadUrl;
   } catch (error) {
-    console.error("Error en uploadFileToStorage:", error);
+    console.error("Error en uploadToSupabase:", error);
     return null;
   }
 };
@@ -354,36 +476,54 @@ export const generateVideoThumbnail = async (
   }
 };
 
-// Eliminar archivo de Supabase
+// Eliminar archivo de Supabase o Cloudflare
 export const deleteFileFromStorage = async (
   fileUrl: string
 ): Promise<boolean> => {
   try {
-    if (!fileUrl || !fileUrl.includes(STORAGE_BUCKET)) {
+    if (!fileUrl) {
+      console.warn("URL de archivo vacía");
+      return false;
+    }
+
+    // Detectar si es URL de Cloudflare
+    const isCloudflareUrl =
+      fileUrl.includes('cloudflarestream.com') ||
+      fileUrl.includes('imagedelivery.net') ||
+      fileUrl.includes('.r2.dev') ||
+      fileUrl.includes('r2.cloudflarestorage.com');
+
+    if (USE_CLOUDFLARE && isCloudflareUrl) {
+      console.log('☁️ Eliminando de Cloudflare...');
+      return await CloudflareStorageService.deleteFile(fileUrl);
+    }
+
+    // Fallback a Supabase
+    if (!fileUrl.includes(STORAGE_BUCKET)) {
       console.warn("URL de archivo inválida para eliminar:", fileUrl);
       return false;
     }
-    
+
     // Extraer la ruta del archivo de la URL
     const urlParts = fileUrl.split(`${STORAGE_BUCKET}/`);
     if (urlParts.length < 2) {
       console.error("No se pudo extraer la ruta del archivo de la URL");
       return false;
     }
-    
+
     const filePath = urlParts[1].split('?')[0]; // Remover query params si existen
-    
-    console.log(`🗑️ Eliminando archivo: ${filePath}`);
-    
+
+    console.log(`🗑️ Eliminando archivo de Supabase: ${filePath}`);
+
     const { error } = await supabase.storage
       .from(STORAGE_BUCKET)
       .remove([filePath]);
-    
+
     if (error) {
       console.error("Error eliminando archivo:", error);
       return false;
     }
-    
+
     console.log(`✅ Archivo eliminado exitosamente`);
     return true;
   } catch (error) {
