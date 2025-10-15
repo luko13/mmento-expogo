@@ -19,6 +19,7 @@ import {
   MaterialCommunityIcons,
   Ionicons,
 } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system";
 import type { MagicTrick } from "../../../types/magicTrick";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomTooltip from "../../ui/Tooltip";
@@ -75,6 +76,38 @@ export default function EffectStep({
   const goToExtrasStep = () => {
     if (onNext) {
       onNext();
+    }
+  };
+
+  // Helper: Copiar archivo inmediatamente para evitar que ImagePicker lo borre
+  const copyFileImmediately = async (uri: string): Promise<string> => {
+    try {
+      // Crear directorio permanente
+      const permanentDir = `${FileSystem.documentDirectory}permanent_uploads/`;
+      const dirInfo = await FileSystem.getInfoAsync(permanentDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(permanentDir, { intermediates: true });
+      }
+
+      // Generar nombre único
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(7);
+      const extension = uri.split('.').pop() || 'tmp';
+      const newFilename = `${timestamp}_${random}.${extension}`;
+      const permanentUri = `${permanentDir}${newFilename}`;
+
+      // Copiar archivo
+      await FileSystem.copyAsync({
+        from: uri,
+        to: permanentUri
+      });
+
+      console.log(`✅ Archivo copiado permanentemente: ${permanentUri}`);
+      return permanentUri;
+    } catch (error) {
+      console.error('❌ Error copiando archivo:', error);
+      // Si falla la copia, devolver URI original como fallback
+      return uri;
     }
   };
 
@@ -201,14 +234,26 @@ export default function EffectStep({
               tooltip={t("tooltips.effectVideo")}
               placeholder={t("uploadEffectVideo", "Subir video del efecto*")}
               initialFiles={getInitialEffectVideo()}
-              onFilesSelected={(files) => {
-                updateTrickData({
-                  localFiles: {
-                    effectVideo: files[0]?.uri || null,
-                    secretVideo: trickData.localFiles?.secretVideo || null,
-                    photos: trickData.localFiles?.photos || [],
-                  },
-                });
+              onFilesSelected={async (files) => {
+                if (files[0]?.uri) {
+                  // Copiar archivo INMEDIATAMENTE antes de que ImagePicker lo borre
+                  const permanentUri = await copyFileImmediately(files[0].uri);
+                  updateTrickData({
+                    localFiles: {
+                      effectVideo: permanentUri,
+                      secretVideo: trickData.localFiles?.secretVideo || null,
+                      photos: trickData.localFiles?.photos || [],
+                    },
+                  });
+                } else {
+                  updateTrickData({
+                    localFiles: {
+                      effectVideo: null,
+                      secretVideo: trickData.localFiles?.secretVideo || null,
+                      photos: trickData.localFiles?.photos || [],
+                    },
+                  });
+                }
               }}
               disableEncryption={true}
             />
@@ -289,14 +334,25 @@ export default function EffectStep({
               tooltip={t("tooltips.secretVideo")}
               placeholder={t("secretVideoUpload", "Subir video del secreto")}
               initialFiles={getInitialSecretVideo()}
-              onFilesSelected={(files) => {
-                updateTrickData({
-                  localFiles: {
-                    effectVideo: trickData.localFiles?.effectVideo || null,
-                    secretVideo: files[0]?.uri || null,
-                    photos: trickData.localFiles?.photos || [],
-                  },
-                });
+              onFilesSelected={async (files) => {
+                if (files[0]?.uri) {
+                  const permanentUri = await copyFileImmediately(files[0].uri);
+                  updateTrickData({
+                    localFiles: {
+                      effectVideo: trickData.localFiles?.effectVideo || null,
+                      secretVideo: permanentUri,
+                      photos: trickData.localFiles?.photos || [],
+                    },
+                  });
+                } else {
+                  updateTrickData({
+                    localFiles: {
+                      effectVideo: trickData.localFiles?.effectVideo || null,
+                      secretVideo: null,
+                      photos: trickData.localFiles?.photos || [],
+                    },
+                  });
+                }
               }}
               disableEncryption={true}
             />
@@ -373,12 +429,17 @@ export default function EffectStep({
               tooltip={t("tooltips.imageUpload")}
               placeholder={t("imagesUpload", "Subir Imágenes")}
               initialFiles={getInitialPhotos()}
-              onFilesSelected={(files) => {
+              onFilesSelected={async (files) => {
+                // Copiar TODAS las fotos inmediatamente
+                const permanentUris = await Promise.all(
+                  files.map(file => copyFileImmediately(file.uri))
+                );
+
                 updateTrickData({
                   localFiles: {
                     effectVideo: trickData.localFiles?.effectVideo || null,
                     secretVideo: trickData.localFiles?.secretVideo || null,
-                    photos: files.map((f) => f.uri),
+                    photos: permanentUris,
                   },
                 });
               }}

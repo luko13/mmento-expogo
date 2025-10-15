@@ -74,17 +74,15 @@ class CloudflareImagesService {
 
       console.log('📤 Subiendo imagen a Cloudflare Images:', imageUri);
 
-      // Leer el archivo como base64
-      const base64Data = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      // Cloudflare Images acepta multipart/form-data
+      // En React Native, FormData acepta URIs directamente
       const formData = new FormData();
 
-      // Convertir base64 a blob para FormData
-      const blob = this.base64ToBlob(base64Data);
-      formData.append('file', blob as any);
+      // Añadir archivo directamente con URI (React Native lo maneja)
+      formData.append('file', {
+        uri: imageUri,
+        type: 'image/jpeg',
+        name: 'photo.jpg',
+      } as any);
 
       // Añadir metadata si existe
       if (metadata?.id) {
@@ -102,6 +100,7 @@ class CloudflareImagesService {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.apiToken}`,
+          // NO incluir Content-Type, FormData lo maneja automáticamente
         },
         body: formData,
       });
@@ -139,21 +138,6 @@ class CloudflareImagesService {
         error: error instanceof Error ? error.message : 'Error desconocido',
       };
     }
-  }
-
-  /**
-   * Convierte base64 a Blob
-   */
-  private base64ToBlob(base64: string, contentType = 'image/jpeg'): Blob {
-    const byteCharacters = atob(base64);
-    const byteNumbers = new Array(byteCharacters.length);
-
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-
-    const byteArray = new Uint8Array(byteNumbers);
-    return new Blob([byteArray], { type: contentType });
   }
 
   /**

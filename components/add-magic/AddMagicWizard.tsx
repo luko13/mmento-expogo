@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import "react-native-get-random-values";
 import { v4 as uuidv4 } from "uuid";
+import * as FileSystem from "expo-file-system";
 import { supabase } from "../../lib/supabase";
 import { compressionService } from "../../utils/compressionService";
 import { uploadFileToStorage } from "../../services/fileUploadService";
@@ -193,8 +194,22 @@ export default function AddMagicWizard({
   ): Promise<string | null> => {
     try {
       console.log(`📤 Subiendo archivo: ${fileName}`);
+      console.log(`📍 URI original: ${uri}`);
 
-      // Comprimir si es necesario
+      // Verificar que el archivo existe ANTES de hacer nada
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      console.log(`🔍 Archivo existe: ${fileInfo.exists}`);
+
+      if (!fileInfo.exists) {
+        console.error(`❌ El archivo NO existe en: ${uri}`);
+        return null;
+      }
+
+      // ESTRATEGIA: Subir directamente SIN copiar
+      // El problema es que ImagePicker borra los archivos muy rápido
+      // Así que subimos inmediatamente desde la ubicación original
+
+      // Comprimir si es necesario (la compresión crea una copia)
       const compressionResult = await compressionService.compressFile(
         uri,
         fileType,
@@ -207,18 +222,33 @@ export default function AddMagicWizard({
         } - Ratio: ${compressionResult.ratio}`
       );
 
-      // Subir archivo (comprimido o original)
+      // Usar el archivo comprimido si existe, sino el original
+      const fileToUpload = compressionResult.wasCompressed ? compressionResult.uri : uri;
+
+      console.log(`📤 Subiendo desde: ${fileToUpload}`);
+
+      // Subir archivo INMEDIATAMENTE
       const uploadUrl = await uploadFileToStorage(
-        uri,
+        fileToUpload,
         userId,
         folder,
         fileType,
         fileName
       );
 
+      // Limpiar archivo comprimido si se creó
+      if (compressionResult.wasCompressed && compressionResult.uri !== uri) {
+        try {
+          await FileSystem.deleteAsync(compressionResult.uri, { idempotent: true });
+          console.log(`🧹 Archivo comprimido limpiado`);
+        } catch (cleanupError) {
+          console.warn("Error limpiando archivo comprimido:", cleanupError);
+        }
+      }
+
       return uploadUrl;
     } catch (error) {
-      console.error("Error uploading file:", error);
+      console.error("❌ Error uploading file:", error);
       return null;
     }
   };
@@ -390,7 +420,8 @@ export default function AddMagicWizard({
 
       // Limpiar caché del servicio paginado ANTES de notificar
       console.log("🧹 Limpiando caché del usuario");
-      paginatedContentService.clearUserCache(profileId);
+      // Comentado temporalmente - el servicio paginado está deshabilitado
+      // paginatedContentService.clearUserCache(profileId);
 
       // Éxito - Notificar al componente padre
       if (onComplete) {
