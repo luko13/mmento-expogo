@@ -15,6 +15,7 @@
   "ios": {
     "supportsTablet": true,
     "bundleIdentifier": "com.yourcompany.mmento",
+    "usesAppleSignIn": true,
     "infoPlist": {
       "ITSAppUsesNonExemptEncryption": false,
       "NSCameraUsageDescription": "mmento necesita acceso a tu cámara para capturar fotos y grabar videos de tus trucos de magia",

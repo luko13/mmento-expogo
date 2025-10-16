@@ -417,5 +417,10 @@
     "registerMagicHint": "Crear un nuevo truco de magia en tu biblioteca"
   },
   "angle": "ángulo",
-  "outOf": "de"
+  "outOf": "de",
+  "signInWithApple": "Iniciar sesión con Apple",
+  "signUpWithApple": "Registrarse con Apple",
+  "appleSignInNotAvailable": "Iniciar sesión con Apple no está disponible en este dispositivo",
+  "appleSignInError": "Ocurrió un error al iniciar sesión con Apple. Por favor intenta de nuevo.",
+  "welcomeToMmento": "¡Bienvenido a mmento! Tu biblioteca mágica está lista."
 }

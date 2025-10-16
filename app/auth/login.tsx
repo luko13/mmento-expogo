@@ -22,6 +22,7 @@ import { signIn } from "../../utils/auth";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { fontNames } from "../_layout";
+import { AppleSignInButton } from "../../components/ui/AppleSignInButton";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -114,6 +115,18 @@ export default function Login() {
 
   const handleSocialLogin = (provider: string) => {
     Alert.alert(t("comingSoon"), t("socialLoginNotAvailable", { provider }));
+  };
+
+  const handleAppleSignInSuccess = async () => {
+    setIsNavigating(true);
+    await AsyncStorage.setItem("session", "true");
+    setTimeout(() => {
+      router.replace("/(app)/home");
+    }, 10);
+  };
+
+  const handleAppleSignInError = (error: Error) => {
+    Alert.alert(t("loginError"), error.message);
   };
 
   if (isNavigating) {
@@ -217,20 +230,13 @@ export default function Login() {
               </StyledView>
 
               {/* Social Login Buttons */}
-              <StyledTouchableOpacity
-                className="w-full bg-white/20 rounded-md h-11 items-center justify-center mb-3"
-                onPress={() => handleSocialLogin("Apple")}
-              >
-                <StyledText
-                  className="text-white/90 font-medium"
-                  style={{
-                    fontFamily: fontNames.medium,
-                    includeFontPadding: false,
-                  }}
-                >
-                  Apple
-                </StyledText>
-              </StyledTouchableOpacity>
+              <StyledView className="mb-3">
+                <AppleSignInButton
+                  mode="signin"
+                  onSuccess={handleAppleSignInSuccess}
+                  onError={handleAppleSignInError}
+                />
+              </StyledView>
 
               <StyledTouchableOpacity
                 className="w-full bg-white/20 rounded-md h-11 items-center justify-center mb-5"

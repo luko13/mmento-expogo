@@ -415,5 +415,10 @@
     "registerMagicHint": "Create a new magic trick in your library"
   },
   "angle": "angle",
-  "outOf": "out of"
+  "outOf": "out of",
+  "signInWithApple": "Sign in with Apple",
+  "signUpWithApple": "Sign up with Apple",
+  "appleSignInNotAvailable": "Sign in with Apple is not available on this device",
+  "appleSignInError": "An error occurred while signing in with Apple. Please try again.",
+  "welcomeToMmento": "Welcome to mmento! Your magic library is ready."
 }

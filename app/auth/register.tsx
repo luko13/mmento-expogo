@@ -20,6 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { signUp } from "../../utils/auth";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fontNames } from "../_layout";
+import { AppleSignInButton } from "../../components/ui/AppleSignInButton";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -102,6 +103,23 @@ export default function Register() {
 
   const handleSocialSignup = (provider: string) => {
     Alert.alert(t("comingSoon"), t("socialSignupNotAvailable", { provider }));
+  };
+
+  const handleAppleSignUpSuccess = async () => {
+    setIsNavigating(true);
+    await AsyncStorage.setItem("session", "true");
+    Alert.alert(t("registrationSuccess"), t("welcomeToMmento"), [
+      {
+        text: "OK",
+        onPress: () => {
+          router.replace("/(app)/home");
+        },
+      },
+    ]);
+  };
+
+  const handleAppleSignUpError = (error: Error) => {
+    Alert.alert(t("registrationError"), error.message);
   };
 
   // Si estamos navegando, no mostramos ningún contenido
@@ -189,20 +207,13 @@ export default function Register() {
               </StyledView>
 
               {/* Social Signup Buttons */}
-              <StyledTouchableOpacity
-                className="w-full bg-white/20 rounded-md h-11 items-center justify-center mb-3"
-                onPress={() => handleSocialSignup("Apple")}
-              >
-                <StyledText
-                  className="text-white/90 font-medium"
-                  style={{
-                    fontFamily: fontNames.medium,
-                    includeFontPadding: false,
-                  }}
-                >
-                  Apple
-                </StyledText>
-              </StyledTouchableOpacity>
+              <StyledView className="mb-3">
+                <AppleSignInButton
+                  mode="signup"
+                  onSuccess={handleAppleSignUpSuccess}
+                  onError={handleAppleSignUpError}
+                />
+              </StyledView>
 
               <StyledTouchableOpacity
                 className="w-full bg-white/20 rounded-md h-11 items-center justify-center mb-5"
