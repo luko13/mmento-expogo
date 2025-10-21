@@ -159,22 +159,6 @@ export const DraggableTrick: React.FC<DraggableTrickProps> = ({
                   In: {matchLocation}
                 </Text>
               )}
-              {/* ✅ DEBUG VISUAL: Mostrar contador de fotos */}
-              {(item.photos?.length || 0) > 0 && (
-                <Text
-                  style={{
-                    fontFamily: fontNames.light,
-                    fontSize: 10,
-                    color: "rgba(91, 185, 163, 0.8)",
-                    marginLeft: 8,
-                    marginTop: 2,
-                    includeFontPadding: false,
-                  }}
-                >
-                  📷 {item.photos?.length}{" "}
-                  {item.photos?.length === 1 ? "photo" : "photos"}
-                </Text>
-              )}
             </StyledView>
             <InlineProgressBar item={item} />
           </StyledView>

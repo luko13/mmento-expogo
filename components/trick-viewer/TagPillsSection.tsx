@@ -179,12 +179,14 @@ const TagPillsSection: React.FC<TagPillsSectionProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 12,
+    marginLeft: 12,
+    marginRight: 0,
+    marginTop: 0,
     marginBottom: 0,
     minHeight: 48,
   },
   scrollContent: {
-    paddingVertical: 4,
+    paddingVertical: 10,
   },
   tagContainer: {
     marginRight: 8,

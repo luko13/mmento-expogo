@@ -52,14 +52,30 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
 
   return (
     <StyledView style={styles.container}>
-      {debugShowTags && (
-        <TagPillsSection
-          tagIds={tagIds}
-          userId={userId}
-          onRemoveTag={onRemoveTag}
-          editable={!!onRemoveTag}
-        />
-      )}
+      {/* Contenedor horizontal para Tags y Stats */}
+      <StyledView style={styles.tagsStatsRow}>
+        {debugShowTags && (
+          <StyledView style={styles.tagsContainer}>
+            <TagPillsSection
+              tagIds={tagIds}
+              userId={userId}
+              onRemoveTag={onRemoveTag}
+              editable={!!onRemoveTag}
+            />
+          </StyledView>
+        )}
+
+        {debugShowStats && (
+          <StatsPanel
+            visible={statsVisible}
+            onToggle={toggleStats}
+            angle={angle}
+            resetTime={resetTime}
+            duration={duration}
+            difficulty={difficulty}
+          />
+        )}
+      </StyledView>
 
       <StageInfoSection
         stage={stage}
@@ -68,17 +84,6 @@ const TrickViewerBottomSection: React.FC<TrickViewerBottomSectionProps> = ({
         expanded={stageExpanded}
         onExpandedChange={onStageExpandedChange}
       />
-
-      {debugShowStats && (
-        <StatsPanel
-          visible={statsVisible}
-          onToggle={toggleStats}
-          angle={angle}
-          resetTime={resetTime}
-          duration={duration}
-          difficulty={difficulty}
-        />
-      )}
     </StyledView>
   );
 };
@@ -87,6 +92,18 @@ const styles = StyleSheet.create({
   container: {
     position: "relative",
     paddingBottom: 28,
+  },
+  tagsStatsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    position: "relative",
+    minHeight: 48,
+    marginBottom: 4,
+    paddingTop: 0,
+  },
+  tagsContainer: {
+    flex: 1,
+    marginRight: 8,
   },
 });
 

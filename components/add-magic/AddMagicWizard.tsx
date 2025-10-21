@@ -412,10 +412,23 @@ export default function AddMagicWizard({
         await supabase.from("trick_gimmicks").insert(gimmickInserts);
       }
 
-      // Guardar fotos adicionales en una tabla separada si es necesario
-      if (uploadedPhotos.length > 1) {
-        // Aquí podrías guardar las fotos adicionales si tienes una tabla para ello
-        // Por ahora solo usamos la primera foto como principal
+      // Guardar todas las fotos en la tabla trick_photos
+      if (uploadedPhotos.length > 0) {
+        const photoInserts = uploadedPhotos.map((photoUrl) => ({
+          trick_id: trickId,
+          photo_url: photoUrl,
+          created_at: new Date().toISOString(),
+        }));
+
+        const { error: photosError } = await supabase
+          .from("trick_photos")
+          .insert(photoInserts);
+
+        if (photosError) {
+          console.error("❌ Error al guardar fotos adicionales:", photosError);
+        } else {
+          console.log(`✅ ${uploadedPhotos.length} fotos guardadas exitosamente`);
+        }
       }
 
       // Limpiar caché del servicio paginado ANTES de notificar

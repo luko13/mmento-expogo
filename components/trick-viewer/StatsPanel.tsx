@@ -384,10 +384,9 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
-    right: 12,
-    top: -56,
+    position: "relative",
     alignItems: "flex-end",
+    marginRight: 12,
   },
   toggleButton: {
     borderRadius: 16,

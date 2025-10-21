@@ -168,16 +168,24 @@ export function LibraryDataProvider({
       }
 
       categories.forEach((cat) => {
+        // Excluir categorías que se llamen "Favoritos" para evitar duplicados con la virtual
+        const isFavoritesCategory = cat.name.toLowerCase().trim() === "favoritos" ||
+                                     cat.name.toLowerCase().trim() === "favorites" ||
+                                     cat.name.toLowerCase().trim() === "favourites";
+
+        if (isFavoritesCategory) {
+          return; // Skip esta categoría
+        }
+
         const tricksInCategory = filteredTricks.filter((trick) =>
           trick.category_ids.includes(cat.id)
         );
 
-        if (tricksInCategory.length > 0) {
-          categoryMap.set(cat.id, {
-            category: cat,
-            items: tricksInCategory,
-          });
-        }
+        // Agregar todas las categorías, incluso las vacías
+        categoryMap.set(cat.id, {
+          category: cat,
+          items: tricksInCategory,
+        });
       });
 
       const result = Array.from(categoryMap.values());

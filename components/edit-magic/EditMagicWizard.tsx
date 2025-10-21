@@ -301,8 +301,8 @@ export default function EditMagicWizard({
       }
 
       // Subir nuevas fotos si se seleccionaron
+      const uploadedPhotos: string[] = [];
       if (trickData.localFiles?.photos && trickData.localFiles.photos.length > 0) {
-        const uploadedPhotos: string[] = [];
         for (let i = 0; i < trickData.localFiles.photos.length; i++) {
           const photoUri = trickData.localFiles.photos[i];
           const uploadedUrl = await uploadFileWithCompression(
@@ -423,6 +423,32 @@ export default function EditMagicWizard({
           created_at: new Date().toISOString(),
         }));
         await supabase.from("trick_gimmicks").insert(gimmickInserts);
+      }
+
+      // Actualizar fotos en trick_photos solo si se subieron nuevas fotos
+      if (uploadedPhotos.length > 0) {
+        // Eliminar fotos antiguas
+        await supabase
+          .from("trick_photos")
+          .delete()
+          .eq("trick_id", trickId);
+
+        // Insertar nuevas fotos
+        const photoInserts = uploadedPhotos.map((photoUrl) => ({
+          trick_id: trickId,
+          photo_url: photoUrl,
+          created_at: new Date().toISOString(),
+        }));
+
+        const { error: photosError } = await supabase
+          .from("trick_photos")
+          .insert(photoInserts);
+
+        if (photosError) {
+          console.error("❌ Error al guardar fotos adicionales:", photosError);
+        } else {
+          console.log(`✅ ${uploadedPhotos.length} fotos actualizadas exitosamente`);
+        }
       }
 
       // Éxito
