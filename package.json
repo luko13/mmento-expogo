@@ -9,7 +9,10 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:dev:android": "eas build --profile development --platform android",
-    "build:dev:ios": "eas build --profile development --platform ios"
+    "build:dev:ios": "eas build --profile development --platform ios",
+    "migrate:dryrun": "node scripts/migrateToCloudflare.js --dry-run",
+    "migrate:cloudflare": "node scripts/migrateToCloudflare.js",
+    "migrate:delete": "node scripts/migrateToCloudflare.js --delete-supabase"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.910.0",
@@ -87,12 +90,16 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@types/libsodium-wrappers-sumo": "^0.7.8",
+    "@types/node": "^24.9.1",
     "@types/react": "~19.0.10",
     "@types/uuid": "^10.0.0",
     "autoprefixer": "10.4.14",
+    "dotenv": "^17.2.3",
+    "node-fetch": "^2.7.0",
     "postcss": "^8.5.1",
     "react-native-css-transformer": "^2.0.0",
     "tailwindcss": "3.3.2",
+    "ts-node": "^10.9.2",
     "typescript": "~5.8.3"
   },
   "expo": {
