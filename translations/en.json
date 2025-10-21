@@ -181,7 +181,21 @@
     "loading": "Loading...",
     "loadingCategories": "Loading categories...",
     "trick": "Trick",
-    "delete": "Delete"
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "pleaseWait": "Please wait",
+    "confirmDelete": "This action can't be undone.",
+    "cantUndo": "This action can't be undone.",
+    "item": "item",
+    "items": "items",
+    "found": "found",
+    "edit": "Edit",
+    "report": "Report",
+    "done": "Done",
+    "create": "Create",
+    "save": "Save",
+    "cancel": "Cancel",
+    "ok": "OK"
   },
   "forms": {
     "registerMagic": "Register Magic Item",
@@ -192,7 +206,10 @@
     "categoryNamePlaceholder": "Enter category name",
     "description": "Description",
     "optional": "optional",
-    "descriptionPlaceholder": "Enter description"
+    "descriptionPlaceholder": "Enter description",
+    "selectColor": "Select a color",
+    "edit": "Edit",
+    "create": "Create"
   },
   "validation": {
     "titleRequired": "Title is required",
@@ -389,16 +406,34 @@
   "generalUploadError": "There was an error uploading the file. Please try again.",
   "videoPickError": "There was an error selecting the video. Please try again.",
   "makePublic": {
-    "title": "Make Public?"
+    "title": "Make Public?",
+    "description": "By default, this trick is private. If made public, anyone can view the effect in your profile."
   },
   "incomplete": {
-    "title": "Complete the Trick First"
+    "title": "Complete the Trick First",
+    "description": "To make this trick public, all fields must be filled out.",
+    "missingFields": "Missing fields:",
+    "completeNow": "Complete Now"
   },
   "fields": {
-    "title": "Title"
+    "title": "Title",
+    "category": "Category",
+    "tags": "Tags",
+    "effectVideo": "Effect Video",
+    "effectDescription": "Effect Description",
+    "secretVideo": "Secret Video",
+    "secretDescription": "Secret Description",
+    "angle": "Angle",
+    "resetTime": "Reset Time",
+    "difficulty": "Difficulty"
+  },
+  "privacy": {
+    "makePrivate": "Make Private",
+    "makePublic": "Make Public"
   },
   "categoryNotEmpty": {
-    "title": "Can't delete category"
+    "title": "Can't delete category",
+    "message": "You need to move or delete all items in this category first."
   },
   "accessibility": {
     "selectAngle": "Select this angle option",
@@ -420,5 +455,8 @@
   "signUpWithApple": "Sign up with Apple",
   "appleSignInNotAvailable": "Sign in with Apple is not available on this device",
   "appleSignInError": "An error occurred while signing in with Apple. Please try again.",
-  "welcomeToMmento": "Welcome to mmento! Your magic library is ready."
+  "welcomeToMmento": "Welcome to mmento! Your magic library is ready.",
+  "characters": "characters",
+  "errorLoadingTrick": "Error loading trick",
+  "errorUpdating": "Error updating trick"
 }

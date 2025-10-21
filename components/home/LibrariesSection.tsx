@@ -215,14 +215,6 @@ const LibrariesSection = memo(function LibrariesSection({
 
   const handleItemPress = useCallback(
     (item: any) => {
-      console.log("🟠 [LibrariesSection] handleItemPress called with item:", {
-        id: item.id,
-        title: item.title,
-        category_ids: item.category_ids,
-        photos: item.photos,
-        photosCount: item.photos?.length || 0,
-      });
-
       try {
         const categoryName =
           allCategories.find((cat) => item.category_ids?.includes(cat.id))
@@ -250,15 +242,6 @@ const LibrariesSection = memo(function LibrariesSection({
           is_public: item.is_public || false,
         };
 
-        console.log("🟠 [LibrariesSection] Navigating with data:", {
-          id: itemData.id,
-          title: itemData.title,
-          category: itemData.category,
-          photosCount: itemData.photos.length,
-          user_id: itemData.user_id,
-          is_public: itemData.is_public,
-        });
-
         router.push({
           pathname: "/(app)/trick/[id]",
           params: {
@@ -266,8 +249,6 @@ const LibrariesSection = memo(function LibrariesSection({
             trick: JSON.stringify(itemData),
           },
         });
-
-        console.log("🟠 [LibrariesSection] Navigation triggered successfully");
       } catch (error) {
         console.error("❌ [LibrariesSection] Error in handleItemPress:", error);
       }

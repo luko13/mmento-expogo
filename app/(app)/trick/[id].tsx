@@ -24,14 +24,11 @@ export default function TrickViewRoute() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  console.log("🔴 [TrickViewRoute] Rendered");
-
   // Memoizar el trickData parseado del cache
   const cachedTrickData = useMemo(() => {
     if (params.trick) {
       try {
         const parsed = JSON.parse(params.trick as string);
-        console.log("🔴 [TrickViewRoute] FASE 1: Datos del cache parseados");
         return parsed;
       } catch (e) {
         console.error("🔴 [TrickViewRoute] Error parsing trick data:", e);
@@ -47,9 +44,6 @@ export default function TrickViewRoute() {
     const initialize = async () => {
       // FASE 1: Mostrar datos del cache inmediatamente
       if (cachedTrickData) {
-        console.log(
-          "🔴 [TrickViewRoute] FASE 1: Mostrando cache (instantáneo)"
-        );
         setTrick(cachedTrickData);
         setLoading(false);
 
@@ -58,7 +52,6 @@ export default function TrickViewRoute() {
       }
       // Fallback: Si no hay cache, cargar todo desde Supabase
       else if (trickId) {
-        console.log("🔴 [TrickViewRoute] Sin cache, cargando desde Supabase");
         await loadFullTrick(trickId);
       }
     };
@@ -69,8 +62,6 @@ export default function TrickViewRoute() {
   // FASE 2 & 3: Cargar fotos adicionales y script
   const loadAdditionalData = async (trickId: string, baseTrick: any) => {
     try {
-      console.log("🔴 [TrickViewRoute] FASE 2: Cargando fotos adicionales");
-
       // FASE 2: Cargar fotos adicionales
       const { data: photosData } = await supabase
         .from("trick_photos")
@@ -80,16 +71,11 @@ export default function TrickViewRoute() {
       const photos = photosData?.map((p) => p.photo_url) || [];
 
       if (photos.length > 0) {
-        console.log(
-          `🔴 [TrickViewRoute] FASE 2: ${photos.length} fotos cargadas`
-        );
         setTrick((prev: any) => ({
           ...prev,
           photos,
         }));
       }
-
-      console.log("🔴 [TrickViewRoute] FASE 3: Cargando script");
 
       // FASE 3: Cargar script
       const { data: scriptData } = await supabase
@@ -99,14 +85,11 @@ export default function TrickViewRoute() {
         .maybeSingle();
 
       if (scriptData) {
-        console.log("🔴 [TrickViewRoute] FASE 3: Script cargado");
         setTrick((prev: any) => ({
           ...prev,
           script: scriptData.content || "",
           scriptId: scriptData.id,
         }));
-      } else {
-        console.log("🔴 [TrickViewRoute] FASE 3: No hay script");
       }
     } catch (err) {
       console.error(
@@ -120,7 +103,6 @@ export default function TrickViewRoute() {
   // Fallback: Cargar todo desde Supabase si no hay cache
   const loadFullTrick = async (trickId: string) => {
     try {
-      console.log("🔴 [TrickViewRoute] Cargando truco completo desde Supabase");
       setLoading(true);
 
       const { data: trickData, error: trickError } = await supabase
@@ -162,7 +144,6 @@ export default function TrickViewRoute() {
         scriptId: trickData.scripts?.[0]?.id || null,
       };
 
-      console.log("🔴 [TrickViewRoute] Truco completo cargado");
       setTrick(formattedTrick);
     } catch (err) {
       console.error("🔴 [TrickViewRoute] Error:", err);

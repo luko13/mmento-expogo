@@ -952,16 +952,12 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         visible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={async () => {
-          console.log("[TrickViewScreen] Delete confirmed for trick:", trick.id);
           // NO cerrar el modal aquí - dejar que se muestre el estado de carga
 
           try {
-            console.log("[TrickViewScreen] Calling trickService.deleteTrick...");
             const success = await trickService.deleteTrick(trick.id);
-            console.log("[TrickViewScreen] Delete result:", success);
 
             if (success) {
-              console.log("[TrickViewScreen] Notifying deletion and navigating home...");
               setShowDeleteModal(false); // Cerrar modal solo después de éxito
               notifyTrickDeleted(trick.id);
               router.push("/(app)/home");

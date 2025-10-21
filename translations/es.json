@@ -177,7 +177,21 @@
     "loading": "Cargando...",
     "loadingCategories": "Cargando categorías...",
     "trick": "Truco",
-    "delete": "Eliminar"
+    "delete": "Eliminar",
+    "deleting": "Eliminando...",
+    "pleaseWait": "Por favor espera",
+    "confirmDelete": "Esta acción no se puede deshacer.",
+    "cantUndo": "Esta acción no se puede deshacer.",
+    "item": "elemento",
+    "items": "elementos",
+    "found": "encontrados",
+    "edit": "Editar",
+    "report": "Reportar",
+    "done": "Listo",
+    "create": "Crear",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "ok": "OK"
   },
   "forms": {
     "registerMagic": "Registrar Item Mágico",
@@ -188,7 +202,10 @@
     "categoryNamePlaceholder": "Ingresa el nombre de la categoría",
     "description": "Descripción",
     "optional": "opcional",
-    "descriptionPlaceholder": "Ingresa la descripción"
+    "descriptionPlaceholder": "Ingresa la descripción",
+    "selectColor": "Selecciona un color",
+    "edit": "Editar",
+    "create": "Crear"
   },
   "validation": {
     "titleRequired": "El título es obligatorio",
@@ -391,16 +408,34 @@
   "notesPlaceholder": "Notas",
   "tagName": "Nombre de etiqueta",
   "makePublic": {
-    "title": "¿Hacer Público?"
+    "title": "¿Hacer Público?",
+    "description": "Por defecto, este truco es privado. Si se hace público, cualquiera puede ver el efecto en tu perfil."
   },
   "incomplete": {
-    "title": "Completa el Truco Primero"
+    "title": "Completa el Truco Primero",
+    "description": "Para hacer este truco público, todos los campos deben estar completos.",
+    "missingFields": "Campos faltantes:",
+    "completeNow": "Completar Ahora"
   },
   "fields": {
-    "title": "Título"
+    "title": "Título",
+    "category": "Categoría",
+    "tags": "Etiquetas",
+    "effectVideo": "Video del Efecto",
+    "effectDescription": "Descripción del Efecto",
+    "secretVideo": "Video del Secreto",
+    "secretDescription": "Descripción del Secreto",
+    "angle": "Ángulo",
+    "resetTime": "Tiempo de Reset",
+    "difficulty": "Dificultad"
+  },
+  "privacy": {
+    "makePrivate": "Hacer Privado",
+    "makePublic": "Hacer Público"
   },
   "categoryNotEmpty": {
-    "title": "No se puede eliminar la categoría"
+    "title": "No se puede eliminar la categoría",
+    "message": "Primero debes mover o eliminar todos los elementos de esta categoría."
   },
   "accessibility": {
     "selectAngle": "Seleccionar esta opción de ángulo",
@@ -422,5 +457,8 @@
   "signUpWithApple": "Registrarse con Apple",
   "appleSignInNotAvailable": "Iniciar sesión con Apple no está disponible en este dispositivo",
   "appleSignInError": "Ocurrió un error al iniciar sesión con Apple. Por favor intenta de nuevo.",
-  "welcomeToMmento": "¡Bienvenido a mmento! Tu biblioteca mágica está lista."
+  "welcomeToMmento": "¡Bienvenido a mmento! Tu biblioteca mágica está lista.",
+  "characters": "caracteres",
+  "errorLoadingTrick": "Error al cargar el truco",
+  "errorUpdating": "Error al actualizar el truco"
 }

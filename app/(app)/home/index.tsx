@@ -35,7 +35,6 @@ const StyledTouchableOpacity = styled(TouchableOpacity);
 const { width, height } = Dimensions.get("window");
 
 export default function Home() {
-  console.log("[HOME] render start");
   const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -67,13 +66,6 @@ export default function Home() {
       setShowContent(false);
     }
   }, [contextInitializing]);
-
-  useEffect(() => {
-    console.log("[HOME] mount");
-    return () => {
-      console.log("[HOME] unmount");
-    };
-  }, []);
 
   useEffect(() => {
     if (

@@ -146,14 +146,10 @@ export function useLibraryData(
   const loadData = useCallback(
     async (userId: string, forceNetwork: boolean = false) => {
       try {
-        console.log("[useLibraryData] Loading data for user:", userId);
-
         if (!forceNetwork) {
-          console.log("[useLibraryData] Hydrating from cache...");
           const cachedData = await localDataService.getUserData(userId);
 
           if (cachedData) {
-            console.log("[useLibraryData] Cache hit!");
             const newSections = buildSections(
               cachedData.categories,
               cachedData.tricks,
@@ -163,12 +159,8 @@ export function useLibraryData(
             setSections(newSections);
             setAllCategories(cachedData.categories);
             setInitializing(false);
-          } else {
-            console.log("[useLibraryData] No cache found");
           }
         }
-
-        console.log("[useLibraryData] Fetching from network...");
         setLoading(true);
         setError(null);
 
@@ -196,14 +188,11 @@ export function useLibraryData(
             setLoading(false);
             setInitializing(false);
           }
-
-          console.log("[useLibraryData] Network fetch complete");
         } catch (networkError: any) {
           console.warn("[useLibraryData] Network error:", networkError.message);
 
           const cachedData = await localDataService.getUserData(userId);
           if (cachedData) {
-            console.log("[useLibraryData] Using offline mode with cache");
             if (isMountedRef.current) {
               setLoading(false);
               setInitializing(false);
@@ -374,9 +363,6 @@ export function useLibraryData(
 
     (async () => {
       if (hasLoadedRef.current) {
-        console.log(
-          "[useLibraryData] Already loaded, skipping duplicate mount"
-        );
         return;
       }
       hasLoadedRef.current = true;
@@ -392,7 +378,6 @@ export function useLibraryData(
           // Intentar usar cache persistente primero
           const memCache = getInMemoryCache(user.id);
           if (memCache?.sections && memCache?.categories) {
-            console.log("[useLibraryData] Using persistent in-memory cache");
             setSections(memCache.sections);
             setAllCategories(memCache.categories);
             setInitializing(false);
@@ -424,8 +409,6 @@ export function useLibraryData(
   useEffect(() => {
     if (!currentUserId) return;
 
-    console.log("[useLibraryData] Setting up realtime subscriptions...");
-
     const channel = supabase
       .channel(`user_library_${currentUserId}`)
       .on(
@@ -436,11 +419,7 @@ export function useLibraryData(
           table: "magic_tricks",
           filter: `user_id=eq.${currentUserId}`,
         },
-        (payload) => {
-          console.log(
-            "[useLibraryData] Realtime: magic_tricks changed",
-            payload
-          );
+        () => {
           refresh();
         }
       )
@@ -452,11 +431,7 @@ export function useLibraryData(
           table: "user_categories",
           filter: `user_id=eq.${currentUserId}`,
         },
-        (payload) => {
-          console.log(
-            "[useLibraryData] Realtime: user_categories changed",
-            payload
-          );
+        () => {
           refresh();
         }
       )
@@ -467,11 +442,7 @@ export function useLibraryData(
           schema: "public",
           table: "trick_categories",
         },
-        (payload) => {
-          console.log(
-            "[useLibraryData] Realtime: trick_categories changed",
-            payload
-          );
+        () => {
           refresh();
         }
       )
@@ -483,11 +454,7 @@ export function useLibraryData(
           table: "user_favorites",
           filter: `user_id=eq.${currentUserId}`,
         },
-        (payload) => {
-          console.log(
-            "[useLibraryData] Realtime: user_favorites changed",
-            payload
-          );
+        () => {
           refresh();
         }
       )
@@ -496,7 +463,6 @@ export function useLibraryData(
     channelRef.current = channel;
 
     return () => {
-      console.log("[useLibraryData] Cleaning up realtime subscriptions");
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
@@ -514,7 +480,6 @@ export function useLibraryData(
     (async () => {
       const cachedData = await localDataService.getUserData(currentUserId);
       if (cachedData) {
-        console.log("[useLibraryData] Rebuilding sections with new filters");
         const newSections = buildSections(
           cachedData.categories,
           cachedData.tricks,

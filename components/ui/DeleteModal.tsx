@@ -43,16 +43,6 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
     }
   }, [visible]);
 
-  // Log cuando isDeleting cambia
-  React.useEffect(() => {
-    console.log("[DeleteModal] isDeleting state changed to:", isDeleting);
-  }, [isDeleting]);
-
-  // Log cuando visible cambia
-  React.useEffect(() => {
-    console.log("[DeleteModal] visible prop changed to:", visible);
-  }, [visible]);
-
   const getDeleteMessage = () => {
     if (customMessage) return customMessage;
 
@@ -64,26 +54,18 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
   };
 
   const handleConfirm = () => {
-    console.log("[DeleteModal] Confirm button pressed");
-    console.log("[DeleteModal] Current isDeleting state:", isDeleting);
     setIsDeleting(true);
-    console.log("[DeleteModal] Called setIsDeleting(true)");
 
     // Dar tiempo a React para re-renderizar con isDeleting=true
     setTimeout(async () => {
-      console.log("[DeleteModal] Timeout executed, starting onConfirm...");
-      console.log("[DeleteModal] isDeleting state in timeout:", isDeleting);
       try {
         await onConfirm();
-        console.log("[DeleteModal] onConfirm completed successfully");
       } catch (error) {
         console.error("[DeleteModal] Error in onConfirm:", error);
         setIsDeleting(false);
       }
     }, 100); // 100ms para que React renderice el spinner
   };
-
-  console.log("[DeleteModal] Rendering with isDeleting:", isDeleting, "visible:", visible);
 
   return (
     <StyledModal visible={visible} transparent animationType="fade">

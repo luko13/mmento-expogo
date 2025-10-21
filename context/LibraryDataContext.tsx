@@ -201,12 +201,9 @@ export function LibraryDataProvider({
   const loadData = useCallback(
     async (userId: string) => {
       try {
-        console.log("[LibraryContext] Loading data for user:", userId);
-
         // Intentar cache local primero
         const cachedData = await localDataService.getUserData(userId);
         if (cachedData) {
-          console.log("[LibraryContext] Cache hit!");
           setRawTricks(cachedData.tricks);
           setAllCategories(cachedData.categories);
           const newSections = buildSections(
@@ -243,8 +240,6 @@ export function LibraryDataProvider({
         setSections(newSections);
         setLoading(false);
         setInitializing(false);
-
-        console.log("[LibraryContext] Data loaded successfully");
       } catch (err: any) {
         console.error("[LibraryContext] Error loading data:", err);
         setError(err.message || "Error loading data");
@@ -446,7 +441,6 @@ export function LibraryDataProvider({
           profile?.username || profile?.email?.split("@")[0] || "Usuario";
         setUserName(computedName);
         setAvatarUrl(profile?.avatar_url || null);
-        console.log("[LibraryContext] Profile loaded:", computedName);
 
         // Cargar library data
         await loadData(user.id);
@@ -462,8 +456,6 @@ export function LibraryDataProvider({
   // --------------------------------------------------------------------------
   useEffect(() => {
     if (deletedTrickId && currentUserId) {
-      console.log("[LibraryContext] Trick deleted:", deletedTrickId);
-
       // Actualizar inmediatamente desde el caché local
       const cachedData = localDataService.getUserData(currentUserId);
       cachedData.then((data) => {
@@ -487,8 +479,6 @@ export function LibraryDataProvider({
   useEffect(() => {
     if (!currentUserId) return;
 
-    console.log("[LibraryContext] Setting up realtime subscriptions...");
-
     const channel = supabase
       .channel(`user_library_${currentUserId}`)
       .on(
@@ -500,7 +490,6 @@ export function LibraryDataProvider({
           filter: `user_id=eq.${currentUserId}`,
         },
         () => {
-          console.log("[LibraryContext] Realtime: magic_tricks changed");
           refresh();
         }
       )
@@ -513,7 +502,6 @@ export function LibraryDataProvider({
           filter: `user_id=eq.${currentUserId}`,
         },
         () => {
-          console.log("[LibraryContext] Realtime: user_categories changed");
           refresh();
         }
       )
@@ -526,7 +514,6 @@ export function LibraryDataProvider({
           filter: `user_id=eq.${currentUserId}`,
         },
         () => {
-          console.log("[LibraryContext] Realtime: user_favorites changed");
           refresh();
         }
       )
@@ -535,7 +522,6 @@ export function LibraryDataProvider({
     channelRef.current = channel;
 
     return () => {
-      console.log("[LibraryContext] Cleaning up realtime subscriptions");
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
