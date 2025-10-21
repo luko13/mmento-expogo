@@ -140,7 +140,8 @@ export default function RootLayout() {
             />
           ) : (
             // Imagen de fondo para otras rutas que cubre TODA la pantalla
-            <View
+            <Image
+              source={require("../assets/Background.png")}
               style={{
                 position: "absolute",
                 top: 0,
@@ -151,17 +152,9 @@ export default function RootLayout() {
                 height: "100%",
                 zIndex: 0,
               }}
-            >
-              <Image
-                source={require("../assets/Background.png")}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  flex: 1,
-                }}
-                resizeMode="cover"
-              />
-            </View>
+              resizeMode="cover"
+              fadeDuration={0}
+            />
           )}
 
           {/* NO SafeAreaView wrapper - let individual screens handle their own safe areas */}
@@ -173,9 +166,8 @@ export default function RootLayout() {
                 contentStyle: {
                   backgroundColor: "transparent",
                 },
-                // Animación estándar pero con duración reducida
-                animation: "slide_from_right",
-                animationDuration: 150,
+                // Sin animación para evitar flashes
+                animation: "none",
                 animationTypeForReplace: "push",
                 presentation: "card",
                 gestureEnabled: false,
@@ -184,6 +176,10 @@ export default function RootLayout() {
                 },
                 headerLargeTitleStyle: {
                   fontFamily: fontNames.bold,
+                },
+                // Color de fondo durante transiciones
+                cardStyle: {
+                  backgroundColor: "transparent",
                 },
               }}
             >
@@ -194,8 +190,7 @@ export default function RootLayout() {
               <Stack.Screen
                 name="(app)"
                 options={{
-                  animation: "slide_from_right",
-                  animationDuration: 300,
+                  animation: "none",
                 }}
               />
             </Stack>

@@ -79,16 +79,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   userId,
   onClose,
 }) => {
-  useEffect(() => {
-    console.log("🟣 [TrickViewScreen] RECEIVED TRICK DATA:", {
-      id: trick.id,
-      title: trick.title,
-      photo_url: trick.photo_url,
-      photos: trick.photos,
-      photosCount: trick.photos?.length || 0,
-      photosArray: trick.photos || [],
-    });
-  }, [trick]);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -238,7 +228,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (mounted && user) {
         setCurrentUserId(user.id);
-        console.log("Current user ID set:", user.id);
       }
     });
     return () => {
@@ -255,26 +244,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
   // Cargar fotos
   useEffect(() => {
-    console.log("🟣 [TrickViewScreen] Loading photos:", {
-      trickPhotos: trick.photos,
-      trickPhotoUrl: trick.photo_url,
-      photosFromMemo: photos,
-      photosCount: photos.length,
-    });
-
     setIsLoadingPhotos(true);
     const publicPhotos = photos.map((photo) => {
       const url = getPublicUrl(photo) || photo;
-      console.log("🟣 [TrickViewScreen] Processing photo:", {
-        original: photo,
-        publicUrl: url,
-      });
       return url;
-    });
-
-    console.log("🟣 [TrickViewScreen] Decrypted photos:", {
-      count: publicPhotos.length,
-      urls: publicPhotos,
     });
     setDecryptedPhotos(publicPhotos);
     setIsLoadingPhotos(false);
@@ -414,21 +387,17 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     }
   }, [currentSection, isEffectPlaying, isSecretPlaying, isStageExpanded]);
 
-  // Cargar tags - MEJORADO CON LOGS
+  // Cargar tags
   useEffect(() => {
     const loadTrickTags = async () => {
       try {
-        console.log("Loading tags for trick:", trick.id);
         const { data, error } = await supabase
           .from("trick_tags")
           .select("tag_id")
           .eq("trick_id", trick.id);
 
         if (data && !error) {
-          console.log("Tags loaded:", data);
           setLocalTagIds(data.map((item) => item.tag_id));
-        } else if (error) {
-          console.error("Error loading trick tags:", error);
         }
       } catch (error) {
         console.error("Error loading trick tags:", error);
@@ -437,17 +406,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
     if (trick.id) loadTrickTags();
   }, [trick.id]);
-
-  // Log para debug de tags
-  useEffect(() => {
-    console.log("TrickViewScreen - Tags Debug:", {
-      trickId: trick.id,
-      currentUserId,
-      localTagIds,
-      trickUserId: trick.user_id,
-      userIdToUse: trick.user_id || currentUserId,
-    });
-  }, [trick.id, currentUserId, localTagIds, trick.user_id]);
 
   const canEdit =
     currentUserId && (currentUserId === trick.user_id || !trick.user_id);
@@ -658,14 +616,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
   // Render de galería de fotos
   const renderPhotoGallery = () => {
-    console.log("🟣 [TrickViewScreen] renderPhotoGallery called:", {
-      isLoadingPhotos,
-      decryptedPhotosCount: decryptedPhotos.length,
-      photosCount: photos.length,
-      decryptedPhotos,
-      photos,
-    });
-
     if (isLoadingPhotos) {
       return (
         <View
@@ -683,10 +633,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
 
     const photosToDisplay =
       decryptedPhotos.length > 0 ? decryptedPhotos : photos;
-    console.log("🟣 [TrickViewScreen] Photos to display:", {
-      count: photosToDisplay.length,
-      photos: photosToDisplay,
-    });
     if (photosToDisplay.length === 0) {
       return (
         <View
@@ -1006,14 +952,28 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         visible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={async () => {
+          console.log("[TrickViewScreen] Delete confirmed for trick:", trick.id);
+          // NO cerrar el modal aquí - dejar que se muestre el estado de carga
+
           try {
+            console.log("[TrickViewScreen] Calling trickService.deleteTrick...");
             const success = await trickService.deleteTrick(trick.id);
+            console.log("[TrickViewScreen] Delete result:", success);
+
             if (success) {
+              console.log("[TrickViewScreen] Notifying deletion and navigating home...");
+              setShowDeleteModal(false); // Cerrar modal solo después de éxito
               notifyTrickDeleted(trick.id);
               router.push("/(app)/home");
+            } else {
+              console.error("[TrickViewScreen] Delete failed, showing error");
+              setShowDeleteModal(false); // Cerrar modal antes de mostrar alert
+              Alert.alert(t("error"), t("errorDeletingTrick", "Error deleting trick"));
             }
           } catch (error) {
-            Alert.alert(t("error"), t("errorDeletingTrick"));
+            console.error("[TrickViewScreen] Exception during delete:", error);
+            setShowDeleteModal(false); // Cerrar modal antes de mostrar alert
+            Alert.alert(t("error"), t("errorDeletingTrick", "Error deleting trick"));
           }
         }}
         itemName={trick.title}

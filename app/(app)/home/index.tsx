@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   Keyboard,
+  ActivityIndicator,
+  Image,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -25,6 +27,7 @@ import FiltersModal from "../../../components/ui/FilterModal";
 import { useSearch } from "../../../context/SearchContext";
 import { useTrickDeletion } from "../../../context/TrickDeletionContext";
 import { useIsFocused } from "@react-navigation/native";
+import { useLibraryData } from "../../../context/LibraryDataContext";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -39,6 +42,7 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const { deletedTrickId } = useTrickDeletion();
   const isFocused = useIsFocused();
+  const { initializing: contextInitializing } = useLibraryData();
 
   const { searchQuery, setSearchQuery, searchFilters, setSearchFilters } =
     useSearch();
@@ -49,6 +53,20 @@ export default function Home() {
     title: string;
   } | null>(null);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [showContent, setShowContent] = useState(false);
+
+  // Delay mínimo para mostrar loading y evitar el "salto"
+  useEffect(() => {
+    if (!contextInitializing) {
+      // Delay mínimo solo para permitir que se renderice el loading screen
+      const timer = setTimeout(() => {
+        setShowContent(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    } else {
+      setShowContent(false);
+    }
+  }, [contextInitializing]);
 
   useEffect(() => {
     console.log("[HOME] mount");
@@ -112,8 +130,37 @@ export default function Home() {
     return count;
   };
 
+  // Mostrar pantalla de carga mientras inicializa o durante transición
+  if (!showContent) {
+    return (
+      <StyledView style={{ flex: 1 }}>
+        {/* Imagen de fondo igual que la app */}
+        <Image
+          source={require("../../../assets/Background.png")}
+          style={{
+            position: "absolute",
+            width: "100%",
+            height: "100%",
+          }}
+          resizeMode="cover"
+          fadeDuration={0}
+        />
+        {/* Spinner centrado */}
+        <StyledView
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <ActivityIndicator size="large" color="#10b981" />
+        </StyledView>
+      </StyledView>
+    );
+  }
+
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
       <TouchableWithoutFeedback onPress={dismissKeyboard}>
         <StyledView className="flex-1">
           <StyledView className="flex-1" style={{ paddingHorizontal: 24 }}>

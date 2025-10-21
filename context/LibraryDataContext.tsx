@@ -15,6 +15,7 @@ import {
 } from "../services/LocalDataService";
 import { supabaseDataService } from "../services/SupabaseDataService";
 import type { SearchFilters } from "../components/home/CompactSearchBar";
+import { useTrickDeletion } from "./TrickDeletionContext";
 
 // ============================================================================
 // TIPOS
@@ -89,6 +90,9 @@ export function LibraryDataProvider({
   // Refs
   const hasLoadedRef = useRef(false);
   const channelRef = useRef<any>(null);
+
+  // Hook de eliminación de trucos
+  const { deletedTrickId } = useTrickDeletion();
 
   // --------------------------------------------------------------------------
   // FUNCIÓN: buildSections
@@ -452,6 +456,30 @@ export function LibraryDataProvider({
       }
     })();
   }, [loadData]);
+
+  // --------------------------------------------------------------------------
+  // EFFECT: Responder a eliminaciones de trucos
+  // --------------------------------------------------------------------------
+  useEffect(() => {
+    if (deletedTrickId && currentUserId) {
+      console.log("[LibraryContext] Trick deleted:", deletedTrickId);
+
+      // Actualizar inmediatamente desde el caché local
+      const cachedData = localDataService.getUserData(currentUserId);
+      cachedData.then((data) => {
+        if (data) {
+          setRawTricks(data.tricks);
+          const newSections = buildSections(
+            data.categories,
+            data.tricks,
+            currentQuery,
+            currentFilters
+          );
+          setSections(newSections);
+        }
+      });
+    }
+  }, [deletedTrickId, currentUserId, buildSections, currentQuery, currentFilters]);
 
   // --------------------------------------------------------------------------
   // EFFECT: Realtime subscriptions

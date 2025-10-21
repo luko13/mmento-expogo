@@ -133,55 +133,64 @@ export const trickService = {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return false;
-
-    // Eliminar localmente primero
-    localDataService.deleteTrick(user.id, trickId);
-
-    // Si estamos offline, encolar y retornar
-    if (!networkMonitorService.isOnline()) {
-      await offlineQueueService.enqueue({
-        userId: user.id,
-        type: "delete_trick",
-        payload: { trickId },
-      });
-      console.log("[TrickService] Offline: trick deletion enqueued");
-      return true;
+    if (!user) {
+      console.error("[TrickService] No user found");
+      return false;
     }
 
-    // Si estamos online, eliminar del servidor
+    console.log("[TrickService] Starting deletion for trick:", trickId);
+    console.log("[TrickService] Network status:", {
+      isOnline: networkMonitorService.isOnline(),
+      status: networkMonitorService.getStatus()
+    });
+
+    // SIEMPRE intentar eliminar del servidor primero, independientemente del estado de red
+    // Si falla, entonces encolaremos
     try {
+      console.log("[TrickService] Fetching trick data...");
       // 1. PRIMERO: Obtener el truco para acceder a las URLs de archivos
-      const { data: trick } = await supabase
+      const { data: trick, error: fetchError } = await supabase
         .from("magic_tricks")
         .select("effect_video_url, secret_video_url, photo_url")
         .eq("id", trickId)
         .single();
+
+      if (fetchError) {
+        console.error("[TrickService] Error fetching trick:", fetchError);
+        throw fetchError;
+      }
+
+      console.log("[TrickService] Trick data fetched:", trick);
 
       // 2. Eliminar archivos multimedia (videos y foto principal)
       if (trick) {
         const { deleteFileFromStorage } = await import("./fileUploadService");
 
         if (trick.effect_video_url) {
-          console.log("🗑️ Eliminando video de efecto...");
+          console.log("🗑️ Eliminando video de efecto:", trick.effect_video_url);
           await deleteFileFromStorage(trick.effect_video_url);
         }
 
         if (trick.secret_video_url) {
-          console.log("🗑️ Eliminando video de secreto...");
+          console.log("🗑️ Eliminando video de secreto:", trick.secret_video_url);
           await deleteFileFromStorage(trick.secret_video_url);
         }
 
         if (trick.photo_url) {
-          console.log("🗑️ Eliminando foto principal...");
+          console.log("🗑️ Eliminando foto principal:", trick.photo_url);
           await deleteFileFromStorage(trick.photo_url);
         }
 
         // 2b. Eliminar fotos adicionales de la tabla trick_photos
-        const { data: photos } = await supabase
+        console.log("[TrickService] Fetching additional photos...");
+        const { data: photos, error: photosError } = await supabase
           .from("trick_photos")
           .select("photo_url")
           .eq("trick_id", trickId);
+
+        if (photosError) {
+          console.error("[TrickService] Error fetching photos:", photosError);
+        }
 
         if (photos && photos.length > 0) {
           console.log(`🗑️ Eliminando ${photos.length} fotos adicionales...`);
@@ -194,41 +203,109 @@ export const trickService = {
       }
 
       // 3. Eliminar relaciones en tablas auxiliares
-      await supabase
+      console.log("[TrickService] Deleting user_favorites...");
+      const { error: favError } = await supabase
         .from("user_favorites")
         .delete()
         .eq("content_id", trickId)
         .eq("content_type", "magic");
-      await supabase.from("trick_tags").delete().eq("trick_id", trickId);
-      await supabase.from("trick_categories").delete().eq("trick_id", trickId);
-      await supabase.from("trick_techniques").delete().eq("trick_id", trickId);
-      await supabase.from("trick_gimmicks").delete().eq("trick_id", trickId);
-      await supabase.from("trick_photos").delete().eq("trick_id", trickId);
-      await supabase.from("scripts").delete().eq("trick_id", trickId);
-      await supabase
+      if (favError) console.error("[TrickService] Error deleting favorites:", favError);
+
+      console.log("[TrickService] Deleting trick_tags...");
+      const { error: tagsError } = await supabase
+        .from("trick_tags")
+        .delete()
+        .eq("trick_id", trickId);
+      if (tagsError) console.error("[TrickService] Error deleting tags:", tagsError);
+
+      console.log("[TrickService] Deleting trick_categories...");
+      const { error: catError } = await supabase
+        .from("trick_categories")
+        .delete()
+        .eq("trick_id", trickId);
+      if (catError) console.error("[TrickService] Error deleting categories:", catError);
+
+      console.log("[TrickService] Deleting trick_techniques...");
+      const { error: techError } = await supabase
+        .from("trick_techniques")
+        .delete()
+        .eq("trick_id", trickId);
+      if (techError) console.error("[TrickService] Error deleting techniques:", techError);
+
+      console.log("[TrickService] Deleting trick_gimmicks...");
+      const { error: gimError } = await supabase
+        .from("trick_gimmicks")
+        .delete()
+        .eq("trick_id", trickId);
+      if (gimError) console.error("[TrickService] Error deleting gimmicks:", gimError);
+
+      console.log("[TrickService] Deleting trick_photos...");
+      const { error: photosDelError } = await supabase
+        .from("trick_photos")
+        .delete()
+        .eq("trick_id", trickId);
+      if (photosDelError) console.error("[TrickService] Error deleting photos:", photosDelError);
+
+      console.log("[TrickService] Deleting scripts...");
+      const { error: scriptError } = await supabase
+        .from("scripts")
+        .delete()
+        .eq("trick_id", trickId);
+      if (scriptError) console.error("[TrickService] Error deleting scripts:", scriptError);
+
+      console.log("[TrickService] Deleting shared_content...");
+      const { error: sharedError } = await supabase
         .from("shared_content")
         .delete()
         .eq("content_id", trickId)
         .eq("content_type", "magic_trick");
+      if (sharedError) console.error("[TrickService] Error deleting shared content:", sharedError);
 
       // 4. Finalmente, eliminar el registro del truco
-      const { error } = await supabase
+      console.log("[TrickService] Deleting main trick record...");
+      const { error: deleteError } = await supabase
         .from("magic_tricks")
         .delete()
         .eq("id", trickId);
-      if (error) throw error;
 
-      console.log("✅ Truco y archivos eliminados completamente");
+      if (deleteError) {
+        console.error("[TrickService] Error deleting trick record:", deleteError);
+        throw deleteError;
+      }
+
+      console.log("✅ [TrickService] Truco eliminado completamente del servidor");
+
+      // Solo ahora eliminar del caché local
+      localDataService.deleteTrick(user.id, trickId);
+      console.log("✅ [TrickService] Truco eliminado del caché local");
+
       return true;
-    } catch (error) {
-      console.error("Error deleting trick:", error);
-      // Encolar para retry
-      await offlineQueueService.enqueue({
-        userId: user.id,
-        type: "delete_trick",
-        payload: { trickId },
-      });
-      return false;
+    } catch (error: any) {
+      console.error("❌ [TrickService] Error deleting trick:", error);
+      console.error("❌ [TrickService] Error details:", JSON.stringify(error, null, 2));
+
+      // Verificar si es un error de red real vs error de permisos/datos
+      const isNetworkError =
+        error?.message?.toLowerCase().includes('network') ||
+        error?.message?.toLowerCase().includes('fetch') ||
+        !navigator.onLine;
+
+      if (isNetworkError) {
+        console.log("[TrickService] Network error detected, enqueuing for retry");
+        // Solo encolar si es error de red
+        await offlineQueueService.enqueue({
+          userId: user.id,
+          type: "delete_trick",
+          payload: { trickId },
+        });
+        // Eliminar del caché local para feedback inmediato
+        localDataService.deleteTrick(user.id, trickId);
+        return true; // Retornar true para que la UI se actualice
+      } else {
+        console.error("[TrickService] Non-network error, not enqueuing");
+        // Si no es error de red, no encolar y retornar false
+        return false;
+      }
     }
   },
 
