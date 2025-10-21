@@ -2,6 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
+import { useDebounce } from "../hooks/useDebounce";
 
 export interface SearchFilters {
   categories: string[];
@@ -17,6 +18,7 @@ export interface SearchFilters {
 
 interface SearchContextType {
   searchQuery: string;
+  debouncedSearchQuery: string; // Query con debounce para la búsqueda real
   setSearchQuery: (query: string) => void;
   searchFilters: SearchFilters;
   setSearchFilters: (filters: SearchFilters) => void;
@@ -41,6 +43,9 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   const [searchFilters, setSearchFilters] =
     useState<SearchFilters>(defaultFilters);
 
+  // Debounce del query: espera 300ms después de que el usuario deja de escribir
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
   const clearSearch = () => {
     setSearchQuery("");
     setSearchFilters(defaultFilters);
@@ -50,6 +55,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     <SearchContext.Provider
       value={{
         searchQuery,
+        debouncedSearchQuery,
         setSearchQuery,
         searchFilters,
         setSearchFilters,

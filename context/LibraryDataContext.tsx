@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
 } from "react";
 import { supabase } from "../lib/supabase";
 import {
@@ -14,6 +15,7 @@ import {
   type LocalTrick,
 } from "../services/LocalDataService";
 import { supabaseDataService } from "../services/SupabaseDataService";
+import { hybridSearchService } from "../services/HybridSearchService";
 import type { SearchFilters } from "../components/home/CompactSearchBar";
 import { useTrickDeletion } from "./TrickDeletionContext";
 
@@ -95,7 +97,7 @@ export function LibraryDataProvider({
   const { deletedTrickId } = useTrickDeletion();
 
   // --------------------------------------------------------------------------
-  // FUNCIÓN: buildSections
+  // FUNCIÓN: buildSections (OPTIMIZADA)
   // --------------------------------------------------------------------------
   const buildSections = useCallback(
     (
@@ -105,48 +107,92 @@ export function LibraryDataProvider({
       filters?: SearchFilters
     ): CategorySection[] => {
       const normalizedQuery = query.toLowerCase().trim();
-      let filteredTricks = tricks;
 
-      if (normalizedQuery) {
-        filteredTricks = filteredTricks.filter((trick) => {
+      // Combinar TODOS los filtros en un solo loop para mejor rendimiento
+      const filteredTricks = tricks.filter((trick) => {
+        // 1. Filtro de búsqueda de texto
+        if (normalizedQuery) {
           const title = trick.title?.toLowerCase() || "";
           const effect = trick.effect?.toLowerCase() || "";
           const secret = trick.secret?.toLowerCase() || "";
-          return (
+          const matchesText =
             title.includes(normalizedQuery) ||
             effect.includes(normalizedQuery) ||
-            secret.includes(normalizedQuery)
-          );
-        });
-      }
+            secret.includes(normalizedQuery);
 
-      if (filters?.categories && filters.categories.length > 0) {
-        filteredTricks = filteredTricks.filter((trick) =>
-          trick.category_ids.some((catId) =>
+          if (!matchesText) return false;
+        }
+
+        // 2. Filtro de categorías
+        if (filters?.categories && filters.categories.length > 0) {
+          const matchesCategory = trick.category_ids.some((catId) =>
             filters.categories!.includes(catId)
-          )
-        );
-      }
+          );
+          if (!matchesCategory) return false;
+        }
 
-      if (filters?.difficulties && filters.difficulties.length > 0) {
-        filteredTricks = filteredTricks.filter((trick) =>
-          trick.difficulty !== null
-            ? filters.difficulties.includes(trick.difficulty)
-            : false
-        );
-      }
+        // 3. Filtro de dificultad
+        if (filters?.difficulties && filters.difficulties.length > 0) {
+          if (trick.difficulty === null) return false;
+          if (!filters.difficulties.includes(trick.difficulty)) return false;
+        }
 
-      if (filters?.durations) {
-        const { min, max } = filters.durations;
-        if (min !== undefined || max !== undefined) {
-          filteredTricks = filteredTricks.filter((trick) => {
+        // 4. Filtro de duración (min - max)
+        if (filters?.durations) {
+          const { min, max } = filters.durations;
+          if (min !== undefined || max !== undefined) {
             if (trick.duration === null) return false;
             if (min !== undefined && trick.duration < min) return false;
             if (max !== undefined && trick.duration > max) return false;
-            return true;
-          });
+          }
         }
-      }
+
+        // 5. Filtro de reset time (min - max)
+        if (filters?.resetTimes) {
+          const { min, max } = filters.resetTimes;
+          if (min !== undefined || max !== undefined) {
+            if (trick.reset === null || trick.reset === undefined) return false;
+            if (min !== undefined && trick.reset < min) return false;
+            if (max !== undefined && trick.reset > max) return false;
+          }
+        }
+
+        // 6. Filtro de ángulos
+        if (filters?.angles && filters.angles.length > 0) {
+          // Asumiendo que trick.angles es un array de strings o JSONB
+          const trickAngles = Array.isArray(trick.angles)
+            ? trick.angles
+            : (trick.angles ? JSON.parse(trick.angles as any) : []);
+
+          const matchesAngle = filters.angles.some(angle =>
+            trickAngles.includes(angle) || trickAngles.includes(Number(angle))
+          );
+
+          if (!matchesAngle) return false;
+        }
+
+        // 7. Filtro de tags (con modo AND/OR)
+        if (filters?.tags && filters.tags.length > 0) {
+          const trickTags = trick.tag_ids || [];
+
+          if (filters.tagsMode === "and") {
+            // Modo AND: el truco debe tener TODOS los tags seleccionados
+            const hasAllTags = filters.tags.every(tagId =>
+              trickTags.includes(tagId)
+            );
+            if (!hasAllTags) return false;
+          } else {
+            // Modo OR (default): el truco debe tener AL MENOS UN tag
+            const hasAnyTag = filters.tags.some(tagId =>
+              trickTags.includes(tagId)
+            );
+            if (!hasAnyTag) return false;
+          }
+        }
+
+        // Si pasó todos los filtros, incluir el truco
+        return true;
+      });
 
       const favoritesCategory: LocalCategory = {
         id: "favorites-virtual",
@@ -177,15 +223,24 @@ export function LibraryDataProvider({
           return; // Skip esta categoría
         }
 
+        // Si hay filtro de categorías activo, solo mostrar las categorías seleccionadas
+        const hasCategoyFilter = filters?.categories && filters.categories.length > 0;
+        if (hasCategoyFilter && !filters!.categories!.includes(cat.id)) {
+          return; // Skip categorías no seleccionadas
+        }
+
         const tricksInCategory = filteredTricks.filter((trick) =>
           trick.category_ids.includes(cat.id)
         );
 
-        // Agregar todas las categorías, incluso las vacías
-        categoryMap.set(cat.id, {
-          category: cat,
-          items: tricksInCategory,
-        });
+        // Si hay filtro de categorías, mostrar incluso vacías (el usuario las seleccionó)
+        // Si NO hay filtro, solo mostrar categorías con trucos
+        if (hasCategoyFilter || tricksInCategory.length > 0) {
+          categoryMap.set(cat.id, {
+            category: cat,
+            items: tricksInCategory,
+          });
+        }
       });
 
       const result = Array.from(categoryMap.values());
@@ -402,22 +457,97 @@ export function LibraryDataProvider({
   );
 
   // --------------------------------------------------------------------------
-  // FUNCIÓN: applyFilters
+  // FUNCIÓN: applyFilters (con memoización)
   // --------------------------------------------------------------------------
   const applyFilters = useCallback(
     (query: string, filters?: SearchFilters) => {
       setCurrentQuery(query);
       setCurrentFilters(filters);
-      const newSections = buildSections(
-        allCategories,
-        rawTricks,
-        query,
-        filters
-      );
-      setSections(newSections);
     },
-    [allCategories, rawTricks, buildSections]
+    []
   );
+
+  // Memoizar sections para evitar recálculos innecesarios
+  // Solo se recalcula cuando cambian: allCategories, rawTricks, currentQuery o currentFilters
+  const memoizedSections = useMemo(() => {
+    const shouldUseServer = hybridSearchService.shouldUseServerSearch(rawTricks.length);
+
+    // Si debe usar servidor Y hay un query, el useEffect de abajo se encargará
+    if (shouldUseServer && currentQuery.trim()) {
+      // Retornar array vacío para indicar que está cargando del servidor
+      return [];
+    }
+
+    // Búsqueda en cliente (normal)
+    return buildSections(
+      allCategories,
+      rawTricks,
+      currentQuery,
+      currentFilters
+    );
+  }, [allCategories, rawTricks, currentQuery, currentFilters, buildSections]);
+
+  // Actualizar sections desde memoizedSections (solo si no está usando servidor)
+  useEffect(() => {
+    const shouldUseServer = hybridSearchService.shouldUseServerSearch(rawTricks.length);
+
+    // Solo actualizar si NO está usando búsqueda en servidor
+    if (!shouldUseServer || !currentQuery.trim()) {
+      setSections(memoizedSections);
+    }
+  }, [memoizedSections, rawTricks.length, currentQuery]);
+
+  // Búsqueda asíncrona en servidor cuando hay muchos trucos
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const shouldUseServer = hybridSearchService.shouldUseServerSearch(rawTricks.length);
+    if (!shouldUseServer || !currentQuery.trim()) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setLoading(true);
+        const { tricks } = await hybridSearchService.hybridSearch(
+          currentUserId,
+          rawTricks,
+          currentQuery,
+          currentFilters
+        );
+
+        if (!cancelled) {
+          const newSections = buildSections(
+            allCategories,
+            tricks,
+            '',  // Query ya aplicado en servidor
+            currentFilters
+          );
+          setSections(newSections);
+        }
+      } catch (error) {
+        console.error('[LibraryContext] Hybrid search failed:', error);
+        // Fallback a búsqueda en cliente
+        if (!cancelled) {
+          const newSections = buildSections(
+            allCategories,
+            rawTricks,
+            currentQuery,
+            currentFilters
+          );
+          setSections(newSections);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, rawTricks.length, currentQuery, currentFilters, allCategories, buildSections]);
 
   // --------------------------------------------------------------------------
   // EFFECT: Carga inicial (UNA SOLA VEZ)

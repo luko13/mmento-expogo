@@ -43,7 +43,7 @@ export default function Home() {
   const isFocused = useIsFocused();
   const { initializing: contextInitializing } = useLibraryData();
 
-  const { searchQuery, setSearchQuery, searchFilters, setSearchFilters } =
+  const { searchQuery, debouncedSearchQuery, setSearchQuery, searchFilters, setSearchFilters } =
     useSearch();
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -184,7 +184,7 @@ export default function Home() {
               }}
             >
               <LibrariesSection
-                searchQuery={searchQuery}
+                searchQuery={debouncedSearchQuery}
                 searchFilters={searchFilters}
               />
             </StyledView>
