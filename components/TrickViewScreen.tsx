@@ -552,10 +552,39 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
               color: "white",
               fontSize: 20,
               fontFamily: fontNames.light,
+              marginBottom: 20,
             }}
           >
             {t("noVideo", "No Video")}
           </Text>
+          {canEdit && (
+            <TouchableOpacity
+              onPress={() => {
+                router.push({
+                  pathname: "/(app)/edit-trick",
+                  params: { trickId: trick.id },
+                });
+              }}
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                paddingHorizontal: 24,
+                paddingVertical: 12,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: "rgba(255, 255, 255, 0.3)",
+              }}
+            >
+              <Text
+                style={{
+                  color: "white",
+                  fontSize: 16,
+                  fontFamily: fontNames.medium,
+                }}
+              >
+                {t("uploadVideo", "Upload Video")}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       );
     }
@@ -648,10 +677,39 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
               color: "white",
               fontSize: 20,
               fontFamily: fontNames.light,
+              marginBottom: 20,
             }}
           >
             {t("noPhotos", "No Photos")}
           </Text>
+          {canEdit && (
+            <TouchableOpacity
+              onPress={() => {
+                router.push({
+                  pathname: "/(app)/edit-trick",
+                  params: { trickId: trick.id },
+                });
+              }}
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                paddingHorizontal: 24,
+                paddingVertical: 12,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: "rgba(255, 255, 255, 0.3)",
+              }}
+            >
+              <Text
+                style={{
+                  color: "white",
+                  fontSize: 16,
+                  fontFamily: fontNames.medium,
+                }}
+              >
+                {t("uploadPhotos", "Upload Photos")}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       );
     }
@@ -755,7 +813,9 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
       </StyledScrollView>
 
       {/* Barra de progreso FUERA del ScrollView y de todo */}
-      {(currentSection === "effect" || currentSection === "secret") && (
+      {(currentSection === "effect" || currentSection === "secret") &&
+       ((currentSection === "effect" && effectVideoUrl) ||
+        (currentSection === "secret" && secretVideoUrl)) && (
         <>
           <View
             style={{

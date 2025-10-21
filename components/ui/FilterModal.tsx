@@ -96,13 +96,9 @@ export default function FiltersModal({
   const [selectedAngles, setSelectedAngles] = useState<string[]>(
     currentFilters.angles
   );
-  const [publicFilter, setPublicFilter] = useState<boolean | null>(
-    currentFilters.isPublic ?? null
-  );
   const [sortOrder, setSortOrder] = useState<"recent" | "last">(
     currentFilters.sortOrder ?? "recent"
   );
-  const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   // Time picker states
@@ -134,7 +130,6 @@ export default function FiltersModal({
       setDurationMin(currentFilters.durations.min);
       setDurationMax(currentFilters.durations.max);
       setSelectedAngles(currentFilters.angles);
-      setPublicFilter(currentFilters.isPublic ?? null);
       setSortOrder(currentFilters.sortOrder ?? "recent");
     }
   }, [visible, currentFilters]);
@@ -171,7 +166,6 @@ export default function FiltersModal({
     setDurationMin(undefined);
     setDurationMax(undefined);
     setSelectedAngles([]);
-    setPublicFilter(null);
     setSortOrder("recent");
   };
 
@@ -184,7 +178,7 @@ export default function FiltersModal({
       resetTimes: { min: resetTimeMin, max: resetTimeMax },
       durations: { min: durationMin, max: durationMax },
       angles: selectedAngles,
-      isPublic: publicFilter,
+      isPublic: null,
       sortOrder: sortOrder,
     });
     onClose();
@@ -200,7 +194,6 @@ export default function FiltersModal({
     if (durationMin !== undefined) count++;
     if (durationMax !== undefined) count++;
     if (selectedAngles.length > 0) count += selectedAngles.length;
-    if (publicFilter !== null) count++;
     if (sortOrder !== "recent") count++;
     return count;
   };
@@ -226,7 +219,6 @@ export default function FiltersModal({
 
   // Time picker handlers
   const handleDurationMinPress = () => {
-    setShowVisibilityDropdown(false);
     setShowSortDropdown(false);
     setIsModalClosing(true);
 
@@ -236,7 +228,6 @@ export default function FiltersModal({
   };
 
   const handleDurationMaxPress = () => {
-    setShowVisibilityDropdown(false);
     setShowSortDropdown(false);
     setIsModalClosing(true);
 
@@ -246,7 +237,6 @@ export default function FiltersModal({
   };
 
   const handleResetTimeMinPress = () => {
-    setShowVisibilityDropdown(false);
     setShowSortDropdown(false);
     setIsModalClosing(true);
 
@@ -256,7 +246,6 @@ export default function FiltersModal({
   };
 
   const handleResetTimeMaxPress = () => {
-    setShowVisibilityDropdown(false);
     setShowSortDropdown(false);
     setIsModalClosing(true);
 
@@ -276,7 +265,7 @@ export default function FiltersModal({
       <StyledModal
         visible={visible && !isModalClosing}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={onClose}
       >
         <StyledBlurView
@@ -338,193 +327,25 @@ export default function FiltersModal({
                 }}
               >
                 {/* Header */}
-                <StyledView className="px-6 pt-6">
+                <StyledView className="px-6 pt-5">
                   {/* Filter by row */}
-                  <StyledView className="flex-row items-center justify-between mb-4">
-                    <StyledView className="flex-row items-center flex-1">
-                      <StyledText
-                        className="text-white mr-3"
-                        style={{
-                          fontFamily: fontNames.medium,
-                          fontSize: 18,
-                          includeFontPadding: false,
-                        }}
-                      >
-                        {t("filterBy", "Filter by")}
-                      </StyledText>
-
-                      {/* Visibility Dropdown */}
-                      <StyledTouchableOpacity
-                        onPress={() => {
-                          setShowVisibilityDropdown(!showVisibilityDropdown);
-                          setShowSortDropdown(false); // Close other dropdown
-                        }}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          backgroundColor: "rgba(255, 255, 255, 0.1)",
-                          paddingHorizontal: 12,
-                          paddingVertical: 3,
-                          borderRadius: 8,
-                          borderWidth: 1,
-                          borderColor: "rgba(255, 255, 255, 0.2)",
-                        }}
-                      >
-                        <StyledText
-                          className="text-white mr-2"
-                          style={{
-                            fontFamily: fontNames.regular,
-                            fontSize: 14,
-                            includeFontPadding: false,
-                          }}
-                        >
-                          {publicFilter === null
-                            ? t("all", "All")
-                            : publicFilter
-                            ? t("public", "Public")
-                            : t("private", "Private")}
-                        </StyledText>
-                        <Feather
-                          name={
-                            showVisibilityDropdown
-                              ? "chevron-up"
-                              : "chevron-down"
-                          }
-                          size={16}
-                          color="white"
-                        />
-                      </StyledTouchableOpacity>
-                    </StyledView>
-
-                    {/* Close button */}
-                    <StyledTouchableOpacity onPress={onClose} className="ml-4">
-                      <Feather name="x" size={24} color="white" />
-                    </StyledTouchableOpacity>
-                  </StyledView>
-
-                  {/* Visibility Dropdown Menu */}
-                  {showVisibilityDropdown && (
-                    <StyledView
+                  <StyledView className="flex-row items-center justify-between mb-3">
+                    <StyledText
+                      className="text-white"
                       style={{
-                        position: "absolute",
-                        top: 60,
-                        left: 140,
-                        zIndex: 1000,
-                        borderRadius: 12,
+                        fontFamily: fontNames.medium,
+                        fontSize: 16,
+                        includeFontPadding: false,
                       }}
                     >
-                      <StyledBlurView
-                        {...blurConfig.containerBlur}
-                        experimentalBlurMethod="dimezisBlurView"
-                        style={{
-                          backgroundColor: "rgba(255, 255, 255, 0.30)",
-                          borderRadius: 12,
-                          borderWidth: 1,
-                          borderColor: "rgba(200, 200, 200, 0.4)",
-                          paddingVertical: 4,
-                          minWidth: 120,
-                          shadowColor: "#000",
-                          shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.3,
-                          shadowRadius: 8,
-                          elevation: 5,
-                          overflow: "hidden",
-                        }}
-                      >
-                        <StyledTouchableOpacity
-                          onPress={() => {
-                            setPublicFilter(null);
-                            setShowVisibilityDropdown(false);
-                          }}
-                          style={{
-                            paddingHorizontal: 16,
-                            paddingVertical: 10,
-                            backgroundColor:
-                              publicFilter === null
-                                ? "rgba(16, 185, 129, 0.3)"
-                                : "transparent",
-                          }}
-                        >
-                          <StyledText
-                            className="text-white"
-                            style={{
-                              fontFamily: fontNames.regular,
-                              fontSize: 14,
-                              includeFontPadding: false,
-                            }}
-                          >
-                            {t("all", "All")}
-                          </StyledText>
-                        </StyledTouchableOpacity>
+                      {t("filterBy", "Filter by")}
+                    </StyledText>
 
-                        <StyledView
-                          style={{
-                            height: 0.5,
-                            backgroundColor: "rgba(200, 200, 200, 0.3)",
-                          }}
-                        />
-
-                        <StyledTouchableOpacity
-                          onPress={() => {
-                            setPublicFilter(true);
-                            setShowVisibilityDropdown(false);
-                          }}
-                          style={{
-                            paddingHorizontal: 16,
-                            paddingVertical: 10,
-                            backgroundColor:
-                              publicFilter === true
-                                ? "rgba(16, 185, 129, 0.3)"
-                                : "transparent",
-                          }}
-                        >
-                          <StyledText
-                            className="text-white"
-                            style={{
-                              fontFamily: fontNames.regular,
-                              fontSize: 14,
-                              includeFontPadding: false,
-                            }}
-                          >
-                            {t("public", "Public")}
-                          </StyledText>
-                        </StyledTouchableOpacity>
-
-                        <StyledView
-                          style={{
-                            height: 0.5,
-                            backgroundColor: "rgba(200, 200, 200, 0.3)",
-                          }}
-                        />
-
-                        <StyledTouchableOpacity
-                          onPress={() => {
-                            setPublicFilter(false);
-                            setShowVisibilityDropdown(false);
-                          }}
-                          style={{
-                            paddingHorizontal: 16,
-                            paddingVertical: 10,
-                            backgroundColor:
-                              publicFilter === false
-                                ? "rgba(16, 185, 129, 0.3)"
-                                : "transparent",
-                          }}
-                        >
-                          <StyledText
-                            className="text-white"
-                            style={{
-                              fontFamily: fontNames.regular,
-                              fontSize: 14,
-                              includeFontPadding: false,
-                            }}
-                          >
-                            {t("private", "Private")}
-                          </StyledText>
-                        </StyledTouchableOpacity>
-                      </StyledBlurView>
-                    </StyledView>
-                  )}
+                    {/* Close button */}
+                    <StyledTouchableOpacity onPress={onClose}>
+                      <Feather name="x" size={22} color="white" />
+                    </StyledTouchableOpacity>
+                  </StyledView>
 
                   {/* Order/Sort row */}
                   <StyledView className="flex-row items-center">
@@ -532,17 +353,14 @@ export default function FiltersModal({
                       className="text-white/70 mr-2"
                       style={{
                         fontFamily: fontNames.regular,
-                        fontSize: 16,
+                        fontSize: 14,
                         includeFontPadding: false,
                       }}
                     >
                       {t("order", "Order:")}
                     </StyledText>
                     <StyledTouchableOpacity
-                      onPress={() => {
-                        setShowSortDropdown(!showSortDropdown);
-                        setShowVisibilityDropdown(false); // Close other dropdown
-                      }}
+                      onPress={() => setShowSortDropdown(!showSortDropdown)}
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
@@ -551,8 +369,8 @@ export default function FiltersModal({
                       <StyledText
                         className="text-white mr-1"
                         style={{
-                          fontFamily: fontNames.regular,
-                          fontSize: 16,
+                          fontFamily: fontNames.extraLight,
+                          fontSize: 14,
                           includeFontPadding: false,
                         }}
                       >
@@ -562,7 +380,7 @@ export default function FiltersModal({
                       </StyledText>
                       <Feather
                         name={showSortDropdown ? "chevron-up" : "chevron-down"}
-                        size={16}
+                        size={14}
                         color="white"
                       />
                     </StyledTouchableOpacity>
@@ -660,23 +478,20 @@ export default function FiltersModal({
                   )}
                 </StyledView>
 
-                {/* Filters Content */}
-                <StyledScrollView
+                {/* Filters Content - Non-scrollable */}
+                <StyledView
                   className="flex-1"
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={{
-                    paddingBottom: 16,
+                  style={{
                     paddingHorizontal: 24,
                   }}
-                  keyboardShouldPersistTaps="handled"
                 >
                   {/* Categories */}
-                  <StyledView className="mt-8">
+                  <StyledView className="mt-4">
                     <StyledText
                       className="text-white mb-2"
                       style={{
                         fontFamily: fontNames.medium,
-                        fontSize: 16,
+                        fontSize: 14,
                         includeFontPadding: false,
                       }}
                     >
@@ -703,7 +518,7 @@ export default function FiltersModal({
                         className="text-white mr-4"
                         style={{
                           fontFamily: fontNames.medium,
-                          fontSize: 16,
+                          fontSize: 14,
                           includeFontPadding: false,
                         }}
                       >
@@ -718,7 +533,7 @@ export default function FiltersModal({
                           }
                           style={{
                             fontFamily: fontNames.regular,
-                            fontSize: 14,
+                            fontSize: 12,
                             includeFontPadding: false,
                           }}
                         >
@@ -736,8 +551,8 @@ export default function FiltersModal({
                           thumbColor="#ffffff"
                           ios_backgroundColor="rgba(255, 255, 255, 0.2)"
                           style={{
-                            transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
-                            marginHorizontal: 8,
+                            transform: [{ scaleX: 0.7 }, { scaleY: 0.7 }],
+                            marginHorizontal: 6,
                           }}
                         />
                         <StyledText
@@ -746,7 +561,7 @@ export default function FiltersModal({
                           }
                           style={{
                             fontFamily: fontNames.regular,
-                            fontSize: 14,
+                            fontSize: 12,
                             includeFontPadding: false,
                           }}
                         >
@@ -764,13 +579,74 @@ export default function FiltersModal({
                     />
                   </StyledView>
 
-                  {/* Difficulty */}
+                  {/* Angles */}
                   <StyledView>
                     <StyledText
                       className="text-white mb-2"
                       style={{
                         fontFamily: fontNames.medium,
-                        fontSize: 16,
+                        fontSize: 14,
+                        includeFontPadding: false,
+                      }}
+                    >
+                      {t("angles", "Angles")}
+                    </StyledText>
+                    <StyledView className="flex-row justify-between">
+                      {ANGLES.map((angle) => (
+                        <StyledTouchableOpacity
+                          key={angle}
+                          onPress={() => toggleAngle(angle)}
+                          className="flex-row items-center"
+                          style={{ flex: 1, justifyContent: "center" }}
+                        >
+                          <StyledView
+                            style={{
+                              width: 18,
+                              height: 18,
+                              borderRadius: 9,
+                              borderWidth: 2,
+                              borderColor: "rgba(255, 255, 255, 0.6)",
+                              backgroundColor: selectedAngles.includes(angle)
+                                ? "#ffffff"
+                                : "transparent",
+                              marginRight: 6,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            {selectedAngles.includes(angle) && (
+                              <StyledView
+                                style={{
+                                  width: 9,
+                                  height: 9,
+                                  borderRadius: 4.5,
+                                  backgroundColor: "rgba(0, 0, 0, 0.8)",
+                                }}
+                              />
+                            )}
+                          </StyledView>
+                          <StyledText
+                            className="text-white"
+                            style={{
+                              fontFamily: fontNames.regular,
+                              fontSize: 14,
+                              includeFontPadding: false,
+                            }}
+                          >
+                            {angle}°
+                          </StyledText>
+                        </StyledTouchableOpacity>
+                      ))}
+                    </StyledView>
+                  </StyledView>
+
+                  {/* Difficulty */}
+                  <StyledView className="mt-6">
+                    <StyledText
+                      className="text-white mb-2"
+                      style={{
+                        fontFamily: fontNames.medium,
+                        fontSize: 14,
                         includeFontPadding: false,
                       }}
                     >
@@ -786,22 +662,22 @@ export default function FiltersModal({
                   </StyledView>
 
                   {/* Duration Range */}
-                  <StyledView className="mt-4">
+                  <StyledView className="mt-3">
                     <StyledText
                       className="text-white mb-2"
                       style={{
                         fontFamily: fontNames.medium,
-                        fontSize: 16,
+                        fontSize: 13,
                         includeFontPadding: false,
                       }}
                     >
-                      {t("duration", "Duration")}
+                      {t("duration", "Duration")} (Min - Max)
                     </StyledText>
                     <StyledView className="flex-row items-center">
                       <StyledTouchableOpacity
                         onPress={handleDurationMinPress}
                         onLongPress={() => clearTimeFilter("durationMin")}
-                        className="flex-1 mr-2"
+                        className="flex-1 mr-1"
                         style={{
                           ...modalStyles.pillContainer,
                           backgroundColor:
@@ -812,15 +688,15 @@ export default function FiltersModal({
                             durationMin !== undefined
                               ? "rgba(16, 185, 129, 0.4)"
                               : "rgba(255, 255, 255, 0.2)",
-                          paddingVertical: 10,
-                          paddingHorizontal: 20,
+                          paddingVertical: 8,
+                          paddingHorizontal: 12,
                         }}
                       >
                         <StyledText
                           className="text-white text-center"
                           style={{
                             fontFamily: fontNames.regular,
-                            fontSize: 14,
+                            fontSize: 13,
                             includeFontPadding: false,
                           }}
                         >
@@ -830,12 +706,17 @@ export default function FiltersModal({
                         </StyledText>
                       </StyledTouchableOpacity>
 
-                      <StyledText className="text-white/60 mx-2">—</StyledText>
+                      <StyledText
+                        className="text-white/60"
+                        style={{ fontSize: 13, marginHorizontal: 6 }}
+                      >
+                        —
+                      </StyledText>
 
                       <StyledTouchableOpacity
                         onPress={handleDurationMaxPress}
                         onLongPress={() => clearTimeFilter("durationMax")}
-                        className="flex-1 ml-2"
+                        className="flex-1 ml-1"
                         style={{
                           ...modalStyles.pillContainer,
                           backgroundColor:
@@ -846,15 +727,15 @@ export default function FiltersModal({
                             durationMax !== undefined
                               ? "rgba(16, 185, 129, 0.4)"
                               : "rgba(255, 255, 255, 0.2)",
-                          paddingVertical: 10,
-                          paddingHorizontal: 20,
+                          paddingVertical: 8,
+                          paddingHorizontal: 12,
                         }}
                       >
                         <StyledText
                           className="text-white text-center"
                           style={{
                             fontFamily: fontNames.regular,
-                            fontSize: 14,
+                            fontSize: 13,
                             includeFontPadding: false,
                           }}
                         >
@@ -867,22 +748,22 @@ export default function FiltersModal({
                   </StyledView>
 
                   {/* Reset Time Range */}
-                  <StyledView className="mt-4">
+                  <StyledView className="mt-2">
                     <StyledText
-                      className="text-white mb-3"
+                      className="text-white mb-2"
                       style={{
                         fontFamily: fontNames.medium,
-                        fontSize: 16,
+                        fontSize: 13,
                         includeFontPadding: false,
                       }}
                     >
-                      {t("timeReset", "Time Reset")}
+                      {t("timeReset", "Time Reset")} (Min - Max)
                     </StyledText>
                     <StyledView className="flex-row items-center">
                       <StyledTouchableOpacity
                         onPress={handleResetTimeMinPress}
                         onLongPress={() => clearTimeFilter("resetMin")}
-                        className="flex-1 mr-2"
+                        className="flex-1 mr-1"
                         style={{
                           ...modalStyles.pillContainer,
                           backgroundColor:
@@ -893,15 +774,15 @@ export default function FiltersModal({
                             resetTimeMin !== undefined
                               ? "rgba(16, 185, 129, 0.4)"
                               : "rgba(255, 255, 255, 0.2)",
-                          paddingVertical: 10,
-                          paddingHorizontal: 20,
+                          paddingVertical: 8,
+                          paddingHorizontal: 12,
                         }}
                       >
                         <StyledText
                           className="text-white text-center"
                           style={{
                             fontFamily: fontNames.regular,
-                            fontSize: 14,
+                            fontSize: 13,
                             includeFontPadding: false,
                           }}
                         >
@@ -911,12 +792,17 @@ export default function FiltersModal({
                         </StyledText>
                       </StyledTouchableOpacity>
 
-                      <StyledText className="text-white/60 mx-2">—</StyledText>
+                      <StyledText
+                        className="text-white/60"
+                        style={{ fontSize: 13, marginHorizontal: 6 }}
+                      >
+                        —
+                      </StyledText>
 
                       <StyledTouchableOpacity
                         onPress={handleResetTimeMaxPress}
                         onLongPress={() => clearTimeFilter("resetMax")}
-                        className="flex-1 ml-2"
+                        className="flex-1 ml-1"
                         style={{
                           ...modalStyles.pillContainer,
                           backgroundColor:
@@ -927,15 +813,15 @@ export default function FiltersModal({
                             resetTimeMax !== undefined
                               ? "rgba(16, 185, 129, 0.4)"
                               : "rgba(255, 255, 255, 0.2)",
-                          paddingVertical: 10,
-                          paddingHorizontal: 20,
+                          paddingVertical: 8,
+                          paddingHorizontal: 12,
                         }}
                       >
                         <StyledText
                           className="text-white text-center"
                           style={{
                             fontFamily: fontNames.regular,
-                            fontSize: 14,
+                            fontSize: 13,
                             includeFontPadding: false,
                           }}
                         >
@@ -946,89 +832,36 @@ export default function FiltersModal({
                       </StyledTouchableOpacity>
                     </StyledView>
                   </StyledView>
-
-                  {/* Angles */}
-                  <StyledView className="mt-6 mb-6">
-                    <StyledText
-                      className="text-white mb-3"
-                      style={{
-                        fontFamily: fontNames.medium,
-                        fontSize: 16,
-                        includeFontPadding: false,
-                      }}
-                    >
-                      {t("angle", "Angle")}
-                    </StyledText>
-                    <StyledView className="flex-row justify-between">
-                      {ANGLES.map((angle) => (
-                        <StyledTouchableOpacity
-                          key={angle}
-                          onPress={() => toggleAngle(angle)}
-                          className="flex-row items-center"
-                          style={{ flex: 1, justifyContent: "center" }}
-                        >
-                          <StyledView
-                            style={{
-                              width: 20,
-                              height: 20,
-                              borderRadius: 10,
-                              borderWidth: 2,
-                              borderColor: "rgba(255, 255, 255, 0.6)",
-                              backgroundColor: selectedAngles.includes(angle)
-                                ? "#ffffff"
-                                : "transparent",
-                              marginRight: 8,
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            {selectedAngles.includes(angle) && (
-                              <StyledView
-                                style={{
-                                  width: 10,
-                                  height: 10,
-                                  borderRadius: 5,
-                                  backgroundColor: "rgba(0, 0, 0, 0.8)",
-                                }}
-                              />
-                            )}
-                          </StyledView>
-                          <StyledText
-                            className="text-white"
-                            style={{
-                              fontFamily: fontNames.regular,
-                              fontSize: 16,
-                              includeFontPadding: false,
-                            }}
-                          >
-                            {angle}°
-                          </StyledText>
-                        </StyledTouchableOpacity>
-                      ))}
-                    </StyledView>
-                  </StyledView>
-                </StyledScrollView>
+                </StyledView>
 
                 {/* Apply Button Footer */}
                 <StyledView
                   style={{
                     paddingHorizontal: 24,
-                    paddingVertical: 16,
-                    borderTopWidth: 1,
-                    borderTopColor: "rgba(200, 200, 200, 0.3)",
+                    paddingTop: 20,
+                    paddingBottom: 28,
                     backgroundColor: "transparent",
                   }}
                 >
-                  <StyledView className="flex-row items-center">
+                  <StyledView
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
                     {/* Clear Filters Button */}
                     <StyledTouchableOpacity
                       onPress={clearAllFilters}
-                      className="mr-4"
+                      style={{
+                        paddingVertical: 8,
+                        paddingHorizontal: 4,
+                      }}
                     >
                       <StyledText
-                        className="text-[#10b981]"
                         style={{
-                          fontFamily: fontNames.regular,
+                          color: "#10b981",
+                          fontFamily: fontNames.light,
                           fontSize: 16,
                           includeFontPadding: false,
                         }}
@@ -1040,26 +873,24 @@ export default function FiltersModal({
                     {/* Apply Button */}
                     <StyledTouchableOpacity
                       onPress={applyFilters}
-                      className="flex-1 rounded-xl py-4"
                       style={{
                         backgroundColor: "#10b981",
                         alignItems: "center",
+                        justifyContent: "center",
+                        paddingVertical: 12,
+                        paddingHorizontal: 48,
+                        borderRadius: 12,
                       }}
                     >
                       <StyledText
-                        className="text-white text-center"
                         style={{
-                          fontFamily: fontNames.medium,
+                          color: "white",
+                          fontFamily: fontNames.light,
                           fontSize: 16,
                           includeFontPadding: false,
                         }}
                       >
-                        {getActiveFiltersCount() > 0
-                          ? `${t(
-                              "apply",
-                              "Apply"
-                            )} (${getActiveFiltersCount()})`
-                          : t("apply", "Apply")}
+                        {t("apply", "Apply")}
                       </StyledText>
                     </StyledTouchableOpacity>
                   </StyledView>
