@@ -14,7 +14,7 @@
   },
   "ios": {
     "supportsTablet": true,
-    "bundleIdentifier": "com.yourcompany.mmento",
+    "bundleIdentifier": "com.BFP6TD8G86.mmento",
     "usesAppleSignIn": true,
     "infoPlist": {
       "ITSAppUsesNonExemptEncryption": false,
