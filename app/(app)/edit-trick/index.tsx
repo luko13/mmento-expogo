@@ -8,7 +8,7 @@ import EditMagicWizard from "../../../components/edit-magic/EditMagicWizard";
 const StyledView = styled(View);
 
 export default function EditTrickScreen() {
-  const { trickId } = useLocalSearchParams();
+  const { trickId, initialStep } = useLocalSearchParams();
   const router = useRouter();
 
   return (
@@ -28,10 +28,7 @@ export default function EditTrickScreen() {
 
         <EditMagicWizard
           trickId={trickId as string}
-          onComplete={(id, title) => {
-            Alert.alert("Success", `"${title}" updated successfully`);
-            router.back();
-          }}
+          initialStep={initialStep ? parseInt(initialStep as string) : undefined}
           onCancel={() => router.back()}
         />
       </SafeAreaView>

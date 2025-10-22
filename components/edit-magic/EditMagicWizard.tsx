@@ -12,21 +12,25 @@ import type { MagicTrick, MagicTrickDBRecord } from "../../types/magicTrick";
 import TitleCategoryStep from "../add-magic/steps/TitleCategoryStep";
 import EffectStep from "../add-magic/steps/EffectStep";
 import ExtrasStep from "../add-magic/steps/ExtrasStep";
+import { useLibraryData } from "../../context/LibraryDataContext";
 
 interface EditMagicWizardProps {
   trickId: string;
+  initialStep?: number;
   onComplete?: (trickId: string, trickTitle: string) => void;
   onCancel?: () => void;
 }
 
 export default function EditMagicWizard({
   trickId,
+  initialStep,
   onComplete,
   onCancel,
 }: EditMagicWizardProps) {
   const { t } = useTranslation();
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(0);
+  const { refresh: refreshLibrary } = useLibraryData();
+  const [currentStep, setCurrentStep] = useState(initialStep || 0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -344,7 +348,12 @@ export default function EditMagicWizard({
         })
         .eq("id", trickId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Refrescar cache para que los cambios se reflejen inmediatamente
+      await refreshLibrary();
 
       // Actualizar categoría
       await supabase
@@ -445,16 +454,27 @@ export default function EditMagicWizard({
           .insert(photoInserts);
 
         if (photosError) {
-          console.error("❌ Error al guardar fotos adicionales:", photosError);
-        } else {
-          console.log(`✅ ${uploadedPhotos.length} fotos actualizadas exitosamente`);
+          console.error("Error al guardar fotos adicionales:", photosError);
         }
       }
 
-      // Éxito
-      if (onComplete) {
-        onComplete(trickId, trickData.title);
-      }
+      // Éxito - navegar de vuelta al trick
+      Alert.alert(
+        t("success", "Success"),
+        t("trickUpdatedSuccessfully", `"${trickData.title}" updated successfully`),
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              // Navegar de vuelta al trick para mostrar cambios
+              router.replace({
+                pathname: "/(app)/trick/[id]",
+                params: { id: trickId },
+              });
+            },
+          },
+        ]
+      );
     } catch (error) {
       console.error("Error updating trick:", error);
       Alert.alert(

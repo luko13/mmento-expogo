@@ -26,6 +26,10 @@ import CustomTooltip from "../../ui/Tooltip";
 import { MediaSelector, MediaSelectorRef } from "../../ui/MediaSelector";
 import { FullScreenTextModal } from "../../ui/FullScreenTextModal";
 import { fontNames } from "../../../app/_layout";
+import { cloudflareStreamService } from "../../../services/cloudflare/CloudflareStreamService";
+import { cloudflareImagesService } from "../../../services/cloudflare/CloudflareImagesService";
+import { supabase } from "../../../lib/supabase";
+import { Alert } from "react-native";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -44,6 +48,7 @@ interface StepProps {
   isSubmitting?: boolean;
   isNextButtonDisabled?: boolean;
   isLastStep?: boolean;
+  isEditMode?: boolean;
 }
 
 export default function EffectStep({
@@ -55,6 +60,7 @@ export default function EffectStep({
   currentStep = 2,
   totalSteps = 3,
   isSubmitting = false,
+  isEditMode = false,
 }: StepProps) {
   const { t } = useTranslation();
 
@@ -113,6 +119,7 @@ export default function EffectStep({
 
   // Preparar archivos iniciales para los MediaSelectors
   const getInitialEffectVideo = () => {
+    // Priorizar archivo local recién seleccionado
     if (trickData.localFiles?.effectVideo) {
       return [
         {
@@ -121,10 +128,25 @@ export default function EffectStep({
         },
       ];
     }
+    // Si estamos en modo edición y hay URL existente, mostrarla
+    if (isEditMode && trickData.effect_video_url) {
+      // Extraer nombre del archivo de la URL de Cloudflare
+      const fileName = trickData.effect_video_url.includes('cloudflarestream.com')
+        ? 'effect_video.mp4'
+        : trickData.effect_video_url.split('/').pop() || 'effect_video.mp4';
+      return [
+        {
+          uri: trickData.effect_video_url,
+          fileName: fileName,
+          isExisting: true, // Flag para indicar que es un archivo existente
+        },
+      ];
+    }
     return [];
   };
 
   const getInitialSecretVideo = () => {
+    // Priorizar archivo local recién seleccionado
     if (trickData.localFiles?.secretVideo) {
       return [
         {
@@ -133,10 +155,24 @@ export default function EffectStep({
         },
       ];
     }
+    // Si estamos en modo edición y hay URL existente, mostrarla
+    if (isEditMode && trickData.secret_video_url) {
+      const fileName = trickData.secret_video_url.includes('cloudflarestream.com')
+        ? 'secret_video.mp4'
+        : trickData.secret_video_url.split('/').pop() || 'secret_video.mp4';
+      return [
+        {
+          uri: trickData.secret_video_url,
+          fileName: fileName,
+          isExisting: true,
+        },
+      ];
+    }
     return [];
   };
 
   const getInitialPhotos = () => {
+    // Priorizar archivos locales recién seleccionados
     if (
       trickData.localFiles?.photos &&
       trickData.localFiles.photos.length > 0
@@ -146,7 +182,138 @@ export default function EffectStep({
         fileName: `photo_${index}.jpg`,
       }));
     }
+    // Si estamos en modo edición y hay fotos existentes, mostrarlas
+    if (isEditMode) {
+      const photos: Array<{ uri: string; fileName: string; isExisting?: boolean }> = [];
+
+      // Agregar photo_url principal si existe
+      if (trickData.photo_url) {
+        const fileName = trickData.photo_url.includes('imagedelivery.net')
+          ? 'photo_main.jpg'
+          : trickData.photo_url.split('/').pop() || 'photo_main.jpg';
+        photos.push({
+          uri: trickData.photo_url,
+          fileName: fileName,
+          isExisting: true,
+        });
+      }
+
+      // Agregar fotos adicionales si existen
+      if (trickData.photos && trickData.photos.length > 0) {
+        trickData.photos.forEach((photoUrl, index) => {
+          const fileName = photoUrl.includes('imagedelivery.net')
+            ? `photo_${index + 1}.jpg`
+            : photoUrl.split('/').pop() || `photo_${index + 1}.jpg`;
+          photos.push({
+            uri: photoUrl,
+            fileName: fileName,
+            isExisting: true,
+          });
+        });
+      }
+
+      return photos;
+    }
     return [];
+  };
+
+  // Handlers para eliminar archivos existentes de Cloudflare
+  const handleRemoveEffectVideo = async (file: { uri: string; fileName: string; isExisting?: boolean }) => {
+    if (!file.isExisting) return;
+
+    try {
+      // Extraer el video ID de la URL de Cloudflare Stream
+      const videoId = file.uri.split('/').find((part, index, arr) => {
+        return part.length === 32 && /^[a-f0-9]+$/.test(part);
+      });
+
+      if (videoId) {
+        // Eliminar de Cloudflare Stream
+        await cloudflareStreamService.deleteVideo(videoId);
+      }
+
+      // Eliminar URL de trickData
+      updateTrickData({ effect_video_url: null });
+
+      Alert.alert(
+        t("success", "Success"),
+        t("videoDeletedSuccessfully", "Video eliminado correctamente")
+      );
+    } catch (error) {
+      console.error("Error eliminando video del efecto:", error);
+      Alert.alert(
+        t("error", "Error"),
+        t("errorDeletingVideo", "Error al eliminar el video")
+      );
+    }
+  };
+
+  const handleRemoveSecretVideo = async (file: { uri: string; fileName: string; isExisting?: boolean }) => {
+    if (!file.isExisting) return;
+
+    try {
+      // Extraer el video ID de la URL de Cloudflare Stream
+      const videoId = file.uri.split('/').find((part, index, arr) => {
+        return part.length === 32 && /^[a-f0-9]+$/.test(part);
+      });
+
+      if (videoId) {
+        // Eliminar de Cloudflare Stream
+        await cloudflareStreamService.deleteVideo(videoId);
+      }
+
+      // Eliminar URL de trickData
+      updateTrickData({ secret_video_url: null });
+
+      Alert.alert(
+        t("success", "Success"),
+        t("videoDeletedSuccessfully", "Video eliminado correctamente")
+      );
+    } catch (error) {
+      console.error("Error eliminando video del secreto:", error);
+      Alert.alert(
+        t("error", "Error"),
+        t("errorDeletingVideo", "Error al eliminar el video")
+      );
+    }
+  };
+
+  const handleRemovePhoto = async (file: { uri: string; fileName: string; isExisting?: boolean }) => {
+    if (!file.isExisting) return;
+
+    try {
+      // Extraer el image ID de la URL de Cloudflare Images
+      const imageId = file.uri.split('/').pop()?.split('?')[0];
+
+      if (imageId) {
+        // Eliminar de Cloudflare Images
+        await cloudflareImagesService.deleteImage(imageId);
+      }
+
+      // Actualizar trickData eliminando esta foto
+      const updatedPhotos = (trickData.photos || []).filter(photoUrl => photoUrl !== file.uri);
+
+      // Si es la foto principal, también limpiarla
+      if (trickData.photo_url === file.uri) {
+        updateTrickData({
+          photo_url: updatedPhotos.length > 0 ? updatedPhotos[0] : null,
+          photos: updatedPhotos,
+        });
+      } else {
+        updateTrickData({ photos: updatedPhotos });
+      }
+
+      Alert.alert(
+        t("success", "Success"),
+        t("photoDeletedSuccessfully", "Foto eliminada correctamente")
+      );
+    } catch (error) {
+      console.error("Error eliminando foto:", error);
+      Alert.alert(
+        t("error", "Error"),
+        t("errorDeletingPhoto", "Error al eliminar la foto")
+      );
+    }
   };
 
   return (
@@ -234,6 +401,7 @@ export default function EffectStep({
               tooltip={t("tooltips.effectVideo")}
               placeholder={t("uploadEffectVideo", "Subir video del efecto*")}
               initialFiles={getInitialEffectVideo()}
+              onFileRemoved={handleRemoveEffectVideo}
               onFilesSelected={async (files) => {
                 if (files[0]?.uri) {
                   // Copiar archivo INMEDIATAMENTE antes de que ImagePicker lo borre
@@ -334,6 +502,7 @@ export default function EffectStep({
               tooltip={t("tooltips.secretVideo")}
               placeholder={t("secretVideoUpload", "Subir video del secreto")}
               initialFiles={getInitialSecretVideo()}
+              onFileRemoved={handleRemoveSecretVideo}
               onFilesSelected={async (files) => {
                 if (files[0]?.uri) {
                   const permanentUri = await copyFileImmediately(files[0].uri);
@@ -429,6 +598,7 @@ export default function EffectStep({
               tooltip={t("tooltips.imageUpload")}
               placeholder={t("imagesUpload", "Subir Imágenes")}
               initialFiles={getInitialPhotos()}
+              onFileRemoved={handleRemovePhoto}
               onFilesSelected={async (files) => {
                 // Copiar TODAS las fotos inmediatamente
                 const permanentUris = await Promise.all(

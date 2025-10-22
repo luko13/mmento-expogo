@@ -50,6 +50,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 interface MediaFile {
   uri: string;
   fileName: string;
+  isExisting?: boolean; // Flag para indicar que es un archivo que ya existe en el servidor
 }
 
 interface MediaSelectorProps {
@@ -59,6 +60,7 @@ interface MediaSelectorProps {
   maxFileSize?: number; // en MB
   quality?: number;
   onFilesSelected?: (files: MediaFile[]) => void;
+  onFileRemoved?: (file: MediaFile) => void; // Callback cuando se elimina un archivo existente
   tooltip?: string;
   placeholder?: string;
   disableEncryption?: boolean;
@@ -584,6 +586,7 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
       maxFileSize = 50,
       quality = 0.8,
       onFilesSelected,
+      onFileRemoved,
       tooltip,
       placeholder,
       initialFiles = [],
@@ -815,6 +818,13 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
     };
 
     const removeFile = (index: number) => {
+      const fileToRemove = selectedFiles[index];
+
+      // Si es un archivo existente (de la base de datos), notificar al padre
+      if (fileToRemove?.isExisting && onFileRemoved) {
+        onFileRemoved(fileToRemove);
+      }
+
       const updatedFiles = selectedFiles.filter((_, i) => i !== index);
       setSelectedFiles(updatedFiles);
       onFilesSelected?.(updatedFiles);

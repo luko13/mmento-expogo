@@ -16,14 +16,16 @@ import {
   ActivityIndicator,
   Share,
   Alert,
+  Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { styled } from "nativewind";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, Feather } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 import { useVideoPlayer, VideoView } from "expo-video";
 
 import TopNavigationBar from "./trick-viewer/TopNavigationBar";
@@ -41,6 +43,9 @@ import TrickActionsModal from "../components/ui/TrickActionsModal";
 import MakePublicModal from "../components/ui/MakePublicModal";
 import DeleteModal from "../components/ui/DeleteModal";
 import { useTrickDeletion } from "../context/TrickDeletionContext";
+import { useLibraryData } from "../context/LibraryDataContext";
+import MediaSourceModal from "../components/ui/MediaSourceModal";
+import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -83,6 +88,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { notifyTrickDeleted } = useTrickDeletion();
+  const { refresh: refreshLibrary } = useLibraryData();
 
   // Estados básicos
   const [currentSection, setCurrentSection] = useState<StageType>("effect");
@@ -110,6 +116,13 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [trickIsPublic, setTrickIsPublic] = useState(trick.is_public || false);
+  const [showSourceModal, setShowSourceModal] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+
+  // Permisos de cámara
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
+  const cameraRef = useRef<CameraView>(null);
 
   // Estados de progress bar
   const [showProgressBar, setShowProgressBar] = useState(true);
@@ -156,14 +169,20 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     []
   );
 
-  // URLs de videos memoizadas
+  // URLs de videos memoizadas - usar estado local si existe, sino usar del trick
   const effectVideoUrlMemo = useMemo(() => {
-    return trick.effect_video_url ? getPublicUrl(trick.effect_video_url) : "";
-  }, [trick.effect_video_url, getPublicUrl]);
+    const url = effectVideoUrl || trick.effect_video_url;
+    if (!url) return "";
+    const finalUrl = url.startsWith("http") ? url : getPublicUrl(url);
+    return finalUrl;
+  }, [effectVideoUrl, trick.effect_video_url, getPublicUrl]);
 
   const secretVideoUrlMemo = useMemo(() => {
-    return trick.secret_video_url ? getPublicUrl(trick.secret_video_url) : "";
-  }, [trick.secret_video_url, getPublicUrl]);
+    const url = secretVideoUrl || trick.secret_video_url;
+    if (!url) return "";
+    const finalUrl = url.startsWith("http") ? url : getPublicUrl(url);
+    return finalUrl;
+  }, [secretVideoUrl, trick.secret_video_url, getPublicUrl]);
 
   // Players con URLs estables
   const effectPlayer = useVideoPlayer(
@@ -235,12 +254,16 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     };
   }, []);
 
-  // Configurar URLs de videos
+  // Configurar URLs de videos - solo al montar
   useEffect(() => {
-    setEffectVideoUrl(effectVideoUrlMemo);
-    setSecretVideoUrl(secretVideoUrlMemo);
+    if (!effectVideoUrl) {
+      setEffectVideoUrl(effectVideoUrlMemo);
+    }
+    if (!secretVideoUrl) {
+      setSecretVideoUrl(secretVideoUrlMemo);
+    }
     setIsLoadingVideos(false);
-  }, [effectVideoUrlMemo, secretVideoUrlMemo]);
+  }, []); // Solo al montar
 
   // Cargar fotos
   useEffect(() => {
@@ -503,6 +526,328 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     })();
   };
 
+  const handleUploadPress = () => {
+    // Navegar a edit-magic en el step 1 (EffectStep - multimedia)
+    router.push({
+      pathname: "/(app)/edit-trick",
+      params: {
+        trickId: trick.id,
+        initialStep: "1" // Step 1 es EffectStep (multimedia)
+      },
+    });
+  };
+
+  const handleSelectGallery = async () => {
+    setShowSourceModal(false);
+
+    // Determinar tipo de media según la sección actual
+    const isVideo = currentSection === "effect" || currentSection === "secret";
+    const isPhotos = currentSection === "extra";
+
+    // Solicitar permisos
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        t("permissionRequired", "Permiso Requerido"),
+        t("mediaLibraryPermission", "Necesitamos acceso a tu galería.")
+      );
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+
+      // Configurar opciones según el tipo de media
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: isVideo ? ["videos"] : ["images"],
+        allowsMultipleSelection: isPhotos,
+        quality: 0.7,
+        allowsEditing: false,
+      };
+
+      const result = await ImagePicker.launchImageLibraryAsync(options);
+
+      if (result.canceled || !result.assets) {
+        setIsUploading(false);
+        return;
+      }
+
+      // Procesar según la sección actual
+      await handleMediaUpload(result.assets, currentSection);
+    } catch (error) {
+      console.error("Error selecting media:", error);
+      Alert.alert(t("error"), t("errorUploadingMedia", "Error al subir archivo"));
+      setIsUploading(false);
+    }
+  };
+
+  const handleSelectCamera = async () => {
+    setShowSourceModal(false);
+    setShowCamera(true);
+  };
+
+  const handleCameraCapture = async (uri: string) => {
+    setShowCamera(false);
+    try {
+      setIsUploading(true);
+      await handleMediaUpload([{ uri } as any], currentSection);
+    } catch (error) {
+      console.error("Error processing camera capture:", error);
+      Alert.alert(t("error"), t("errorUploadingMedia", "Error al subir archivo"));
+      setIsUploading(false);
+    }
+  };
+
+  const handleMediaUpload = async (
+    assets: ImagePicker.ImagePickerAsset[],
+    section: StageType
+  ) => {
+    if (!currentUserId || assets.length === 0) {
+      setIsUploading(false);
+      return;
+    }
+
+    try {
+      if (section === "effect") {
+        // Subir video del efecto
+        const videoUri = assets[0].uri;
+
+        // Comprimir video
+        const compressionResult = await compressionService.compressFile(
+          videoUri,
+          "video/mp4"
+        );
+
+        // Subir a Cloudflare (siguiendo el patrón de add-magic)
+        const fileToUpload = compressionResult.wasCompressed
+          ? compressionResult.uri
+          : videoUri;
+        const fileName = `effect_${Date.now()}.mp4`;
+
+        const videoUrl = await uploadFileToStorage(
+          fileToUpload,
+          currentUserId!,
+          `${currentUserId}/effects`,
+          "video/mp4",
+          fileName
+        );
+
+        // Limpiar archivo comprimido temporal
+        if (compressionResult.wasCompressed && compressionResult.uri !== videoUri) {
+          try {
+            await FileSystem.deleteAsync(compressionResult.uri, {
+              idempotent: true,
+            });
+          } catch (cleanupError) {
+            console.warn("Error limpiando archivo comprimido:", cleanupError);
+          }
+        }
+
+        if (!videoUrl) {
+          throw new Error("Error uploading video to Cloudflare");
+        }
+
+        // Actualizar URL en Supabase
+        const { error } = await supabase
+          .from("magic_tricks")
+          .update({ effect_video_url: videoUrl })
+          .eq("id", trick.id);
+
+        if (error) {
+          throw error;
+        }
+
+        // Refrescar cache local para que se actualice el trick
+        await refreshLibrary();
+
+        // Actualizar estado inmediatamente
+        setEffectVideoUrl(videoUrl);
+        setIsLoadingVideos(false);
+        setIsEffectPlaying(true);
+
+        // Cloudflare Stream necesita tiempo para procesar el video (5-10 segundos típicamente)
+        // Mostrar mensaje y recargar automáticamente después de esperar
+        Alert.alert(
+          t("success"),
+          t("videoUploadedWait", "Video subido correctamente. Procesando video, recargando en unos segundos..."),
+          [{ text: "OK", onPress: () => {} }]
+        );
+
+        // Esperar 8 segundos para dar tiempo a Cloudflare Stream a procesar el video
+        setTimeout(() => {
+          // Navegar de vuelta al trick para forzar recarga completa
+          if (onClose) {
+            onClose();
+            setTimeout(() => {
+              router.push({
+                pathname: "/(app)/trick/[id]",
+                params: { id: trick.id },
+              });
+            }, 100);
+          } else {
+            router.replace({
+              pathname: "/(app)/trick/[id]",
+              params: { id: trick.id },
+            });
+          }
+        }, 8000); // Esperar 8 segundos
+      } else if (section === "secret") {
+        // Subir video del secreto
+        const videoUri = assets[0].uri;
+
+        // Comprimir video
+        const compressionResult = await compressionService.compressFile(
+          videoUri,
+          "video/mp4"
+        );
+
+        // Subir a Cloudflare (siguiendo el patrón de add-magic)
+        const fileToUpload = compressionResult.wasCompressed
+          ? compressionResult.uri
+          : videoUri;
+        const fileName = `secret_${Date.now()}.mp4`;
+
+        const videoUrl = await uploadFileToStorage(
+          fileToUpload,
+          currentUserId!,
+          `${currentUserId}/secrets`,
+          "video/mp4",
+          fileName
+        );
+
+        // Limpiar archivo comprimido temporal
+        if (compressionResult.wasCompressed && compressionResult.uri !== videoUri) {
+          try {
+            await FileSystem.deleteAsync(compressionResult.uri, {
+              idempotent: true,
+            });
+          } catch (cleanupError) {
+            console.warn("Error limpiando archivo comprimido:", cleanupError);
+          }
+        }
+
+        if (!videoUrl) {
+          throw new Error("Error uploading video to Cloudflare");
+        }
+
+        // Actualizar URL en Supabase
+        const { error } = await supabase
+          .from("magic_tricks")
+          .update({ secret_video_url: videoUrl })
+          .eq("id", trick.id);
+
+        if (error) {
+          throw error;
+        }
+
+        // Refrescar cache local para que se actualice el trick
+        await refreshLibrary();
+
+        // Actualizar estado inmediatamente
+        setSecretVideoUrl(videoUrl);
+        setIsLoadingVideos(false);
+        setIsSecretPlaying(true);
+
+        // Cloudflare Stream necesita tiempo para procesar el video
+        // Forzar recarga del componente navegando de vuelta
+        Alert.alert(
+          t("success"),
+          t("videoUploadedReload", "Video subido correctamente. Recargando..."),
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // Navegar a home y volver al trick para forzar recarga completa
+                if (onClose) {
+                  onClose();
+                  // Dar un momento para que se cierre
+                  setTimeout(() => {
+                    router.push({
+                      pathname: "/(app)/trick/[id]",
+                      params: { id: trick.id },
+                    });
+                  }, 100);
+                } else {
+                  // Si no hay onClose, simplemente reemplazar la ruta actual
+                  router.replace({
+                    pathname: "/(app)/trick/[id]",
+                    params: { id: trick.id },
+                    });
+                }
+              },
+            },
+          ]
+        );
+      } else if (section === "extra") {
+        // Subir fotos
+        const uploadedPhotos: string[] = [];
+
+        for (let i = 0; i < assets.length; i++) {
+          const asset = assets[i];
+
+          // Comprimir foto
+          const compressionResult = await compressionService.compressFile(
+            asset.uri,
+            "image/jpeg"
+          );
+
+          // Subir a Cloudflare (siguiendo el patrón de add-magic)
+          const fileToUpload = compressionResult.wasCompressed
+            ? compressionResult.uri
+            : asset.uri;
+          const fileName = `photo_${Date.now()}_${i}.jpg`;
+          const photoUrl = await uploadFileToStorage(
+            fileToUpload,
+            currentUserId!,
+            `${currentUserId}/photos`,
+            "image/jpeg",
+            fileName
+          );
+
+          // Limpiar archivo comprimido temporal
+          if (
+            compressionResult.wasCompressed &&
+            compressionResult.uri !== asset.uri
+          ) {
+            try {
+              await FileSystem.deleteAsync(compressionResult.uri, {
+                idempotent: true,
+              });
+            } catch (cleanupError) {
+              console.warn("Error limpiando archivo comprimido:", cleanupError);
+            }
+          }
+
+          if (photoUrl) {
+            uploadedPhotos.push(photoUrl);
+
+            // Insertar URL de Cloudflare en Supabase
+            await supabase.from("trick_photos").insert({
+              trick_id: trick.id,
+              photo_url: photoUrl,
+            });
+          }
+        }
+
+        // Actualizar estado local con las nuevas fotos
+        const newPhotosPublic = uploadedPhotos
+          .map((photo) => getPublicUrl(photo) || photo)
+          .filter((url): url is string => url !== null);
+
+        setDecryptedPhotos([...decryptedPhotos, ...newPhotosPublic]);
+        Alert.alert(
+          t("success"),
+          t("photosUploadedSuccessfully", "Fotos subidas exitosamente")
+        );
+      }
+    } catch (error) {
+      console.error("Error uploading media:", error);
+      Alert.alert(t("error"), t("errorUploadingMedia", "Error al subir archivo"));
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // Render del video
   const renderVideo = (type: "effect" | "secret") => {
     const player =
@@ -559,29 +904,19 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           </Text>
           {canEdit && (
             <TouchableOpacity
-              onPress={() => {
-                router.push({
-                  pathname: "/(app)/edit-trick",
-                  params: { trickId: trick.id },
-                });
-              }}
-              style={{
-                backgroundColor: "rgba(255, 255, 255, 0.1)",
-                paddingHorizontal: 24,
-                paddingVertical: 12,
-                borderRadius: 20,
-                borderWidth: 1,
-                borderColor: "rgba(255, 255, 255, 0.3)",
-              }}
+              onPress={handleUploadPress}
+              disabled={isUploading}
             >
               <Text
                 style={{
-                  color: "white",
+                  color: isUploading ? "#5BB9A3" : "#5BB9A3",
                   fontSize: 16,
-                  fontFamily: fontNames.medium,
+                  fontFamily: fontNames.light,
                 }}
               >
-                {t("uploadVideo", "Upload Video")}
+                {isUploading
+                  ? t("uploading", "Subiendo...")
+                  : t("uploadVideo", "Upload video")}
               </Text>
             </TouchableOpacity>
           )}
@@ -590,8 +925,9 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     }
 
     return (
-      <View style={{ flex: 1, backgroundColor: "#15322C" }}>
+      <View style={{ flex: 1, backgroundColor: "#15322C" }} key={`video-${type}-${url}`}>
         <VideoView
+          key={`videoview-${type}-${url}`}
           style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
           player={player as any}
           contentFit="cover"
@@ -684,29 +1020,19 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           </Text>
           {canEdit && (
             <TouchableOpacity
-              onPress={() => {
-                router.push({
-                  pathname: "/(app)/edit-trick",
-                  params: { trickId: trick.id },
-                });
-              }}
-              style={{
-                backgroundColor: "rgba(255, 255, 255, 0.1)",
-                paddingHorizontal: 24,
-                paddingVertical: 12,
-                borderRadius: 20,
-                borderWidth: 1,
-                borderColor: "rgba(255, 255, 255, 0.3)",
-              }}
+              onPress={handleUploadPress}
+              disabled={isUploading}
             >
               <Text
                 style={{
-                  color: "white",
+                  color: "#5BB9A3",
                   fontSize: 16,
-                  fontFamily: fontNames.medium,
+                  fontFamily: fontNames.light,
                 }}
               >
-                {t("uploadPhotos", "Upload Photos")}
+                {isUploading
+                  ? t("uploading", "Subiendo...")
+                  : t("uploadPhotos", "Upload Photos")}
               </Text>
             </TouchableOpacity>
           )}
@@ -783,7 +1109,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const userIdForTags = trick.user_id || currentUserId || undefined;
 
   return (
-    <StyledView className="flex-1 bg-[#15322C]">
+    <StyledView
+      className="flex-1 bg-[#15322C]"
+      key={`trickview-${effectVideoUrl || trick.effect_video_url || 'noeffect'}-${secretVideoUrl || trick.secret_video_url || 'nosecret'}`}
+    >
       <StatusBar
         translucent
         backgroundColor="transparent"
@@ -1035,6 +1364,93 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         itemName={trick.title}
         itemType={t("trick", "trick")}
       />
+
+      {/* Modal de selección de fuente (Cámara o Galería) */}
+      <MediaSourceModal
+        visible={showSourceModal}
+        onClose={() => setShowSourceModal(false)}
+        onSelectGallery={handleSelectGallery}
+        onSelectCamera={handleSelectCamera}
+        type={
+          currentSection === "effect" || currentSection === "secret"
+            ? "video"
+            : "photo"
+        }
+      />
+
+      {/* Vista de cámara */}
+      {showCamera && (
+        <Modal visible={showCamera} animationType="slide">
+          <StyledView className="flex-1 bg-black">
+            <CameraView
+              ref={cameraRef}
+              style={{ flex: 1 }}
+              facing="back"
+              mode={
+                currentSection === "effect" || currentSection === "secret"
+                  ? "video"
+                  : "picture"
+              }
+            >
+              {/* Header con controles */}
+              <StyledView
+                className="absolute top-0 left-0 right-0 p-4 z-10"
+                style={{ paddingTop: insets.top + 10 }}
+              >
+                <StyledView className="flex-row justify-between items-center">
+                  <StyledTouchableOpacity
+                    onPress={() => setShowCamera(false)}
+                    className="w-10 h-10 rounded-full bg-black/50 items-center justify-center"
+                  >
+                    <Feather name="x" size={24} color="white" />
+                  </StyledTouchableOpacity>
+                </StyledView>
+              </StyledView>
+
+              {/* Botón de captura */}
+              <StyledView className="absolute bottom-0 left-0 right-0 pb-8 items-center">
+                <StyledTouchableOpacity
+                  onPress={async () => {
+                    if (!cameraRef.current) return;
+
+                    try {
+                      if (
+                        currentSection === "effect" ||
+                        currentSection === "secret"
+                      ) {
+                        // Grabar video
+                        const video = await cameraRef.current.recordAsync({
+                          maxDuration: 60,
+                        });
+                        if (video) {
+                          handleCameraCapture(video.uri);
+                        }
+                      } else {
+                        // Tomar foto
+                        const photo = await cameraRef.current.takePictureAsync({
+                          quality: 0.7,
+                        });
+                        if (photo) {
+                          handleCameraCapture(photo.uri);
+                        }
+                      }
+                    } catch (error) {
+                      console.error("Error capturing:", error);
+                      Alert.alert(t("error"), t("errorCapturing", "Error al capturar"));
+                    }
+                  }}
+                  className="w-20 h-20 rounded-full border-4 border-white items-center justify-center"
+                  style={{
+                    backgroundColor: "rgba(255, 255, 255, 0.3)",
+                  }}
+                >
+                  <StyledView className="w-16 h-16 rounded-full bg-white" />
+                </StyledTouchableOpacity>
+              </StyledView>
+            </CameraView>
+          </StyledView>
+        </Modal>
+      )}
     </StyledView>
   );
 };
