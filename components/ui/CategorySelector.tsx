@@ -374,7 +374,7 @@ export default function CategorySelector({
           setCategoryToCreate("");
         }}
         onConfirm={createNewCategory}
-        initialName=""
+        initialName={categoryToCreate}
         placeholderText={categoryToCreate}
         mode="create"
       />

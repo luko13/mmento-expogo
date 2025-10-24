@@ -310,7 +310,7 @@ export default function TagSelector({
           setTagToCreate("");
         }}
         onConfirm={createTag}
-        initialName=""
+        initialName={tagToCreate}
         placeholderText={tagToCreate}
         mode="create"
       />

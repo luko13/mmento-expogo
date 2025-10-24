@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Alert } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
+import * as FileSystem from "expo-file-system";
 import { supabase } from "../../lib/supabase";
 import { compressionService } from "../../utils/compressionService";
 import { uploadFileToStorage } from "../../services/fileUploadService";
@@ -235,23 +236,60 @@ export default function EditMagicWizard({
     userId: string
   ): Promise<string | null> => {
     try {
+      console.log(`📤 [EDIT] Subiendo archivo: ${fileName}`);
+      console.log(`📍 URI original: ${uri}`);
+
+      // Verificar que el archivo existe ANTES de hacer nada
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      console.log(`🔍 Archivo existe: ${fileInfo.exists}`);
+
+      if (!fileInfo.exists) {
+        console.error(`❌ El archivo NO existe en: ${uri}`);
+        return null;
+      }
+
+      // Comprimir si es necesario
       const compressionResult = await compressionService.compressFile(
         uri,
         fileType,
         { quality: 0.7, maxWidth: 1920 }
       );
 
+      console.log(
+        `📊 Compresión: ${
+          compressionResult.wasCompressed ? "Sí" : "No"
+        } - Ratio: ${compressionResult.ratio}`
+      );
+
+      // Usar el archivo comprimido si existe, sino el original
+      const fileToUpload = compressionResult.wasCompressed
+        ? compressionResult.uri
+        : uri;
+
+      console.log(`📤 Subiendo desde: ${fileToUpload}`);
+
+      // Subir archivo
       const uploadUrl = await uploadFileToStorage(
-        uri,
+        fileToUpload,
         userId,
         folder,
         fileType,
         fileName
       );
 
+      // Limpiar archivo comprimido si se creó
+      if (compressionResult.wasCompressed && compressionResult.uri !== uri) {
+        try {
+          await FileSystem.deleteAsync(compressionResult.uri, { idempotent: true });
+          console.log(`🧹 Archivo comprimido limpiado`);
+        } catch (cleanupError) {
+          console.warn("Error limpiando archivo comprimido:", cleanupError);
+        }
+      }
+
       return uploadUrl;
     } catch (error) {
-      console.error("Error uploading file:", error);
+      console.error("❌ Error uploading file:", error);
       return null;
     }
   };
