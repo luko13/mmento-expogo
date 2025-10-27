@@ -143,16 +143,11 @@ export default function TitleCategoryStep({
                 }}
                 disabled={!isFormValid || isSubmitting}
               >
-                <StyledText
-                  className="text-white font-semibold"
-                  style={{
-                    fontFamily: fontNames.light,
-                    fontSize: 16,
-                    includeFontPadding: false,
-                  }}
-                >
-                  {isSubmitting ? t("saving", "Saving...") : t("save", "Save")}
-                </StyledText>
+                <Feather
+                  name={isSubmitting ? "loader" : "check"}
+                  size={24}
+                  color="white"
+                />
               </StyledTouchableOpacity>
             </StyledView>
           </StyledView>

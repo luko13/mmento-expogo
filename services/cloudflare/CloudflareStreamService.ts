@@ -68,7 +68,7 @@ class CloudflareStreamService {
       userId?: string;
       trickId?: string;
     },
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number, event?: { totalBytesSent: number; totalBytesExpectedToSend: number }) => void
   ): Promise<StreamVideoUploadResult> {
     try {
       if (!this.isConfigured()) {
@@ -114,8 +114,8 @@ class CloudflareStreamService {
 
       console.log('✅ Sesión de upload creada:', uploadUrl);
 
-      // Paso 2: Subir el archivo usando FileSystem.uploadAsync
-      const uploadResponse = await FileSystem.uploadAsync(
+      // Paso 2: Subir el archivo usando createUploadTask para progreso
+      const uploadTask = FileSystem.createUploadTask(
         uploadUrl,
         videoUri,
         {
@@ -127,8 +127,18 @@ class CloudflareStreamService {
             'Content-Type': 'application/offset+octet-stream',
           },
           uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        },
+        (progressEvent) => {
+          // Callback de progreso
+          if (onProgress && progressEvent.totalBytesExpectedToSend > 0) {
+            const percentage = (progressEvent.totalBytesSent / progressEvent.totalBytesExpectedToSend) * 100;
+            onProgress(Math.min(Math.round(percentage), 100), progressEvent); // Pass the full event
+            console.log(`📊 Upload progress: ${Math.round(percentage)}%`);
+          }
         }
       );
+
+      const uploadResponse = await uploadTask.uploadAsync();
 
       if (uploadResponse.status !== 204) {
         throw new Error(`Error subiendo video: Status ${uploadResponse.status}`);

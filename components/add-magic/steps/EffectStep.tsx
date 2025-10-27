@@ -357,16 +357,11 @@ export default function EffectStep({
               }}
               disabled={isSubmitting}
             >
-              <StyledText
-                className="text-white font-semibold"
-                style={{
-                  fontFamily: fontNames.light,
-                  fontSize: 16,
-                  includeFontPadding: false,
-                }}
-              >
-                {isSubmitting ? t("saving", "Saving...") : t("save", "Save")}
-              </StyledText>
+              <Feather
+                name={isSubmitting ? "loader" : "check"}
+                size={24}
+                color="white"
+              />
             </StyledTouchableOpacity>
           </StyledView>
         </StyledView>
@@ -390,13 +385,13 @@ export default function EffectStep({
               {t("effect", "Efecto")}
             </StyledText>
 
-            {/* Effect Video - Solo selección local, la compresión se hace al guardar */}
+            {/* Effect Video - Cloudflare Stream soporta hasta 30GB, recomendado <200MB */}
             <MediaSelector
               ref={effectVideoRef}
               type="video"
               multiple={false}
               maxFiles={1}
-              maxFileSize={50}
+              maxFileSize={200}
               quality={0.5}
               tooltip={t("tooltips.effectVideo")}
               placeholder={t("uploadEffectVideo", "Subir video del efecto*")}
@@ -491,13 +486,13 @@ export default function EffectStep({
               {t("secret", "Secreto")}
             </StyledText>
 
-            {/* Secret Video */}
+            {/* Secret Video - Cloudflare Stream soporta hasta 30GB, recomendado <200MB */}
             <MediaSelector
               ref={secretVideoRef}
               type="video"
               multiple={false}
               maxFiles={1}
-              maxFileSize={50}
+              maxFileSize={200}
               quality={0.5}
               tooltip={t("tooltips.secretVideo")}
               placeholder={t("secretVideoUpload", "Subir video del secreto")}

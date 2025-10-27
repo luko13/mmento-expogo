@@ -35,7 +35,7 @@ export interface UploadOptions {
   trickId?: string;
   folder?: string;
   metadata?: Record<string, string>;
-  onProgress?: (progress: number) => void;
+  onProgress?: (progress: number, event?: { totalBytesSent: number; totalBytesExpectedToSend: number }) => void;
   useImagesForPhotos?: boolean; // Si false, usa R2 para fotos
 }
 

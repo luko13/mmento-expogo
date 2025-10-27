@@ -26,6 +26,10 @@ interface UploadProgressModalProps {
   elapsedTime: number;
   totalFiles: number;
   processedFiles: number;
+  uploadSpeed?: number; // MB/s
+  bytesUploaded?: number;
+  bytesTotal?: number;
+  estimatedTimeRemaining?: number; // seconds
 }
 
 const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
@@ -35,6 +39,10 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
   elapsedTime,
   totalFiles,
   processedFiles,
+  uploadSpeed = 0,
+  bytesUploaded = 0,
+  bytesTotal = 0,
+  estimatedTimeRemaining = 0,
 }) => {
   const { t } = useTranslation();
   const progressAnimation = useRef(new Animated.Value(0)).current;
@@ -51,6 +59,15 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return "0 B";
+    const mb = bytes / (1024 * 1024);
+    if (mb >= 1000) {
+      return `${(mb / 1024).toFixed(2)} GB`;
+    }
+    return `${mb.toFixed(1)} MB`;
   };
 
   const progressWidth = progressAnimation.interpolate({
@@ -118,7 +135,7 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
                       includeFontPadding: false,
                     }}
                   >
-                    {t("compressingAndUploading", "Comprimiendo y subiendo tus archivos")}
+                    {t("uploadingToCloud", "Subiendo tus archivos a la nube")}
                   </StyledText>
                 </StyledView>
 
@@ -195,7 +212,7 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
                   </StyledView>
 
                   {/* Timer */}
-                  <StyledView className="flex-row items-center justify-center">
+                  <StyledView className="flex-row items-center justify-center mb-2">
                     <Feather name="clock" size={16} color="rgba(255,255,255,0.6)" />
                     <StyledText
                       className="text-white/60 text-sm ml-2"
@@ -208,11 +225,44 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
                       {t("elapsedTime", "Tiempo transcurrido")}: {formatTime(elapsedTime)}
                     </StyledText>
                   </StyledView>
+
+                  {/* Upload Speed and Bytes */}
+                  {bytesTotal > 0 && (
+                    <>
+                      <StyledView className="flex-row items-center justify-center mb-2">
+                        <MaterialIcons name="speed" size={16} color="rgba(16, 185, 129, 0.8)" />
+                        <StyledText
+                          className="text-emerald-400/80 text-sm ml-2"
+                          style={{
+                            fontFamily: fontNames.regular,
+                            fontSize: 14,
+                            includeFontPadding: false,
+                          }}
+                        >
+                          {uploadSpeed > 0 ? `${uploadSpeed.toFixed(2)} MB/s` : t("calculating", "Calculando...")}
+                        </StyledText>
+                      </StyledView>
+
+                      <StyledView className="flex-row items-center justify-center">
+                        <MaterialIcons name="cloud-upload" size={16} color="rgba(255,255,255,0.6)" />
+                        <StyledText
+                          className="text-white/60 text-sm ml-2"
+                          style={{
+                            fontFamily: fontNames.regular,
+                            fontSize: 14,
+                            includeFontPadding: false,
+                          }}
+                        >
+                          {formatBytes(bytesUploaded)} / {formatBytes(bytesTotal)}
+                        </StyledText>
+                      </StyledView>
+                    </>
+                  )}
                 </StyledView>
 
                 {/* Estimated Time */}
-                {progress > 10 && (
-                  <StyledView 
+                {progress > 10 && estimatedTimeRemaining > 0 && (
+                  <StyledView
                     className="pt-4"
                     style={{
                       borderTopWidth: 0.5,
@@ -228,15 +278,15 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
                       }}
                     >
                       {t("estimatedRemaining", "Tiempo estimado restante")}:{" "}
-                      {formatTime(Math.round((elapsedTime / progress) * (100 - progress)))}
+                      {formatTime(estimatedTimeRemaining)}
                     </StyledText>
                   </StyledView>
                 )}
 
-                {/* Compression Note */}
+                {/* Cloud Optimization Note */}
                 <StyledView className="flex-row items-center justify-center mt-4">
                   <MaterialIcons
-                    name="compress"
+                    name="cloud-done"
                     size={12}
                     color="rgba(16, 185, 129, 0.6)"
                   />
@@ -248,7 +298,7 @@ const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
                       includeFontPadding: false,
                     }}
                   >
-                    {t("automaticCompression", "Compresión automática")}
+                    {t("cloudflareOptimization", "Optimización automática en la nube")}
                   </StyledText>
                 </StyledView>
               </StyledView>

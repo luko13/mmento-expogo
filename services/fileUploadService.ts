@@ -17,12 +17,22 @@ const USE_CLOUDFLARE = true; // Cambiar a false para volver a Supabase temporalm
 // Tipos de medios
 export type MediaType = "video" | "image";
 
-// Límites de tamaño en MB
+// Límites de tamaño en MB (basados en Cloudflare)
 export const FILE_SIZE_LIMITS = {
-  VIDEO_SMALL: 2,  // Límite para subida directa en la app (MB)
-  VIDEO_LARGE: 50, // Límite máximo para videos (MB)
-  IMAGE_SMALL: 2,  // Límite para imágenes sin compresión obligatoria (MB)
-  IMAGE_LARGE: 10  // Límite máximo para imágenes (MB)
+  // Cloudflare Stream con TUS protocol soporta hasta 30GB
+  // Recomendado usar TUS para archivos >200MB
+  VIDEO_MAX: 30000,        // Límite máximo absoluto (30GB) - Cloudflare Stream
+  VIDEO_RECOMMENDED: 200,  // Límite recomendado para UX (200MB) - Subida directa
+  VIDEO_TUS_THRESHOLD: 200, // A partir de este tamaño, usar TUS protocol
+
+  // Cloudflare Images
+  IMAGE_MAX: 100,          // Límite máximo (100MB) - Cloudflare Images
+  IMAGE_RECOMMENDED: 10,   // Límite recomendado para UX (10MB)
+
+  // Límites de dimensiones (Cloudflare Images)
+  IMAGE_MAX_DIMENSION: 12000,     // 12,000 pixels por lado
+  IMAGE_MAX_AREA: 100000000,      // 100 megapixels (ej: 10,000×10,000)
+  IMAGE_MAX_AREA_ANIMATED: 50000000, // 50 megapixels para GIF/WebP animados
 };
 
 // Interfaz para resultado de subida
@@ -264,7 +274,7 @@ export const uploadFileToStorage = async (
   folder: string,
   fileType: string,
   fileName: string,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number, bytesUploaded?: number, bytesTotal?: number) => void
 ): Promise<string | null> => {
   try {
     console.log(`🚀 Iniciando subida de archivo: ${fileName}`);
@@ -289,7 +299,7 @@ const uploadToCloudflare = async (
   folder: string,
   fileType: string,
   fileName: string,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number, bytesUploaded?: number, bytesTotal?: number) => void
 ): Promise<string | null> => {
   try {
     console.log('☁️ Usando Cloudflare para almacenamiento');
@@ -330,14 +340,21 @@ const uploadToCloudflare = async (
       }
     }
 
-    // Subir usando el servicio unificado de Cloudflare
+    // Subir usando el servicio unificado de Cloudflare con callback mejorado
     const result = await CloudflareStorageService.uploadFile(
       fileToUpload,
       fileName,
       {
         userId,
         folder,
-        onProgress,
+        onProgress: onProgress
+          ? (progress, event) => {
+              // Extraer bytes del evento si está disponible
+              const bytesUploaded = event?.totalBytesSent || 0;
+              const bytesTotal = event?.totalBytesExpectedToSend || 0;
+              onProgress(progress, bytesUploaded, bytesTotal);
+            }
+          : undefined,
         useImagesForPhotos: true, // Usar Cloudflare Images para fotos
       }
     );
