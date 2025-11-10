@@ -502,29 +502,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     ]
   );
 
-  const handleRemoveTag = (tagId: string) => {
-    const prevIds = localTagIds;
-    const updated = prevIds.filter((id) => id !== tagId);
-    setLocalTagIds(updated);
-
-    (async () => {
-      try {
-        const { error } = await supabase
-          .from("trick_tags")
-          .delete()
-          .eq("trick_id", trick.id)
-          .eq("tag_id", tagId);
-
-        if (error) {
-          console.error("Error removing tag:", error);
-          setLocalTagIds(prevIds);
-        }
-      } catch (error) {
-        console.error("Error removing tag:", error);
-        setLocalTagIds(prevIds);
-      }
-    })();
-  };
+  // Tags are now read-only in view mode - removal disabled
 
   const handleUploadPress = () => {
     // Navegar a edit-magic en el step 1 (EffectStep - multimedia)
@@ -1306,9 +1284,6 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           resetTime={trick.reset || 10}
           duration={trick.duration || 110}
           difficulty={trick.difficulty}
-          onRemoveTag={
-            currentUserId === trick.user_id ? handleRemoveTag : undefined
-          }
           stageExpanded={isStageExpanded}
           onStageExpandedChange={handleStageExpandedChange}
         />
