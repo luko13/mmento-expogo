@@ -233,14 +233,11 @@ export function LibraryDataProvider({
           trick.category_ids.includes(cat.id)
         );
 
-        // Si hay filtro de categorías, mostrar incluso vacías (el usuario las seleccionó)
-        // Si NO hay filtro, solo mostrar categorías con trucos
-        if (hasCategoyFilter || tricksInCategory.length > 0) {
-          categoryMap.set(cat.id, {
-            category: cat,
-            items: tricksInCategory,
-          });
-        }
+        // Mostrar TODAS las categorías, incluso las vacías
+        categoryMap.set(cat.id, {
+          category: cat,
+          items: tricksInCategory,
+        });
       });
 
       const result = Array.from(categoryMap.values());

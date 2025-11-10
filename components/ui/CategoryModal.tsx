@@ -110,6 +110,11 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
           "validation.minLength",
           "Category name must be at least 3 characters"
         );
+      if (trimmed.length > 20)
+        return t(
+          "validation.maxLength",
+          "Category name must not exceed 20 characters"
+        );
       if (RESERVED_CATEGORY_NAMES.includes(trimmed.toLowerCase()))
         return t(
           "validation.reservedCategory",
@@ -257,6 +262,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
                           }}
                           placeholder={t("categoryName", "Category name")}
                           placeholderTextColor="rgba(255,255,255,0.5)"
+                          maxLength={20}
                           editable={!isSubmitting}
                         />
                       ) : (

@@ -10,6 +10,7 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   Keyboard,
+  Dimensions,
 } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -50,6 +51,8 @@ interface StepProps {
   isLastStep?: boolean;
   isEditMode?: boolean;
 }
+
+const { width } = Dimensions.get("window");
 
 export default function EffectStep({
   trickData,
@@ -331,25 +334,29 @@ export default function EffectStep({
         />
 
         {/* Header */}
-        <StyledView className="px-3 pt-4 pb-4">
-          <StyledView className="flex-row items-center justify-between">
-            <StyledTouchableOpacity onPress={onCancel} className="p-2">
+        <StyledView className="pt-4 pb-4" style={{ paddingHorizontal: 12 }}>
+          <StyledView style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+            <StyledTouchableOpacity onPress={onCancel} className="p-2" style={{ width: 40, flexShrink: 0 }}>
               <Feather name="chevron-left" size={24} color="white" />
             </StyledTouchableOpacity>
 
-            <StyledText
-              className="text-white text-lg font-semibold"
-              style={{
-                fontFamily: fontNames.light,
-                fontSize: 20,
-                includeFontPadding: false,
-              }}
-            >
-              {trickData.title || t("trickTitle", "[Title Magic]")}
-            </StyledText>
+            <StyledView style={{ flex: 1, paddingHorizontal: 8, maxWidth: width - 104 }}>
+              <Text
+                style={{
+                  fontFamily: fontNames.light,
+                  fontSize: 20,
+                  color: 'white',
+                  textAlign: 'center',
+                  includeFontPadding: false,
+                }}
+              >
+                {trickData.title || t("trickTitle", "[Title Magic]")}
+              </Text>
+            </StyledView>
 
             <StyledTouchableOpacity
               className={`p-2 ${isSubmitting ? "opacity-30" : ""}`}
+              style={{ width: 40, flexShrink: 0 }}
               onPress={() => {
                 if (onSave && !isSubmitting) {
                   onSave();

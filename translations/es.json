@@ -191,7 +191,12 @@
     "create": "Crear",
     "save": "Guardar",
     "cancel": "Cancelar",
-    "ok": "OK"
+    "ok": "OK",
+    "saving": "Guardando..."
+  },
+  "quickSave": {
+    "title": "¿Guardar ahora?",
+    "message": "El item se guardará con los datos actuales. Los campos vacíos podrás completarlos más tarde."
   },
   "forms": {
     "registerMagic": "Registrar Item Mágico",
@@ -210,9 +215,11 @@
   "validation": {
     "titleRequired": "El título es obligatorio",
     "titleTooShort": "El título debe tener al menos 3 caracteres",
-    "titleTooLong": "El título no debe exceder los 100 caracteres",
+    "titleTooLong": "El título no debe exceder los 40 caracteres",
     "categoryRequired": "Por favor selecciona una categoría",
-    "categoryNameRequired": "El nombre de la categoría es obligatorio"
+    "categoryNameRequired": "El nombre de la categoría es obligatorio",
+    "minLength": "Debe tener al menos 3 caracteres",
+    "maxLength": "No debe exceder los 20 caracteres"
   },
   "actions": {
     "save": "Registar",
@@ -436,7 +443,7 @@
   },
   "categoryNotEmpty": {
     "title": "No se puede eliminar la categoría",
-    "message": "Primero debes mover o eliminar todos los elementos de esta categoría."
+    "message": "Primero debes mover o eliminar todos los items de esta categoría."
   },
   "accessibility": {
     "selectAngle": "Seleccionar esta opción de ángulo",

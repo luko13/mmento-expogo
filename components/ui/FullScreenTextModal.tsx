@@ -112,6 +112,7 @@ export const FullScreenTextModal: React.FC<FullScreenTextModalProps> = ({
               placeholderTextColor="rgba(255, 255, 255, 0.5)"
               value={text}
               onChangeText={setText}
+              maxLength={3000}
               multiline
               autoFocus
             />

@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TagSelector from "../../../components/ui/TagSelector";
 import CategorySelector from "../../../components/ui/CategorySelector";
 import CustomTooltip from "../../ui/Tooltip";
+import QuickSaveModal from "../../ui/QuickSaveModal";
 import { fontNames } from "../../../app/_layout";
 
 const StyledView = styled(View);
@@ -62,6 +63,7 @@ export default function TitleCategoryStep({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [userId, setUserId] = useState<string | undefined>();
+  const [showQuickSaveModal, setShowQuickSaveModal] = useState(false);
 
   // Validación en tiempo real del título
   const titleValidation = useMemo(() => {
@@ -74,7 +76,7 @@ export default function TitleCategoryStep({
     if (trimmed.length < 3) {
       return { isValid: false, message: t("validation.titleTooShort") };
     }
-    if (trimmed.length > 100) {
+    if (trimmed.length > 40) {
       return { isValid: false, message: t("validation.titleTooLong") };
     }
     return { isValid: true, message: "" };
@@ -115,31 +117,40 @@ export default function TitleCategoryStep({
       <StyledView className="flex-1">
         <StyledView className="flex-1" style={{ paddingTop: 15 }}>
           {/* Header */}
-          <StyledView className="px-3 mb-4">
-            <StyledView className="flex-row items-center justify-between">
-              <StyledTouchableOpacity className="p-2" onPress={onCancel}>
+          <StyledView className="mb-4" style={{ paddingHorizontal: 12 }}>
+            <StyledView style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+              {/* Botón X - ancho fijo */}
+              <StyledTouchableOpacity className="p-2" onPress={onCancel} style={{ width: 40, flexShrink: 0 }}>
                 <Feather name="x" size={24} color="white" />
               </StyledTouchableOpacity>
 
-              <StyledText
-                className="text-white text-lg font-semibold"
-                style={{
-                  fontFamily: fontNames.light,
-                  fontSize: 20,
-                  includeFontPadding: false,
-                }}
-              >
-                {isEditMode
-                  ? t("forms.editMagic", "Editar Magia")
-                  : t("forms.registerMagic", "Registrar Item Mágico")}
-              </StyledText>
+              {/* Título - con ancho máximo forzado */}
+              <StyledView style={{ flex: 1, paddingHorizontal: 8, maxWidth: width - 104 }}>
+                <Text
+                  style={{
+                    fontFamily: fontNames.light,
+                    fontSize: 20,
+                    color: 'white',
+                    textAlign: 'center',
+                    includeFontPadding: false,
+                  }}
+                >
+                  {isEditMode
+                    ? t("forms.editMagic", "Editar Magia")
+                    : t("forms.registerMagic", "Registrar Item Mágico")}
+                </Text>
+              </StyledView>
 
+              {/* Botón Check - ancho fijo */}
               <StyledTouchableOpacity
                 className={`p-2 ${
                   !isFormValid || isSubmitting ? "opacity-30" : ""
                 }`}
+                style={{ width: 40, flexShrink: 0 }}
                 onPress={() => {
-                  if (isFormValid && onSave) onSave();
+                  if (isFormValid && !isSubmitting) {
+                    setShowQuickSaveModal(true);
+                  }
                 }}
                 disabled={!isFormValid || isSubmitting}
               >
@@ -209,7 +220,7 @@ export default function TitleCategoryStep({
                       placeholderTextColor="rgba(255, 255, 255, 0.5)"
                       value={trickData.title}
                       onChangeText={handleTitleChange}
-                      maxLength={100}
+                      maxLength={40}
                       autoCapitalize="sentences"
                       autoCorrect={false}
                       returnKeyType="next"
@@ -349,6 +360,16 @@ export default function TitleCategoryStep({
             </StyledTouchableOpacity>
           </StyledView>
         </StyledView>
+
+        {/* Modal de confirmación de guardado rápido */}
+        <QuickSaveModal
+          visible={showQuickSaveModal}
+          onClose={() => setShowQuickSaveModal(false)}
+          onConfirm={() => {
+            setShowQuickSaveModal(false);
+            if (onSave) onSave();
+          }}
+        />
       </StyledView>
     </TouchableWithoutFeedback>
   );

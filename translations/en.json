@@ -195,7 +195,12 @@
     "create": "Create",
     "save": "Save",
     "cancel": "Cancel",
-    "ok": "OK"
+    "ok": "OK",
+    "saving": "Saving..."
+  },
+  "quickSave": {
+    "title": "Save now?",
+    "message": "The item will be saved with the current data. Empty fields can be completed later."
   },
   "forms": {
     "registerMagic": "Register Magic Item",
@@ -214,9 +219,11 @@
   "validation": {
     "titleRequired": "Title is required",
     "titleTooShort": "Title must be at least 3 characters",
-    "titleTooLong": "Title must not exceed 100 characters",
+    "titleTooLong": "Title must not exceed 40 characters",
     "categoryRequired": "Please select a category",
-    "categoryNameRequired": "Category name is required"
+    "categoryNameRequired": "Category name is required",
+    "minLength": "Must be at least 3 characters",
+    "maxLength": "Must not exceed 20 characters"
   },
   "actions": {
     "save": "Save",

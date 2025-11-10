@@ -15,6 +15,7 @@ import {
   ScrollView,
 } from "react-native";
 import { styled } from "nativewind";
+import { BlurView } from "expo-blur";
 import { useTranslation } from "react-i18next";
 import { router, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -29,6 +30,7 @@ const StyledText = styled(Text);
 const StyledTextInput = styled(TextInput);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledSafeAreaView = styled(SafeAreaView);
+const StyledBlurView = styled(BlurView);
 
 const { width, height } = Dimensions.get("window");
 
@@ -182,7 +184,32 @@ export default function Login() {
             )}
 
             {/* Card Container */}
-            <StyledView className="w-full bg-black/20 backdrop-blur-sm rounded-xl p-6 border border-emerald-100/50">
+            <StyledView
+              style={{
+                width: width * 0.9,
+                maxWidth: 400,
+                borderRadius: 16,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.5,
+                shadowRadius: 20,
+                elevation: 10,
+                backgroundColor: "transparent",
+              }}
+            >
+              <StyledBlurView
+                intensity={50}
+                tint="dark"
+                experimentalBlurMethod="dimezisBlurView"
+                style={{
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  backgroundColor: "rgba(0, 0, 0, 0.4)",
+                  borderWidth: 1,
+                  borderColor: "rgba(255, 255, 255, 0.2)",
+                  padding: 24,
+                }}
+              >
               <StyledText
                 className="text-white text-xl mb-6"
                 style={{
@@ -225,6 +252,7 @@ export default function Login() {
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={password}
                   onChangeText={setPassword}
+                  maxLength={18}
                   secureTextEntry
                 />
               </StyledView>
@@ -300,6 +328,7 @@ export default function Login() {
                   </StyledText>
                 )}
               </StyledTouchableOpacity>
+              </StyledBlurView>
             </StyledView>
 
             {/* Forgot Password Link */}

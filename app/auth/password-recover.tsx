@@ -9,6 +9,7 @@ import {
   Dimensions,
 } from "react-native";
 import { styled } from "nativewind";
+import { BlurView } from "expo-blur";
 import { router } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { useTranslation } from "react-i18next";
@@ -20,6 +21,7 @@ const StyledText = styled(Text);
 const StyledTextInput = styled(TextInput);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledSafeAreaView = styled(SafeAreaView);
+const StyledBlurView = styled(BlurView);
 
 const { width, height } = Dimensions.get("window");
 
@@ -93,7 +95,32 @@ export default function PasswordRecoverScreen() {
     >
       <StyledView className="flex-1 justify-center items-center px-6">
         {/* Tarjeta de recuperación de contraseña */}
-        <StyledView className="w-full bg-black/20 backdrop-blur-sm rounded-xl p-6 border border-emerald-100/50">
+        <StyledView
+          style={{
+            width: width * 0.9,
+            maxWidth: 400,
+            borderRadius: 16,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.5,
+            shadowRadius: 20,
+            elevation: 10,
+            backgroundColor: "transparent",
+          }}
+        >
+          <StyledBlurView
+            intensity={50}
+            tint="dark"
+            experimentalBlurMethod="dimezisBlurView"
+            style={{
+              borderRadius: 16,
+              overflow: "hidden",
+              backgroundColor: "rgba(0, 0, 0, 0.4)",
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.2)",
+              padding: 24,
+            }}
+          >
           <StyledText
             className="text-white text-xl mb-6"
             style={{
@@ -143,6 +170,7 @@ export default function PasswordRecoverScreen() {
               </StyledText>
             )}
           </StyledTouchableOpacity>
+          </StyledBlurView>
         </StyledView>
 
         {/* Enlace para volver */}

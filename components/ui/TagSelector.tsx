@@ -205,6 +205,7 @@ export default function TagSelector({
               placeholderTextColor="rgba(255, 255, 255, 0.5)"
               value={newTag}
               onChangeText={setNewTag}
+              maxLength={20}
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="done"
