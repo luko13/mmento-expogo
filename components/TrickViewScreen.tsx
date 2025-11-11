@@ -943,19 +943,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
               else setIsSecretPlaying(true);
             }
           }}
-        >
-          {!isPlaying && (
-            <View
-              style={{
-                backgroundColor: "rgba(0,0,0,0.5)",
-                borderRadius: 60,
-                padding: 24,
-              }}
-            >
-              <Ionicons name="play" color="white" size={60} />
-            </View>
-          )}
-        </TouchableOpacity>
+        />
       </View>
     );
   };
