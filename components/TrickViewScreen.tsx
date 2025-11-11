@@ -1157,11 +1157,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
                   : secretPlayerRef.current;
 
               if (player) {
-                const currentTime = player.currentTime || 0;
-                const delta = seekTime - currentTime;
-                if (Math.abs(delta) > 0.1) {
-                  player.seekBy(delta);
-                }
+                player.currentTime = seekTime;
               }
             }}
           />

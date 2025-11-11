@@ -41,16 +41,26 @@ const VideoProgressBar = memo<VideoProgressBarProps>(
     onBarInteraction,
   }) => {
     const thumbAnimation = useRef(new Animated.Value(1)).current;
-    // Ajustar el ancho de la barra para dejar espacio a los botones
-    const progressBarWidth = screenWidth - 140; // 60px botón izq + 60px botón der + 20px padding
 
     // Usar estado para el progreso
     const [progressPercent, setProgressPercent] = useState(0);
+    const [progressBarWidth, setProgressBarWidth] = useState(screenWidth - 140);
     const thumbPosition = useRef(new Animated.Value(0)).current;
 
     // Referencias para evitar re-renders
     const isDraggingRef = useRef(false);
     const progressBarRef = useRef<View>(null);
+    const progressBarWidthRef = useRef(progressBarWidth);
+    const durationRef = useRef(duration);
+
+    // Actualizar refs cuando cambien los valores
+    useEffect(() => {
+      progressBarWidthRef.current = progressBarWidth;
+    }, [progressBarWidth]);
+
+    useEffect(() => {
+      durationRef.current = duration;
+    }, [duration]);
 
     // Actualización del progreso cuando no estamos arrastrando
     useEffect(() => {
@@ -75,19 +85,19 @@ const VideoProgressBar = memo<VideoProgressBarProps>(
         const locationX = evt.nativeEvent.locationX;
         const percentage = Math.max(
           0,
-          Math.min(1, locationX / progressBarWidth)
+          Math.min(1, locationX / progressBarWidthRef.current)
         );
-        const seekTime = percentage * duration;
+        const seekTime = percentage * durationRef.current;
 
         // Actualizar visual inmediatamente
         setProgressPercent(percentage);
-        thumbPosition.setValue(percentage * progressBarWidth);
+        thumbPosition.setValue(percentage * progressBarWidthRef.current);
 
         // Notificar el cambio
         onSeek?.(seekTime);
         onSeekEnd?.(seekTime);
       },
-      [duration, progressBarWidth, thumbPosition, onSeek, onSeekEnd]
+      [thumbPosition, onSeek, onSeekEnd]
     );
 
     // PanResponder para el arrastre
@@ -99,7 +109,7 @@ const VideoProgressBar = memo<VideoProgressBarProps>(
         onShouldBlockNativeResponder: () => true,
 
         onPanResponderGrant: (evt) => {
-          onBarInteraction?.(); // AÑADIR ESTA LÍNEA
+          onBarInteraction?.();
           isDraggingRef.current = true;
           onSeekStart?.();
 
@@ -114,26 +124,26 @@ const VideoProgressBar = memo<VideoProgressBarProps>(
           const locationX = evt.nativeEvent.locationX;
           const percentage = Math.max(
             0,
-            Math.min(1, locationX / progressBarWidth)
+            Math.min(1, locationX / progressBarWidthRef.current)
           );
-          const seekTime = percentage * duration;
+          const seekTime = percentage * durationRef.current;
 
           onSeek?.(seekTime);
           setProgressPercent(percentage);
-          thumbPosition.setValue(percentage * progressBarWidth);
+          thumbPosition.setValue(percentage * progressBarWidthRef.current);
         },
 
         onPanResponderMove: (evt) => {
           const locationX = evt.nativeEvent.locationX;
           const percentage = Math.max(
             0,
-            Math.min(1, locationX / progressBarWidth)
+            Math.min(1, locationX / progressBarWidthRef.current)
           );
-          const seekTime = percentage * duration;
+          const seekTime = percentage * durationRef.current;
 
           onSeek?.(seekTime);
           setProgressPercent(percentage);
-          thumbPosition.setValue(percentage * progressBarWidth);
+          thumbPosition.setValue(percentage * progressBarWidthRef.current);
         },
 
         onPanResponderRelease: (evt) => {
@@ -150,9 +160,9 @@ const VideoProgressBar = memo<VideoProgressBarProps>(
           const locationX = evt.nativeEvent.locationX;
           const percentage = Math.max(
             0,
-            Math.min(1, locationX / progressBarWidth)
+            Math.min(1, locationX / progressBarWidthRef.current)
           );
-          const seekTime = percentage * duration;
+          const seekTime = percentage * durationRef.current;
           onSeekEnd?.(seekTime);
         },
       })
@@ -191,7 +201,13 @@ const VideoProgressBar = memo<VideoProgressBarProps>(
                 style={styles.touchAreaContainer}
                 {...panResponder.panHandlers}
               >
-                <View style={styles.progressBarContainer}>
+                <View
+                  style={styles.progressBarContainer}
+                  onLayout={(e) => {
+                    const { width } = e.nativeEvent.layout;
+                    setProgressBarWidth(width);
+                  }}
+                >
                   {/* Barra de fondo */}
                   <View style={styles.progressBarBackground} />
 
