@@ -24,6 +24,7 @@ import CategorySelector from "../../../components/ui/CategorySelector";
 import CustomTooltip from "../../ui/Tooltip";
 import QuickSaveModal from "../../ui/QuickSaveModal";
 import { fontNames } from "../../../app/_layout";
+import CharacterCounter from "../../ui/CharacterCounter";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -213,7 +214,7 @@ export default function TitleCategoryStep({
                   </CustomTooltip>
 
                   {/* Contenedor: MISMO alto y borde que Category/Tag; sin padding izq */}
-                  <StyledView className="flex-1 h-12 bg-[#D4D4D4]/10 border border-[#5bb9a3] rounded-lg flex-row items-center pr-2 overflow-hidden">
+                  <StyledView className="flex-1 h-12 bg-[#D4D4D4]/10 border border-[#5bb9a3] rounded-lg flex-row items-center pr-2 overflow-hidden" style={{ position: "relative" }}>
                     <StyledScrollView
                       ref={titleScrollViewRef}
                       horizontal
@@ -232,7 +233,7 @@ export default function TitleCategoryStep({
                           lineHeight: 22, // no corta descendentes
                           paddingVertical: 0, // sin padding vertical
                           paddingLeft: 14, // inset real: evita mordisco y ALINEA con Category/Tag
-                          paddingRight: 14, // padding derecho para balancear
+                          paddingRight: 50, // más espacio para el contador
                           minWidth: '100%', // ocupa al menos el ancho completo
                           includeFontPadding: false,
                           ...(Platform.OS === "android"
@@ -253,6 +254,12 @@ export default function TitleCategoryStep({
                         scrollEnabled={false}
                       />
                     </StyledScrollView>
+                    <CharacterCounter
+                      currentLength={trickData.title.length}
+                      maxLength={40}
+                      position="absolute"
+                      style={{ right: 10, bottom: 14 }}
+                    />
                   </StyledView>
                 </StyledView>
 

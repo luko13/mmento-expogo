@@ -20,6 +20,7 @@ import {
 import { fontNames } from "../../app/_layout";
 import { getContrastTextColor } from "../../utils/colorUtils";
 import BlinkingCursor from "./BlinkingCursor";
+import CharacterCounter from "./CharacterCounter";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -144,7 +145,7 @@ const TagModal: React.FC<TagModalProps> = ({
                     disabled={isEditingName}
                   >
                     {isEditingName ? (
-                      <StyledView className="flex-row items-center justify-start" style={{ minWidth: 140 }}>
+                      <StyledView className="flex-row items-center justify-start" style={{ minWidth: 140, position: "relative" }}>
                         <StyledTextInput
                           ref={inputRef}
                           value={tagName}
@@ -161,11 +162,18 @@ const TagModal: React.FC<TagModalProps> = ({
                             textAlign: "left",
                             paddingVertical: 0,
                             paddingHorizontal: 0,
+                            paddingRight: 30,
                             margin: 0,
                           }}
                           placeholder={t("tagName", "Tag name")}
                           placeholderTextColor={textColor + "80"}
                           maxLength={20}
+                        />
+                        <CharacterCounter
+                          currentLength={tagName.length}
+                          maxLength={20}
+                          position="absolute"
+                          style={{ right: -10, bottom: 0 }}
                         />
                       </StyledView>
                     ) : (

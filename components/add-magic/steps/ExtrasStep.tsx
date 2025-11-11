@@ -28,6 +28,7 @@ import UploadProgressModal from "../ui/UploadProgressModal";
 import { FullScreenTextModal } from "../../ui/FullScreenTextModal";
 import { StatField } from "../../ui/StatField";
 import { useKeyboardScrolling } from "../../../hooks/useKeyboardScrolling";
+import CharacterCounter from "../../ui/CharacterCounter";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -523,11 +524,18 @@ export default function ExtrasStep({
                       "Add notes about this trick"
                     )}
                   />
+                  {/* Character Counter */}
+                  <CharacterCounter
+                    currentLength={(trickData.notes || "").length}
+                    maxLength={3000}
+                    position="absolute"
+                    style={{ right: 42, bottom: 10, zIndex: 5 }}
+                  />
                   {/* Expand button */}
                   <StyledTouchableOpacity
                     onPress={() => setShowNotesModal(true)}
                     className="absolute bottom-2 right-2 w-8 h-8 rounded items-center justify-center"
-                    style={{ zIndex: 10 }}
+                    style={{ zIndex: 15 }}
                     accessible={true}
                     accessibilityRole="button"
                     accessibilityLabel={t(

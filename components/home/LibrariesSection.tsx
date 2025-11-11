@@ -285,6 +285,20 @@ const LibrariesSection = memo(function LibrariesSection({
   );
 
   const ListEmpty = useCallback(() => {
+    // Detectar si hay algún filtro o búsqueda activa
+    const hasActiveSearch = searchQuery.trim().length > 0;
+    const hasActiveFilters =
+      (searchFilters?.categories?.length ?? 0) > 0 ||
+      (searchFilters?.tags?.length ?? 0) > 0 ||
+      (searchFilters?.difficulties?.length ?? 0) > 0 ||
+      (searchFilters?.angles?.length ?? 0) > 0 ||
+      searchFilters?.durations?.min !== undefined ||
+      searchFilters?.durations?.max !== undefined ||
+      searchFilters?.resetTimes?.min !== undefined ||
+      searchFilters?.resetTimes?.max !== undefined;
+
+    const hasAnyFilter = hasActiveSearch || hasActiveFilters;
+
     return (
       <StyledView className="bg-white/5 p-6 rounded-lg items-center mx-4">
         <Text
@@ -297,11 +311,12 @@ const LibrariesSection = memo(function LibrariesSection({
             includeFontPadding: false,
           }}
         >
-          {searchQuery.trim() || searchFilters?.categories?.length
+          {hasAnyFilter
             ? t("noSearchResults", "No results found")
             : t("noCategories", "No categories found")}
         </Text>
-        {!searchQuery.trim() && !searchFilters?.categories?.length && (
+        {/* Solo mostrar botón de crear categoría si NO hay búsqueda/filtros activos */}
+        {!hasAnyFilter && (
           <StyledTouchableOpacity
             className="bg-emerald-700 px-4 py-2 rounded-lg mt-2"
             onPress={() => setAddCategoryModalVisible(true)}

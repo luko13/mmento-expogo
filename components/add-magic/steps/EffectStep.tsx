@@ -191,29 +191,28 @@ export default function EffectStep({
     if (isEditMode) {
       const photos: Array<{ uri: string; fileName: string; isExisting?: boolean }> = [];
 
-      // Agregar photo_url principal si existe
-      if (trickData.photo_url) {
-        const fileName = trickData.photo_url.includes('imagedelivery.net')
-          ? 'photo_main.jpg'
-          : trickData.photo_url.split('/').pop() || 'photo_main.jpg';
-        photos.push({
-          uri: trickData.photo_url,
-          fileName: fileName,
-          isExisting: true,
-        });
-      }
-
-      // Agregar fotos adicionales si existen
+      // Agregar fotos adicionales desde trick_photos (ya incluye todas las fotos, incluso la principal)
       if (trickData.photos && trickData.photos.length > 0) {
         trickData.photos.forEach((photoUrl: string, index: number) => {
           const fileName = photoUrl.includes('imagedelivery.net')
-            ? `photo_${index + 1}.jpg`
-            : photoUrl.split('/').pop() || `photo_${index + 1}.jpg`;
+            ? `photo_${index}.jpg`
+            : photoUrl.split('/').pop() || `photo_${index}.jpg`;
           photos.push({
             uri: photoUrl,
             fileName: fileName,
             isExisting: true,
           });
+        });
+      }
+      // Si NO hay fotos en trick_photos pero SÍ hay photo_url principal, usarla como fallback
+      else if (trickData.photo_url) {
+        const fileName = trickData.photo_url.includes('imagedelivery.net')
+          ? 'photo_0.jpg'
+          : trickData.photo_url.split('/').pop() || 'photo_0.jpg';
+        photos.push({
+          uri: trickData.photo_url,
+          fileName: fileName,
+          isExisting: true,
         });
       }
 
@@ -288,9 +287,11 @@ export default function EffectStep({
 
     try {
       // Extraer el image ID de la URL de Cloudflare Images
-      const imageId = file.uri.split('/').pop()?.split('?')[0];
+      // Formato: https://imagedelivery.net/<account_hash>/<image_id>/public
+      const urlParts = file.uri.split('/');
+      const imageId = urlParts[urlParts.length - 2]; // Penúltimo elemento es el image_id
 
-      if (imageId) {
+      if (imageId && imageId !== 'imagedelivery.net') {
         // Eliminar de Cloudflare Images
         await CloudflareImagesService.deleteImage(imageId);
       }
@@ -618,16 +619,28 @@ export default function EffectStep({
               initialFiles={getInitialPhotos()}
               onFileRemoved={handleRemovePhoto}
               onFilesSelected={async (files) => {
-                // Copiar TODAS las fotos inmediatamente
-                const permanentUris = await Promise.all(
-                  files.map(file => copyFileImmediately(file.uri))
-                );
+                // Separar archivos locales nuevos de URLs remotas existentes
+                const remotePhotos: string[] = [];  // URLs de Cloudflare (ya existen)
+                const localPhotos: string[] = [];   // Archivos locales nuevos (para subir)
+
+                for (const file of files) {
+                  // Si es una URL remota (Cloudflare, http/https), mantener en photos
+                  if (file.uri.startsWith('http://') || file.uri.startsWith('https://')) {
+                    remotePhotos.push(file.uri);
+                  }
+                  // Si es un archivo local (file://), copiar y agregar a localFiles
+                  else {
+                    const copiedUri = await copyFileImmediately(file.uri);
+                    localPhotos.push(copiedUri);
+                  }
+                }
 
                 updateTrickData({
+                  photos: remotePhotos,  // Fotos existentes (no subir de nuevo)
                   localFiles: {
                     effectVideo: trickData.localFiles?.effectVideo || null,
                     secretVideo: trickData.localFiles?.secretVideo || null,
-                    photos: permanentUris,
+                    photos: localPhotos,  // Solo fotos nuevas (subir a Cloudflare)
                   },
                 });
               }}

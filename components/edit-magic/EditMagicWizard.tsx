@@ -137,6 +137,12 @@ export default function EditMagicWizard({
         .eq("trick_id", trickId)
         .single();
 
+      // Cargar fotos adicionales
+      const { data: photosData } = await supabase
+        .from("trick_photos")
+        .select("photo_url")
+        .eq("trick_id", trickId);
+
       // Actualizar estado con datos cargados
       setTrickData({
         ...trickData,
@@ -155,6 +161,7 @@ export default function EditMagicWizard({
         notes: trick.notes || "",
         script: scriptData?.content || "",
         photo_url: trick.photo_url || null,
+        photos: photosData?.map(p => p.photo_url) || [],  // ✅ Agregar fotos adicionales
         techniqueIds: techniquesData?.map(t => t.technique_id) || [],
         gimmickIds: gimmicksData?.map(g => g.gimmick_id) || [],
         is_public: trick.is_public || false,
@@ -634,9 +641,6 @@ export default function EditMagicWizard({
         throw updateError;
       }
 
-      // Refrescar cache para que los cambios se reflejen inmediatamente
-      await refreshLibrary();
-
       // Actualizar categoría
       await supabase
         .from("trick_categories")
@@ -716,16 +720,32 @@ export default function EditMagicWizard({
         await supabase.from("trick_gimmicks").insert(gimmickInserts);
       }
 
-      // Actualizar fotos en trick_photos solo si se subieron nuevas fotos
-      if (uploadedPhotos.length > 0) {
-        // Eliminar fotos antiguas
-        await supabase
-          .from("trick_photos")
-          .delete()
-          .eq("trick_id", trickId);
+      // Actualizar fotos en trick_photos
+      // Siempre sincronizar la base de datos con el estado actual de trickData.photos
+      // para reflejar tanto fotos eliminadas como fotos nuevas
 
-        // Insertar nuevas fotos
-        const photoInserts = uploadedPhotos.map((photoUrl) => ({
+      // 1. Eliminar TODAS las fotos antiguas de la base de datos
+      await supabase
+        .from("trick_photos")
+        .delete()
+        .eq("trick_id", trickId);
+
+      // 2. Preparar array final de fotos para insertar
+      const finalPhotos: string[] = [];
+
+      // 2a. Agregar fotos existentes que NO fueron eliminadas
+      if (trickData.photos && trickData.photos.length > 0) {
+        finalPhotos.push(...trickData.photos);
+      }
+
+      // 2b. Agregar fotos nuevas recién subidas
+      if (uploadedPhotos.length > 0) {
+        finalPhotos.push(...uploadedPhotos);
+      }
+
+      // 3. Insertar todas las fotos finales (existentes + nuevas)
+      if (finalPhotos.length > 0) {
+        const photoInserts = finalPhotos.map((photoUrl) => ({
           trick_id: trickId,
           photo_url: photoUrl,
           created_at: new Date().toISOString(),
@@ -737,8 +757,14 @@ export default function EditMagicWizard({
 
         if (photosError) {
           console.error("Error al guardar fotos adicionales:", photosError);
+        } else {
+          console.log(`✅ ${finalPhotos.length} fotos sincronizadas exitosamente`);
         }
       }
+
+      // Refrescar cache DESPUÉS de todas las actualizaciones en base de datos
+      // para que los cambios se reflejen inmediatamente en la homepage
+      await refreshLibrary();
 
       // Éxito - navegar de vuelta al trick
       Alert.alert(

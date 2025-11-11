@@ -213,6 +213,16 @@ export function LibraryDataProvider({
         });
       }
 
+      // Detectar si hay filtros activos (búsqueda o filtros)
+      const hasActiveFilters =
+        normalizedQuery.length > 0 ||
+        (filters?.categories && filters.categories.length > 0) ||
+        (filters?.tags && filters.tags.length > 0) ||
+        (filters?.difficulties && filters.difficulties.length > 0) ||
+        (filters?.durations?.min !== undefined || filters?.durations?.max !== undefined) ||
+        (filters?.resetTimes?.min !== undefined || filters?.resetTimes?.max !== undefined) ||
+        (filters?.angles && filters.angles.length > 0);
+
       categories.forEach((cat) => {
         // Excluir categorías que se llamen "Favoritos" para evitar duplicados con la virtual
         const isFavoritesCategory = cat.name.toLowerCase().trim() === "favoritos" ||
@@ -224,8 +234,8 @@ export function LibraryDataProvider({
         }
 
         // Si hay filtro de categorías activo, solo mostrar las categorías seleccionadas
-        const hasCategoyFilter = filters?.categories && filters.categories.length > 0;
-        if (hasCategoyFilter && !filters!.categories!.includes(cat.id)) {
+        const hasCategoryFilter = filters?.categories && filters.categories.length > 0;
+        if (hasCategoryFilter && !filters!.categories!.includes(cat.id)) {
           return; // Skip categorías no seleccionadas
         }
 
@@ -233,7 +243,12 @@ export function LibraryDataProvider({
           trick.category_ids.includes(cat.id)
         );
 
-        // Mostrar TODAS las categorías, incluso las vacías
+        // Si hay filtros/búsqueda activos, SOLO mostrar categorías con trucos
+        // Si NO hay filtros, mostrar TODAS las categorías (incluso vacías)
+        if (hasActiveFilters && tricksInCategory.length === 0) {
+          return; // Skip categorías vacías cuando hay filtros activos
+        }
+
         categoryMap.set(cat.id, {
           category: cat,
           items: tricksInCategory,

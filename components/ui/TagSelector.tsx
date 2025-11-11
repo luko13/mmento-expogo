@@ -15,6 +15,7 @@ import { supabase } from "../../lib/supabase";
 import TagModal from "../ui/TagModal";
 import { fontNames } from "../../app/_layout";
 import { getContrastTextColor } from "../../utils/colorUtils";
+import CharacterCounter from "./CharacterCounter";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -183,8 +184,8 @@ export default function TagSelector({
           {iconComponent}
 
           {/* Contenedor del input: altura fija, padding aplicado aquí */}
-          <StyledView className="flex-1 flex-row items-center bg-[#D4D4D4]/10 rounded-lg border border-[#eafffb]/40 h-12 pl-3 pr-2">
-            {/* Glyph-safe inset: evita que la primera letra se “muerda” con el borde */}
+          <StyledView className="flex-1 flex-row items-center bg-[#D4D4D4]/10 rounded-lg border border-[#eafffb]/40 h-12 pl-3 pr-2" style={{ position: "relative" }}>
+            {/* Glyph-safe inset: evita que la primera letra se "muerda" con el borde */}
             <StyledView style={{ width: 2 }} />
 
             {/* TextInput estable (iOS + Android) sin padding horizontal propio */}
@@ -196,6 +197,7 @@ export default function TagSelector({
                 height: 48, // altura fija
                 lineHeight: 22, // no corta descendentes
                 paddingVertical: 0, // sin padding vertical
+                paddingRight: 50, // espacio para el contador
                 includeFontPadding: false,
                 ...(Platform.OS === "android"
                   ? { textAlignVertical: "center" as any }
@@ -212,6 +214,13 @@ export default function TagSelector({
               onSubmitEditing={handleAddTag}
               allowFontScaling={false}
               multiline={false}
+            />
+
+            <CharacterCounter
+              currentLength={newTag.length}
+              maxLength={20}
+              position="absolute"
+              style={{ right: allowCreate ? 50 : 14, bottom: 14 }}
             />
 
             {allowCreate && (

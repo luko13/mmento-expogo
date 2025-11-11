@@ -19,6 +19,7 @@ import {
 } from "../../utils/categoryService";
 import CategoryModal from "../ui/CategoryModal";
 import { fontNames } from "../../app/_layout";
+import CharacterCounter from "./CharacterCounter";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -256,8 +257,8 @@ export default function CategorySelector({
           {iconComponent}
 
           {/* Contenedor del input: altura fija, padding aplicado aquí */}
-          <StyledView className="flex-1 flex-row items-center bg-[#D4D4D4]/10 rounded-lg border border-[#5bb9a3] h-12 pl-3 pr-2">
-            {/* Glyph-safe inset: evita que la primera letra toque/borde y se “muerda” */}
+          <StyledView className="flex-1 flex-row items-center bg-[#D4D4D4]/10 rounded-lg border border-[#5bb9a3] h-12 pl-3 pr-2" style={{ position: "relative" }}>
+            {/* Glyph-safe inset: evita que la primera letra toque/borde y se "muerda" */}
             <StyledView style={{ width: 2 }} />
 
             {/* TextInput estable (iOS + Android) sin padding horizontal propio */}
@@ -269,6 +270,7 @@ export default function CategorySelector({
                 height: 48, // altura fija
                 lineHeight: 22, // no corta descendentes
                 paddingVertical: 0, // sin padding vertical
+                paddingRight: 50, // espacio para el contador
                 includeFontPadding: false,
                 ...(Platform.OS === "android"
                   ? { textAlignVertical: "center" as any }
@@ -285,6 +287,13 @@ export default function CategorySelector({
               allowFontScaling={false}
               multiline={false}
               maxLength={20}
+            />
+
+            <CharacterCounter
+              currentLength={newCategory.length}
+              maxLength={20}
+              position="absolute"
+              style={{ right: allowCreate ? 50 : 14, bottom: 14 }}
             />
 
             {allowCreate && (

@@ -266,91 +266,12 @@ const CollapsibleCategoryOptimized = ({
     onExpandChange,
   ]);
 
+  // Los items ya vienen filtrados desde LibraryDataContext.buildSections()
+  // No necesitamos volver a filtrar aquí, solo usar los items directamente
   const filteredItems = useMemo(() => {
     if (!section.items) return [];
-    return section.items.filter((item) => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase().trim();
-        const matchesText =
-          item.title.toLowerCase().includes(query) ||
-          item.description?.toLowerCase().includes(query) ||
-          item.effect?.toLowerCase().includes(query) ||
-          item.secret?.toLowerCase().includes(query) ||
-          item.notes?.toLowerCase().includes(query);
-        if (!matchesText) return false;
-      }
-
-      if (
-        searchFilters?.isPublic !== undefined &&
-        searchFilters.isPublic !== null
-      ) {
-        const itemIsPublic = (item as any).is_public;
-        if (itemIsPublic !== searchFilters.isPublic) return false;
-      }
-
-      if (searchFilters?.difficulties?.length) {
-        if (
-          !item.difficulty ||
-          !searchFilters.difficulties
-            .map((d) => String(d))
-            .includes(String(item.difficulty))
-        ) {
-          return false;
-        }
-      }
-
-      if (searchFilters?.tags?.length) {
-        if (!item.tags?.some((tagId) => searchFilters.tags.includes(tagId))) {
-          return false;
-        }
-      }
-
-      if (
-        searchFilters?.resetTimes?.min !== undefined ||
-        searchFilters?.resetTimes?.max !== undefined
-      ) {
-        if (item.reset == null) return false;
-        if (
-          searchFilters.resetTimes.min !== undefined &&
-          item.reset < searchFilters.resetTimes.min
-        )
-          return false;
-        if (
-          searchFilters.resetTimes.max !== undefined &&
-          item.reset > searchFilters.resetTimes.max
-        )
-          return false;
-      }
-
-      if (
-        searchFilters?.durations?.min !== undefined ||
-        searchFilters?.durations?.max !== undefined
-      ) {
-        if (item.duration == null) return false;
-        if (
-          searchFilters.durations.min !== undefined &&
-          item.duration < searchFilters.durations.min
-        )
-          return false;
-        if (
-          searchFilters.durations.max !== undefined &&
-          item.duration > searchFilters.durations.max
-        )
-          return false;
-      }
-
-      if (searchFilters?.angles?.length) {
-        if (!item.angles || !Array.isArray(item.angles)) return false;
-        const itemAngles = item.angles.map((angle) => String(angle));
-        const hasMatchingAngle = searchFilters.angles.some((filterAngle) =>
-          itemAngles.includes(filterAngle)
-        );
-        if (!hasMatchingAngle) return false;
-      }
-
-      return true;
-    });
-  }, [section.items, searchQuery, searchFilters]);
+    return section.items;
+  }, [section.items]);
 
   const toggleExpanded = useCallback(() => {
     const toValue = !isExpanded ? 1 : 0;

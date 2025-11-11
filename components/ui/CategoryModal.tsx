@@ -26,6 +26,7 @@ import { fontNames } from "../../app/_layout";
 import { getUserCategories } from "../../utils/categoryService";
 import { supabase } from "../../lib/supabase";
 import BlinkingCursor from "./BlinkingCursor";
+import CharacterCounter from "./CharacterCounter";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -237,34 +238,43 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
                   >
                     <StyledView
                       className="flex-row items-center justify-start"
-                      style={{ minWidth: 140, height: 28, gap: 6 }}
+                      style={{ minWidth: 140, height: 28, gap: 6, position: "relative" }}
                     >
                       {isEditingName ? (
-                        <StyledTextInput
-                          ref={inputRef}
-                          value={categoryName}
-                          onChangeText={handleNameChange}
-                          onFocus={() => setIsFocused(true)}
-                          onBlur={() => {
-                            setIsFocused(false);
-                            if (mode === "edit") setIsEditingName(false);
-                          }}
-                          style={{
-                            color: "#fff",
-                            fontFamily: fontNames.medium,
-                            fontSize: 16,
-                            minWidth: 80,
-                            textAlign: "left",
-                            includeFontPadding: false,
-                            paddingVertical: 0,
-                            paddingHorizontal: 0,
-                            margin: 0,
-                          }}
-                          placeholder={t("categoryName", "Category name")}
-                          placeholderTextColor="rgba(255,255,255,0.5)"
-                          maxLength={20}
-                          editable={!isSubmitting}
-                        />
+                        <>
+                          <StyledTextInput
+                            ref={inputRef}
+                            value={categoryName}
+                            onChangeText={handleNameChange}
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={() => {
+                              setIsFocused(false);
+                              if (mode === "edit") setIsEditingName(false);
+                            }}
+                            style={{
+                              color: "#fff",
+                              fontFamily: fontNames.medium,
+                              fontSize: 16,
+                              minWidth: 80,
+                              textAlign: "left",
+                              includeFontPadding: false,
+                              paddingVertical: 0,
+                              paddingHorizontal: 0,
+                              margin: 0,
+                              paddingRight: 30,
+                            }}
+                            placeholder={t("categoryName", "Category name")}
+                            placeholderTextColor="rgba(255,255,255,0.5)"
+                            maxLength={20}
+                            editable={!isSubmitting}
+                          />
+                          <CharacterCounter
+                            currentLength={categoryName.length}
+                            maxLength={20}
+                            position="absolute"
+                            style={{ right: -10, bottom: 2 }}
+                          />
+                        </>
                       ) : (
                         <>
                           <BlinkingCursor visible={shouldShowBlink} />

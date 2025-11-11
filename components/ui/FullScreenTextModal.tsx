@@ -15,6 +15,7 @@ import { Feather } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { fontNames } from "../../app/_layout";
 import { LinearGradient } from "expo-linear-gradient";
+import CharacterCounter from "./CharacterCounter";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -100,36 +101,30 @@ export const FullScreenTextModal: React.FC<FullScreenTextModalProps> = ({
 
           {/* Text Input Area */}
           <StyledView className="flex-1 px-4 pb-4">
-            <StyledTextInput
-              className="flex-1 text-white text-base bg-[#D4D4D4]/10 rounded-lg p-4 border border-[#eafffb]/40"
-              style={{
-                fontFamily: fontNames.light,
-                fontSize: 16,
-                includeFontPadding: false,
-                textAlignVertical: "top",
-              }}
-              placeholder={placeholder}
-              placeholderTextColor="rgba(255, 255, 255, 0.5)"
-              value={text}
-              onChangeText={setText}
-              maxLength={3000}
-              multiline
-              autoFocus
-            />
-          </StyledView>
-
-          {/* Character count */}
-          <StyledView className="px-4 pb-4">
-            <StyledText
-              className="text-white/50 text-xs text-right"
-              style={{
-                fontFamily: fontNames.light,
-                fontSize: 12,
-                includeFontPadding: false,
-              }}
-            >
-              {text.length} {t("characters", "characters")}
-            </StyledText>
+            <StyledView style={{ flex: 1, position: "relative" }}>
+              <StyledTextInput
+                className="flex-1 text-white text-base bg-[#D4D4D4]/10 rounded-lg p-4 border border-[#eafffb]/40"
+                style={{
+                  fontFamily: fontNames.light,
+                  fontSize: 16,
+                  includeFontPadding: false,
+                  textAlignVertical: "top",
+                }}
+                placeholder={placeholder}
+                placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                value={text}
+                onChangeText={setText}
+                maxLength={3000}
+                multiline
+                autoFocus
+              />
+              <CharacterCounter
+                currentLength={text.length}
+                maxLength={3000}
+                position="absolute"
+                style={{ right: 20, bottom: 20, zIndex: 10 }}
+              />
+            </StyledView>
           </StyledView>
         </KeyboardAvoidingView>
       </LinearGradient>
