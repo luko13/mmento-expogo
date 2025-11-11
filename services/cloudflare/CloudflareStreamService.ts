@@ -140,8 +140,8 @@ class CloudflareStreamService {
 
       const uploadResponse = await uploadTask.uploadAsync();
 
-      if (uploadResponse.status !== 204) {
-        throw new Error(`Error subiendo video: Status ${uploadResponse.status}`);
+      if (!uploadResponse || uploadResponse.status !== 204) {
+        throw new Error(`Error subiendo video: Status ${uploadResponse?.status || 'unknown'}`);
       }
 
       console.log('✅ Video subido exitosamente');
@@ -281,6 +281,12 @@ class CloudflareStreamService {
           'Authorization': `Bearer ${this.apiToken}`,
         },
       });
+
+      // 404 significa que el video ya no existe - objetivo cumplido
+      if (response.status === 404) {
+        console.log('ℹ️ Video ya no existe en Cloudflare Stream (404)');
+        return true;
+      }
 
       if (!response.ok) {
         throw new Error(`Error eliminando video: ${response.status}`);

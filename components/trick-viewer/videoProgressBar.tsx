@@ -7,7 +7,9 @@ import {
   Dimensions,
   Text,
   TouchableWithoutFeedback,
+  TouchableOpacity,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { fontNames } from "../../app/_layout";
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -15,26 +17,32 @@ const { width: screenWidth } = Dimensions.get("window");
 interface VideoProgressBarProps {
   duration: number;
   currentTime: number;
-  visible?: boolean;
+  isPlaying: boolean;
+  isUIVisible: boolean;
+  onPlayPause: () => void;
+  onToggleUI: () => void;
   onSeekStart?: () => void;
   onSeek?: (time: number) => void;
   onSeekEnd?: (time: number) => void;
-   onBarInteraction?: () => void;
+  onBarInteraction?: () => void;
 }
 
 const VideoProgressBar = memo<VideoProgressBarProps>(
   ({
     duration,
     currentTime,
-    visible = true,
+    isPlaying,
+    isUIVisible,
+    onPlayPause,
+    onToggleUI,
     onSeekStart,
     onSeek,
     onSeekEnd,
     onBarInteraction,
   }) => {
     const thumbAnimation = useRef(new Animated.Value(1)).current;
-    const barOpacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
-    const progressBarWidth = screenWidth - 24;
+    // Ajustar el ancho de la barra para dejar espacio a los botones
+    const progressBarWidth = screenWidth - 140; // 60px botón izq + 60px botón der + 20px padding
 
     // Usar estado para el progreso
     const [progressPercent, setProgressPercent] = useState(0);
@@ -43,15 +51,6 @@ const VideoProgressBar = memo<VideoProgressBarProps>(
     // Referencias para evitar re-renders
     const isDraggingRef = useRef(false);
     const progressBarRef = useRef<View>(null);
-
-    // Animación de visibilidad
-    useEffect(() => {
-      Animated.timing(barOpacity, {
-        toValue: visible ? 1 : 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }, [visible, barOpacity]);
 
     // Actualización del progreso cuando no estamos arrastrando
     useEffect(() => {
@@ -167,61 +166,85 @@ const VideoProgressBar = memo<VideoProgressBarProps>(
     }, []);
 
     return (
-      <Animated.View
-        style={[styles.container, { opacity: barOpacity }]}
-        pointerEvents={visible ? "auto" : "none"}
-      >
-        <View style={styles.timeContainer}>
-          <Text style={styles.timeText}>
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </Text>
-        </View>
+      <View style={styles.container}>
+        {/* Botón Play/Pausa */}
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={onPlayPause}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name={isPlaying ? "pause" : "play"}
+            size={24}
+            color="white"
+          />
+        </TouchableOpacity>
 
-        {/* Área táctil grande para capturar toques */}
-        <TouchableWithoutFeedback onPress={handleBarPress}>
-          <View style={styles.touchableArea}>
-            {/* Área de arrastre con PanResponder */}
-            <View
-              ref={progressBarRef}
-              style={styles.touchAreaContainer}
-              {...panResponder.panHandlers}
-            >
-              <View style={styles.progressBarContainer}>
-                {/* Barra de fondo */}
-                <View style={styles.progressBarBackground} />
+        {/* Contenedor central: barra + tiempo */}
+        <View style={styles.centerContainer}>
+          {/* Área táctil grande para capturar toques */}
+          <TouchableWithoutFeedback onPress={handleBarPress}>
+            <View style={styles.touchableArea}>
+              {/* Área de arrastre con PanResponder */}
+              <View
+                ref={progressBarRef}
+                style={styles.touchAreaContainer}
+                {...panResponder.panHandlers}
+              >
+                <View style={styles.progressBarContainer}>
+                  {/* Barra de fondo */}
+                  <View style={styles.progressBarBackground} />
 
-                {/* Barra de progreso con width calculado */}
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    {
-                      width: `${progressPercent * 100}%`,
-                    },
-                  ]}
-                />
+                  {/* Barra de progreso con width calculado */}
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${progressPercent * 100}%`,
+                      },
+                    ]}
+                  />
 
-                {/* Thumb animado */}
-                <Animated.View
-                  style={[
-                    styles.thumbContainer,
-                    {
-                      transform: [
-                        { translateX: thumbPosition },
-                        { scale: thumbAnimation },
-                      ],
-                    },
-                  ]}
-                  pointerEvents="none"
-                >
-                  
+                  {/* Thumb animado */}
+                  <Animated.View
+                    style={[
+                      styles.thumbContainer,
+                      {
+                        transform: [
+                          { translateX: thumbPosition },
+                          { scale: thumbAnimation },
+                        ],
+                      },
+                    ]}
+                    pointerEvents="none"
+                  >
                     <View style={styles.thumb} />
-                  
-                </Animated.View>
+                  </Animated.View>
+                </View>
               </View>
             </View>
+          </TouchableWithoutFeedback>
+
+          <View style={styles.timeContainer}>
+            <Text style={styles.timeText}>
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </Text>
           </View>
-        </TouchableWithoutFeedback>
-      </Animated.View>
+        </View>
+
+        {/* Botón Toggle UI (Ojo) */}
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={onToggleUI}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name={isUIVisible ? "eye" : "eye-off"}
+            size={24}
+            color="white"
+          />
+        </TouchableOpacity>
+      </View>
     );
   }
 );
@@ -229,27 +252,33 @@ const VideoProgressBar = memo<VideoProgressBarProps>(
 VideoProgressBar.displayName = "VideoProgressBar";
 
 const styles = StyleSheet.create({
-  wrapper: {
-    position: "relative",
-  },
-  invisibleTouchArea: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: 80, // Área táctil grande para facilitar el toque
-    zIndex: 1,
-  },
   container: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 12,
+  },
+  controlButton: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  centerContainer: {
+    flex: 1,
+    marginHorizontal: 12,
+    justifyContent: "center",
   },
   timeContainer: {
     paddingHorizontal: 4,
-    paddingBottom: 0,
+    paddingTop: 2,
+    alignItems: "center",
+    marginTop: -4,
   },
   timeText: {
     color: "white",
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: fontNames.regular,
     textShadowColor: "rgba(0, 0, 0, 0.75)",
     textShadowOffset: { width: 0, height: 1 },
@@ -257,31 +286,31 @@ const styles = StyleSheet.create({
   },
   touchableArea: {
     // Área táctil expandida
-    paddingVertical: 20,
-    marginVertical: -20,
+    paddingVertical: 12,
+    marginVertical: -12,
   },
   touchAreaContainer: {
     // Contenedor para el PanResponder
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
   progressBarContainer: {
-    height: 3,
+    height: 4,
     justifyContent: "center",
     position: "relative",
   },
   progressBarBackground: {
     position: "absolute",
-    height: 3,
+    height: 4,
     backgroundColor: "rgba(255, 255, 255, 0.3)",
     left: 0,
     right: 0,
-    borderRadius: 1.5,
+    borderRadius: 2,
   },
   progressBarFill: {
     position: "absolute",
-    height: 3,
+    height: 4,
     backgroundColor: "white",
-    borderRadius: 1.5,
+    borderRadius: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
@@ -292,16 +321,20 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     marginLeft: -4,
-    marginTop: -1,
+    marginTop: -2,
     justifyContent: "center",
     alignItems: "center",
   },
   thumb: {
-    width: 12,
-    height: 12,
+    width: 14,
+    height: 14,
     borderRadius: 7,
     backgroundColor: "white",
     elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
   },
 });
 

@@ -27,10 +27,11 @@ import CustomTooltip from "../../ui/Tooltip";
 import { MediaSelector, MediaSelectorRef } from "../../ui/MediaSelector";
 import { FullScreenTextModal } from "../../ui/FullScreenTextModal";
 import { fontNames } from "../../../app/_layout";
-import { cloudflareStreamService } from "../../../services/cloudflare/CloudflareStreamService";
-import { cloudflareImagesService } from "../../../services/cloudflare/CloudflareImagesService";
+import CloudflareStreamService from "../../../services/cloudflare/CloudflareStreamService";
+import CloudflareImagesService from "../../../services/cloudflare/CloudflareImagesService";
 import { supabase } from "../../../lib/supabase";
 import { Alert } from "react-native";
+import QuickSaveModal from "../../ui/QuickSaveModal";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -75,6 +76,7 @@ export default function EffectStep({
   // Estados para los modales de pantalla completa
   const [showEffectModal, setShowEffectModal] = useState(false);
   const [showSecretModal, setShowSecretModal] = useState(false);
+  const [showQuickSaveModal, setShowQuickSaveModal] = useState(false);
 
   // Function to dismiss keyboard
   const dismissKeyboard = () => {
@@ -203,7 +205,7 @@ export default function EffectStep({
 
       // Agregar fotos adicionales si existen
       if (trickData.photos && trickData.photos.length > 0) {
-        trickData.photos.forEach((photoUrl, index) => {
+        trickData.photos.forEach((photoUrl: string, index: number) => {
           const fileName = photoUrl.includes('imagedelivery.net')
             ? `photo_${index + 1}.jpg`
             : photoUrl.split('/').pop() || `photo_${index + 1}.jpg`;
@@ -232,7 +234,7 @@ export default function EffectStep({
 
       if (videoId) {
         // Eliminar de Cloudflare Stream
-        await cloudflareStreamService.deleteVideo(videoId);
+        await CloudflareStreamService.deleteVideo(videoId);
       }
 
       // Eliminar URL de trickData
@@ -262,7 +264,7 @@ export default function EffectStep({
 
       if (videoId) {
         // Eliminar de Cloudflare Stream
-        await cloudflareStreamService.deleteVideo(videoId);
+        await CloudflareStreamService.deleteVideo(videoId);
       }
 
       // Eliminar URL de trickData
@@ -290,11 +292,11 @@ export default function EffectStep({
 
       if (imageId) {
         // Eliminar de Cloudflare Images
-        await cloudflareImagesService.deleteImage(imageId);
+        await CloudflareImagesService.deleteImage(imageId);
       }
 
       // Actualizar trickData eliminando esta foto
-      const updatedPhotos = (trickData.photos || []).filter(photoUrl => photoUrl !== file.uri);
+      const updatedPhotos = (trickData.photos || []).filter((photoUrl: string) => photoUrl !== file.uri);
 
       // Si es la foto principal, también limpiarla
       if (trickData.photo_url === file.uri) {
@@ -336,15 +338,28 @@ export default function EffectStep({
         {/* Header */}
         <StyledView className="pt-4 pb-4" style={{ paddingHorizontal: 12 }}>
           <StyledView style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-            <StyledTouchableOpacity onPress={onCancel} className="p-2" style={{ width: 40, flexShrink: 0 }}>
+            {/* Botón izquierdo: centrado verticalmente considerando su padding */}
+            <StyledTouchableOpacity
+              onPress={onCancel}
+              className="p-2"
+              style={{ width: 40, flexShrink: 0, marginTop: 0 }}
+            >
               <Feather name="chevron-left" size={24} color="white" />
             </StyledTouchableOpacity>
 
-            <StyledView style={{ flex: 1, paddingHorizontal: 8, maxWidth: width - 104 }}>
+            {/* Contenedor del texto: alineado para que la primera línea quede centrada */}
+            <StyledView style={{
+              flex: 1,
+              paddingHorizontal: 8,
+              maxWidth: width - 104,
+              marginTop: 6, // Ajuste fino para centrar la primera línea con los iconos
+            }}>
               <Text
+                numberOfLines={2}
                 style={{
                   fontFamily: fontNames.light,
                   fontSize: 20,
+                  lineHeight: 24,
                   color: 'white',
                   textAlign: 'center',
                   includeFontPadding: false,
@@ -354,12 +369,13 @@ export default function EffectStep({
               </Text>
             </StyledView>
 
+            {/* Botón derecho: centrado verticalmente considerando su padding */}
             <StyledTouchableOpacity
               className={`p-2 ${isSubmitting ? "opacity-30" : ""}`}
-              style={{ width: 40, flexShrink: 0 }}
+              style={{ width: 40, flexShrink: 0, marginTop: 0 }}
               onPress={() => {
-                if (onSave && !isSubmitting) {
-                  onSave();
+                if (!isSubmitting) {
+                  setShowQuickSaveModal(true);
                 }
               }}
               disabled={isSubmitting}
@@ -683,6 +699,16 @@ export default function EffectStep({
           onSave={(text) => updateTrickData({ secret: text })}
           title={t("secretDescription", "Secret Description")}
           placeholder={t("describeSecret", "Describe how the trick works...")}
+        />
+
+        {/* Modal de confirmación de guardado rápido */}
+        <QuickSaveModal
+          visible={showQuickSaveModal}
+          onClose={() => setShowQuickSaveModal(false)}
+          onConfirm={() => {
+            setShowQuickSaveModal(false);
+            if (onSave) onSave();
+          }}
         />
       </StyledView>
     </TouchableWithoutFeedback>

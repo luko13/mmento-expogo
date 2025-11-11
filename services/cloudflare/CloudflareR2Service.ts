@@ -155,7 +155,13 @@ class CloudflareR2Service {
       console.log('✅ Archivo eliminado exitosamente');
       return true;
 
-    } catch (error) {
+    } catch (error: any) {
+      // En S3/R2, eliminar un archivo que no existe no lanza error (es idempotente)
+      // Pero si ocurre un error NoSuchKey, también lo consideramos exitoso
+      if (error?.name === 'NoSuchKey' || error?.Code === 'NoSuchKey') {
+        console.log('ℹ️ Archivo ya no existe en R2 (NoSuchKey)');
+        return true;
+      }
       console.error('❌ Error eliminando archivo de R2:', error);
       return false;
     }

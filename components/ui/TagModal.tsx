@@ -165,6 +165,7 @@ const TagModal: React.FC<TagModalProps> = ({
                           }}
                           placeholder={t("tagName", "Tag name")}
                           placeholderTextColor={textColor + "80"}
+                          maxLength={20}
                         />
                       </StyledView>
                     ) : (

@@ -238,15 +238,28 @@ export default function ExtrasStep({
         {/* Encabezado */}
         <StyledView className="pt-4" style={{ paddingHorizontal: 8 }}>
           <StyledView style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-            <StyledTouchableOpacity onPress={onCancel} className="p-2" style={{ width: 40, flexShrink: 0 }}>
+            {/* Botón izquierdo: centrado verticalmente considerando su padding */}
+            <StyledTouchableOpacity
+              onPress={onCancel}
+              className="p-2"
+              style={{ width: 40, flexShrink: 0, marginTop: 0 }}
+            >
               <Feather name="chevron-left" size={24} color="white" />
             </StyledTouchableOpacity>
 
-            <StyledView style={{ flex: 1, paddingHorizontal: 8, maxWidth: width - 96 }}>
+            {/* Contenedor del texto: alineado para que la primera línea quede centrada */}
+            <StyledView style={{
+              flex: 1,
+              paddingHorizontal: 8,
+              maxWidth: width - 96,
+              marginTop: 6, // Ajuste fino para centrar la primera línea con los iconos
+            }}>
               <Text
+                numberOfLines={2}
                 style={{
                   fontFamily: fontNames.light,
                   fontSize: 20,
+                  lineHeight: 24,
                   color: 'white',
                   textAlign: 'center',
                   includeFontPadding: false,
@@ -256,7 +269,8 @@ export default function ExtrasStep({
               </Text>
             </StyledView>
 
-            <StyledView className="p-2 opacity-0" style={{ width: 40, flexShrink: 0 }}>
+            {/* Elemento invisible para balancear el layout */}
+            <StyledView className="p-2 opacity-0" style={{ width: 40, flexShrink: 0, marginTop: 0 }}>
               <Feather name="chevron-left" size={24} color="white" />
             </StyledView>
           </StyledView>

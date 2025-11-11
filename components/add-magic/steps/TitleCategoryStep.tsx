@@ -1,7 +1,7 @@
 // components/add-magic/steps/TitleCategoryStep.tsx
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -64,6 +64,8 @@ export default function TitleCategoryStep({
   const insets = useSafeAreaInsets();
   const [userId, setUserId] = useState<string | undefined>();
   const [showQuickSaveModal, setShowQuickSaveModal] = useState(false);
+  const titleScrollViewRef = useRef<ScrollView>(null);
+  const titleInputRef = useRef<TextInput>(null);
 
   // Validación en tiempo real del título
   const titleValidation = useMemo(() => {
@@ -101,6 +103,16 @@ export default function TitleCategoryStep({
       if (user) setUserId(user.id);
     })();
   }, []);
+
+  // Efecto para hacer scroll al final cuando el texto cambia
+  useEffect(() => {
+    if (trickData.title && titleScrollViewRef.current) {
+      // Pequeño delay para permitir que el layout se actualice
+      setTimeout(() => {
+        titleScrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 50);
+    }
+  }, [trickData.title]);
 
   // Handlers
   const handleTitleChange = (text: string) => updateTrickData({ title: text });
@@ -201,32 +213,46 @@ export default function TitleCategoryStep({
                   </CustomTooltip>
 
                   {/* Contenedor: MISMO alto y borde que Category/Tag; sin padding izq */}
-                  <StyledView className="flex-1 h-12 bg-[#D4D4D4]/10 border border-[#5bb9a3] rounded-lg flex-row items-center pr-2">
-                    <StyledTextInput
-                      className="flex-1 text-[#FFFFFF]/70 bg-transparent"
-                      style={{
-                        fontFamily: fontNames.light,
-                        fontSize: 16,
-                        height: 48, // altura fija
-                        lineHeight: 22, // no corta descendentes
-                        paddingVertical: 0, // sin padding vertical
-                        paddingLeft: 14, // inset real: evita mordisco y ALINEA con Category/Tag
-                        includeFontPadding: false,
-                        ...(Platform.OS === "android"
-                          ? { textAlignVertical: "center" as any }
-                          : { paddingTop: 1 }), // iOS baseline fino
-                      }}
-                      placeholder={`${t("forms.magicTitlePlaceholder")}`}
-                      placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                      value={trickData.title}
-                      onChangeText={handleTitleChange}
-                      maxLength={40}
-                      autoCapitalize="sentences"
-                      autoCorrect={false}
-                      returnKeyType="next"
-                      allowFontScaling={false}
-                      multiline={false}
-                    />
+                  <StyledView className="flex-1 h-12 bg-[#D4D4D4]/10 border border-[#5bb9a3] rounded-lg flex-row items-center pr-2 overflow-hidden">
+                    <StyledScrollView
+                      ref={titleScrollViewRef}
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      keyboardShouldPersistTaps="handled"
+                      style={{ flex: 1 }}
+                      contentContainerStyle={{ flexGrow: 1 }}
+                    >
+                      <StyledTextInput
+                        ref={titleInputRef}
+                        className="text-[#FFFFFF]/70 bg-transparent"
+                        style={{
+                          fontFamily: fontNames.light,
+                          fontSize: 16,
+                          height: 48, // altura fija
+                          lineHeight: 22, // no corta descendentes
+                          paddingVertical: 0, // sin padding vertical
+                          paddingLeft: 14, // inset real: evita mordisco y ALINEA con Category/Tag
+                          paddingRight: 14, // padding derecho para balancear
+                          minWidth: '100%', // ocupa al menos el ancho completo
+                          includeFontPadding: false,
+                          ...(Platform.OS === "android"
+                            ? { textAlignVertical: "center" as any }
+                            : { paddingTop: 1 }), // iOS baseline fino
+                        }}
+                        placeholder={`${t("forms.magicTitlePlaceholder")}`}
+                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                        value={trickData.title}
+                        onChangeText={handleTitleChange}
+                        maxLength={40}
+                        autoCapitalize="sentences"
+                        autoCorrect={false}
+                        returnKeyType="next"
+                        allowFontScaling={false}
+                        multiline={false}
+                        numberOfLines={1}
+                        scrollEnabled={false}
+                      />
+                    </StyledScrollView>
                   </StyledView>
                 </StyledView>
 

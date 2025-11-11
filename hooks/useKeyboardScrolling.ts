@@ -57,7 +57,7 @@ export const useKeyboardScrolling = (
               animated: true,
             });
           },
-          (error) => console.log("Failed to measure layout", error)
+          () => console.log("Failed to measure layout")
         );
       }
     }, scrollDelay);

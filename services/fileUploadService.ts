@@ -316,7 +316,7 @@ const uploadToCloudflare = async (
     const isVideo = fileType.startsWith('video/');
     const isImage = fileType.startsWith('image/');
 
-    if (isImage && fileInfo.size > FILE_SIZE_LIMITS.IMAGE_SMALL) {
+    if (isImage && fileInfo.size > FILE_SIZE_LIMITS.IMAGE_RECOMMENDED * 1024 * 1024) {
       console.log(`🗜️ Comprimiendo imagen antes de subir...`);
 
       const compressionResult = await compressionService.compressFile(
@@ -404,8 +404,8 @@ const uploadToSupabase = async (
     let wasCompressed = false;
 
     // Determinar si necesita compresión basado en el tipo y tamaño
-    const shouldCompress = (fileType.startsWith('image/') && fileInfo.size > FILE_SIZE_LIMITS.IMAGE_SMALL) ||
-                          (fileType.startsWith('video/') && fileInfo.size > FILE_SIZE_LIMITS.VIDEO_SMALL);
+    const shouldCompress = (fileType.startsWith('image/') && fileInfo.size > FILE_SIZE_LIMITS.IMAGE_RECOMMENDED * 1024 * 1024) ||
+                          (fileType.startsWith('video/') && fileInfo.size > FILE_SIZE_LIMITS.VIDEO_RECOMMENDED * 1024 * 1024);
 
     if (shouldCompress) {
       console.log(`🗜️ Comprimiendo archivo...`);
@@ -437,7 +437,7 @@ const uploadToSupabase = async (
     // Elegir el método de subida adecuado
     let uploadUrl: string | null = null;
 
-    if (fileType.startsWith('video/') && fileInfo.size > FILE_SIZE_LIMITS.VIDEO_SMALL) {
+    if (fileType.startsWith('video/') && fileInfo.size > FILE_SIZE_LIMITS.VIDEO_RECOMMENDED * 1024 * 1024) {
       // Para videos grandes, usar streaming con progreso
       console.log(`📹 Subiendo video grande con streaming...`);
       uploadUrl = await uploadFileStreaming(

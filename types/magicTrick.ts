@@ -20,6 +20,7 @@ export interface MagicTrick {
   script: string;
   scriptId?: string;
   photo_url: string | null;
+  photos?: string[]; // URLs de fotos adicionales (modo edición)
   techniqueIds: string[];
   gimmickIds: string[];
   is_public: boolean;

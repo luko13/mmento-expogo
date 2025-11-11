@@ -284,6 +284,7 @@ export default function CategorySelector({
               onSubmitEditing={handleAddCategory}
               allowFontScaling={false}
               multiline={false}
+              maxLength={20}
             />
 
             {allowCreate && (

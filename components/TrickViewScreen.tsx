@@ -124,9 +124,8 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
   const cameraRef = useRef<CameraView>(null);
 
-  // Estados de progress bar
-  const [showProgressBar, setShowProgressBar] = useState(true);
-  const progressBarHideTimer = useRef<NodeJS.Timeout | null>(null);
+  // Estados de UI y progress bar
+  const [isUIVisible, setIsUIVisible] = useState(true);
   const [isSeekingVideo, setIsSeekingVideo] = useState(false);
 
   // Estados de videos
@@ -219,26 +218,32 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
     [trick.photos, trick.photo_url]
   );
 
-  // Timer para ocultar progress bar
-  const showProgressBarWithTimer = useCallback(() => {
-    setShowProgressBar(true);
-    if (progressBarHideTimer.current) {
-      clearTimeout(progressBarHideTimer.current);
-    }
-    if (!isSeekingVideo) {
-      progressBarHideTimer.current = setTimeout(() => {
-        if (!isSeekingVideo) setShowProgressBar(false);
-      }, 3000);
-    }
-  }, [isSeekingVideo]);
+  // Manejador de play/pausa
+  const handlePlayPause = useCallback(() => {
+    const player = currentSection === "effect"
+      ? effectPlayerRef.current
+      : secretPlayerRef.current;
 
-  // Limpiar timer al desmontar
-  useEffect(() => {
-    return () => {
-      if (progressBarHideTimer.current) {
-        clearTimeout(progressBarHideTimer.current);
+    const isPlaying = currentSection === "effect"
+      ? isEffectPlaying
+      : isSecretPlaying;
+
+    if (player) {
+      if (isPlaying) {
+        player.pause();
+        if (currentSection === "effect") setIsEffectPlaying(false);
+        else setIsSecretPlaying(false);
+      } else {
+        player.play();
+        if (currentSection === "effect") setIsEffectPlaying(true);
+        else setIsSecretPlaying(true);
       }
-    };
+    }
+  }, [currentSection, isEffectPlaying, isSecretPlaying]);
+
+  // Manejador de toggle UI
+  const handleToggleUI = useCallback(() => {
+    setIsUIVisible(prev => !prev);
   }, []);
 
   // Cargar usuario actual
@@ -920,15 +925,13 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
             top: 0,
             left: 0,
             right: 0,
-            bottom: 200, // Dejar espacio para la barra de progreso
+            bottom: 100, // Dejar espacio para la barra de progreso
             justifyContent: "center",
             alignItems: "center",
           }}
           activeOpacity={1}
           onPress={() => {
             if (!player || isStageExpanded) return;
-
-            showProgressBarWithTimer();
 
             if (isPlaying) {
               player.pause();
@@ -944,12 +947,12 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
           {!isPlaying && (
             <View
               style={{
-                backgroundColor: "rgba(0,0,0,0.3)",
-                borderRadius: 50,
-                padding: 20,
+                backgroundColor: "rgba(0,0,0,0.5)",
+                borderRadius: 60,
+                padding: 24,
               }}
             >
-              <Ionicons name="play" color="white" size={50} />
+              <Ionicons name="play" color="white" size={60} />
             </View>
           )}
         </TouchableOpacity>
@@ -1119,105 +1122,62 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         <View style={{ width, height }}>{renderPhotoGallery()}</View>
       </StyledScrollView>
 
-      {/* Barra de progreso FUERA del ScrollView y de todo */}
+      {/* Barra de progreso FUERA del ScrollView y de todo - SIEMPRE VISIBLE */}
       {(currentSection === "effect" || currentSection === "secret") &&
        ((currentSection === "effect" && effectVideoUrl) ||
         (currentSection === "secret" && secretVideoUrl)) && (
-        <>
-          <View
-            style={{
-              position: "absolute",
-              bottom: 20,
-              left: 0,
-              right: 0,
-              zIndex: 9999,
-              elevation: 999,
+        <View
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            elevation: 999,
+          }}
+        >
+          <VideoProgressBar
+            duration={
+              currentSection === "effect" ? effectDuration : secretDuration
+            }
+            currentTime={
+              currentSection === "effect" ? effectTime : secretTime
+            }
+            isPlaying={
+              currentSection === "effect" ? isEffectPlaying : isSecretPlaying
+            }
+            isUIVisible={isUIVisible}
+            onPlayPause={handlePlayPause}
+            onToggleUI={handleToggleUI}
+            onSeekStart={() => {
+              setIsSeekingVideo(true);
             }}
-            pointerEvents="box-none"
-          >
-            <VideoProgressBar
-              duration={
-                currentSection === "effect" ? effectDuration : secretDuration
+            onSeek={(seekTime) => {
+              if (currentSection === "effect") {
+                setEffectTime(seekTime);
+                lastEffectTimeRef.current = seekTime;
+              } else {
+                setSecretTime(seekTime);
+                lastSecretTimeRef.current = seekTime;
               }
-              currentTime={
-                currentSection === "effect" ? effectTime : secretTime
+            }}
+            onSeekEnd={(seekTime) => {
+              setIsSeekingVideo(false);
+              const player =
+                currentSection === "effect"
+                  ? effectPlayerRef.current
+                  : secretPlayerRef.current;
+
+              if (player) {
+                const currentTime = player.currentTime || 0;
+                const delta = seekTime - currentTime;
+                if (Math.abs(delta) > 0.1) {
+                  player.seekBy(delta);
+                }
               }
-              visible={showProgressBar && !isStageExpanded}
-              onBarInteraction={() => {
-                showProgressBarWithTimer();
-              }}
-              onSeekStart={() => {
-                setIsSeekingVideo(true);
-                const player =
-                  currentSection === "effect"
-                    ? effectPlayerRef.current
-                    : secretPlayerRef.current;
-                const isPlaying =
-                  currentSection === "effect"
-                    ? isEffectPlaying
-                    : isSecretPlaying;
-
-                if (player && isPlaying) {
-                  player.pause();
-                  if (currentSection === "effect") setIsEffectPlaying(false);
-                  else setIsSecretPlaying(false);
-                }
-              }}
-              onSeek={(seekTime) => {
-                if (currentSection === "effect") {
-                  setEffectTime(seekTime);
-                  lastEffectTimeRef.current = seekTime;
-                } else {
-                  setSecretTime(seekTime);
-                  lastSecretTimeRef.current = seekTime;
-                }
-              }}
-              onSeekEnd={(seekTime) => {
-                setIsSeekingVideo(false);
-                const player =
-                  currentSection === "effect"
-                    ? effectPlayerRef.current
-                    : secretPlayerRef.current;
-
-                if (player) {
-                  const currentTime = player.currentTime || 0;
-                  const delta = seekTime - currentTime;
-                  if (Math.abs(delta) > 0.1) {
-                    player.seekBy(delta);
-                  }
-                  player.play();
-                  if (currentSection === "effect") {
-                    setIsEffectPlaying(true);
-                    lastEffectTimeRef.current = seekTime;
-                  } else {
-                    setIsSecretPlaying(true);
-                    lastSecretTimeRef.current = seekTime;
-                  }
-                }
-                showProgressBarWithTimer();
-              }}
-            />
-          </View>
-
-          {/* Área táctil invisible cuando la barra está oculta */}
-          {!showProgressBar && !isStageExpanded && (
-            <TouchableOpacity
-              style={{
-                position: "absolute",
-                bottom: 20,
-                left: 0,
-                right: 0,
-                height: 60,
-                zIndex: 10000,
-                backgroundColor: "transparent",
-              }}
-              activeOpacity={1}
-              onPress={() => {
-                showProgressBarWithTimer();
-              }}
-            />
-          )}
-        </>
+            }}
+          />
+        </View>
       )}
 
       <Animated.View
@@ -1245,49 +1205,55 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
         </TouchableOpacity>
       </Animated.View>
 
-      <StyledView
-        style={{
-          position: "absolute",
-          top: insets.top,
-          left: 0,
-          right: 0,
-          zIndex: 10,
-          paddingHorizontal: insets.left,
-        }}
-      >
-        <TopNavigationBar
-          title={trick.title}
-          onBackPress={handleClose}
-          onLikePress={handleLikePress}
-          onMorePress={handleMorePress}
-          isLiked={isFavorite}
-        />
-      </StyledView>
+      {/* Top Navigation - Solo visible si isUIVisible es true */}
+      {isUIVisible && (
+        <StyledView
+          style={{
+            position: "absolute",
+            top: insets.top,
+            left: 0,
+            right: 0,
+            zIndex: 10,
+            paddingHorizontal: insets.left,
+          }}
+        >
+          <TopNavigationBar
+            title={trick.title}
+            onBackPress={handleClose}
+            onLikePress={handleLikePress}
+            onMorePress={handleMorePress}
+            isLiked={isFavorite}
+          />
+        </StyledView>
+      )}
 
-      <StyledView
-        style={{
-          position: "absolute",
-          bottom: insets.bottom,
-          left: 0,
-          right: 0,
-          zIndex: 10,
-          paddingHorizontal: insets.left,
-        }}
-      >
-        <TrickViewerBottomSection
-          tagIds={localTagIds}
-          userId={userIdForTags}
-          stage={currentSection}
-          category={trick.category}
-          description={getCurrentDescription()}
-          angle={180}
-          resetTime={trick.reset || 10}
-          duration={trick.duration || 110}
-          difficulty={trick.difficulty}
-          stageExpanded={isStageExpanded}
-          onStageExpandedChange={handleStageExpandedChange}
-        />
-      </StyledView>
+      {/* Bottom Section - Solo visible si isUIVisible es true */}
+      {isUIVisible && (
+        <StyledView
+          style={{
+            position: "absolute",
+            bottom: insets.bottom, 
+            left: 0,
+            right: 0,
+            zIndex: 10,
+            paddingHorizontal: insets.left,
+          }}
+        >
+          <TrickViewerBottomSection
+            tagIds={localTagIds}
+            userId={userIdForTags}
+            stage={currentSection}
+            category={trick.category}
+            description={getCurrentDescription()}
+            angle={180}
+            resetTime={trick.reset || 10}
+            duration={trick.duration || 110}
+            difficulty={trick.difficulty}
+            stageExpanded={isStageExpanded}
+            onStageExpandedChange={handleStageExpandedChange}
+          />
+        </StyledView>
+      )}
 
       <TrickActionsModal
         visible={showActionsModal}

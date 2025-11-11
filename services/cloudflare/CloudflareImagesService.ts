@@ -187,6 +187,12 @@ class CloudflareImagesService {
         },
       });
 
+      // 404 significa que la imagen ya no existe - objetivo cumplido
+      if (response.status === 404) {
+        console.log('ℹ️ Imagen ya no existe en Cloudflare Images (404)');
+        return true;
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Error eliminando imagen: ${errorText}`);

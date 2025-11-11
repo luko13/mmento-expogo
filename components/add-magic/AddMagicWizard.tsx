@@ -10,7 +10,6 @@ import { v4 as uuidv4 } from "uuid";
 import * as FileSystem from "expo-file-system";
 import { supabase } from "../../lib/supabase";
 import { uploadFileToStorage } from "../../services/fileUploadService";
-import { paginatedContentService } from "../../utils/paginatedContentService";
 import type { MagicTrick, MagicTrickDBRecord } from "../../types/magicTrick";
 import TitleCategoryStep from "./steps/TitleCategoryStep";
 import EffectStep from "./steps/EffectStep";
@@ -535,9 +534,9 @@ export default function AddMagicWizard({
       const uploadResults = await uploadFilesInParallel(filesToUpload, profileId);
 
       // Extraer resultados
-      let photoUrl = null;
-      let effectVideoUrl = uploadResults.get('effect');
-      let secretVideoUrl = uploadResults.get('secret');
+      let photoUrl: string | null = null;
+      let effectVideoUrl: string | null = uploadResults.get('effect') || null;
+      let secretVideoUrl: string | null = uploadResults.get('secret') || null;
 
       const uploadedPhotos: string[] = [];
       for (let i = 0; i < (trickData.localFiles?.photos?.length || 0); i++) {
@@ -554,6 +553,16 @@ export default function AddMagicWizard({
 
       // Generar ID único
       const trickId = uuidv4();
+
+      // Debug: ver qué valores estamos enviando
+      console.log('📝 Valores para create_magic_trick:', {
+        effectVideoUrl,
+        secretVideoUrl,
+        photoUrl,
+        hasEffectVideo: !!effectVideoUrl,
+        hasSecretVideo: !!secretVideoUrl,
+        hasPhoto: !!photoUrl,
+      });
 
       // Crear truco usando la nueva función
       const { data, error } = await supabase.rpc("create_magic_trick", {
