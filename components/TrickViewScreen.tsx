@@ -153,6 +153,10 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
   const lastEffectTimeRef = useRef(0);
   const lastSecretTimeRef = useRef(0);
 
+  // Throttling para scrubbing - ajustable según rendimiento
+  const lastSeekTimeRef = useRef(0);
+  const MIN_SEEK_INTERVAL = 100; // 100ms = ~10 seeks por segundo (más conservador)
+
   // Hook de favoritos
   const { isFavorite, toggleFavorite } = useFavorites(trick.id, "magic");
 
@@ -1141,12 +1145,30 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
               setIsSeekingVideo(true);
             }}
             onSeek={(seekTime) => {
+              // Actualizar UI state siempre (sin throttle)
               if (currentSection === "effect") {
                 setEffectTime(seekTime);
                 lastEffectTimeRef.current = seekTime;
               } else {
                 setSecretTime(seekTime);
                 lastSecretTimeRef.current = seekTime;
+              }
+
+              // Throttle para seeks al video (evitar saturar el decoder)
+              const now = Date.now();
+              if (now - lastSeekTimeRef.current < MIN_SEEK_INTERVAL) {
+                return; // Skip este seek, demasiado pronto
+              }
+              lastSeekTimeRef.current = now;
+
+              // Actualizar posición del video en tiempo real durante el arrastre
+              const player = currentSection === "effect"
+                ? effectPlayerRef.current
+                : secretPlayerRef.current;
+
+              if (player) {
+                // Asignación directa - funciona incluso con video pausado
+                player.currentTime = seekTime;
               }
             }}
             onSeekEnd={(seekTime) => {
@@ -1157,6 +1179,7 @@ const TrickViewScreen: React.FC<TrickViewScreenProps> = ({
                   : secretPlayerRef.current;
 
               if (player) {
+                // Asignación directa para seek final preciso
                 player.currentTime = seekTime;
               }
             }}
