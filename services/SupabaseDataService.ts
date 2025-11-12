@@ -21,7 +21,7 @@ export class SupabaseDataService {
     tricks: LocalTrick[];
   }> {
     try {
-      console.log("[SupabaseData] Fetching all data for user:", userId);
+      
 
       const [categoriesResult, tricksResult, favoritesResult] =
         await Promise.all([
@@ -38,7 +38,7 @@ export class SupabaseDataService {
       }));
 
       console.log(
-        `[SupabaseData] Fetched: ${tricksWithFavorites.length} tricks, ${categoriesResult.length} categories`
+        ` Fetched: ${tricksWithFavorites.length} tricks, ${categoriesResult.length} categories`
       );
 
       return {
@@ -46,7 +46,7 @@ export class SupabaseDataService {
         tricks: tricksWithFavorites,
       };
     } catch (error) {
-      console.error("[SupabaseData] Error fetching all data:", error);
+      console.error(" Error fetching all data:", error);
       throw error;
     }
   }
@@ -100,7 +100,7 @@ export class SupabaseDataService {
         .in("trick_id", trickIds);
 
       if (photosError) {
-        console.error("[SupabaseData] Error fetching photos:", photosError);
+        console.error(" Error fetching photos:", photosError);
       } else if (photosData) {
         photosData.forEach((p) => {
           if (!photosMap.has(p.trick_id)) {
@@ -109,7 +109,7 @@ export class SupabaseDataService {
           photosMap.get(p.trick_id)!.push(p.photo_url);
         });
         console.log(
-          `[SupabaseData] Loaded photos for ${photosMap.size} tricks`
+          ` Loaded photos for ${photosMap.size} tricks`
         );
       }
     }
@@ -170,7 +170,7 @@ export class SupabaseDataService {
       .eq("content_type", "magic");
 
     if (error) {
-      console.error("[SupabaseData] Error fetching favorites:", error);
+      console.error(" Error fetching favorites:", error);
       return [];
     }
 
@@ -192,7 +192,7 @@ export class SupabaseDataService {
   }> {
     try {
       const sinceISO = new Date(since).toISOString();
-      console.log("[SupabaseData] Fetching changes since:", sinceISO);
+      
 
       const { data: categoriesData } = await supabase
         .from("user_categories")
@@ -282,7 +282,7 @@ export class SupabaseDataService {
       }));
 
       console.log(
-        `[SupabaseData] Modified: ${tricks.length} tricks, ${categories.length} categories`
+        ` Modified: ${tricks.length} tricks, ${categories.length} categories`
       );
 
       return {
@@ -292,7 +292,7 @@ export class SupabaseDataService {
         deletedCategoryIds: [],
       };
     } catch (error) {
-      console.error("[SupabaseData] Error fetching modified data:", error);
+      console.error(" Error fetching modified data:", error);
       throw error;
     }
   }
@@ -328,7 +328,7 @@ export class SupabaseDataService {
         updated_at: data.updated_at || data.created_at,
       };
     } catch (error) {
-      console.error("[SupabaseData] Error creating category:", error);
+      console.error(" Error creating category:", error);
       return null;
     }
   }
@@ -349,7 +349,7 @@ export class SupabaseDataService {
       if (error) throw error;
       return true;
     } catch (error) {
-      console.error("[SupabaseData] Error updating category:", error);
+      console.error(" Error updating category:", error);
       return false;
     }
   }
@@ -364,7 +364,7 @@ export class SupabaseDataService {
       if (error) throw error;
       return true;
     } catch (error) {
-      console.error("[SupabaseData] Error deleting category:", error);
+      console.error(" Error deleting category:", error);
       return false;
     }
   }
@@ -396,7 +396,7 @@ export class SupabaseDataService {
 
       return true;
     } catch (error) {
-      console.error("[SupabaseData] Error toggling favorite:", error);
+      console.error(" Error toggling favorite:", error);
       return false;
     }
   }

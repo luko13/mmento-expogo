@@ -81,12 +81,12 @@ export class PaginatedContentService {
     f?: SearchFilters
   ) {
     const k = this.snapshotKey(userId, page, categoryIds, q, f);
-    console.log("[PAGINATED] getSnapshot key =", k);
+    
 
     // 1) intenta mem cache directa del key normal
     const mem = this.memCache.get(this.key(userId, page, categoryIds, q, f));
     if (mem) {
-      console.log("[PAGINATED] getSnapshot hit = true (mem)");
+      ");
       return mem;
     }
 
@@ -95,13 +95,13 @@ export class PaginatedContentService {
       const raw = storage.getString(k);
       if (raw) {
         const data: PaginatedContent = JSON.parse(raw);
-        console.log("[PAGINATED] getSnapshot hit = true (mmkv)");
+        ");
         return data;
       }
     } catch (e) {
-      console.log("[PAGINATED] getSnapshot mmkv error", e);
+      
     }
-    console.log("[PAGINATED] getSnapshot miss");
+    
     return null;
   }
 
@@ -118,9 +118,9 @@ export class PaginatedContentService {
     this.memCache.set(k, value);
     try {
       storage.set(sKey, JSON.stringify(value));
-      console.log("[PAGINATED] saveSnapshot done", sKey);
+      
     } catch (e) {
-      console.log("[PAGINATED] saveSnapshot error", e);
+      
     }
   }
 
@@ -133,11 +133,11 @@ export class PaginatedContentService {
     filters?: SearchFilters
   ): Promise<PaginatedContent> {
     const cacheKey = this.key(userId, page, categoryIds, searchQuery, filters);
-    console.log("[PAGINATED] getUserContentPaginated cacheKey =", cacheKey);
+    
 
     const mem = this.memCache.get(cacheKey);
     if (mem) {
-      console.log("[PAGINATED] memCache hit = true");
+      
       return mem;
     }
 
@@ -357,7 +357,7 @@ export class PaginatedContentService {
   clearAllCache() {
     const size = this.memCache.size;
     this.memCache.clear();
-    console.log(`🧹 All mem cache cleared: ${size} entries`);
+    
   }
 
   getCacheSize(): number {

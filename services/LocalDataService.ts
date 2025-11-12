@@ -18,11 +18,11 @@ let isHydrated = false;
       items.forEach(([key, value]) => {
         if (key && value) memoryCache.set(key, value);
       });
-      console.log(`[LocalData] Cache hydrated: ${memoryCache.size} items`);
+      
     }
     isHydrated = true;
   } catch (error) {
-    console.error("[LocalData] Hydration error:", error);
+    console.error(" Hydration error:", error);
     isHydrated = true; // continuar aunque falle
   }
 })();
@@ -36,19 +36,19 @@ const storage = {
     memoryCache.set(key, value);
     // Persistir en background (no bloqueante)
     AsyncStorage.setItem(key, value).catch((e) =>
-      console.error("[LocalData] AsyncStorage write error:", e)
+      console.error(" AsyncStorage write error:", e)
     );
   },
   delete: (key: string): void => {
     memoryCache.delete(key);
     AsyncStorage.removeItem(key).catch((e) =>
-      console.error("[LocalData] AsyncStorage delete error:", e)
+      console.error(" AsyncStorage delete error:", e)
     );
   },
   clearAll: (): void => {
     memoryCache.clear();
     AsyncStorage.clear().catch((e) =>
-      console.error("[LocalData] AsyncStorage clear error:", e)
+      console.error(" AsyncStorage clear error:", e)
     );
   },
   getAllKeys: (): string[] => {
@@ -59,7 +59,7 @@ const storage = {
   },
 };
 
-console.log("[LocalData] Using AsyncStorage with in-memory cache");
+
 
 // ============================================================================
 // TIPOS
@@ -152,7 +152,7 @@ export class LocalDataService {
       const raw = storage.getString(key);
 
       if (!raw) {
-        console.log("[LocalData] No cache found for user:", userId);
+        
         return null;
       }
 
@@ -163,17 +163,17 @@ export class LocalDataService {
         !Array.isArray(data.categories) ||
         !Array.isArray(data.tricks)
       ) {
-        console.warn("[LocalData] Invalid cache structure");
+        console.warn(" Invalid cache structure");
         return null;
       }
 
       console.log(
-        `[LocalData] Cache hit: ${data.tricks.length} tricks, ${data.categories.length} categories`
+        ` Cache hit: ${data.tricks.length} tricks, ${data.categories.length} categories`
       );
 
       return data;
     } catch (error) {
-      console.error("[LocalData] Error reading cache:", error);
+      console.error(" Error reading cache:", error);
       return null;
     }
   }
@@ -206,12 +206,12 @@ export class LocalDataService {
       storage.set(this.lastUserKey(), data.userId);
 
       console.log(
-        `[LocalData] Saved: ${validatedData.tricks.length} tricks, ${validatedData.categories.length} categories`
+        ` Saved: ${validatedData.tricks.length} tricks, ${validatedData.categories.length} categories`
       );
 
       return true;
     } catch (error) {
-      console.error("[LocalData] Error saving cache:", error);
+      console.error(" Error saving cache:", error);
       return false;
     }
   }
@@ -289,7 +289,7 @@ export class LocalDataService {
     const data = JSON.parse(existing) as LocalUserData;
     const exists = data.tricks.some((t) => t.id === trick.id);
     if (exists) {
-      console.warn("[LocalData] Trick already exists:", trick.id);
+      console.warn(" Trick already exists:", trick.id);
       return false;
     }
 
@@ -362,7 +362,7 @@ export class LocalDataService {
     const data = JSON.parse(existing) as LocalUserData;
     const exists = data.categories.some((c) => c.id === category.id);
     if (exists) {
-      console.warn("[LocalData] Category already exists:", category.id);
+      console.warn(" Category already exists:", category.id);
       return false;
     }
 
@@ -420,10 +420,10 @@ export class LocalDataService {
     try {
       const key = this.userDataKey(userId);
       storage.delete(key);
-      console.log("[LocalData] Cleared cache for user:", userId);
+      
       return true;
     } catch (error) {
-      console.error("[LocalData] Error clearing cache:", error);
+      console.error(" Error clearing cache:", error);
       return false;
     }
   }
@@ -431,10 +431,10 @@ export class LocalDataService {
   clearAll(): boolean {
     try {
       storage.clearAll();
-      console.log("[LocalData] All cache cleared");
+      
       return true;
     } catch (error) {
-      console.error("[LocalData] Error clearing all cache:", error);
+      console.error(" Error clearing all cache:", error);
       return false;
     }
   }
@@ -527,7 +527,7 @@ export class LocalDataService {
       const data = JSON.parse(jsonString) as LocalUserData;
       return this.saveUserData(data);
     } catch (error) {
-      console.error("[LocalData] Error importing data:", error);
+      console.error(" Error importing data:", error);
       return false;
     }
   }
@@ -561,14 +561,14 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
 export function getInMemoryCache(userId: string): InMemoryCache | null {
   if (inMemoryCache.userId !== userId) {
-    console.log("[InMemoryCache] User mismatch, clearing cache");
+    
     clearInMemoryCache();
     return null;
   }
 
   const age = Date.now() - inMemoryCache.timestamp;
   if (age > CACHE_TTL) {
-    console.log("[InMemoryCache] Cache expired, clearing");
+    
     clearInMemoryCache();
     return null;
   }
@@ -597,7 +597,7 @@ export function setInMemoryCache(
     userId,
     timestamp: Date.now(),
   };
-  console.log(`[InMemoryCache] Saved: ${sections.length} sections`);
+  
 }
 
 export function clearInMemoryCache(): void {
@@ -607,7 +607,7 @@ export function clearInMemoryCache(): void {
     userId: null,
     timestamp: 0,
   };
-  console.log("[InMemoryCache] Cleared");
+  
 }
 
 export const localDataService = LocalDataService.getInstance();

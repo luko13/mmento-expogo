@@ -466,5 +466,38 @@
   "welcomeToMmento": "Welcome to mmento! Your magic library is ready.",
   "characters": "characters",
   "errorLoadingTrick": "Error loading trick",
-  "errorUpdating": "Error updating trick"
+  "errorUpdating": "Error updating trick",
+  "profileOptions": {
+    "settings": "Settings",
+    "reminders": "Reminders",
+    "tags": "Tags",
+    "guide": "Guide",
+    "roadmap": "Roadmap",
+    "helpCenter": "Help center",
+    "logout": "Log out",
+    "noRecentNews": "No recent news",
+    "memberPlan": "MEMBER plan",
+    "freePlan": "FREE plan"
+  },
+  "tags": {
+    "emptyState": {
+      "title": "No tags yet",
+      "description": "Create tags to organize your tricks"
+    },
+    "usageCount": "{{count}} uses",
+    "usageCount_one": "{{count}} use",
+    "usageCount_other": "{{count}} uses",
+    "deleteConfirmation": {
+      "title": "Delete Tag",
+      "messageWithTricks": "This tag is being used in {{count}} trick(s). It will be removed from all of them:",
+      "messageNoTricks": "Are you sure you want to delete this tag?",
+      "warningMessage": "This action cannot be undone."
+    }
+  },
+  "sort": {
+    "sortBy": "Sort by",
+    "alphabetically": "Alphabetically",
+    "byUsage": "By usage",
+    "byDate": "By date"
+  }
 }

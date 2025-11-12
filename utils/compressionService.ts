@@ -107,7 +107,7 @@ export class CompressionService {
   ): Promise<CompressionResult> {
     // Si no hay compresión disponible, devolver sin comprimir
     if (!videoService.isCompressionAvailable()) {
-      console.log("Compresión de video no disponible - usando original");
+      
       return {
         uri,
         originalSize,

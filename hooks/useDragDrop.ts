@@ -58,7 +58,7 @@ export const useDragDrop = ({
   onDragOver,
   enabled = true,
 }: UseDragDropProps) => {
-  console.log("🚀 useDragDrop montado, enabled=", enabled);
+  
   const { setDraggedElement, setDraggedStyle } = useDragPortal();
 
   const [dragState, setDragState] = useState<DragDropState>({
@@ -127,7 +127,7 @@ export const useDragDrop = ({
     ) => {
       if (!enabled) return;
 
-      console.log("🚀 Starting drag:", item.id);
+      
       Vibration.vibrate(50);
 
       // Guardar posición inicial
@@ -192,7 +192,7 @@ export const useDragDrop = ({
   // End drag
   const endDrag = useCallback(
     (item: DragDropItem, targetItemId?: string, targetCategoryId?: string) => {
-      console.log("🎯 Ending drag:", item.id, "-> target:", targetCategoryId);
+      
 
       // Animar de vuelta o desaparecer
       scale.value = withSpring(1, { damping: 15, stiffness: 150 });
@@ -305,7 +305,7 @@ export const useDragDrop = ({
         })
         .onUpdate((event) => {
           "worklet";
-          console.log("🔄 onUpdate:", event.translationX, event.translationY);
+          
 
           if (hasStarted) {
             // Actualizar posición absoluta en el portal

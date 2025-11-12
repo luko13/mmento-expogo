@@ -55,7 +55,7 @@ function useWhyDidYouUpdate<T extends Record<string, any>>(
         }
       });
       if (Object.keys(changes).length > 0) {
-        console.log(`[WDYR] StatsPanel`, changes);
+        
       }
     }
     prev.current = props;

@@ -468,5 +468,38 @@
   "welcomeToMmento": "¡Bienvenido a mmento! Tu biblioteca mágica está lista.",
   "characters": "caracteres",
   "errorLoadingTrick": "Error al cargar el truco",
-  "errorUpdating": "Error al actualizar el truco"
+  "errorUpdating": "Error al actualizar el truco",
+  "profileOptions": {
+    "settings": "Configuración",
+    "reminders": "Recordatorios",
+    "tags": "Etiquetas",
+    "guide": "Guía",
+    "roadmap": "Hoja de ruta",
+    "helpCenter": "Centro de ayuda",
+    "logout": "Cerrar sesión",
+    "noRecentNews": "No hay noticias recientes",
+    "memberPlan": "Plan MEMBER",
+    "freePlan": "Plan FREE"
+  },
+  "tags": {
+    "emptyState": {
+      "title": "No hay etiquetas aún",
+      "description": "Crea etiquetas para organizar tus trucos"
+    },
+    "usageCount": "{{count}} usos",
+    "usageCount_one": "{{count}} uso",
+    "usageCount_other": "{{count}} usos",
+    "deleteConfirmation": {
+      "title": "Eliminar Etiqueta",
+      "messageWithTricks": "Esta etiqueta se está usando en {{count}} truco(s). Se eliminará de todos ellos:",
+      "messageNoTricks": "¿Estás seguro de que quieres eliminar esta etiqueta?",
+      "warningMessage": "Esta acción no se puede deshacer."
+    }
+  },
+  "sort": {
+    "sortBy": "Ordenar por",
+    "alphabetically": "Alfabéticamente",
+    "byUsage": "Por uso",
+    "byDate": "Por fecha"
+  }
 }

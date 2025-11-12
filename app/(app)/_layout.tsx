@@ -47,6 +47,11 @@ export default function AppLayout() {
     pathname.includes("/technique/") || pathname.includes("/techniques/");
   const isGimmickViewRoute =
     pathname.includes("/gimmick/") || pathname.includes("/gimmicks/");
+  const isProfileOptionsRoute = pathname.includes("/profile-options");
+  const isSettingsRoute = pathname.includes("/settings");
+  const isRemindersRoute = pathname.includes("/reminders");
+  const isTagsRoute = pathname.includes("/tags");
+  const isPlansRoute = pathname.includes("/plans");
 
   const shouldHideNavbar =
     isAddMagicRoute ||
@@ -56,7 +61,12 @@ export default function AppLayout() {
     isTechniqueViewRoute ||
     isEditTrickRoute ||
     isGimmickViewRoute ||
-    isMMENTOAIroute;
+    isMMENTOAIroute ||
+    isProfileOptionsRoute ||
+    isSettingsRoute ||
+    isRemindersRoute ||
+    isTagsRoute ||
+    isPlansRoute;
 
   // Determinar ruta activa
   const getActiveRoute = () => {

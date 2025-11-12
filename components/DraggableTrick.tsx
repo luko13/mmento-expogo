@@ -103,14 +103,14 @@ export const DraggableTrick: React.FC<DraggableTrickProps> = ({
         `✅ [DraggableTrick] Trick "${item.title}" has ${item.photos.length} photos`
       );
       item.photos.forEach((photo, index) => {
-        console.log(`   Photo ${index + 1}: ${photo}`);
+        
       });
     } else if (item.photo_url) {
       console.log(
         `⚠️ [DraggableTrick] Trick "${item.title}" has only photo_url: ${item.photo_url}`
       );
     } else {
-      console.log(`❌ [DraggableTrick] Trick "${item.title}" has NO photos`);
+      
     }
 
     onPress();

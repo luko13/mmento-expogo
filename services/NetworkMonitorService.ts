@@ -35,7 +35,7 @@ class NetworkMonitorService {
   // --------------------------------------------------------------------------
 
   async initialize(): Promise<void> {
-    console.log("[NetworkMonitor] Initializing...");
+    
 
     // Get initial state
     const state = await NetInfo.fetch();
@@ -46,7 +46,7 @@ class NetworkMonitorService {
       this.updateStatus(state);
     });
 
-    console.log("[NetworkMonitor] Initialized with status:", this.currentStatus);
+    
   }
 
   destroy(): void {
@@ -55,7 +55,7 @@ class NetworkMonitorService {
       this.unsubscribe = null;
     }
     this.listeners.clear();
-    console.log("[NetworkMonitor] Destroyed");
+    
   }
 
   // --------------------------------------------------------------------------

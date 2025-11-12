@@ -37,7 +37,7 @@ export const DragArea: React.FC<DragAreaProps> = ({
 
   // Funciones auxiliares para logs seguros
   const logInfo = useCallback((message: string, data?: any) => {
-    console.log(`🔵 DragArea - ${message}`, data || "");
+    
   }, []);
 
   const logError = useCallback((message: string, error: any) => {
@@ -105,14 +105,14 @@ export const DragArea: React.FC<DragAreaProps> = ({
     })
     .onStart((event) => {
       "worklet";
-      console.log("🔵 Gesture onStart (worklet)");
+      ");
       runOnJS(safeSetIsActive)(true);
     })
     .onChange((event) => {
       "worklet";
       try {
         if (!draggedItem) {
-          console.log("🔵 onChange - No hay draggedItem");
+          
           return;
         }
 
@@ -128,7 +128,7 @@ export const DragArea: React.FC<DragAreaProps> = ({
         const safeCurrentIndex = currentIndex || 0;
         const newIndex = Math.max(0, safeCurrentIndex + indexOffset);
 
-        console.log("🔵 onChange (worklet) - cálculo:", {
+         - cálculo:", {
           displacement,
           indexOffset,
           currentIndex: safeCurrentIndex,
@@ -142,11 +142,11 @@ export const DragArea: React.FC<DragAreaProps> = ({
     })
     .onEnd((event) => {
       "worklet";
-      console.log("🔵 Gesture onEnd (worklet) - INICIO");
+       - INICIO");
 
       try {
         if (!draggedItem) {
-          console.log("🔵 onEnd - No hay draggedItem");
+          
           return;
         }
 
@@ -158,7 +158,7 @@ export const DragArea: React.FC<DragAreaProps> = ({
         const safeCurrentIndex = currentIndex || 0;
         const finalIndex = Math.max(0, safeCurrentIndex + indexOffset);
 
-        console.log("🔵 onEnd (worklet) - cálculo:", {
+         - cálculo:", {
           displacement,
           indexOffset,
           currentIndex: safeCurrentIndex,
@@ -173,7 +173,7 @@ export const DragArea: React.FC<DragAreaProps> = ({
         // Llamar a onDrop en el JS thread
         runOnJS(safeOnDrop)(finalIndex);
 
-        console.log("🔵 Gesture onEnd (worklet) - FIN");
+         - FIN");
       } catch (error) {
         console.error("🔴 Error en onEnd (worklet):", error);
         // Intentar limpiar estados
@@ -182,7 +182,7 @@ export const DragArea: React.FC<DragAreaProps> = ({
     })
     .onFinalize(() => {
       "worklet";
-      console.log("🔵 Gesture onFinalize (worklet)");
+      ");
       runOnJS(safeSetIsActive)(false);
     });
 

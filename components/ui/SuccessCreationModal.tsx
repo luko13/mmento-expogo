@@ -24,6 +24,7 @@ interface SuccessCreationModalProps {
   onAddAnother: () => void;
   itemName: string;
   itemType: "trick" | "technique" | "gimmick";
+  itemId?: string;
 }
 
 const SuccessCreationModal: React.FC<SuccessCreationModalProps> = ({

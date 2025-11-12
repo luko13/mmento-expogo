@@ -105,7 +105,7 @@ export const trickService = {
         type: "update_trick",
         payload: { trickId, data: { is_public: isPublic } },
       });
-      console.log("[TrickService] Offline: is_public change enqueued");
+      
       return true;
     }
 
@@ -138,7 +138,7 @@ export const trickService = {
       return false;
     }
 
-    console.log("[TrickService] Starting deletion for trick:", trickId);
+    
     console.log("[TrickService] Network status:", {
       isOnline: networkMonitorService.isOnline(),
       status: networkMonitorService.getStatus()
@@ -147,7 +147,7 @@ export const trickService = {
     // SIEMPRE intentar eliminar del servidor primero, independientemente del estado de red
     // Si falla, entonces encolaremos
     try {
-      console.log("[TrickService] Fetching trick data...");
+      
       // 1. PRIMERO: Obtener el truco para acceder a las URLs de archivos
       const { data: trick, error: fetchError } = await supabase
         .from("magic_tricks")
@@ -160,29 +160,29 @@ export const trickService = {
         throw fetchError;
       }
 
-      console.log("[TrickService] Trick data fetched:", trick);
+      
 
       // 2. Eliminar archivos multimedia (videos y foto principal)
       if (trick) {
         const { deleteFileFromStorage } = await import("./fileUploadService");
 
         if (trick.effect_video_url) {
-          console.log("🗑️ Eliminando video de efecto:", trick.effect_video_url);
+          
           await deleteFileFromStorage(trick.effect_video_url);
         }
 
         if (trick.secret_video_url) {
-          console.log("🗑️ Eliminando video de secreto:", trick.secret_video_url);
+          
           await deleteFileFromStorage(trick.secret_video_url);
         }
 
         if (trick.photo_url) {
-          console.log("🗑️ Eliminando foto principal:", trick.photo_url);
+          
           await deleteFileFromStorage(trick.photo_url);
         }
 
         // 2b. Eliminar fotos adicionales de la tabla trick_photos
-        console.log("[TrickService] Fetching additional photos...");
+        
         const { data: photos, error: photosError } = await supabase
           .from("trick_photos")
           .select("photo_url")
@@ -193,7 +193,7 @@ export const trickService = {
         }
 
         if (photos && photos.length > 0) {
-          console.log(`🗑️ Eliminando ${photos.length} fotos adicionales...`);
+          
           for (const photo of photos) {
             if (photo.photo_url) {
               await deleteFileFromStorage(photo.photo_url);
@@ -203,7 +203,7 @@ export const trickService = {
       }
 
       // 3. Eliminar relaciones en tablas auxiliares
-      console.log("[TrickService] Deleting user_favorites...");
+      
       const { error: favError } = await supabase
         .from("user_favorites")
         .delete()
@@ -211,49 +211,49 @@ export const trickService = {
         .eq("content_type", "magic");
       if (favError) console.error("[TrickService] Error deleting favorites:", favError);
 
-      console.log("[TrickService] Deleting trick_tags...");
+      
       const { error: tagsError } = await supabase
         .from("trick_tags")
         .delete()
         .eq("trick_id", trickId);
       if (tagsError) console.error("[TrickService] Error deleting tags:", tagsError);
 
-      console.log("[TrickService] Deleting trick_categories...");
+      
       const { error: catError } = await supabase
         .from("trick_categories")
         .delete()
         .eq("trick_id", trickId);
       if (catError) console.error("[TrickService] Error deleting categories:", catError);
 
-      console.log("[TrickService] Deleting trick_techniques...");
+      
       const { error: techError } = await supabase
         .from("trick_techniques")
         .delete()
         .eq("trick_id", trickId);
       if (techError) console.error("[TrickService] Error deleting techniques:", techError);
 
-      console.log("[TrickService] Deleting trick_gimmicks...");
+      
       const { error: gimError } = await supabase
         .from("trick_gimmicks")
         .delete()
         .eq("trick_id", trickId);
       if (gimError) console.error("[TrickService] Error deleting gimmicks:", gimError);
 
-      console.log("[TrickService] Deleting trick_photos...");
+      
       const { error: photosDelError } = await supabase
         .from("trick_photos")
         .delete()
         .eq("trick_id", trickId);
       if (photosDelError) console.error("[TrickService] Error deleting photos:", photosDelError);
 
-      console.log("[TrickService] Deleting scripts...");
+      
       const { error: scriptError } = await supabase
         .from("scripts")
         .delete()
         .eq("trick_id", trickId);
       if (scriptError) console.error("[TrickService] Error deleting scripts:", scriptError);
 
-      console.log("[TrickService] Deleting shared_content...");
+      
       const { error: sharedError } = await supabase
         .from("shared_content")
         .delete()
@@ -262,7 +262,7 @@ export const trickService = {
       if (sharedError) console.error("[TrickService] Error deleting shared content:", sharedError);
 
       // 4. Finalmente, eliminar el registro del truco
-      console.log("[TrickService] Deleting main trick record...");
+      
       const { error: deleteError } = await supabase
         .from("magic_tricks")
         .delete()
@@ -273,11 +273,11 @@ export const trickService = {
         throw deleteError;
       }
 
-      console.log("✅ [TrickService] Truco eliminado completamente del servidor");
+      
 
       // Solo ahora eliminar del caché local
       localDataService.deleteTrick(user.id, trickId);
-      console.log("✅ [TrickService] Truco eliminado del caché local");
+      
 
       return true;
     } catch (error: any) {
@@ -291,7 +291,7 @@ export const trickService = {
         !navigator.onLine;
 
       if (isNetworkError) {
-        console.log("[TrickService] Network error detected, enqueuing for retry");
+        
         // Solo encolar si es error de red
         await offlineQueueService.enqueue({
           userId: user.id,
@@ -346,7 +346,7 @@ export const trickService = {
         type: "update_trick",
         payload: { trickId, data: trickData },
       });
-      console.log("[TrickService] Offline: trick update enqueued");
+      
       return true;
     }
 

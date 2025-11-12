@@ -158,7 +158,7 @@ export default function Home() {
           <StyledView className="flex-1" style={{ paddingHorizontal: 24 }}>
             <StyledView style={{ zIndex: 10, marginBottom: 10, marginTop: 10 }}>
               <UserProfile
-                onProfilePress={() => router.push("/(app)/profile")}
+                onProfilePress={() => router.push("/(app)/profile-options")}
                 isSearchVisible={false}
                 onCloseSearch={() => {}}
                 onNotificationsPress={handleNotificationsPress}
