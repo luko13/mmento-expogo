@@ -86,6 +86,19 @@ class CloudflareStorageService {
     try {
       console.log('🎬 Subiendo video a Cloudflare Stream...');
 
+      // Validar configuración ANTES de intentar subir
+      if (!CloudflareStreamService.isConfigured()) {
+        console.error('❌ Cloudflare Stream no está configurado');
+        const config = this.isFullyConfigured();
+        console.error('Estado de configuración:', config);
+        throw new Error(
+          'Cloudflare Stream no está configurado. Verifica las variables de entorno:\n' +
+          '- CLOUDFLARE_ACCOUNT_ID\n' +
+          '- CLOUDFLARE_STREAM_API_TOKEN\n' +
+          '- CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN'
+        );
+      }
+
       const result = await CloudflareStreamService.uploadVideo(
         videoUri,
         {

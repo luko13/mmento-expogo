@@ -302,83 +302,137 @@ const uploadToCloudflare = async (
   onProgress?: (progress: number, bytesUploaded?: number, bytesTotal?: number) => void
 ): Promise<string | null> => {
   try {
-    console.log('☁️ Usando Cloudflare para almacenamiento');
+    console.log('☁️ Subiendo a Cloudflare:', fileName);
 
-    // Obtener información del archivo
-    const fileInfo = await getFileInfo(uri);
-    console.log(`📊 Tamaño original: ${fileInfo.size.toFixed(2)} MB`);
-
-    let fileToUpload = uri;
-    let wasCompressed = false;
-
-    // Para videos, NO comprimimos (Cloudflare Stream lo hace automáticamente)
-    // Para imágenes, comprimimos antes solo si van a R2 (no a Cloudflare Images)
     const isVideo = fileType.startsWith('video/');
     const isImage = fileType.startsWith('image/');
 
-    if (isImage && fileInfo.size > FILE_SIZE_LIMITS.IMAGE_RECOMMENDED * 1024 * 1024) {
-      console.log(`🗜️ Comprimiendo imagen antes de subir...`);
+    // OPTIMIZACIÓN: Para videos, subir directamente sin ningún procesamiento
+    // Cloudflare Stream se encarga de todo (compresión, thumbnails, etc.)
+    if (isVideo) {
+      console.log('🎬 Video detectado - subida directa sin procesamiento local');
 
-      const compressionResult = await compressionService.compressFile(
+      const result = await CloudflareStorageService.uploadFile(
         uri,
-        fileType,
+        fileName,
         {
-          quality: 0.8,
-          maxWidth: 1920,
-          forceCompress: true
+          userId,
+          folder,
+          onProgress: onProgress
+            ? (progress, event) => {
+                const bytesUploaded = event?.totalBytesSent || 0;
+                const bytesTotal = event?.totalBytesExpectedToSend || 0;
+                onProgress(progress, bytesUploaded, bytesTotal);
+              }
+            : undefined,
+          useImagesForPhotos: true,
         }
       );
 
-      if (compressionResult.wasCompressed) {
-        fileToUpload = compressionResult.uri;
-        wasCompressed = true;
-
-        const compressedInfo = await getFileInfo(fileToUpload);
-        console.log(`✅ Compresión completada:`);
-        console.log(`   - Tamaño original: ${fileInfo.size.toFixed(2)} MB`);
-        console.log(`   - Tamaño comprimido: ${compressedInfo.size.toFixed(2)} MB`);
+      if (!result.success) {
+        console.error('❌ Error subiendo video:', result.error);
+        return null;
       }
+
+      console.log(`✅ Video subido: ${result.url}`);
+      return result.url || null;
     }
 
-    // Subir usando el servicio unificado de Cloudflare con callback mejorado
+    // Para imágenes, comprimir solo si son muy grandes
+    if (isImage) {
+      // Obtener info solo una vez
+      const fileInfo = await getFileInfo(uri);
+      const fileSizeMB = fileInfo.size;
+
+      console.log(`🖼️ Imagen de ${fileSizeMB.toFixed(2)} MB`);
+
+      let fileToUpload = uri;
+      let wasCompressed = false;
+
+      // Comprimir solo si > 10 MB (muy grande)
+      if (fileSizeMB > 10) {
+        console.log(`🗜️ Comprimiendo imagen grande (>${fileSizeMB.toFixed(2)} MB)...`);
+
+        const compressionResult = await compressionService.compressFile(
+          uri,
+          fileType,
+          {
+            quality: 0.7,
+            maxWidth: 1920,
+            forceCompress: true
+          }
+        );
+
+        if (compressionResult.wasCompressed) {
+          fileToUpload = compressionResult.uri;
+          wasCompressed = true;
+          console.log(`✅ Imagen comprimida a ${(compressionResult.compressedSize / (1024 * 1024)).toFixed(2)} MB`);
+        }
+      }
+
+      const result = await CloudflareStorageService.uploadFile(
+        fileToUpload,
+        fileName,
+        {
+          userId,
+          folder,
+          onProgress: onProgress
+            ? (progress, event) => {
+                const bytesUploaded = event?.totalBytesSent || 0;
+                const bytesTotal = event?.totalBytesExpectedToSend || 0;
+                onProgress(progress, bytesUploaded, bytesTotal);
+              }
+            : undefined,
+          useImagesForPhotos: true,
+        }
+      );
+
+      // Limpiar archivo temporal si fue comprimido
+      if (wasCompressed && fileToUpload !== uri) {
+        try {
+          await FileSystem.deleteAsync(fileToUpload, { idempotent: true });
+        } catch (error) {
+          // Ignorar errores de limpieza
+        }
+      }
+
+      if (!result.success) {
+        console.error('❌ Error subiendo imagen:', result.error);
+        return null;
+      }
+
+      console.log(`✅ Imagen subida: ${result.url}`);
+      return result.url || null;
+    }
+
+    // Otros archivos (genéricos)
     const result = await CloudflareStorageService.uploadFile(
-      fileToUpload,
+      uri,
       fileName,
       {
         userId,
         folder,
         onProgress: onProgress
           ? (progress, event) => {
-              // Extraer bytes del evento si está disponible
               const bytesUploaded = event?.totalBytesSent || 0;
               const bytesTotal = event?.totalBytesExpectedToSend || 0;
               onProgress(progress, bytesUploaded, bytesTotal);
             }
           : undefined,
-        useImagesForPhotos: true, // Usar Cloudflare Images para fotos
+        useImagesForPhotos: true,
       }
     );
 
-    // Limpiar archivo temporal si fue comprimido
-    if (wasCompressed && fileToUpload !== uri) {
-      try {
-        await FileSystem.deleteAsync(fileToUpload, { idempotent: true });
-        console.log(`🧹 Archivo temporal eliminado`);
-      } catch (error) {
-        console.warn("No se pudo eliminar archivo temporal:", error);
-      }
-    }
-
     if (!result.success) {
-      console.error('Error subiendo a Cloudflare:', result.error);
+      console.error('❌ Error subiendo archivo:', result.error);
       return null;
     }
 
-    console.log(`✅ Archivo subido a Cloudflare: ${result.url}`);
+    console.log(`✅ Archivo subido: ${result.url}`);
     return result.url || null;
 
   } catch (error) {
-    console.error('Error en uploadToCloudflare:', error);
+    console.error('❌ Error en uploadToCloudflare:', error);
     return null;
   }
 };
