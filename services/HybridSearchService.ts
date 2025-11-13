@@ -9,7 +9,7 @@ import type { LocalTrick } from "./LocalDataService";
  * - Para >= 500 trucos: búsqueda en servidor (Supabase con índices)
  */
 
-const HYBRID_THRESHOLD = 500; // Umbral para cambiar a búsqueda en servidor
+const HYBRID_THRESHOLD = 1; // Umbral para cambiar a búsqueda en servidor
 
 export class HybridSearchService {
   /**
@@ -41,15 +41,20 @@ export class HybridSearchService {
         .eq("user_id", userId);
 
       // Filtro de texto usando índice GIN (full-text search)
+      // OPTIMIZADO: Usa columna 'search_vector' pre-calculada con índice GIN
+      // MULTI-IDIOMA: Usa configuración 'simple' que funciona con español, inglés, y otros idiomas
+      // Requiere: columna search_vector + índice GIN + trigger (ver FTS_MULTILANGUAGE_MIGRATION.sql)
       if (query.trim()) {
-        // Usar búsqueda de texto completo
-        supabaseQuery = supabaseQuery.textSearch(
-          'title,effect,secret',
-          query.trim(),
-          {
-            type: 'websearch',
-            config: 'spanish'
-          }
+        // Sanitizar query para prevenir SQL injection
+        const sanitizedQuery = query.trim().replace(/'/g, "''");
+
+        // Usar columna search_vector pre-calculada + índice GIN (ULTRA RÁPIDO)
+        // Nota: Usamos 'simple' en lugar de 'spanish' para soporte multi-idioma
+        // websearch_to_tsquery permite sintaxis tipo Google: "carta OR mazo", "carta -baraja"
+        supabaseQuery = supabaseQuery.filter(
+          'search_vector',
+          'fts',
+          `websearch_to_tsquery('simple', '${sanitizedQuery}')`
         );
       }
 
