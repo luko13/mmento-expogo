@@ -42,7 +42,7 @@ export class HybridSearchService {
 
       // Filtro de texto usando índice GIN (full-text search)
       if (query.trim()) {
-        // Usar búsqueda de texto completo con to_tsvector
+        // Usar búsqueda de texto completo
         supabaseQuery = supabaseQuery.textSearch(
           'title,effect,secret',
           query.trim(),
