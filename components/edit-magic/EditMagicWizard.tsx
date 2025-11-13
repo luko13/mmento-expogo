@@ -320,13 +320,12 @@ export default function EditMagicWizard({
       let lastTime = Date.now();
       let speedSamples: number[] = [];
 
-      // OPTIMIZACIÓN: NO comprimir NADA localmente
-      // Cloudflare Stream comprime videos automáticamente
-      // Cloudflare Images optimiza imágenes automáticamente
-      console.log('☁️ [EDIT] Subiendo directamente a Cloudflare (sin compresión local)');
-      console.log(`📤 Subiendo desde: ${uri} (${(fileSize / (1024 * 1024)).toFixed(2)} MB)`);
+      // El sistema de análisis inteligente en fileUploadService determinará
+      // automáticamente si el video necesita compresión antes de subir
+      console.log('☁️ [EDIT] Subiendo archivo (análisis automático activo)');
+      console.log(`📤 URI: ${uri} (${(fileSize / (1024 * 1024)).toFixed(2)} MB)`);
 
-      // Subir archivo DIRECTAMENTE con callback de progreso mejorado
+      // Subir archivo con análisis y compresión inteligente
       const uploadUrl = await uploadFileToStorage(
         uri,
         userId,

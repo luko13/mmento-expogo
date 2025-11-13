@@ -645,16 +645,10 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
     const selectFromGallery = async () => {
       setShowSourceModal(false);
       try {
-        console.log(`🎬 [MediaSelector] Iniciando selección de ${type}`);
-        const startTime = Date.now();
-
         setIsProcessing(true);
-        console.log(`⏱️ [MediaSelector] setIsProcessing(true) - ${Date.now() - startTime}ms`);
 
-        const permissionStart = Date.now();
         const { status } =
           await ImagePicker.requestMediaLibraryPermissionsAsync();
-        console.log(`⏱️ [MediaSelector] Permisos obtenidos - ${Date.now() - permissionStart}ms`);
 
         if (status !== "granted") {
           setIsProcessing(false);
@@ -666,40 +660,21 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
           return;
         }
 
-        // ⭐ SOLUCIÓN AL PROBLEMA DE SELECCIÓN LENTA DE VIDEOS EN iOS ⭐
-        // preferredAssetRepresentationMode: "current" evita la transcodificación
-        // de HEVC a H.264, haciendo la selección INSTANTÁNEA (solo iOS)
         const options: ImagePicker.ImagePickerOptions = {
           mediaTypes: type === "photo" ? ["images"] : ["videos"],
           allowsMultipleSelection: multiple,
           allowsEditing: false,
-          // CRÍTICO para iOS: usar representación actual sin transcodificar
-          // Esto hace que videos de 10+ minutos se seleccionen en <2 segundos
           preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Current,
-          // Solo quality para fotos
           ...(type === "photo" ? { quality: quality } : {}),
         };
 
-        console.log(`📋 [MediaSelector] Opciones para ImagePicker:`, options);
-        const pickerStart = Date.now();
-
         const result = await ImagePicker.launchImageLibraryAsync(options);
 
-        console.log(`⏱️ [MediaSelector] ImagePicker completado - ${Date.now() - pickerStart}ms`);
-        console.log(`📊 [MediaSelector] Resultado:`, {
-          canceled: result.canceled,
-          assetsCount: result.assets?.length || 0
-        });
-
         if (!result.canceled && result.assets) {
-          const processStart = Date.now();
           await processSelectedFiles(result.assets);
-          console.log(`⏱️ [MediaSelector] Procesamiento completado - ${Date.now() - processStart}ms`);
         }
-
-        console.log(`✅ [MediaSelector] TIEMPO TOTAL - ${Date.now() - startTime}ms`);
       } catch (error) {
-        console.error("❌ [MediaSelector] Error selecting media:", error);
+        console.error("Error selecting media:", error);
         Alert.alert(
           t("error", "Error"),
           t("mediaPickError", "Error al seleccionar archivos"),
@@ -707,7 +682,6 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
         );
       } finally {
         setIsProcessing(false);
-        console.log(`🏁 [MediaSelector] setIsProcessing(false)`);
       }
     };
 
@@ -791,14 +765,9 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
     const processSelectedFiles = async (
       assets: ImagePicker.ImagePickerAsset[]
     ) => {
-      console.log(`📦 [processSelectedFiles] Iniciando procesamiento de ${assets.length} archivo(s)`);
-      const processStart = Date.now();
-
       const newFiles: MediaFile[] = [];
 
-      // Verificar límites
       if (selectedFiles.length + assets.length > maxFiles) {
-        console.log(`⚠️ [processSelectedFiles] Límite excedido: ${selectedFiles.length + assets.length} > ${maxFiles}`);
         Alert.alert(
           t("limitExceeded", "Límite excedido"),
           t("maxFilesMessage", `Máximo ${maxFiles} archivos permitidos`),
@@ -807,31 +776,15 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
         return;
       }
 
-      // OPTIMIZACIÓN: Para videos, NO verificar tamaño aquí (muy lento con archivos grandes)
-      // La verificación de tamaño se hace en el servidor/Cloudflare
-      // Solo verificar tamaño para fotos (archivos pequeños, rápido)
-
-      // Procesar cada archivo
       for (let i = 0; i < assets.length; i++) {
         const asset = assets[i];
-        console.log(`📄 [processSelectedFiles] Procesando archivo ${i + 1}/${assets.length}`);
-        console.log(`   URI: ${asset.uri.substring(0, 50)}...`);
-        console.log(`   Tipo: ${type}`);
 
-        // Solo verificar tamaño para FOTOS, no para videos
         if (type === "photo" && !asset.uri.startsWith("data:")) {
-          console.log(`📏 [processSelectedFiles] Verificando tamaño de foto...`);
-          const sizeCheckStart = Date.now();
           try {
             const fileInfo = await FileSystem.getInfoAsync(asset.uri);
-            console.log(`   ⏱️ FileSystem.getInfoAsync tomó ${Date.now() - sizeCheckStart}ms`);
-
             if (fileInfo.exists && "size" in fileInfo) {
               const sizeMB = fileInfo.size / (1024 * 1024);
-              console.log(`   Tamaño: ${sizeMB.toFixed(2)} MB`);
-
               if (sizeMB > maxFileSize) {
-                console.log(`   ⚠️ Archivo muy grande (${sizeMB.toFixed(2)} MB > ${maxFileSize} MB)`);
                 Alert.alert(
                   t("fileTooLarge", "Archivo muy grande"),
                   t(
@@ -846,10 +799,8 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
               }
             }
           } catch (error) {
-            console.error("❌ [processSelectedFiles] Error verificando tamaño:", error);
+            console.error("Error verificando tamaño:", error);
           }
-        } else {
-          console.log(`⚡ [processSelectedFiles] Video detectado - OMITIENDO verificación de tamaño`);
         }
 
         const fileName =
@@ -857,27 +808,15 @@ export const MediaSelector = forwardRef<MediaSelectorRef, MediaSelectorProps>(
             ? `IMG_${Date.now()}_${newFiles.length}.jpg`
             : `VID_${Date.now()}_${newFiles.length}.mp4`;
 
-        console.log(`   Nombre generado: ${fileName}`);
-
         newFiles.push({
           uri: asset.uri,
           fileName,
         });
       }
 
-      console.log(`✅ [processSelectedFiles] ${newFiles.length} archivos procesados`);
-      console.log(`⏱️ [processSelectedFiles] Actualizando estado...`);
-
-      const updateStart = Date.now();
       const updatedFiles = [...selectedFiles, ...newFiles];
       setSelectedFiles(updatedFiles);
-      console.log(`   setSelectedFiles tomó ${Date.now() - updateStart}ms`);
-
-      const callbackStart = Date.now();
       onFilesSelected?.(updatedFiles);
-      console.log(`   onFilesSelected callback tomó ${Date.now() - callbackStart}ms`);
-
-      console.log(`✅ [processSelectedFiles] COMPLETADO en ${Date.now() - processStart}ms`);
     };
 
     const removeFile = (index: number) => {

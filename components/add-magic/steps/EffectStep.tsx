@@ -90,51 +90,29 @@ export default function EffectStep({
     }
   };
 
-  // Helper: Copiar archivo inmediatamente para evitar que ImagePicker lo borre
   const copyFileImmediately = async (uri: string): Promise<string> => {
-    console.log(`📋 [copyFileImmediately] Iniciando copia de: ${uri.substring(0, 50)}...`);
-    const startTime = Date.now();
-
     try {
-      // Crear directorio permanente
       const permanentDir = `${FileSystem.documentDirectory}permanent_uploads/`;
-
-      const dirCheckStart = Date.now();
       const dirInfo = await FileSystem.getInfoAsync(permanentDir);
-      console.log(`⏱️ [copyFileImmediately] Verificar directorio: ${Date.now() - dirCheckStart}ms`);
 
       if (!dirInfo.exists) {
-        const mkdirStart = Date.now();
         await FileSystem.makeDirectoryAsync(permanentDir, { intermediates: true });
-        console.log(`⏱️ [copyFileImmediately] Crear directorio: ${Date.now() - mkdirStart}ms`);
       }
 
-      // Generar nombre único
       const timestamp = Date.now();
       const random = Math.random().toString(36).substring(7);
       const extension = uri.split('.').pop() || 'tmp';
       const newFilename = `${timestamp}_${random}.${extension}`;
       const permanentUri = `${permanentDir}${newFilename}`;
 
-      console.log(`📁 [copyFileImmediately] Destino: ${permanentUri}`);
-      console.log(`🚀 [copyFileImmediately] Iniciando FileSystem.copyAsync...`);
-
-      // Copiar archivo - ESTO ES LO QUE TARDA MUCHO
-      const copyStart = Date.now();
       await FileSystem.copyAsync({
         from: uri,
         to: permanentUri
       });
 
-      console.log(`⏱️ [copyFileImmediately] FileSystem.copyAsync completado: ${Date.now() - copyStart}ms`);
-      console.log(`✅ [copyFileImmediately] TOTAL: ${Date.now() - startTime}ms`);
-      console.log(`📁 [copyFileImmediately] Archivo copiado a: ${permanentUri.substring(0, 60)}...`);
-
       return permanentUri;
     } catch (error) {
-      console.error('❌ [copyFileImmediately] Error copiando archivo:', error);
-      console.log(`⏱️ [copyFileImmediately] Falló después de ${Date.now() - startTime}ms`);
-      // Si falla la copia, devolver URI original como fallback
+      console.error('Error copiando archivo:', error);
       return uri;
     }
   };
@@ -439,13 +417,10 @@ export default function EffectStep({
               onFileRemoved={handleRemoveEffectVideo}
               onFilesSelected={async (files) => {
                 if (files[0]?.uri) {
-                  console.log(`📹 [EffectStep] Video seleccionado: ${files[0].uri.substring(0, 50)}...`);
-                  // NO copiar el archivo aquí - solo guardar la referencia
-                  // El archivo se copiará/subirá cuando el usuario presione "Guardar"
-                  // Esto hace que la selección sea instantánea
+                  const permanentUri = await copyFileImmediately(files[0].uri);
                   updateTrickData({
                     localFiles: {
-                      effectVideo: files[0].uri,
+                      effectVideo: permanentUri,
                       secretVideo: trickData.localFiles?.secretVideo || null,
                       photos: trickData.localFiles?.photos || [],
                     },
@@ -541,12 +516,11 @@ export default function EffectStep({
               onFileRemoved={handleRemoveSecretVideo}
               onFilesSelected={async (files) => {
                 if (files[0]?.uri) {
-                  console.log(`🔒 [EffectStep] Video secreto seleccionado: ${files[0].uri.substring(0, 50)}...`);
-                  // NO copiar el archivo aquí - solo guardar la referencia
+                  const permanentUri = await copyFileImmediately(files[0].uri);
                   updateTrickData({
                     localFiles: {
                       effectVideo: trickData.localFiles?.effectVideo || null,
-                      secretVideo: files[0].uri,
+                      secretVideo: permanentUri,
                       photos: trickData.localFiles?.photos || [],
                     },
                   });

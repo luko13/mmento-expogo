@@ -206,12 +206,11 @@ export function LibraryDataProvider({
       const favoriteTricks = filteredTricks.filter((t) => t.is_favorite);
       const categoryMap = new Map<string, CategorySection>();
 
-      if (favoriteTricks.length > 0) {
-        categoryMap.set("favorites-virtual", {
-          category: favoritesCategory,
-          items: favoriteTricks,
-        });
-      }
+      // Siempre agregar la categoría de Favoritos, incluso si está vacía
+      categoryMap.set("favorites-virtual", {
+        category: favoritesCategory,
+        items: favoriteTricks,
+      });
 
       // Detectar si hay filtros activos (búsqueda o filtros)
       const hasActiveFilters =

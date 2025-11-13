@@ -20,9 +20,10 @@ export type MediaType = "video" | "image";
 // Límites de tamaño en MB (basados en Cloudflare)
 export const FILE_SIZE_LIMITS = {
   // Cloudflare Stream con TUS protocol soporta hasta 30GB
-  // Recomendado usar TUS para archivos >200MB
+  // El sistema de análisis inteligente determinará automáticamente
+  // si un video necesita compresión antes de subir
   VIDEO_MAX: 30000,        // Límite máximo absoluto (30GB) - Cloudflare Stream
-  VIDEO_RECOMMENDED: 200,  // Límite recomendado para UX (200MB) - Subida directa
+  VIDEO_RECOMMENDED: 200,  // Videos >200MB se analizan para compresión
   VIDEO_TUS_THRESHOLD: 200, // A partir de este tamaño, usar TUS protocol
 
   // Cloudflare Images
@@ -307,13 +308,71 @@ const uploadToCloudflare = async (
     const isVideo = fileType.startsWith('video/');
     const isImage = fileType.startsWith('image/');
 
-    // OPTIMIZACIÓN: Para videos, subir directamente sin ningún procesamiento
-    // Cloudflare Stream se encarga de todo (compresión, thumbnails, etc.)
     if (isVideo) {
-      console.log('🎬 Video detectado - subida directa sin procesamiento local');
+      // Importar servicio de análisis
+      const { default: videoAnalysisService } = await import('./videoAnalysisService');
 
+      console.log('🔍 Analizando video antes de subir...');
+
+      // Analizar el video para tomar decisión inteligente
+      const analysis = await videoAnalysisService.analyzeVideo(uri);
+
+      // Mostrar reporte del análisis en consola
+      console.log(videoAnalysisService.formatAnalysisReport(analysis));
+
+      // Validar que el video sea válido
+      if (!analysis.isValid) {
+        console.error('❌ Video inválido:', analysis.errors.join(', '));
+        analysis.errors.forEach(error => console.error(`   • ${error}`));
+        return null;
+      }
+
+      // Mostrar advertencias si las hay
+      if (analysis.warnings.length > 0) {
+        analysis.warnings.forEach(warning => console.warn(`⚠️  ${warning}`));
+      }
+
+      // Preparar URI del archivo a subir (puede cambiar si se comprime)
+      let fileToUpload = uri;
+      let wasCompressed = false;
+
+      // Comprimir si es necesario
+      if (analysis.shouldCompress && analysis.recommendedQuality !== 'none') {
+        console.log(`🗜️ Comprimiendo video con calidad "${analysis.recommendedQuality}"...`);
+        console.log(`   Razón: ${analysis.reason}`);
+
+        try {
+          const { default: videoService } = await import('./videoService');
+          const compressedUri = await videoService.compressVideo(uri, analysis.recommendedQuality);
+
+          if (compressedUri && compressedUri !== uri) {
+            fileToUpload = compressedUri;
+            wasCompressed = true;
+
+            // Obtener tamaño del archivo comprimido
+            const compressedInfo = await getFileInfo(compressedUri);
+            const compressionRatio = ((analysis.fileSizeMB - compressedInfo.size) / analysis.fileSizeMB) * 100;
+
+            console.log(`✅ Compresión completada:`);
+            console.log(`   • Original: ${analysis.fileSizeMB.toFixed(2)} MB`);
+            console.log(`   • Comprimido: ${compressedInfo.size.toFixed(2)} MB`);
+            console.log(`   • Reducción: ${compressionRatio.toFixed(1)}%`);
+          } else {
+            console.log(`ℹ️ La compresión no redujo el tamaño significativamente. Usando video original.`);
+          }
+        } catch (compressionError) {
+          console.error('❌ Error durante la compresión:', compressionError);
+          console.log('⚠️  Continuando con el video original sin comprimir...');
+          // Continuar con el archivo original si la compresión falla
+        }
+      } else {
+        console.log(`✅ Video dentro de límites recomendados. Subiendo sin compresión local.`);
+      }
+
+      // Subir a Cloudflare Stream
+      console.log(`📤 Subiendo video a Cloudflare Stream...`);
       const result = await CloudflareStorageService.uploadFile(
-        uri,
+        fileToUpload,
         fileName,
         {
           userId,
@@ -329,12 +388,22 @@ const uploadToCloudflare = async (
         }
       );
 
+      // Limpiar archivo temporal si fue comprimido
+      if (wasCompressed && fileToUpload !== uri) {
+        try {
+          await FileSystem.deleteAsync(fileToUpload, { idempotent: true });
+          console.log(`🧹 Archivo temporal comprimido eliminado`);
+        } catch (error) {
+          // Ignorar errores de limpieza
+        }
+      }
+
       if (!result.success) {
         console.error('❌ Error subiendo video:', result.error);
         return null;
       }
 
-      console.log(`✅ Video subido: ${result.url}`);
+      console.log(`✅ Video subido exitosamente: ${result.url}`);
       return result.url || null;
     }
 

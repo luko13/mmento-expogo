@@ -247,18 +247,26 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
                 <StyledText style={styles.statLabel}>Reset</StyledText>
                 <StyledView style={[styles.innerStatContainer, { width: 50 }]}>
                   <StyledView style={styles.innerStatGradient}>
-                    <StyledText style={[styles.statValue, { fontSize: 14 }]}>
-                      {(resetTime || 0) < 60
-                        ? `00:${String(resetTime || 0).padStart(2, "0")}`
-                        : `${Math.floor((resetTime || 0) / 60)
-                            .toString()
-                            .padStart(2, "0")}:${String(
-                            (resetTime || 0) % 60
-                          ).padStart(2, "0")}`}
-                    </StyledText>
-                    <StyledText style={[styles.statUnit, { fontSize: 14 }]}>
-                      Min
-                    </StyledText>
+                    {resetTime !== null && resetTime !== undefined ? (
+                      <>
+                        <StyledText style={[styles.statValue, { fontSize: 14 }]}>
+                          {resetTime < 60
+                            ? `00:${String(resetTime).padStart(2, "0")}`
+                            : `${Math.floor(resetTime / 60)
+                                .toString()
+                                .padStart(2, "0")}:${String(
+                                resetTime % 60
+                              ).padStart(2, "0")}`}
+                        </StyledText>
+                        <StyledText style={[styles.statUnit, { fontSize: 14 }]}>
+                          Min
+                        </StyledText>
+                      </>
+                    ) : (
+                      <StyledText style={[styles.statValue, { fontSize: 24 }]}>
+                        -
+                      </StyledText>
+                    )}
                   </StyledView>
                 </StyledView>
               </LinearGradient>
@@ -296,18 +304,26 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
                 <StyledText style={styles.statLabel}>Duration</StyledText>
                 <StyledView style={[styles.innerStatContainer, { width: 50 }]}>
                   <StyledView style={styles.innerStatGradient}>
-                    <StyledText style={[styles.statValue, { fontSize: 14 }]}>
-                      {(duration || 0) < 60
-                        ? `00:${String(duration || 0).padStart(2, "0")}`
-                        : `${Math.floor((duration || 0) / 60)
-                            .toString()
-                            .padStart(2, "0")}:${String(
-                            (duration || 0) % 60
-                          ).padStart(2, "0")}`}
-                    </StyledText>
-                    <StyledText style={[styles.statUnit, { fontSize: 14 }]}>
-                      Min
-                    </StyledText>
+                    {duration !== null && duration !== undefined ? (
+                      <>
+                        <StyledText style={[styles.statValue, { fontSize: 14 }]}>
+                          {duration < 60
+                            ? `00:${String(duration).padStart(2, "0")}`
+                            : `${Math.floor(duration / 60)
+                                .toString()
+                                .padStart(2, "0")}:${String(
+                                duration % 60
+                              ).padStart(2, "0")}`}
+                        </StyledText>
+                        <StyledText style={[styles.statUnit, { fontSize: 14 }]}>
+                          Min
+                        </StyledText>
+                      </>
+                    ) : (
+                      <StyledText style={[styles.statValue, { fontSize: 24 }]}>
+                        -
+                      </StyledText>
+                    )}
                   </StyledView>
                 </StyledView>
               </LinearGradient>

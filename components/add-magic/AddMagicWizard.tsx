@@ -249,33 +249,30 @@ export default function AddMagicWizard({
     ) => void
   ): Promise<string | null> => {
     try {
-      console.log(`📤 Subiendo archivo: ${fileName}`);
-      console.log(`📍 URI original: ${uri}`);
-
-      // Verificar que el archivo existe ANTES de hacer nada
       const fileInfo = await FileSystem.getInfoAsync(uri);
-      console.log(`🔍 Archivo existe: ${fileInfo.exists}`);
 
       if (!fileInfo.exists) {
-        console.error(`❌ El archivo NO existe en: ${uri}`);
+        console.error('El archivo NO existe');
         return null;
       }
 
-      // Obtener tamaño del archivo
       const fileSize = fileInfo.size || 0;
+      const fileSizeMB = fileSize / (1024 * 1024);
 
-      // Variables para cálculo de velocidad
+      // Rechazar videos muy grandes (>500MB)
+      if (fileType.startsWith('video/') && fileSizeMB > 500) {
+        Alert.alert(
+          'Video demasiado grande',
+          `El video seleccionado (${fileSizeMB.toFixed(0)} MB) excede el límite de 500 MB. Por favor selecciona un video más corto o de menor resolución.`,
+          [{ text: 'OK' }]
+        );
+        return null;
+      }
+
       let lastBytes = 0;
       let lastTime = Date.now();
       let speedSamples: number[] = [];
 
-      // OPTIMIZACIÓN: NO comprimir NADA localmente
-      // Cloudflare Stream comprime videos automáticamente
-      // Cloudflare Images optimiza imágenes automáticamente
-      console.log('☁️ Subiendo directamente a Cloudflare (sin compresión local)');
-      console.log(`📤 Subiendo desde: ${uri} (${(fileSize / (1024 * 1024)).toFixed(2)} MB)`);
-
-      // Subir archivo DIRECTAMENTE con callback de progreso mejorado
       const uploadUrl = await uploadFileToStorage(
         uri,
         userId,
@@ -447,8 +444,11 @@ export default function AddMagicWizard({
 
       // Si hay archivos grandes, mostrar advertencia
       if (hasLargeFiles) {
-        // Estimar tiempo de subida (asumiendo 2 MB/s promedio)
-        const estimatedSeconds = Math.round(totalLargeSize / (2 * 1024 * 1024));
+        // Videos >200MB se comprimen primero (reduce tamaño ~70%)
+        // Estimar tiempo: compresión + upload
+        const compressionTime = Math.round(totalLargeSize / (50 * 1024 * 1024)); // ~50 MB/s de procesamiento
+        const uploadTime = Math.round((totalLargeSize * 0.3) / (2 * 1024 * 1024)); // ~70% reducción, 2 MB/s upload
+        const estimatedSeconds = compressionTime + uploadTime;
 
         setLargeFileInfo({
           size: totalLargeSize,
