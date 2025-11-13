@@ -1,6 +1,6 @@
 # 📊 Snapshot de Base de Datos Supabase - MMENTO
 
-> **Última actualización:** [FECHA AQUÍ]
+> **Última actualización:** 13 11 2025
 > **Versión PostgreSQL:** [PEGAR RESULTADO DE version()]
 > **Total de tablas:** [NÚMERO]
 > **Total de usuarios:** [NÚMERO]
