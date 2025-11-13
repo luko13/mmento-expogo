@@ -6,7 +6,8 @@
       "WebFetch(domain:docs.expo.dev)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:developers.cloudflare.com)",
-      "WebFetch(domain:blog.cloudflare.com)"
+      "WebFetch(domain:blog.cloudflare.com)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

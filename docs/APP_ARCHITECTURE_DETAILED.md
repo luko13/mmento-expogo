@@ -4,73 +4,109 @@
 
 ---
 
-## 📑 ÍNDICE
+## 📑 ÍNDICE CON NÚMEROS DE LÍNEA
 
-### ✅ DOCUMENTADO COMPLETAMENTE:
+> **Navegación rápida:** Usa Ctrl+G (VSCode/IDEs) para saltar a cualquier línea
 
-**Pantallas/Screens:**
-- ✅ Home Page
-- ✅ TrickViewScreen (vista detallada)
-- ✅ AddMagicWizard (creación de trucos)
-- ✅ EditMagicWizard (edición de trucos)
-- ✅ MMENTO AI (chat con IA)
-- ✅ Profile (perfil de usuario)
-- ✅ Tags (gestión de tags)
-- ✅ Pantallas adicionales (Notifications, Plans, Settings, Reminders, Profile Options)
+### ✅ PANTALLAS/SCREENS
 
-**Contexts:**
-- ✅ LibraryDataContext (estado principal)
-- ✅ SearchContext (búsqueda con debounce)
-- ✅ TrickDeletionContext (notificación de eliminación)
-- ✅ OfflineSyncContext (sincronización offline)
+| Sección | Línea |
+|---------|-------|
+| 📱 Home Page - Pantalla Principal | [L77](#L77) |
+| 👤 UserProfile Component | [L304](#L304) |
+| 🔍 CompactSearchBar Component | [L376](#L376) |
+| 📚 LibrariesSection Component | [L449](#L449) |
+| 📂 CollapsibleCategoryOptimized Component | [L745](#L745) |
+| 🎯 InlineProgressBar Component | [L1028](#L1028) |
+| 🎬 TrickViewScreen - Vista Detallada | [L1116](#L1116) |
+| 🧩 StatsPanel Sub-Component | [L1952](#L1952) |
+| 🎩 AddMagicWizard - Creación de Trucos | [L2100](#L2100) |
+| ✏️ EditMagicWizard - Edición de Trucos | [L2162](#L2162) |
+| 🤖 MMENTO AI - Chat con IA | [L2220](#L2220) |
+| 👤 Profile - Pantalla de Perfil | [L2342](#L2342) |
+| 🏷️ Tags - Gestión de Tags | [L2383](#L2383) |
+| ⚙️ Pantallas Adicionales | [L2462](#L2462) |
 
-**Services - Data Layer:**
-- ✅ LocalDataService (cache dual-layer AsyncStorage + memoria)
-- ✅ SupabaseDataService (queries optimizadas)
-- ✅ HybridSearchService (búsqueda cliente vs servidor)
-- ✅ TrickService (CRUD de trucos con offline-first)
+### ✅ CONTEXTS (Gestión Global de Estado)
 
-**Services - Media Layer:**
-- ✅ CloudflareStreamService (TUS protocol uploads)
-- ✅ VideoService (compresión con react-native-compressor)
-- ✅ VideoAnalysisService (análisis inteligente de video)
-- ✅ FileUploadService (upload genérico con métricas)
+| Context | Línea |
+|---------|-------|
+| 🧠 Introducción a Contexts | [L2496](#L2496) |
+| 📚 LibraryDataContext - Contexto Principal | [L2502](#L2502) |
+| 🔍 SearchContext - Contexto de Búsqueda | [L2995](#L2995) |
+| 🗑️ TrickDeletionContext - Contexto de Eliminación | [L3119](#L3119) |
+| 🔗 Relación Entre Contexts | [L3213](#L3213) |
 
-**Services - AI/Network:**
-- ✅ ChatService (gestión de conversaciones AI + acciones especiales)
-- ✅ NetworkMonitorService (detección online/offline)
+### ✅ SERVICES - Data Layer
 
-**Services - Offline System:**
-- ✅ OfflineQueue (cola de operaciones offline persistente)
+| Service | Línea |
+|---------|-------|
+| ⚙️ Introducción a Services | [L3271](#L3271) |
+| 💾 LocalDataService - Cache Local | [L3277](#L3277) |
+| 🌐 SupabaseDataService - API Database | [L3822](#L3822) |
+| 🔍 HybridSearchService - Búsqueda Inteligente | [L4228](#L4228) |
+| 🎯 TrickService - CRUD con Offline-First | [L4376](#L4376) |
 
-### ❌ FALTA POR DOCUMENTAR:
+### ✅ SERVICES - Media Layer
 
-**Services Restantes:**
-- ❌ authService (autenticación)
-- ❌ audioService (grabación y reproducción)
-- ❌ openAIService (integración OpenAI)
-- ❌ orderService (ordenamiento de elementos)
+| Service | Línea |
+|---------|-------|
+| 📹 CloudflareStreamService - Video Streaming | [L3984](#L3984) |
+| 🎞️ VideoService - Compresión de Video | [L4096](#L4096) |
+| 📹 VideoAnalysisService - Análisis Inteligente | [L5519](#L5519) |
+| 📤 FileUploadService - Upload Genérico | [L4158](#L4158) |
 
-**Lib/Utils Importantes:**
-- ❌ compressionService.ts (estrategia de compresión)
-- ❌ compressionService.ts (compresión inteligente)
-- ❌ security.ts (encriptación/desencriptación)
-- ❌ auth.ts (helpers de autenticación)
-- ❌ colorUtils.ts (generación de colores)
-- ❌ performanceOptimizer.ts (optimizaciones de rendimiento)
+### ✅ SERVICES - Offline System
 
-**Componentes UI Complejos:**
-- ❌ MediaSelector (selector de videos/fotos)
-- ❌ FilterModal (modal de filtros)
-- ❌ CategorySelector (selector de categorías)
-- ❌ TagSelector (selector de tags)
-- ❌ VideoProgressBar (barra de progreso con scrubbing)
+| Service | Línea |
+|---------|-------|
+| 🔄 OfflineSyncContext - Gestión de Sincronización | [L4530](#L4530) |
+| 📋 OfflineQueue - Sistema de Cola Persistente | [L4647](#L4647) |
+| 📡 NetworkMonitorService - Detección de Conectividad | [L5304](#L5304) |
 
-**Features Especiales:**
-- ❌ Offline-First Architecture (sistema completo)
-- ❌ Real-time Subscriptions (Supabase)
-- ❌ Video Compression Strategy (análisis + compresión)
-- ❌ Search System (FTS + híbrido)
+### ✅ SERVICES - AI/Network
+
+| Service | Línea |
+|---------|-------|
+| 💬 ChatService - Asistente de IA (MMENTO AI) | [L4919](#L4919) |
+| 🤖 openAIService - Integración OpenAI | [L5978](#L5978) |
+
+### ✅ SERVICES - Auth & Core
+
+| Service | Línea |
+|---------|-------|
+| 🔐 authService - Autenticación con Supabase | [L5762](#L5762) |
+| 🎙️ audioService - Audio (Preparado para futuro) | [L5896](#L5896) |
+| 📑 orderService - Ordenamiento con Debouncing | [L6179](#L6179) |
+
+### ✅ UTILS (Utilidades)
+
+| Util | Línea |
+|------|-------|
+| 📦 compressionService - Compresión Automática | [L6383](#L6383) |
+| 🔒 security - Rate Limiting & Validación | [L6451](#L6451) |
+| 🔑 auth - Wrappers de authService | [L6537](#L6537) |
+| 🎨 colorUtils - Paleta de Colores | [L6615](#L6615) |
+| ⚡ performanceOptimizer - Métricas Adaptativas | [L6733](#L6733) |
+
+### ✅ FEATURES ESPECIALES
+
+| Feature | Línea |
+|---------|-------|
+| 🌐 Offline-First Architecture (5 componentes) | [L6854](#L6854) |
+| 🔄 Real-time Subscriptions (Supabase) | [L6976](#L6976) |
+| 🎬 Video Compression Strategy | [L7100](#L7100) |
+| 🔍 Search System (FTS + Híbrido) | [L7233](#L7233) |
+
+### 📊 ESTADÍSTICAS DEL DOCUMENTO
+
+- **Total de secciones principales:** 50+
+- **Servicios documentados:** 16
+- **Contexts documentados:** 4
+- **Features especiales:** 4
+- **Utils documentados:** 5
+- **Pantallas/Components:** 14+
+- **Líneas totales:** ~7300+
 
 ---
 
@@ -5756,6 +5792,1628 @@ Bitrate (Mbps) = (File Size (MB) * 8 bits/byte) / Duration (seconds)
 **Ejemplo:**
 ```
 245.3 MB / 120s = (245.3 * 8) / 120 = 16.35 Mbps
+```
+
+---
+## 🔐 SERVICE: authService
+
+**Archivo:** `services/authService.ts`
+
+### 🎯 Propósito
+Servicio singleton que encapsula todas las operaciones de autenticación con Supabase, proporcionando una interfaz consistente para registro, inicio de sesión, cierre de sesión, recuperación de contraseña y gestión de sesiones de usuario.
+
+### 🏗️ Patrón Singleton
+
+```typescript
+class AuthService {
+  private static instance: AuthService;
+
+  static getInstance(): AuthService {
+    if (!AuthService.instance) {
+      AuthService.instance = new AuthService();
+    }
+    return AuthService.instance;
+  }
+}
+```
+
+### 📋 Métodos Principales
+
+#### signUp(email, password, username?)
+- **Propósito:** Registrar nuevo usuario
+- **Validaciones:** Email válido, contraseña ≥6 caracteres
+- **Retorna:** `{ user, session }`
+- **Metadata:** Username se guarda en `user.user_metadata.username`
+
+#### signIn(email, password)
+- **Propósito:** Iniciar sesión
+- **Retorna:** `{ user, session }` con access_token
+- **Errores comunes:** Credenciales inválidas, email no confirmado
+
+#### signOut()
+- **Propósito:** Cerrar sesión
+- **Acción adicional:** Limpiar cache local (AsyncStorage)
+
+#### getCurrentUser()
+- **Propósito:** Obtener usuario actual
+- **Retorna:** `User | null`
+- **Uso:** Guards de autenticación, verificaciones rápidas
+
+#### updatePassword(newPassword)
+- **Propósito:** Cambiar contraseña del usuario autenticado
+- **Validación:** Longitud mínima 6 caracteres
+
+#### resetPassword(email)
+- **Propósito:** Enviar email de recuperación
+- **Configuración:** Requiere `redirectTo` en Supabase settings
+
+#### isAuthenticated()
+- **Propósito:** Verificar sesión activa
+- **Retorna:** `boolean`
+- **Performance:** Rápido, consulta solo memoria
+
+#### refreshSession()
+- **Propósito:** Renovar token antes de expiración
+- **Uso:** Interval cada 30 minutos (opcional, Supabase auto-refresh por defecto)
+
+#### testConnection()
+- **Propósito:** Diagnóstico de conectividad con Supabase
+- **Uso:** Debug, healthcheck
+
+### 🌍 Traducción de Errores
+
+**Método privado:** `translateAuthError(error)`
+
+Mapea errores técnicos de Supabase a español:
+
+```typescript
+'Invalid login credentials' → 'Email o contraseña incorrectos'
+'Email not confirmed' → 'Debes confirmar tu email antes de iniciar sesión'
+'User already registered' → 'Este email ya está registrado'
+'Too many requests' → 'Demasiados intentos. Espera unos minutos'
+'Network request failed' → 'Error de conexión. Verifica tu internet'
+```
+
+### 🔗 Integración con Otros Servicios
+
+**Con LocalDataService:**
+```typescript
+// Después de signIn
+const { user } = await authService.signIn(email, password);
+await localDataService.loadUserData(user.id);
+
+// Antes de signOut
+await authService.signOut();
+await localDataService.clearCache();
+```
+
+**Con LibraryDataContext:**
+```typescript
+const handleLogin = async () => {
+  const { user } = await authService.signIn(email, password);
+  await loadUserLibrary(user.id); // Context
+};
+```
+
+### ⚡ Ejemplo de Uso Completo
+
+```typescript
+// Registro
+const handleRegister = async (email: string, password: string) => {
+  const { user, error } = await authService.signUp(email, password);
+  if (error) {
+    alert(error.message); // Mensaje en español
+    return;
+  }
+  router.replace('/auth/login');
+};
+
+// Login
+const handleLogin = async (email: string, password: string) => {
+  const { user, session, error } = await authService.signIn(email, password);
+  if (error) {
+    alert(error.message);
+    return;
+  }
+  await localDataService.loadUserData(user.id);
+  router.replace('/(app)/home');
+};
+
+// Logout
+const handleLogout = async () => {
+  await authService.signOut();
+  await localDataService.clearCache();
+  router.replace('/auth/login');
+};
+```
+
+---
+
+## 🎙️ SERVICE: audioService
+
+**Archivo:** `services/audioService.ts`
+
+### ⚠️ Estado Actual: PREPARADO PARA FUTURO USO
+
+Este archivo está **vacío/minimal** actualmente. Está reservado para desarrollo futuro de funcionalidades de audio.
+
+### 🎯 Propósito Planificado
+Servicio singleton para grabar, reproducir y procesar audio en la aplicación, incluyendo transcripción mediante OpenAI Whisper.
+
+### 📋 Funcionalidades Planificadas
+
+#### Grabación de Audio
+- `startRecording()` - Iniciar grabación con permisos
+- `stopRecording()` - Detener y obtener URI
+- `pauseRecording()` - Pausar grabación (si disponible)
+
+#### Reproducción de Audio
+- `playAudio(uri)` - Reproducir archivo
+- `pauseAudio()` - Pausar reproducción
+- `stopAudio()` - Detener y descargar
+
+#### Utilidades
+- `getAudioDuration(uri)` - Obtener duración en ms
+- `transcribeAudio(uri)` - Usar openAIService.transcribeAudio()
+- `compressAudio(uri)` - Reducir tamaño de archivo
+- `uploadAudio(uri, userId)` - Upload a Supabase Storage
+
+### 🛠️ Tecnologías Sugeridas
+
+**expo-av** (ya instalado):
+```typescript
+import { Audio } from 'expo-av';
+
+// Configurar permisos
+await Audio.requestPermissionsAsync();
+await Audio.setAudioModeAsync({
+  allowsRecordingIOS: true,
+  playsInSilentModeIOS: true,
+});
+
+// Grabar
+const recording = new Audio.Recording();
+await recording.prepareToRecordAsync(
+  Audio.RecordingOptionsPresets.HIGH_QUALITY
+);
+await recording.startAsync();
+
+// Detener
+await recording.stopAndUnloadAsync();
+const uri = recording.getURI();
+```
+
+### 💡 Casos de Uso Futuros
+
+1. **Notas de Voz en Trucos:** Grabar explicaciones verbales
+2. **Transcripción Automática:** Convertir audio a texto con Whisper
+3. **Búsqueda por Voz:** Dictar query de búsqueda
+4. **Instrucciones de Voz:** Reproducir guías paso a paso
+
+### 🔗 Integración con openAIService
+
+```typescript
+// Ya disponible en openAIService.ts:
+async transcribeAudio(audioPath: string): Promise<string>
+
+// Uso futuro:
+const uri = await audioService.stopRecording();
+const text = await openAIService.transcribeAudio(uri);
+setTrickDescription(text);
+```
+
+### 📝 Notas de Implementación
+
+- **No implementar hasta necesidad real** - Mantener vacío por ahora
+- **Seguir patrón Singleton** cuando se desarrolle
+- **Límites de Whisper:** Max 25MB, <10 min recomendado
+- **Formatos:** M4A, MP3, WAV, WebM
+
+---
+
+## 🤖 SERVICE: openAIService
+
+**Archivo:** `services/openAIService.ts`
+
+### 🎯 Propósito
+Servicio singleton que proporciona integración con OpenAI para chat conversacional (GPT-3.5/GPT-4), transcripción de audio (Whisper), selección dinámica de modelos y sistema de caché optimizado con compresión GZIP.
+
+### 🏗️ Arquitectura
+
+```
+openAIService (Singleton)
+    ├─ sendChatCompletion(messages, options)
+    ├─ transcribeAudio(audioPath)
+    ├─ selectOptimalModel(msgLen, convLen)
+    └─ Cache Layer (GZIP + AsyncStorage, TTL 24h)
+          ↓
+   OpenAI API Client
+    ├─ Chat Completions (GPT-3.5/4)
+    └─ Whisper (Audio Transcription)
+```
+
+### 📋 Métodos Principales
+
+#### sendChatCompletion(messages, options?)
+
+**Parámetros:**
+```typescript
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+interface ChatOptions {
+  model?: string;           // Auto-selecciona si no se especifica
+  temperature?: number;     // 0-2, default: 0.7
+  maxTokens?: number;       // Default: 1000
+  useCache?: boolean;       // Default: true
+}
+```
+
+**Retorna:**
+```typescript
+{
+  content: string;          // Respuesta generada
+  tokensUsed: number;       // Tokens consumidos
+  model: string;            // Modelo utilizado
+}
+```
+
+**Ejemplo:**
+```typescript
+const response = await openAIService.sendChatCompletion([
+  { role: 'system', content: 'Eres un experto en magia.' },
+  { role: 'user', content: '¿Cómo mejorar mi truco de cartas?' }
+], {
+  temperature: 0.7,
+  maxTokens: 500
+});
+
+console.log(response.content); // Respuesta de GPT
+console.log(`Tokens: ${response.tokensUsed}`);
+```
+
+#### transcribeAudio(audioPath)
+
+**Propósito:** Convertir audio a texto con Whisper
+
+**Parámetros:**
+- `audioPath` (string): Ruta local del archivo audio
+
+**Formatos soportados:** mp3, mp4, mpeg, mpga, m4a, wav, webm
+
+**Límites:**
+- Tamaño máximo: 25 MB
+- Duración recomendada: <10 minutos
+
+**Ejemplo:**
+```typescript
+const uri = recording.getURI();
+const transcription = await openAIService.transcribeAudio(uri);
+console.log('Texto:', transcription);
+```
+
+#### selectOptimalModel(messageLength, conversationLength)
+
+**Propósito:** Seleccionar GPT-3.5 vs GPT-4 dinámicamente
+
+**Lógica:**
+```typescript
+// Mensaje largo (>500 chars) → GPT-4
+if (messageLength > 500) return 'gpt-4o';
+
+// Conversación larga (>10 msgs) → GPT-4
+if (conversationLength > 10) return 'gpt-4o';
+
+// Por defecto → GPT-4o-mini (rápido + económico)
+return 'gpt-4o-mini';
+```
+
+### 💾 Sistema de Caché Avanzado
+
+**Características:**
+- **Compresión GZIP** con `pako` library
+- **TTL:** 24 horas (86400000 ms)
+- **Storage:** AsyncStorage
+- **Key:** MD5 hash de (messages + model)
+
+**Flujo:**
+```
+1. Generar cache key: MD5(messages + model)
+2. Buscar en AsyncStorage
+3. Si existe y no expiró:
+   - Descomprimir con pako.ungzip()
+   - Retornar respuesta cacheada (tokensUsed = 0)
+4. Si no existe o expiró:
+   - Llamar a OpenAI API
+   - Comprimir respuesta con pako.gzip()
+   - Guardar en AsyncStorage
+   - Retornar respuesta nueva
+```
+
+**Beneficios:**
+- **Reducción de costos:** ~$0.03 por respuesta GPT-4 cacheada
+- **Latencia:** 50-200ms (caché) vs 2-5s (API)
+- **Offline:** Respuestas disponibles sin conexión
+
+### 🚨 Manejo de Errores
+
+**Códigos comunes:**
+- **401:** API Key inválida → `'API Key de OpenAI inválida. Verifica tu configuración.'`
+- **429:** Rate limit → `'Límite de tasa excedido. Intenta de nuevo en unos minutos.'`
+- **500/502/503:** Servicio caído → `'Servicio de OpenAI no disponible. Intenta más tarde.'`
+
+### ⚙️ Configuración (.env)
+
+```env
+OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxx
+OPENAI_MODEL_PRIMARY=gpt-4o-mini      # Rápido/económico
+OPENAI_MODEL_SECONDARY=gpt-4o         # Inteligente/costoso
+OPENAI_MODEL_WHISPER=whisper-1        # Transcripción
+```
+
+### 🔗 Integración con MMENTO AI
+
+```typescript
+// app/(app)/mmento-ai/index.tsx
+const [messages, setMessages] = useState<ChatMessage[]>([
+  {
+    role: 'system',
+    content: 'Eres MmentoAI, experto en magia y trucos.'
+  }
+]);
+
+const handleSend = async (userMsg: string) => {
+  const updated = [...messages, { role: 'user', content: userMsg }];
+
+  const response = await openAIService.sendChatCompletion(updated, {
+    temperature: 0.7,
+    maxTokens: 800,
+    useCache: true
+  });
+
+  setMessages([...updated, {
+    role: 'assistant',
+    content: response.content
+  }]);
+};
+```
+
+### 💰 Optimización de Costos
+
+**Estrategias:**
+1. **Caché agresivo:** TTL 24h para FAQ comunes
+2. **Limitar maxTokens:** Solo lo necesario
+3. **Preferir GPT-4o-mini:** 10x más económico
+4. **Truncar conversaciones:** Mantener solo últimos 10 mensajes
+
+**Tracking de uso:**
+```typescript
+class TokenTracker {
+  trackUsage(model: string, tokens: number) {
+    this.totalTokens += tokens;
+    this.tokensByModel[model] = (this.tokensByModel[model] || 0) + tokens;
+  }
+
+  calculateCost(): number {
+    let cost = 0;
+    for (const [model, tokens] of Object.entries(this.tokensByModel)) {
+      if (model.includes('gpt-4o-mini')) {
+        cost += (tokens / 1000) * 0.0015;
+      } else if (model.includes('gpt-4o')) {
+        cost += (tokens / 1000) * 0.03;
+      }
+    }
+    return cost;
+  }
+}
+```
+
+---
+
+## 📑 SERVICE: orderService
+
+**Archivo:** `utils/orderService.ts`
+
+### 🎯 Propósito
+Servicio singleton que gestiona el ordenamiento personalizado de categorías y trucos mediante drag-and-drop, con debouncing de 1.5s para optimizar escrituras a Supabase.
+
+### 🏗️ Arquitectura
+
+```
+orderService (Singleton)
+    ├─ getUserCategoryOrder(userId)
+    ├─ getUserTrickOrder(userId, categoryId)
+    ├─ updateCategoryOrder(userId, catId, pos)
+    ├─ updateTrickOrder(userId, catId, trickId, pos)
+    ├─ moveTrickToCategory(...)
+    ├─ initializeCategoryOrder(userId, catId)
+    ├─ initializeTrickOrder(userId, catId, trickId)
+    ├─ cleanupCategoryOrder(userId, catId)
+    └─ flushUpdates() → Batch upsert
+          ↓
+   Debounce Queue (1.5s)
+    ├─ pendingCategoryUpdates: Map
+    └─ pendingTrickUpdates: Map
+          ↓
+   Supabase Tables
+    ├─ user_category_order
+    └─ user_trick_order
+```
+
+### 📊 Tablas de Base de Datos
+
+**user_category_order:**
+```sql
+CREATE TABLE user_category_order (
+  user_id UUID NOT NULL,
+  category_id UUID NOT NULL,
+  position INTEGER NOT NULL,
+  UNIQUE(user_id, category_id)
+);
+```
+
+**user_trick_order:**
+```sql
+CREATE TABLE user_trick_order (
+  user_id UUID NOT NULL,
+  category_id UUID NOT NULL,
+  trick_id UUID NOT NULL,
+  position INTEGER NOT NULL,
+  UNIQUE(user_id, category_id, trick_id)
+);
+```
+
+### 📋 Métodos Principales
+
+#### getUserCategoryOrder(userId)
+- **Retorna:** `Record<string, number>` (categoryId → position)
+- **Orden:** ASC por position
+
+#### getUserTrickOrder(userId, categoryId)
+- **Retorna:** `Record<string, number>` (trickId → position)
+- **Maneja:** Categoría "Favoritos" detectada por nombre
+
+#### updateCategoryOrder(userId, categoryId, newPosition)
+- **Debounce:** 1.5 segundos
+- **Cola:** Agrega a `pendingCategoryUpdates`
+- **Flush:** Automático después de delay sin nuevos updates
+
+#### updateTrickOrder(userId, categoryId, trickId, newPosition)
+- **Debounce:** 1.5 segundos
+- **Cola:** Agrega a `pendingTrickUpdates`
+
+#### moveTrickToCategory(userId, trickId, fromCatId, toCatId, newPos)
+- **Acciones:**
+  1. Eliminar de categoría origen
+  2. Insertar en categoría destino
+  3. Re-ordenar trucos restantes en ambas
+
+#### flushUpdates()
+- **Propósito:** Ejecutar batch upsert inmediato
+- **Operación:** `supabase.upsert(updates, { onConflict })`
+- **Uso:** Forzar flush antes de logout, backup, etc.
+
+### ⏱️ Sistema de Debouncing
+
+**Implementación:**
+```typescript
+private debounceTimer: NodeJS.Timeout | null = null;
+private readonly DEBOUNCE_DELAY = 1500; // 1.5 segundos
+
+private scheduleFlush(): void {
+  if (this.debounceTimer) {
+    clearTimeout(this.debounceTimer);
+  }
+
+  this.debounceTimer = setTimeout(async () => {
+    await this.flushUpdates();
+  }, this.DEBOUNCE_DELAY);
+}
+```
+
+**Beneficios:**
+- Reduce escrituras a DB (múltiples drags → 1 batch upsert)
+- Mejor performance en drag-and-drop rápido
+- Ahorra costos de operaciones DB
+
+### 🎯 Integración con Drag-and-Drop
+
+**react-beautiful-dnd:**
+```typescript
+const handleDragEnd = async (result: DropResult) => {
+  const { source, destination } = result;
+  if (!destination) return;
+
+  // Optimistic update en UI
+  const reordered = Array.from(categories);
+  const [moved] = reordered.splice(source.index, 1);
+  reordered.splice(destination.index, 0, moved);
+  setCategories(reordered);
+
+  // Update con debounce
+  await orderService.updateCategoryOrder(
+    userId,
+    moved.id,
+    destination.index
+  );
+};
+```
+
+### 🔗 Integración con LibraryDataContext
+
+```typescript
+// Cargar orden al inicializar
+useEffect(() => {
+  const loadOrder = async () => {
+    const orderMap = await orderService.getUserCategoryOrder(userId);
+
+    const sorted = [...categories].sort((a, b) => {
+      const posA = orderMap[a.id] ?? 999;
+      const posB = orderMap[b.id] ?? 999;
+      return posA - posB;
+    });
+
+    setCategories(sorted);
+  };
+
+  loadOrder();
+}, [userId]);
+```
+
+### ⚠️ Edge Cases Manejados
+
+**Categoría "Favoritos":**
+```typescript
+// Detectar por nombre (case-insensitive)
+const isFavorites = categoryName.toLowerCase() === 'favoritos' ||
+                    categoryId === 'favorites-virtual';
+
+if (isFavorites) {
+  // Buscar ID real en DB
+  const { data } = await supabase
+    .from('user_categories')
+    .select('id')
+    .eq('user_id', userId)
+    .ilike('name', 'favoritos')
+    .single();
+
+  categoryId = data?.id || categoryId;
+}
+```
+
+**Elementos sin orden:**
+```typescript
+// Inicializar automáticamente
+const unordered = categories.filter(cat => !(cat.id in orderMap));
+
+for (const category of unordered) {
+  await orderService.initializeCategoryOrder(userId, category.id);
+}
+```
+
+### 💡 Mejores Prácticas
+
+1. **Flush antes de operaciones críticas:**
+   ```typescript
+   await orderService.flushUpdates();
+   await performBackup();
+   ```
+
+2. **Optimistic updates en UI:** Actualizar UI inmediatamente, no esperar DB
+
+3. **Normalizar posiciones:** Evitar gaps (0, 1, 2... no 0, 5, 10)
+
+4. **Revertir en error:**
+   ```typescript
+   try {
+     await orderService.updateCategoryOrder(...);
+   } catch (error) {
+     setCategories(originalCategories); // Revertir
+   }
+   ```
+
+---
+
+## 📦 UTIL: compressionService
+
+**Archivo:** `utils/compressionService.ts`
+
+### 🎯 Propósito
+Servicio singleton para compresión automática de archivos (imágenes, videos, datos) con estrategias adaptativas según tipo y tamaño.
+
+### 📋 Métodos Principales
+
+#### compressFile(uri, mimeType, options?)
+- **Propósito:** Compresión automática según tipo de archivo
+- **Soporta:** images/*, videos/*, text/*, application/*
+- **Retorna:** `{ uri, originalSize, compressedSize, ratio, algorithm, wasCompressed }`
+- **Algoritmos:** jpeg, h264, gzip, none
+
+#### compressImage(uri, originalSize, options)
+- **Estrategia dinámica según tamaño:**
+  - >4MB: quality=0.5, maxDim=1080
+  - >2MB: quality=0.6, maxDim=1280
+  - >1MB: quality=0.7, maxDim=1440
+  - <1MB: quality=0.8, maxDim=1920
+- **Tecnología:** expo-image-manipulator con SaveFormat.JPEG
+
+#### compressVideo(uri, originalSize, options)
+- **Calidades dinámicas:**
+  - >50MB → "low"
+  - >20MB → "medium"
+  - <20MB → "high"
+- **Tecnología:** react-native-compressor (no disponible en Expo Go)
+- **Fallback:** Si no está disponible, retorna URI original sin comprimir
+
+#### compressData(uri, originalSize, mimeType)
+- **Algoritmo:** pako.gzip() (compresión GZIP)
+- **Umbral:** Solo si >100KB (DATA_SIZE_THRESHOLD)
+- **Beneficio mínimo:** 20% de reducción (MIN_COMPRESSION_BENEFIT)
+- **Skips:** Archivos ya comprimidos (zip, rar, 7z, gzip, webp)
+
+### 🔧 Utilidades
+
+**isVideoCompressionAvailable():** Verifica si react-native-compressor está disponible
+
+**cleanupTemporaryFiles():** Limpia archivos `compressed_*` y `decompressed_*` del cache
+
+**getCompressionStats():** Retorna métricas de operaciones de compresión
+
+### ⚡ Ejemplo de Uso
+
+```typescript
+import { compressionService } from '@/utils/compressionService';
+
+const handleUpload = async (uri: string, mimeType: string) => {
+  const result = await compressionService.compressFile(uri, mimeType, {
+    quality: 0.8,
+    maxWidth: 1920
+  });
+
+  console.log(`Original: ${result.originalSize / 1024}KB`);
+  console.log(`Comprimido: ${result.compressedSize / 1024}KB`);
+  console.log(`Ratio: ${(result.ratio * 100).toFixed(1)}%`);
+  console.log(`Algoritmo: ${result.algorithm}`);
+
+  // Upload el archivo comprimido
+  await uploadToServer(result.uri);
+};
+```
+
+---
+
+## 🔒 UTIL: security
+
+**Archivo:** `utils/security.ts`
+
+### 🎯 Propósito
+SecurityManager con métodos estáticos para rate limiting, sanitización de inputs y validación de contenido malicioso.
+
+### 📋 Métodos Principales
+
+#### checkRateLimit(userId)
+- **Límite:** 10 requests por minuto
+- **Ventana:** 60 segundos (sliding window)
+- **Storage:** AsyncStorage con key `rate_limit_{userId}`
+- **Retorna:** `boolean` (true = permitido, false = excedido)
+
+**Flujo:**
+```
+1. Leer contador de AsyncStorage
+2. Si no existe → crear con count=1, timestamp=now
+3. Si existe:
+   - Si timestamp + 60s < now → reset ventana
+   - Si count < 10 → incrementar y permitir
+   - Si count >= 10 → denegar
+```
+
+#### sanitizeInput(input)
+- **Acciones:**
+  - Elimina caracteres de control (0x00-0x1F, 0x7F)
+  - Limita longitud a 2000 caracteres
+  - Elimina espacios excesivos
+  - Trim
+
+**Ejemplo:**
+```typescript
+const userInput = sanitizeInput(rawInput);
+// "Hello\x00World   " → "Hello World"
+```
+
+#### validateContent(content)
+- **Propósito:** Detectar prompts maliciosos (prompt injection)
+- **Blacklist:**
+  - "ignore previous instructions"
+  - "disregard all prior"
+  - "forget everything"
+  - "system prompt"
+  - "reveal your instructions"
+  - "api key"
+  - "access token"
+- **Retorna:** `boolean` (true = válido, false = malicioso)
+
+#### verifyAuth()
+- **Propósito:** Verificar que usuario está autenticado
+- **Retorna:** `string` (userId)
+- **Throws:** Error si no autenticado
+
+### 🔗 Uso con openAIService
+
+```typescript
+// Antes de enviar mensaje a OpenAI
+const handleSendMessage = async (message: string) => {
+  // Sanitizar
+  const clean = SecurityManager.sanitizeInput(message);
+
+  // Validar contenido
+  if (!SecurityManager.validateContent(clean)) {
+    alert('Mensaje contiene contenido no permitido');
+    return;
+  }
+
+  // Verificar rate limit
+  const userId = await SecurityManager.verifyAuth();
+  const allowed = await SecurityManager.checkRateLimit(userId);
+  if (!allowed) {
+    alert('Demasiadas solicitudes. Espera un minuto.');
+    return;
+  }
+
+  // Proceder
+  await openAIService.sendChatCompletion([
+    { role: 'user', content: clean }
+  ]);
+};
+```
+
+---
+
+## 🔑 UTIL: auth
+
+**Archivo:** `utils/auth.ts`
+
+### 🎯 Propósito
+Wrappers convenientes sobre authService.ts para operaciones comunes de autenticación.
+
+### 📋 Funciones Exportadas
+
+**signIn(email, password):**
+- Llama a `authService.signIn()`
+- Guarda token con `setAuthToken(session.access_token)`
+- Retorna `Promise<boolean>`
+
+**signUp(email, password, username?):**
+- Llama a `authService.signUp()`
+- Guarda token si disponible
+- Retorna `Promise<boolean>`
+
+**signOut():**
+- Llama a `authService.signOut()`
+- Limpia token con `removeAuthToken()`
+- Retorna `Promise<void>`
+
+**getCurrentUser():**
+- Wrapper de `authService.getCurrentUser()`
+
+**isAuthenticated():**
+- Wrapper de `authService.isAuthenticated()`
+
+**resetPassword(email):**
+- Wrapper de `authService.resetPassword()`
+
+**updatePassword(newPassword):**
+- Wrapper de `authService.updatePassword()`
+
+**refreshSession():**
+- Wrapper de `authService.refreshSession()`
+
+### ⚡ Diferencia con authService
+
+| authService | auth.ts |
+|------------|---------|
+| Clase singleton | Funciones exportadas |
+| Métodos de instancia | Funciones standalone |
+| No maneja tokens | Guarda/elimina tokens |
+| Bajo nivel | Alto nivel, más conveniente |
+
+### 🔗 Uso Típico
+
+```typescript
+import { signIn, signOut, getCurrentUser } from '@/utils/auth';
+
+// Login
+const handleLogin = async () => {
+  try {
+    await signIn('user@example.com', 'password123');
+    router.replace('/(app)/home');
+  } catch (error) {
+    alert(error.message);
+  }
+};
+
+// Logout
+const handleLogout = async () => {
+  await signOut();
+  router.replace('/auth/login');
+};
+
+// Check auth
+const user = await getCurrentUser();
+if (!user) {
+  router.replace('/auth/login');
+}
+```
+
+---
+
+## 🎨 UTIL: colorUtils
+
+**Archivo:** `utils/colorUtils.ts`
+
+### 🎯 Propósito
+Utilidades para gestión de colores de tags con paleta predefinida y generación automática de colores de texto con alto contraste.
+
+### 🎨 Paleta de Colores (18 colores)
+
+**TAG_COLORS:**
+```typescript
+// Claros (6)
+LIGHT_GREEN: "#C8E6C9"
+LIGHT_BLUE: "#BBDEFB"
+LIGHT_ORANGE: "#FFE0B2"
+LIGHT_PURPLE: "#E1BEE7"
+LIGHT_RED: "#FFCDD2"
+
+// Medios (6)
+MEDIUM_GREEN: "#4CAF50"
+MEDIUM_BLUE: "#2196F3"
+MEDIUM_ORANGE: "#FF9800"
+MEDIUM_PURPLE: "#9C27B0"
+MEDIUM_RED: "#F44336"
+
+// Oscuros (5)
+DARK_GREEN: "#1B5E20"
+DARK_BLUE: "#0D47A1"
+DARK_ORANGE: "#E65100"
+DARK_PURPLE: "#4A148C"
+DARK_RED: "#B71C1C"
+
+// Grises (3)
+LIGHT_GRAY: "#F5F5F5"
+MEDIUM_GRAY: "#9E9E9E"
+DARK_GRAY: "#424242"
+```
+
+### 📋 Funciones Principales
+
+#### getContrastTextColor(backgroundColor)
+- **Propósito:** Obtener color de texto con alto contraste
+- **Mapeo:**
+  - Colores claros → texto oscuro
+  - Colores oscuros/medios → texto claro
+- **Fallback:** "#FFFFFF" si color no está en mapeo
+
+**Ejemplo:**
+```typescript
+getContrastTextColor("#C8E6C9") // → "#1B5E20" (oscuro)
+getContrastTextColor("#1B5E20") // → "#C8E6C9" (claro)
+getContrastTextColor("#FF9800") // → "#FFE0B2" (claro)
+```
+
+#### getTagPillStyle(backgroundColor, isSelected)
+- **Propósito:** Generar estilo para pill/badge de tag
+- **Retorna:** Objeto con backgroundColor, borderWidth, borderColor, borderRadius
+- **Opacidad:** 30% si selected, 15% si no selected
+
+**Ejemplo:**
+```typescript
+getTagPillStyle("#4CAF50", true)
+// {
+//   backgroundColor: "#4CAF5030",  // 30% opacity
+//   borderWidth: 1,
+//   borderColor: "#C8E6C980",      // 80% opacity
+//   borderRadius: 20
+// }
+```
+
+#### getTagTextStyle(backgroundColor, isSelected)
+- **Propósito:** Estilo para texto del tag
+- **Retorna:** Objeto con color y opacity
+- **Lógica:**
+  - Selected: color de contraste, opacity=1
+  - No selected: color de fondo original, opacity=0.9
+
+### 🔗 Uso en TagSelector
+
+```typescript
+import { getTagPillStyle, getTagTextStyle } from '@/utils/colorUtils';
+
+const TagPill = ({ tag, isSelected, onPress }) => {
+  const pillStyle = getTagPillStyle(tag.color, isSelected);
+  const textStyle = getTagTextStyle(tag.color, isSelected);
+
+  return (
+    <TouchableOpacity
+      style={[styles.pill, pillStyle]}
+      onPress={onPress}
+    >
+      <Text style={[styles.text, textStyle]}>{tag.name}</Text>
+    </TouchableOpacity>
+  );
+};
+```
+
+### 🎨 ColorPicker Array
+
+**PICKER_COLORS:** Array ordenado de 18 colores para grid de ColorPicker UI
+```typescript
+[
+  // Row 1: Claros
+  LIGHT_GREEN, LIGHT_BLUE, LIGHT_ORANGE, LIGHT_PURPLE, LIGHT_RED,
+
+  // Row 2: Medios
+  MEDIUM_GREEN, MEDIUM_BLUE, MEDIUM_ORANGE, MEDIUM_PURPLE, MEDIUM_RED,
+
+  // Row 3: Oscuros
+  DARK_GREEN, DARK_BLUE, DARK_ORANGE, DARK_PURPLE, DARK_RED,
+
+  // Row 4: Grises
+  LIGHT_GRAY, MEDIUM_GRAY, DARK_GRAY
+]
+```
+
+---
+
+## ⚡ UTIL: performanceOptimizer
+
+**Archivo:** `utils/performanceOptimizer.ts`
+
+### 🎯 Propósito
+Singleton que mide, analiza y optimiza performance de operaciones pesadas (encriptación, uploads, compresión) con estrategias adaptativas basadas en métricas históricas.
+
+### 🏗️ Arquitectura
+
+```
+PerformanceOptimizer (Singleton)
+    ├─ measureAndOptimize(operation, fn, ...args)
+    ├─ getOptimizationStrategy(fileSize)
+    ├─ storeMetric(operation, duration, size)
+    ├─ getAverageMetrics(operation)
+    └─ Adaptive Thresholds
+          ↓
+   Métricas por Operación
+    ├─ encrypt: { avgDuration, avgSize, avgSpeed }
+    ├─ upload: { avgDuration, avgSize, avgSpeed }
+    └─ compression: { avgDuration, avgSize, avgSpeed }
+```
+
+### 📋 Métodos Principales
+
+#### measureAndOptimize(operation, fn, ...args)
+- **Propósito:** Ejecutar función midiendo tiempo y tamaño
+- **Acciones:**
+  1. Medir tiempo de inicio
+  2. Ejecutar función
+  3. Calcular duración
+  4. Almacenar métrica
+  5. Log performance (si >SLOW_THRESHOLD)
+  6. Ajustar estrategia si >VERY_SLOW_THRESHOLD
+- **Retorna:** Resultado de la función
+
+#### getOptimizationStrategy(fileSize)
+- **Propósito:** Calcular estrategia óptima basada en historial
+- **Retorna:** `{ useStreaming, chunkSize, compressionLevel, parallelChunks }`
+- **Decisiones:**
+  - useStreaming: fileSize > adaptiveThresholds.streaming || predictedTime > 2s
+  - chunkSize: 256KB-1MB según avgSpeed
+  - compressionLevel: 0.6-1.0 según predictedUploadTime
+  - parallelChunks: 2-4 según avgSpeed
+
+#### getAverageMetrics(operation)
+- **Retorna:** `{ avgDuration, avgSize, avgSpeed, count }`
+- **Cálculo de Speed:** (avgSize / avgDuration) / 1024 (MB/s)
+
+### 🎯 Thresholds Adaptativos
+
+**Iniciales:**
+```typescript
+adaptiveThresholds = {
+  streaming: 5 * 1024 * 1024,      // 5MB
+  compression: 2 * 1024 * 1024,    // 2MB
+}
+```
+
+**Ajuste Dinámico:**
+- Si operación > VERY_SLOW_THRESHOLD (3s) → reduce streaming threshold
+- Si avgSpeed < 1 MB/s → reduce chunk size
+- Si avgSpeed > 5 MB/s → aumenta chunk size
+
+### ⚡ Ejemplo de Uso
+
+```typescript
+import { performanceOptimizer } from '@/utils/performanceOptimizer';
+
+// Encriptar con optimización
+const encryptFile = async (data: string) => {
+  return await performanceOptimizer.measureAndOptimize(
+    'encrypt',
+    async (input) => {
+      // Lógica de encriptación
+      return encryptedData;
+    },
+    data
+  );
+};
+
+// Obtener estrategia para upload
+const uploadLargeFile = async (uri: string, size: number) => {
+  const strategy = performanceOptimizer.getOptimizationStrategy(size);
+
+  console.log('Estrategia:', strategy);
+  // {
+  //   useStreaming: true,
+  //   chunkSize: 512000,
+  //   compressionLevel: 0.8,
+  //   parallelChunks: 3
+  // }
+
+  if (strategy.useStreaming) {
+    await uploadInChunks(uri, strategy.chunkSize, strategy.parallelChunks);
+  } else {
+    await uploadDirect(uri);
+  }
+};
+
+// Ver stats
+const stats = performanceOptimizer.getAverageMetrics('encrypt');
+console.log(`Avg: ${stats.avgDuration}ms, Speed: ${stats.avgSpeed} MB/s`);
+```
+
+### 📊 Métricas Almacenadas
+
+**PerformanceMetric interface:**
+```typescript
+{
+  duration: number;      // Milisegundos
+  size: number;          // Bytes
+  timestamp: number;     // Date.now()
+  operation: string;     // Nombre de operación
+}
+```
+
+**Límite:** Mantiene solo últimas 10 métricas por operación (MAX_METRICS)
+
+---
+
+## 🌐 FEATURE: Offline-First Architecture
+
+**Componentes:** NetworkMonitorService, OfflineQueue, LocalDataService, OfflineSyncContext, OfflineIndicator
+
+### 🏗️ Arquitectura Completa
+
+```
+┌─────────────────────────────────────────────────────┐
+│             Offline-First System                    │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  1. Network Monitor                                 │
+│     ├─ Detecta online/offline                      │
+│     ├─ Trigger sync on reconnect                   │
+│     └─ Provides isOnline()                         │
+│                                                     │
+│  2. Offline Queue (AsyncStorage)                    │
+│     ├─ create_trick                                │
+│     ├─ update_trick                                │
+│     ├─ delete_trick                                │
+│     ├─ toggle_favorite                             │
+│     └─ Retry: max 3 attempts, exponential backoff  │
+│                                                     │
+│  3. Local Data Service                              │
+│     ├─ AsyncStorage (persistente)                  │
+│     ├─ In-memory cache (rápido)                    │
+│     ├─ Flags: _pendingSync, _isLocalOnly          │
+│     └─ getPendingTricks(), getPendingCategories()  │
+│                                                     │
+│  4. Offline Sync Context                            │
+│     ├─ Estado: isOnline, isSyncing, pendingOps    │
+│     ├─ Auto-sync: reconnect, app foreground       │
+│     └─ Manual: syncNow()                           │
+│                                                     │
+│  5. Offline Indicator UI                            │
+│     ├─ Visual: offline status, pending count      │
+│     └─ Tap: manual sync trigger                   │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+### 🔄 Flujo de Operación Offline
+
+```
+Usuario crea truco sin conexión
+         ↓
+1. LocalDataService.addTrick(trick, isLocalOnly=true)
+   - Guarda en memoria con flag _isLocalOnly=true
+   - Persiste a AsyncStorage
+   - UI se actualiza inmediatamente
+         ↓
+2. OfflineQueue.enqueue({
+     type: 'create_trick',
+     payload: { trick },
+     timestamp: Date.now()
+   })
+   - Guarda operación en AsyncStorage
+         ↓
+3. OfflineIndicator muestra "1 operación pendiente"
+         ↓
+[Usuario recupera conexión]
+         ↓
+4. NetworkMonitor detecta reconnect
+         ↓
+5. OfflineSyncContext.syncNow()
+   - isSyncing = true
+   - Procesa cola de operaciones
+         ↓
+6. OfflineQueue.processQueue()
+   - Toma operación más antigua
+   - Ejecuta en Supabase
+   - Si éxito: elimina de cola
+   - Si fallo: incrementa retry count
+   - Si retry >= 3: marca como 'failed'
+         ↓
+7. LocalDataService actualiza flags
+   - _isLocalOnly = false
+   - _pendingSync = false
+         ↓
+8. OfflineIndicator muestra "Sincronizado ✓"
+```
+
+### 🔗 Integración en Componentes
+
+```typescript
+import { useOfflineSync } from '@/context/OfflineSyncContext';
+
+const CreateTrickScreen = () => {
+  const { isOnline, pendingOperations } = useOfflineSync();
+
+  const handleCreate = async (trick: MagicTrick) => {
+    // Guardar localmente
+    await localDataService.addTrick(userId, trick, !isOnline);
+
+    if (!isOnline) {
+      // Queue para después
+      await offlineQueueService.enqueue({
+        userId,
+        type: 'create_trick',
+        payload: { trick }
+      });
+
+      alert('Truco guardado. Se sincronizará al conectar.');
+    } else {
+      // Guardar en servidor
+      await supabase.from('magic_tricks').insert(trick);
+    }
+  };
+
+  return (
+    <View>
+      {!isOnline && (
+        <Text>Modo offline - {pendingOperations} operaciones pendientes</Text>
+      )}
+      {/* ... */}
+    </View>
+  );
+};
+```
+
+---
+
+## 🔄 FEATURE: Real-time Subscriptions (Supabase)
+
+**Propósito:** Sincronización en tiempo real de datos entre dispositivos usando Supabase Realtime.
+
+### 🏗️ Arquitectura
+
+```
+┌────────────────────────────────────────────────┐
+│        Supabase Realtime System                │
+├────────────────────────────────────────────────┤
+│                                                │
+│  Client (Device A)                             │
+│    ├─ LibraryDataContext                      │
+│    ├─ Subscribe to channel:                   │
+│    │   `user_library_{userId}`                │
+│    └─ Listen to postgres_changes              │
+│              │                                 │
+│              ▼                                 │
+│  Supabase Server                               │
+│    ├─ Detecta INSERT/UPDATE/DELETE            │
+│    ├─ Filtra por user_id                      │
+│    └─ Broadcast a todos los clientes          │
+│              │                                 │
+│              ▼                                 │
+│  Client (Device B)                             │
+│    ├─ Recibe evento                           │
+│    ├─ Actualiza LocalDataService              │
+│    └─ Re-renderiza UI                         │
+│                                                │
+└────────────────────────────────────────────────┘
+```
+
+### 📋 Tablas Suscritas
+
+**LibraryDataContext suscribe a:**
+1. `magic_tricks` - Cambios en trucos
+2. `user_categories` - Cambios en categorías
+3. `trick_categories` - Cambios en relación truco-categoría
+4. `user_favorites` - Cambios en favoritos
+
+### 🔧 Implementación
+
+```typescript
+// context/LibraryDataContext.tsx
+useEffect(() => {
+  if (!userId) return;
+
+  const channel = supabase
+    .channel(`user_library_${userId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'magic_tricks',
+      filter: `user_id=eq.${userId}`
+    }, (payload) => {
+      console.log('Cambio en magic_tricks:', payload);
+
+      if (payload.eventType === 'INSERT') {
+        // Agregar truco a local cache
+        localDataService.addTrickFromRealtime(payload.new);
+      } else if (payload.eventType === 'UPDATE') {
+        // Actualizar truco en local cache
+        localDataService.updateTrickFromRealtime(payload.new);
+      } else if (payload.eventType === 'DELETE') {
+        // Eliminar truco de local cache
+        localDataService.deleteTrickFromRealtime(payload.old.id);
+      }
+
+      // Re-build sections con nuevo dato
+      buildSections();
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [userId]);
+```
+
+### 🎯 Casos de Uso
+
+**Escenario 1: Usuario edita truco en móvil**
+```
+Device A (iPhone)
+  └─ Edita título de truco
+       ↓
+  Supabase UPDATE magic_tricks
+       ↓
+  Realtime broadcast
+       ↓
+Device B (iPad)
+  └─ Recibe evento UPDATE
+       ↓
+  LocalDataService actualiza cache
+       ↓
+  UI se actualiza automáticamente
+```
+
+**Escenario 2: Usuario agrega favorito en tablet**
+```
+Device B (iPad)
+  └─ Toggle favorite
+       ↓
+  Supabase INSERT user_favorites
+       ↓
+  Realtime broadcast
+       ↓
+Device A (iPhone)
+  └─ Recibe evento INSERT
+       ↓
+  Actualiza lista de favoritos
+       ↓
+  Categoría "Favoritos" se actualiza
+```
+
+### ⚡ Performance
+
+**Optimizaciones:**
+- **Debounce:** Evitar re-renders excesivos (300ms)
+- **Batch updates:** Agrupar cambios antes de re-build
+- **Filtrado por user_id:** Solo recibe eventos propios
+
+---
+
+## 🎬 FEATURE: Video Compression Strategy
+
+**Componentes:** VideoAnalysisService, VideoService, CompressionService
+
+### 🧠 Sistema de Análisis Inteligente
+
+```
+┌───────────────────────────────────────────────────┐
+│        Video Compression Strategy                 │
+├───────────────────────────────────────────────────┤
+│                                                   │
+│  1. VideoAnalysisService.analyzeVideo(uri)        │
+│     ├─ Obtiene metadata (expo-video-thumbnails)  │
+│     ├─ Extrae: duration, size, width, height     │
+│     └─ Calcula bitrate                           │
+│              │                                    │
+│              ▼                                    │
+│  2. Decisión de Compresión                        │
+│     ├─ Size > 20MB? → Comprimir                  │
+│     ├─ Duration > 10 min? → Rechazar             │
+│     ├─ Bitrate > 10 Mbps? → Comprimir            │
+│     └─ Resolution > 1080p? → Comprimir           │
+│              │                                    │
+│              ▼                                    │
+│  3. Selección de Calidad                          │
+│     ├─ >50MB or >8min → "low"                    │
+│     ├─ >30MB or >5min → "medium"                 │
+│     └─ <30MB → "high"                            │
+│              │                                    │
+│              ▼                                    │
+│  4. VideoService.compressVideo(uri, quality)      │
+│     └─ react-native-compressor                   │
+│              │                                    │
+│              ▼                                    │
+│  5. Resultado: URI de video comprimido            │
+│                                                   │
+└───────────────────────────────────────────────────┘
+```
+
+### 📊 Análisis de Video
+
+**VideoAnalysisService.analyzeVideo(uri):**
+
+```typescript
+interface VideoAnalysis {
+  isValid: boolean;
+  shouldCompress: boolean;
+  recommendedQuality: 'low' | 'medium' | 'high';
+  metadata: {
+    duration: number;       // Segundos
+    size: number;           // Bytes
+    width: number;
+    height: number;
+    bitrate: number;        // Mbps
+  };
+  warnings: string[];
+  errors: string[];
+}
+```
+
+**Lógica de Decisión:**
+
+```typescript
+// Tamaño
+if (size > 100 * 1024 * 1024) {
+  warnings.push('Archivo muy grande (>100MB)');
+}
+
+if (size > 20 * 1024 * 1024) {
+  shouldCompress = true;
+}
+
+// Duración
+if (duration > 600) { // 10 min
+  errors.push('Video excede duración máxima de 10 minutos');
+  isValid = false;
+}
+
+// Bitrate
+if (bitrate > 10) {
+  shouldCompress = true;
+  warnings.push('Bitrate alto, se recomienda comprimir');
+}
+
+// Calidad recomendada
+if (size > 50 * 1024 * 1024 || duration > 480) {
+  recommendedQuality = 'low';
+} else if (size > 30 * 1024 * 1024 || duration > 300) {
+  recommendedQuality = 'medium';
+} else {
+  recommendedQuality = 'high';
+}
+```
+
+### ⚡ Uso en FileUploadService
+
+```typescript
+// services/fileUploadService.ts
+const uploadVideo = async (uri: string, userId: string, onProgress) => {
+  // 1. Analizar
+  const analysis = await videoAnalysisService.analyzeVideo(uri);
+
+  if (!analysis.isValid) {
+    throw new Error(analysis.errors.join(', '));
+  }
+
+  // 2. Comprimir si necesario
+  let finalUri = uri;
+  if (analysis.shouldCompress && videoService.isCompressionAvailable()) {
+    finalUri = await videoService.compressVideo(uri, analysis.recommendedQuality);
+  }
+
+  // 3. Upload
+  const result = await cloudflareStreamService.uploadVideo(
+    finalUri,
+    { userId },
+    onProgress
+  );
+
+  return result.url;
+};
+```
+
+### 📈 Resultados Típicos
+
+| Original | Comprimido (low) | Comprimido (medium) | Comprimido (high) |
+|----------|------------------|---------------------|-------------------|
+| 145 MB   | 28 MB (-81%)     | 45 MB (-69%)        | 78 MB (-46%)      |
+| 4K 60fps | 1080p 30fps      | 1080p 30fps         | 1080p 60fps       |
+| 18 Mbps  | 3.5 Mbps         | 5.5 Mbps            | 9.5 Mbps          |
+
+---
+
+## 🔍 FEATURE: Search System (FTS + Híbrido)
+
+**Componentes:** HybridSearchService, Supabase FTS, SearchContext
+
+### 🏗️ Arquitectura Híbrida
+
+```
+┌────────────────────────────────────────────────────┐
+│           Hybrid Search System                     │
+├────────────────────────────────────────────────────┤
+│                                                    │
+│  HybridSearchService.search(query, userId)         │
+│           │                                        │
+│           ▼                                        │
+│    ┌──────────────┐                               │
+│    │ Trick count? │                               │
+│    └───┬──────┬───┘                               │
+│        │      │                                    │
+│    <500│      │≥500                                │
+│        │      │                                    │
+│        ▼      ▼                                    │
+│   ┌─────────────┐   ┌──────────────────────┐     │
+│   │Client Search│   │  Server Search (FTS) │     │
+│   │JavaScript   │   │  PostgreSQL + GIN    │     │
+│   │filter()     │   │  search_vector       │     │
+│   └─────────────┘   └──────────────────────┘     │
+│        │                     │                     │
+│        └─────────┬───────────┘                     │
+│                  ▼                                 │
+│           Resultados filtrados                     │
+│                                                    │
+└────────────────────────────────────────────────────┘
+```
+
+### 🔎 Full-Text Search (PostgreSQL)
+
+**search_vector column:**
+```sql
+ALTER TABLE magic_tricks
+ADD COLUMN search_vector tsvector
+GENERATED ALWAYS AS (
+  setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
+  setweight(to_tsvector('simple', coalesce(effect, '')), 'B') ||
+  setweight(to_tsvector('simple', coalesce(secret, '')), 'C')
+) STORED;
+
+CREATE INDEX idx_magic_tricks_search_vector
+ON magic_tricks
+USING GIN (search_vector);
+```
+
+**Trigger auto-update:**
+```sql
+CREATE TRIGGER tsvector_update_trigger
+BEFORE INSERT OR UPDATE ON magic_tricks
+FOR EACH ROW
+EXECUTE FUNCTION tsvector_update_trigger(search_vector, 'simple', title, effect, secret);
+```
+
+### 📋 HybridSearchService
+
+**shouldUseServerSearch(trickCount):**
+```typescript
+const HYBRID_THRESHOLD = 500;
+
+if (trickCount >= HYBRID_THRESHOLD) {
+  return true; // Usar FTS en servidor
+} else {
+  return false; // Filtrar en cliente
+}
+```
+
+**searchOnServer(query, userId):**
+```typescript
+const { data } = await supabase
+  .from('magic_tricks')
+  .select('*')
+  .eq('user_id', userId)
+  .textSearch('search_vector', query, {
+    type: 'websearch',
+    config: 'simple'
+  });
+
+return data;
+```
+
+**searchOnClient(query, tricks):**
+```typescript
+const lowerQuery = query.toLowerCase();
+
+return tricks.filter(trick => {
+  return (
+    trick.title.toLowerCase().includes(lowerQuery) ||
+    trick.effect.toLowerCase().includes(lowerQuery) ||
+    trick.secret.toLowerCase().includes(lowerQuery)
+  );
+});
+```
+
+### 🎯 Query Syntax (websearch_to_tsquery)
+
+**Ejemplos:**
+```
+"double lift"     → Exact phrase search
+cards OR coins    → Either word
+-invisible        → Exclude word
+deck palm         → Both words (AND)
+```
+
+### ⚡ Performance
+
+| Método | Trick Count | Latencia | Precisión |
+|--------|-------------|----------|-----------|
+| Client | <500        | ~5-20ms  | Substring match |
+| Server | ≥500        | ~50-200ms| Full-text relevance |
+
+**GIN Index Stats:**
+- **Scans:** 0.5-2ms con index
+- **Heap Fetches:** Minimal con covering index
+- **Efectividad:** 100x más rápido que LIKE '%query%'
+
+### 🔗 Integración con SearchContext
+
+```typescript
+// context/SearchContext.tsx
+const [searchQuery, setSearchQuery] = useState('');
+const [debouncedQuery] = useDebounce(searchQuery, 300);
+
+// context/LibraryDataContext.tsx
+useEffect(() => {
+  const performSearch = async () => {
+    if (!debouncedQuery) {
+      buildSections(); // Show all
+      return;
+    }
+
+    const trickCount = tricks.length;
+    const results = await hybridSearchService.search(
+      debouncedQuery,
+      userId,
+      trickCount
+    );
+
+    setSections(buildSectionsFromResults(results));
+  };
+
+  performSearch();
+}, [debouncedQuery]);
 ```
 
 ---
