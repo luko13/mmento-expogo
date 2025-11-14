@@ -7,6 +7,7 @@ This file provides critical guidance to Claude Code when working with this repos
 **mmento** is a React Native mobile app (Expo SDK 53) for magicians to manage tricks with multimedia, categories, and offline-first architecture.
 
 **Core Flow:**
+
 1. User authenticates → Supabase Auth
 2. Data loads → LocalDataService (cache) + SupabaseDataService (network) via LibraryDataContext
 3. User creates/edits tricks → 3-step wizard with media upload
@@ -14,6 +15,7 @@ This file provides critical guidance to Claude Code when working with this repos
 5. Offline → Operations queue → sync on reconnect
 
 **Key Architecture:**
+
 - **Offline-first**: Local cache (AsyncStorage + memory) with optimistic updates
 - **Context-based state**: LibraryDataContext, SearchContext, OfflineSyncContext
 - **Service layer**: 16 services (data, media, AI, auth, networking)
@@ -35,26 +37,28 @@ This file provides critical guidance to Claude Code when working with this repos
 4. **Check compatibility issues** between dependencies
 
 **Common Issues:**
+
 - Video compression failing → Check `react-native-compressor` docs, verify dev client
 - Supabase queries failing → Check Supabase JS SDK docs
 - Expo modules not found → Verify SDK 53 compatibility
 
 ## Quick Reference
 
-| Task | Where to Look |
-|------|---------------|
-| Add new screen | `app/` (expo-router auto-routing) |
-| Fix authentication | `services/authService.ts`, `utils/auth.ts` |
-| Modify data fetch | `services/SupabaseDataService.ts`, `services/LocalDataService.ts` |
+| Task                | Where to Look                                                       |
+| ------------------- | ------------------------------------------------------------------- |
+| Add new screen      | `app/` (expo-router auto-routing)                                   |
+| Fix authentication  | `services/authService.ts`, `utils/auth.ts`                          |
+| Modify data fetch   | `services/SupabaseDataService.ts`, `services/LocalDataService.ts`   |
 | Change search logic | `services/HybridSearchService.ts`, `context/LibraryDataContext.tsx` |
-| Upload media | `services/fileUploadService.ts`, `services/videoService.ts` |
-| Update offline sync | `context/OfflineSyncContext.tsx`, `lib/offlineQueue.ts` |
-| Fix UI component | `components/` (organized by feature) |
-| Add database table | Supabase dashboard → Enable RLS → Update types in `types/` |
-| Modify AI chat | `services/openAIService.ts`, `services/chatService.ts` |
-| Update cache | `services/LocalDataService.ts` (memory + AsyncStorage) |
+| Upload media        | `services/fileUploadService.ts`, `services/videoService.ts`         |
+| Update offline sync | `context/OfflineSyncContext.tsx`, `lib/offlineQueue.ts`             |
+| Fix UI component    | `components/` (organized by feature)                                |
+| Add database table  | Supabase dashboard → Enable RLS → Update types in `types/`          |
+| Modify AI chat      | `services/openAIService.ts`, `services/chatService.ts`              |
+| Update cache        | `services/LocalDataService.ts` (memory + AsyncStorage)              |
 
 **Key Contexts:**
+
 - **LibraryDataContext**: Trick/category CRUD, favorites, filters, search
 - **SearchContext**: Search query state and filters
 - **OfflineSyncContext**: Online status, pending operations, manual sync
@@ -63,39 +67,47 @@ This file provides critical guidance to Claude Code when working with this repos
 ## Critical Pitfalls 🚨
 
 ### 1. Expo Go vs Dev Client
+
 - `react-native-compressor` **DOES NOT work in Expo Go**
 - Must use: `npm run build:dev:android` or `npm run build:dev:ios`
 - Fallback: `videoService.ts` returns uncompressed video in Expo Go
 
 ### 2. Row Level Security (RLS)
+
 - ALL new tables MUST have RLS enabled with `auth.uid() = user_id` policy
 - Forgetting RLS = users can see all data (security breach)
 
 ### 3. Cache Invalidation
+
 - LocalDataService updates memory immediately BUT AsyncStorage is async
 - Check `_pendingSync` flag for offline changes
 - Real-time subscriptions trigger cache refresh
 
 ### 4. Offline Queue
+
 - Operations fail after 3 retries and are marked `failed`
 - Large media uploads NOT queued (require online)
 
 ### 5. Full-Text Search
+
 - FTS triggers at ≥500 tricks (HybridSearchService threshold)
 - Uses `'simple'` language config (multi-language)
 - `search_vector` column auto-updates via trigger
 
 ### 6. Context Provider Order
+
 - OfflineSyncProvider MUST wrap LibraryDataContext
 - Order in `app/(app)/_layout.tsx`: OfflineSync → Library → Search → TrickDeletion
 
 ## Environment Variables
 
 **Required:**
+
 - `EXPO_PUBLIC_SUPABASE_URL` - Supabase project URL
 - `EXPO_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
 
 **Optional:**
+
 - `OPENAI_API_KEY` - AI chat (degrades gracefully)
 - `CLOUDFLARE_ACCOUNT_ID` - Video streaming (falls back to Supabase)
 - `CLOUDFLARE_API_TOKEN` - Cloudflare uploads
@@ -105,11 +117,13 @@ This file provides critical guidance to Claude Code when working with this repos
 ## Code Conventions
 
 **File Naming:**
+
 - Components: `PascalCase.tsx` (`TrickViewScreen.tsx`)
 - Services: `camelCase.ts` (`trickService.ts`)
 - Contexts: `PascalCase.tsx` (`LibraryDataContext.tsx`)
 
 **Import Order:**
+
 ```typescript
 // 1. React/React Native
 // 2. Third-party libraries
@@ -121,6 +135,7 @@ This file provides critical guidance to Claude Code when working with this repos
 ```
 
 **Component Structure:**
+
 ```typescript
 // 1. Props interface
 // 2. Component
@@ -131,11 +146,47 @@ This file provides critical guidance to Claude Code when working with this repos
 // 7. Render
 ```
 
+````
+- All user-visible strings MUST go through i18n (`useTranslation` + `t()`).
+- Never introduce new hardcoded text in JSX/TSX files.
+
+## Internationalization (i18n)
+
+All user-facing text MUST use our i18n system. Never hardcode strings directly in components.
+
+- Default language: Spanish (`es`)
+- i18n config: see `i18n/` and `locales/` folders
+- For React components, always use the translation hook:
+
+  ```tsx
+  const { t } = useTranslation();
+
+  <Text>{t('tricks.empty_state_title')}</Text>
+  For labels, buttons, placeholders, toasts, errors, etc.:
+````
+
+✅ DO: t('auth.login_button')
+
+❌ DON'T: <Button title="Login" /> or <Text>Mis trucos</Text>
+
+When adding new UI:
+
+Add a translation key in the corresponding namespace file.
+
+Use that key in the component with t('namespace.key').
+
+Prefer short, reusable keys over long literal phrases.
+
+> Ajusta rutas (`i18n/`, `locales/`) y ejemplos de keys si usas otros nombres.
+
+---
+
 ## Service Usage Guidelines
 
 ### Decision Tree
 
 **Fetching Data:**
+
 ```typescript
 // ✅ DO: Use LibraryDataContext (cached)
 const { sections, allCategories } = useLibraryData();
@@ -143,7 +194,10 @@ const { sections, allCategories } = useLibraryData();
 // ❌ DON'T: Call SupabaseDataService directly (bypasses cache)
 ```
 
+````
+
 **Creating/Updating Tricks:**
+
 ```typescript
 // ✅ DO: Use trickService.ts (orchestrates cache + network)
 await trickService.createTrick(trickData, userId);
@@ -152,6 +206,7 @@ await trickService.createTrick(trickData, userId);
 ```
 
 **Uploading Media:**
+
 ```typescript
 // ✅ DO: Use fileUploadService (compression + progress + Cloudflare)
 await fileUploadService.uploadVideo(uri, userId, progressCallback);
@@ -160,6 +215,7 @@ await fileUploadService.uploadVideo(uri, userId, progressCallback);
 ```
 
 **Offline Operations:**
+
 ```typescript
 // ✅ DO: Update cache first, then queue if offline
 localDataService.updateTrick(userId, trickId, data, !networkMonitor.isOnline());
@@ -207,10 +263,12 @@ npm run build:dev:ios       # iOS dev client (EAS)
 ## Database Reference
 
 **See detailed docs:**
+
 - `docs/SUPABASE_DATABASE_SNAPSHOT.md` - Complete schema (30+ tables)
 - `docs/DATABASE_ANALYSIS.md` - Analysis and recommendations
 
 **Key Tables:**
+
 - `magic_tricks` - Main tricks (28 columns, `search_vector` for FTS)
 - `user_categories` - Custom categories
 - `trick_categories` - Junction (tricks ↔ categories)
@@ -218,6 +276,7 @@ npm run build:dev:ios       # iOS dev client (EAS)
 - `profiles` - User profiles + subscriptions
 
 **Key Indexes:**
+
 - `idx_magic_tricks_search_vector` (GIN) - Full-Text Search
 - `idx_magic_tricks_user_created` (BTREE) - User queries + date sort
 - `idx_magic_tricks_angles` (GIN) - JSONB array queries
@@ -227,11 +286,13 @@ npm run build:dev:ios       # iOS dev client (EAS)
 ## Architecture Patterns
 
 ### Data Flow
+
 1. **Read**: Cache first (LocalDataService) → Network if miss (SupabaseDataService)
 2. **Write**: Update cache immediately → Network if online → Queue if offline
 3. **Sync**: Real-time subscriptions invalidate cache → Offline queue processes on reconnect
 
 ### Search Flow
+
 1. User types → SearchContext (debounced 300ms)
 2. LibraryDataContext detects change
 3. HybridSearchService checks trick count:
@@ -240,6 +301,7 @@ npm run build:dev:ios       # iOS dev client (EAS)
 4. Results displayed in LibrariesSection
 
 ### Media Upload Flow
+
 1. User selects media → Permissions check
 2. videoAnalysisService analyzes (compression needed?)
 3. videoService compresses if needed
@@ -250,6 +312,7 @@ npm run build:dev:ios       # iOS dev client (EAS)
 5. Progress callbacks update UI
 
 ### Offline Flow
+
 1. Operation attempted → Network check
 2. If offline:
    - Update LocalDataService cache immediately
@@ -305,12 +368,14 @@ types/                       # Type definitions
 ## Known TODOs
 
 **High Priority:**
+
 - Make trick public/private (UI exists, needs backend)
 - Report content system (button exists, no implementation)
 - Stripe payment integration
 - External links in profile (not opening)
 
 **Components Needing Refactor:**
+
 - `TrickViewScreen.tsx` (400+ lines)
 - `AddMagicWizard.tsx` (600+ lines)
 - `EditMagicWizard.tsx` (duplicates Add)
@@ -325,6 +390,7 @@ types/                       # Type definitions
 - Cloudflare CDN for media
 
 **Targets:**
+
 - Home load: <500ms (with cache)
 - Search: <100ms (debounced)
 - Sync: <5s for small operations
@@ -335,3 +401,4 @@ types/                       # Type definitions
 - 📊 `docs/SUPABASE_DATABASE_SNAPSHOT.md` - Database schema + data
 - 🔍 `docs/DATABASE_ANALYSIS.md` - Performance analysis
 - 🛠️ `docs/DEVELOPER_GUIDE.md` - Implementation details (see this for component details)
+````
