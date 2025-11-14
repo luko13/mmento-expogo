@@ -39,6 +39,9 @@ class CloudflareStreamService {
   private customerSubdomain: string;
   private baseUrl: string;
 
+  // 🔒 Sistema de idempotencia: evita duplicados por reintentos
+  private activeUploads: Map<string, Promise<StreamVideoUploadResult>> = new Map();
+
   constructor() {
     this.accountId = process.env.CLOUDFLARE_ACCOUNT_ID || '';
     this.apiToken = process.env.CLOUDFLARE_STREAM_API_TOKEN || '';
@@ -58,8 +61,88 @@ class CloudflareStreamService {
   }
 
   /**
+   * Genera ID único de subida para idempotencia
+   * Evita duplicados en caso de reintentos por timeouts o errores de red
+   */
+  private generateUploadId(videoUri: string, metadata?: { userId?: string; trickId?: string }): string {
+    const timestamp = Date.now();
+    const uriHash = videoUri.split('/').pop()?.substring(0, 10) || 'unknown';
+    const userId = metadata?.userId || 'anonymous';
+    const trickId = metadata?.trickId || 'notrick';
+
+    return `upload_${userId}_${trickId}_${uriHash}_${timestamp}`;
+  }
+
+  /**
+   * Verifica si ya existe una subida activa para el mismo archivo
+   */
+  private getActiveUpload(uploadId: string): Promise<StreamVideoUploadResult> | null {
+    return this.activeUploads.get(uploadId) || null;
+  }
+
+  /**
+   * Busca videos existentes con los mismos metadatos
+   * Previene duplicados antes de reintentar una subida fallida
+   */
+  private async findExistingVideo(metadata?: { userId?: string; trickId?: string }): Promise<string | null> {
+    try {
+      if (!metadata?.userId || !metadata?.trickId) {
+        return null; // Sin metadatos suficientes, no podemos buscar
+      }
+
+      console.log(`🔍 Buscando video existente con userId=${metadata.userId}, trickId=${metadata.trickId}...`);
+
+      // Listar videos recientes (últimos 50) y buscar coincidencia de metadatos
+      const response = await fetch(`${this.baseUrl}?limit=50`, {
+        headers: {
+          'Authorization': `Bearer ${this.apiToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.warn('⚠️ No se pudo buscar videos existentes');
+        return null;
+      }
+
+      const data = await response.json();
+      const videos = data.result || [];
+
+      // Buscar video con metadatos coincidentes subido en las últimas 2 horas
+      const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
+
+      for (const video of videos) {
+        const videoCreatedAt = new Date(video.created).getTime();
+
+        // Solo considerar videos recientes
+        if (videoCreatedAt < twoHoursAgo) {
+          continue;
+        }
+
+        // Verificar metadatos
+        const videoMeta = video.meta || {};
+        if (videoMeta.userId === metadata.userId && videoMeta.trickId === metadata.trickId) {
+          console.log(`✅ Video existente encontrado: ${video.uid}`);
+          return video.uid;
+        }
+      }
+
+      console.log('ℹ️ No se encontró video duplicado');
+      return null;
+
+    } catch (error) {
+      console.error('Error buscando video existente:', error);
+      return null;
+    }
+  }
+
+  /**
    * Sube un video a Cloudflare Stream usando TUS (resumable uploads)
    * Docs: https://developers.cloudflare.com/stream/uploading-videos/upload-video-file/
+   *
+   * 🔒 Mejoras de idempotencia:
+   * - Previene subidas duplicadas simultáneas del mismo archivo
+   * - Verifica videos existentes antes de reintentar
+   * - Logging detallado para debugging de duplicados
    */
   async uploadVideo(
     videoUri: string,
@@ -70,12 +153,75 @@ class CloudflareStreamService {
     },
     onProgress?: (progress: number, event?: { totalBytesSent: number; totalBytesExpectedToSend: number }) => void
   ): Promise<StreamVideoUploadResult> {
+    // 🔒 PASO 1: Generar ID único para esta subida
+    const uploadId = this.generateUploadId(videoUri, metadata);
+    console.log(`🆔 Upload ID: ${uploadId}`);
+
+    // 🔒 PASO 2: Verificar si ya hay una subida activa del mismo archivo
+    const existingUpload = this.getActiveUpload(uploadId);
+    if (existingUpload) {
+      console.log(`⏳ Subida ya en progreso para ${uploadId}, reutilizando...`);
+      return existingUpload;
+    }
+
+    // 🔒 PASO 3: Crear promesa de subida y registrarla
+    const uploadPromise = this._uploadVideoInternal(videoUri, metadata, onProgress, uploadId);
+
+    this.activeUploads.set(uploadId, uploadPromise);
+
+    // Limpiar el registro cuando termine (éxito o error)
+    uploadPromise.finally(() => {
+      this.activeUploads.delete(uploadId);
+      console.log(`🧹 Upload ID ${uploadId} limpiado del registro`);
+    });
+
+    return uploadPromise;
+  }
+
+  /**
+   * Implementación interna de uploadVideo con reintentos inteligentes
+   */
+  private async _uploadVideoInternal(
+    videoUri: string,
+    metadata?: {
+      name?: string;
+      userId?: string;
+      trickId?: string;
+    },
+    onProgress?: (progress: number, event?: { totalBytesSent: number; totalBytesExpectedToSend: number }) => void,
+    uploadId?: string
+  ): Promise<StreamVideoUploadResult> {
     const MAX_RETRIES = 3;
     let lastError: Error | null = null;
+    let uploadUrl: string | null = null; // 🔒 Guardar para logging
 
     // Intentar hasta MAX_RETRIES veces
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
+        console.log(`📤 [Intento ${attempt}/${MAX_RETRIES}] Subiendo video... ${uploadId ? `(${uploadId})` : ''}`);
+
+        // 🔒 MEJORA: Antes de reintentar, verificar si el video ya existe
+        if (attempt > 1) {
+          console.log(`🔍 Verificando si el video ya fue subido en intento anterior...`);
+          const existingVideoId = await this.findExistingVideo(metadata);
+
+          if (existingVideoId) {
+            console.log(`✅ Video ya existe! Retornando video existente: ${existingVideoId}`);
+            const playbackUrl = `https://${this.customerSubdomain}/${existingVideoId}/manifest/video.m3u8`;
+            const thumbnailUrl = `https://${this.customerSubdomain}/${existingVideoId}/thumbnails/thumbnail.jpg`;
+            const dashUrl = `https://${this.customerSubdomain}/${existingVideoId}/manifest/video.mpd`;
+
+            return {
+              success: true,
+              videoId: existingVideoId,
+              playbackUrl,
+              thumbnailUrl,
+              dashUrl,
+              hlsUrl: playbackUrl,
+            };
+          }
+        }
+
         if (!this.isConfigured()) {
           throw new Error('Cloudflare Stream no está configurado');
         }
@@ -88,6 +234,8 @@ class CloudflareStreamService {
         const fileSize = fileInfo.size;
         const estimatedUploadTime = Math.max(120, Math.ceil(fileSize / (10 * 1024 * 1024)) * 30);
 
+        console.log(`📊 Tamaño del archivo: ${(fileSize / (1024 * 1024)).toFixed(2)} MB`);
+
         // Paso 1: Crear upload session usando TUS protocol
         const tusEndpoint = `${this.baseUrl}?direct_user=true`;
 
@@ -97,6 +245,8 @@ class CloudflareStreamService {
           'Upload-Length': fileSize.toString(),
           'Upload-Metadata': this.buildTusMetadata(metadata),
         };
+
+        console.log(`🔗 Creando sesión TUS en: ${tusEndpoint}`);
 
         const createResponse = await Promise.race([
           fetch(tusEndpoint, {
@@ -113,10 +263,12 @@ class CloudflareStreamService {
           throw new Error(`Error creando sesión (Status ${createResponse.status}): ${errorText}`);
         }
 
-        const uploadUrl = createResponse.headers.get('Location');
+        uploadUrl = createResponse.headers.get('Location');
         if (!uploadUrl) {
           throw new Error('No se recibió URL de upload');
         }
+
+        console.log(`✅ Sesión TUS creada: ${uploadUrl}`);
 
         let lastProgressUpdate = Date.now();
 
@@ -165,20 +317,51 @@ class CloudflareStreamService {
         ]);
 
         if (!uploadResponse || uploadResponse.status !== 204) {
+          console.error(`❌ Error en respuesta de upload: Status ${uploadResponse?.status || 'desconocido'}`);
           throw new Error(`Error subiendo video: Status ${uploadResponse?.status || 'desconocido'}`);
         }
 
+        console.log(`✅ Video subido exitosamente (Status 204)`);
+
         const streamMediaIdHeader = uploadResponse.headers['stream-media-id'];
 
+        // 🔒 MEJORA: Si no hay stream-media-id, intentar buscar el video antes de fallar
         if (!streamMediaIdHeader) {
-          throw new Error('No se pudo obtener el ID del video');
+          console.warn(`⚠️ No se recibió stream-media-id en headers`);
+          console.log(`🔍 Intentando buscar video subido mediante metadatos...`);
+
+          // Esperar 2 segundos para que Cloudflare procese
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          const existingVideoId = await this.findExistingVideo(metadata);
+          if (existingVideoId) {
+            console.log(`✅ Video encontrado mediante búsqueda: ${existingVideoId}`);
+            const playbackUrl = `https://${this.customerSubdomain}/${existingVideoId}/manifest/video.m3u8`;
+            const thumbnailUrl = `https://${this.customerSubdomain}/${existingVideoId}/thumbnails/thumbnail.jpg`;
+            const dashUrl = `https://${this.customerSubdomain}/${existingVideoId}/manifest/video.mpd`;
+
+            return {
+              success: true,
+              videoId: existingVideoId,
+              playbackUrl,
+              thumbnailUrl,
+              dashUrl,
+              hlsUrl: playbackUrl,
+            };
+          }
+
+          throw new Error('No se pudo obtener el ID del video y la búsqueda falló');
         }
 
         const videoId = streamMediaIdHeader;
+        console.log(`🎬 Video ID obtenido: ${videoId}`);
+
         const playbackUrl = `https://${this.customerSubdomain}/${videoId}/manifest/video.m3u8`;
         const thumbnailUrl = `https://${this.customerSubdomain}/${videoId}/thumbnails/thumbnail.jpg`;
         const dashUrl = `https://${this.customerSubdomain}/${videoId}/manifest/video.mpd`;
         const hlsUrl = playbackUrl;
+
+        console.log(`✅ Subida completada exitosamente: ${videoId}`);
 
         return {
           success: true,
@@ -191,17 +374,29 @@ class CloudflareStreamService {
 
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Error desconocido');
+        console.error(`❌ [Intento ${attempt}/${MAX_RETRIES}] Error: ${lastError.message}`);
+
+        // 🔒 MEJORA: Logging detallado del error
+        if (uploadUrl) {
+          console.error(`   Upload URL: ${uploadUrl}`);
+        }
+        console.error(`   Video URI: ${videoUri}`);
+        if (metadata?.userId) console.error(`   User ID: ${metadata.userId}`);
+        if (metadata?.trickId) console.error(`   Trick ID: ${metadata.trickId}`);
 
         if (attempt === MAX_RETRIES) {
+          console.error(`❌ Todos los ${MAX_RETRIES} intentos fallaron. Abortando.`);
           break;
         }
 
         const waitTime = Math.pow(2, attempt) * 1000;
+        console.log(`⏳ Esperando ${waitTime / 1000}s antes de reintentar...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
     }
 
     // Todos los intentos fallaron
+    console.error(`💥 Subida fallida definitivamente: ${lastError?.message}`);
     return {
       success: false,
       error: lastError?.message || 'Error desconocido al subir video',

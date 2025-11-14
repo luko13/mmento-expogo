@@ -519,6 +519,12 @@ export default function EditMagicWizard({
 
   // Actualizar el truco
   const handleSubmit = async () => {
+    // 🔒 PROTECCIÓN: Evitar múltiples llamadas simultáneas (debouncing)
+    if (isSubmitting) {
+      console.log('⚠️ Ya hay una subida en progreso, ignorando clic duplicado');
+      return;
+    }
+
     // Envolver la lógica de subida para poder verificar tamaños primero
     await checkLargeFilesAndUpload(async () => {
       try {
@@ -549,13 +555,17 @@ export default function EditMagicWizard({
         key: string;
       }> = [];
 
+      // 🔒 MEJORA: Generar timestamp único al inicio para evitar duplicados por timing
+      const uploadTimestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
+
       // Preparar video de efecto si hay uno nuevo
       if (trickData.localFiles?.effectVideo) {
         filesToUpload.push({
           uri: trickData.localFiles.effectVideo,
           folder: `${user.id}/effects`,
           type: 'video/mp4',
-          name: `effect_${Date.now()}.mp4`,
+          name: `effect_${uploadTimestamp}_${randomSuffix}.mp4`,
           key: 'effect'
         });
       }
@@ -566,7 +576,7 @@ export default function EditMagicWizard({
           uri: trickData.localFiles.secretVideo,
           folder: `${user.id}/secrets`,
           type: 'video/mp4',
-          name: `secret_${Date.now()}.mp4`,
+          name: `secret_${uploadTimestamp}_${randomSuffix}.mp4`,
           key: 'secret'
         });
       }
@@ -578,7 +588,7 @@ export default function EditMagicWizard({
             uri: photoUri,
             folder: `${user.id}/photos`,
             type: 'image/jpeg',
-            name: `photo_${Date.now()}_${i}.jpg`,
+            name: `photo_${uploadTimestamp}_${randomSuffix}_${i}.jpg`,
             key: `photo_${i}`
           });
         });
