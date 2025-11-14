@@ -6,16 +6,18 @@
  */
 
 import React from "react";
-import { View as StyledView, Text as StyledText } from "react-native";
+import { View, Text } from "react-native";
 import { styled } from "nativewind";
 
-const View = styled(StyledView);
-const Text = styled(StyledText);
+const StyledView = styled(View);
+const StyledText = styled(Text);
 
 interface StatsCardProps {
   count: number;
   label: string;
   fontNames: {
+    extraLight: string;
+    light: string;
     bold: string;
     regular: string;
   };
@@ -26,16 +28,16 @@ export default function StatsCard({ count, label, fontNames }: StatsCardProps) {
     <StyledView className="items-center flex-1">
       {/* Count */}
       <StyledText
-        className="text-white text-3xl mb-1"
-        style={{ fontFamily: fontNames.bold }}
+        className="text-white text-xl mb-1"
+        style={{ fontFamily: fontNames.extraLight }}
       >
         {count}
       </StyledText>
 
       {/* Label */}
       <StyledText
-        className="text-gray-400 text-xs text-center"
-        style={{ fontFamily: fontNames.regular }}
+        className="text-gray-400 text-m text-center"
+        style={{ fontFamily: fontNames.extraLight }}
       >
         {label}
       </StyledText>

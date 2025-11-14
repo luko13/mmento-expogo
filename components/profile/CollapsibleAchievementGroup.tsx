@@ -33,6 +33,8 @@ interface CollapsibleAchievementGroupProps {
     bold: string;
     semiBold: string;
     regular: string;
+    light: string;
+    extraLight: string;
   };
 }
 
@@ -42,17 +44,28 @@ export default function CollapsibleAchievementGroup({
 }: CollapsibleAchievementGroupProps) {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showStackedCards, setShowStackedCards] = useState(true);
   const animatedHeight = useRef(new RNAnimated.Value(0)).current;
 
   // Toggle expansion
   const toggleExpanded = useCallback(() => {
     const toValue = !isExpanded ? 1 : 0;
 
+    // If expanding, hide stacked cards immediately
+    if (!isExpanded) {
+      setShowStackedCards(false);
+    }
+
     RNAnimated.timing(animatedHeight, {
       toValue,
       duration: 300,
       useNativeDriver: false,
-    }).start();
+    }).start(() => {
+      // If collapsing, show stacked cards after animation completes
+      if (isExpanded) {
+        setShowStackedCards(true);
+      }
+    });
 
     setIsExpanded(!isExpanded);
   }, [isExpanded, animatedHeight]);
@@ -77,29 +90,61 @@ export default function CollapsibleAchievementGroup({
     outputRange: [0, maxHeight],
   });
 
+  // Get remaining achievements (excluding the one shown)
+  const remainingAchievements = category.achievements.filter(
+    (achievement) => achievement.id !== category.nextToUnlock?.id
+  );
+  const hasMoreCards = remainingAchievements.length > 0;
+
+  // Get colors based on next achievement unlock state
+  const isUnlocked = category.nextToUnlock?.is_unlocked || false;
+  const cardBgColor = "#32534C"
+
   return (
-    <StyledView className="mb-4">
-      {/* Category Header with Next to Unlock */}
+    <StyledView className="mb-6">
+      {/* Stacked Cards Container */}
       <StyledTouchableOpacity
         onPress={toggleExpanded}
         activeOpacity={0.7}
-        className="mb-2"
       >
-        {/* Category Title */}
-        <StyledText
-          className="text-white text-base mb-3 ml-1"
-          style={{ fontFamily: fontNames.semiBold }}
-        >
-          {achievementsService.getCategoryDisplayName(category.category)}
-        </StyledText>
+        <StyledView>
+          {/* Main Card (Next Achievement to Unlock) */}
+          {category.nextToUnlock && (
+            <AchievementCard
+              achievement={category.nextToUnlock}
+              fontNames={fontNames}
+              removeMarginBottom={!isExpanded && showStackedCards && hasMoreCards}
+            />
+          )}
 
-        {/* Next Achievement to Unlock (always visible) */}
-        {category.nextToUnlock && (
-          <AchievementCard
-            achievement={category.nextToUnlock}
-            fontNames={fontNames}
-          />
-        )}
+          {/* Background stacked cards - visible at bottom when collapsed */}
+          {!isExpanded && showStackedCards && hasMoreCards && (
+            <>
+              {remainingAchievements.slice(0, 2).map((_, index) => {
+                // Crear colores progresivamente más oscuros
+                const stackedCardColors = ["#2A4740", "#223B35"];
+                return (
+                  <StyledView
+                    key={`stack-${index}`}
+                    style={{
+                      height: 8,
+                      backgroundColor: stackedCardColors[index],
+                      borderBottomLeftRadius: 16,
+                      borderBottomRightRadius: 16,
+                      marginLeft: (index + 1) * 15,
+                      marginRight: (index + 1) * 15,
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.45,
+                      shadowRadius: 6,
+                      elevation: 8,
+                    }}
+                  />
+                );
+              })}
+            </>
+          )}
+        </StyledView>
       </StyledTouchableOpacity>
 
       {/* Expanded List of All Achievements */}
@@ -111,35 +156,16 @@ export default function CollapsibleAchievementGroup({
         }}
       >
         <StyledView className="pl-2">
-          {category.achievements
-            .filter((achievement) => achievement.id !== category.nextToUnlock?.id)
-            .map((achievement) => (
-              <AchievementCard
-                key={achievement.id}
-                achievement={achievement}
-                fontNames={fontNames}
-              />
-            ))}
+          {remainingAchievements.map((achievement, index) => (
+            <AchievementCard
+              key={achievement.id}
+              achievement={achievement}
+              fontNames={fontNames}
+              removeMarginBottom={index === remainingAchievements.length - 1}
+            />
+          ))}
         </StyledView>
       </RNAnimated.View>
-
-      {/* Expand/Collapse Hint (optional) */}
-      {category.achievements.length > 1 && (
-        <StyledTouchableOpacity
-          onPress={toggleExpanded}
-          className="items-center py-2"
-          activeOpacity={0.7}
-        >
-          <StyledText
-            className="text-gray-400 text-xs"
-            style={{ fontFamily: fontNames.regular }}
-          >
-            {isExpanded
-              ? t("profile.showLess")
-              : `${t("profile.viewAll")} (${category.achievements.length})`}
-          </StyledText>
-        </StyledTouchableOpacity>
-      )}
     </StyledView>
   );
 }

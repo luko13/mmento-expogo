@@ -13,7 +13,7 @@ import { styled } from "nativewind";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, Feather } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../../../lib/supabase";
 import { fontNames } from "../../../app/_layout";
@@ -149,7 +149,7 @@ export default function Profile() {
             style={{
               color: "#FFFFFF",
               fontSize: 20,
-              fontFamily: fontNames.semiBold,
+              fontFamily: fontNames.light,
               includeFontPadding: false,
             }}
           >
@@ -169,17 +169,13 @@ export default function Profile() {
           style={{
             borderWidth: 1,
             borderColor: "rgba(255, 255, 255, 0.3)",
-            backgroundColor: "rgba(255, 255, 255, 0.05)",
+            backgroundColor: "#32534C",
           }}
         >
           {/* Edit Button */}
           <StyledTouchableOpacity
             onPress={() => router.push("/(app)/profile/edit")}
             className="absolute top-3 right-3 z-10 p-2"
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-              borderRadius: 8,
-            }}
           >
             <Ionicons name="create-outline" size={20} color="white" />
           </StyledTouchableOpacity>
@@ -228,7 +224,7 @@ export default function Profile() {
         <StyledView className="mb-6">
           {/* Section Title */}
           <StyledView className="flex-row items-center mb-4">
-            <Ionicons name="trophy" size={24} color="#5BB9A3" />
+            <Feather name="award" size={24} color="#5BB9A3" />
             <StyledText
               className="text-white text-xl ml-2"
               style={{ fontFamily: fontNames.bold }}

@@ -20,6 +20,7 @@ interface BadgeDisplayProps {
     medium: string;
     regular: string;
     light: string;
+    extraLight: string;
   };
   className?: string;
   style?: any;
@@ -40,6 +41,7 @@ export default function BadgeDisplay({
       medium: fontNames.medium,
       regular: fontNames.regular,
       light: fontNames.light,
+      extraLight: fontNames.light,
     };
 
     return fontMap[fontFamily] || fontNames.regular;

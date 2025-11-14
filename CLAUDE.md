@@ -335,7 +335,7 @@ app/                         # expo-router screens
     ├── edit-trick/          # Edit wizard
     ├── trick/[id].tsx       # Trick viewer
     ├── profile/             # User profile
-    └── mmento-ai/          # AI assistant
+    └── mmento-ai/           # AI assistant
 
 components/                  # 80+ components
 ├── home/                    # UserProfile, CompactSearchBar, LibrariesSection

@@ -6,15 +6,15 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { View as StyledView, Text as StyledText, Image } from "react-native";
+import { View, Text, Image } from "react-native";
 import { styled } from "nativewind";
 import { useTranslation } from "react-i18next";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { badgesService, BadgeWithTranslation } from "../../services/badgesService";
 import BadgeDisplay from "./BadgeDisplay";
 
-const View = styled(StyledView);
-const Text = styled(StyledText);
+const StyledView = styled(View);
+const StyledText = styled(Text);
 
 interface ProfileHeaderProps {
   userId: string;
@@ -29,6 +29,7 @@ interface ProfileHeaderProps {
     medium: string;
     regular: string;
     light: string;
+    extraLight: string;
   };
 }
 
@@ -100,8 +101,8 @@ export default function ProfileHeader({
       {/* Username with Badge */}
       <StyledView className="flex-row items-baseline mb-2">
         <StyledText
-          className="text-white text-2xl"
-          style={{ fontFamily: fontNames.bold }}
+          className="text-white text-xl"
+          style={{ fontFamily: fontNames.light }}
         >
           {username}
         </StyledText>
@@ -112,16 +113,16 @@ export default function ProfileHeader({
 
       {/* Email */}
       <StyledText
-        className="text-gray-400 text-sm mb-2"
-        style={{ fontFamily: fontNames.regular }}
+        className="text-gray-400 text-s mb-2"
+        style={{ fontFamily: fontNames.extraLight }}
       >
         {email}
       </StyledText>
 
       {/* Member Since */}
       <StyledText
-        className="text-gray-400 text-sm mb-3"
-        style={{ fontFamily: fontNames.regular }}
+        className="text-gray-400 text-s mb-3"
+        style={{ fontFamily: fontNames.extraLight }}
       >
         {t("profile.memberSince")}: {formatMemberSince(memberSince)}
       </StyledText>
@@ -136,9 +137,9 @@ export default function ProfileHeader({
         }}
       >
         <StyledText
-          className="text-sm"
+          className="text-s"
           style={{
-            fontFamily: fontNames.semiBold,
+            fontFamily: fontNames.regular,
             color: isPremium ? "#5BB9A3" : "#FFFFFF",
           }}
         >

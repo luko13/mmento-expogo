@@ -118,7 +118,7 @@ export default function ProfileOptionsScreen() {
             style={{
               color: "#FFFFFF",
               fontSize: 20,
-              fontFamily: fontNames.semiBold,
+              fontFamily: fontNames.light,
               includeFontPadding: false,
             }}
           >
