@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import {
   View,
@@ -6,302 +7,266 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  StatusBar,
 } from "react-native";
 import { styled } from "nativewind";
+import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../../../lib/supabase";
-import { BlurView } from "expo-blur";
-import {
-  FontAwesome,
-  MaterialIcons,
-  Ionicons,
-  MaterialCommunityIcons,
-} from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { signOut } from "../../../utils/auth";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { fontNames } from "../../../app/_layout";
+import { userStatsService } from "../../../services/userStatsService";
+import { achievementsService } from "../../../services/achievementsService";
+import type { AchievementCategory } from "../../../services/achievementsService";
+import ProfileHeader from "../../../components/profile/ProfileHeader";
+import StatsCard from "../../../components/profile/StatsCard";
+import CollapsibleAchievementGroup from "../../../components/profile/CollapsibleAchievementGroup";
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledScrollView = styled(ScrollView);
-const StyledBlurView = styled(BlurView); // Añadimos un componente estilizado para BlurView
+const StyledLinearGradient = styled(LinearGradient);
 
 interface UserProfile {
   id: string;
   username: string;
   email: string;
-  is_active: boolean;
-  is_verified: boolean;
-  subscription_type: string;
+  avatar_url: string | null;
+  subscription_type: "free" | "member" | string;
   created_at: string;
-  updated_at: string;
-}
-
-interface UserStats {
-  tricks_created: number;
-  tricks_viewed: number;
-  tricks_favorited: number;
 }
 
 export default function Profile() {
-  const { t } = useTranslation();
   const router = useRouter();
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [stats, setStats] = useState<UserStats | null>(null);
+  const [stats, setStats] = useState({
+    tricksCount: 0,
+    categoriesCount: 0,
+    tagsCount: 0,
+  });
+  const [achievementCategories, setAchievementCategories] = useState<AchievementCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchProfileAndStats();
+    fetchProfileData();
   }, []);
 
-  const fetchProfileAndStats = async () => {
+  const fetchProfileData = async () => {
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (user) {
-        // Fetch profile
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select(
-            "id, username, email, is_active, is_verified, subscription_type, created_at, updated_at"
-          )
-          .eq("id", user.id)
-          .single();
 
-        if (profileError) throw profileError;
-        setProfile(profileData);
-
-        // Fetch stats (you might need to create this table or view)
-        // For now, we'll use placeholder data
-        setStats({
-          tricks_created: 0,
-          tricks_viewed: 0,
-          tricks_favorited: 0,
-        });
+      if (!user) {
+        router.replace("/auth/login");
+        return;
       }
+
+      // Fetch profile
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, username, email, avatar_url, subscription_type, created_at")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError) throw profileError;
+      setProfile(profileData);
+
+      // Fetch user stats
+      const userStats = await userStatsService.getUserStats(user.id);
+      setStats({
+        tricksCount: userStats.tricksCount,
+        categoriesCount: userStats.categoriesCount,
+        tagsCount: userStats.tagsCount,
+      });
+
+      // Fetch achievements (they auto-update via event tracking system)
+      const achievements = await achievementsService.getAchievementsByCategory(user.id);
+      console.log("📊 Achievements fetched:", achievements.length, "categories");
+      console.log("📊 Achievement details:", JSON.stringify(achievements, null, 2));
+      setAchievementCategories(achievements);
     } catch (error) {
-      console.error("Error fetching profile:", error);
+      console.error("Error fetching profile data:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    await signOut();
-    router.replace("/auth/login");
-  };
-
   if (loading) {
     return (
-      <StyledView className="flex-1 justify-center items-center">
-        <ActivityIndicator size="large" color="#0f0" />
-      </StyledView>
+      <StyledLinearGradient
+        colors={["#15322C", "#15322C"]}
+        className="flex-1 justify-center items-center"
+      >
+        <StatusBar barStyle="light-content" backgroundColor="#15322C" />
+        <ActivityIndicator size="large" color="#5BB9A3" />
+      </StyledLinearGradient>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <StyledLinearGradient
+        colors={["#15322C", "#15322C"]}
+        className="flex-1 justify-center items-center"
+      >
+        <StatusBar barStyle="light-content" backgroundColor="#15322C" />
+        <StyledText className="text-white" style={{ fontFamily: fontNames.regular }}>
+          {t("profile.errorLoadingProfile")}
+        </StyledText>
+      </StyledLinearGradient>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <StyledScrollView className="flex-1">
-        <StyledView className="p-4">
+    <StyledView className="flex-1">
+      <StatusBar barStyle="light-content" backgroundColor="#15322C" />
+      <LinearGradient
+        colors={["#15322C", "#15322C"]}
+        style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+        }}
+      />
+
+      <SafeAreaView style={{ flex: 1 }}>
+        {/* Header */}
+        <StyledView className="flex-row items-center justify-center px-5 py-3">
+          <StyledTouchableOpacity
+            onPress={() => router.back()}
+            className="absolute left-5"
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </StyledTouchableOpacity>
+          <StyledText
+            style={{
+              color: "#FFFFFF",
+              fontSize: 20,
+              fontFamily: fontNames.semiBold,
+              includeFontPadding: false,
+            }}
+          >
+            {t("profile.title")}
+          </StyledText>
+        </StyledView>
+
+        {/* Scrollable Content */}
+        <StyledScrollView
+          className="flex-1"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+        >
+        {/* User Data Card */}
+        <StyledView
+          className="rounded-2xl mb-6 overflow-hidden"
+          style={{
+            borderWidth: 1,
+            borderColor: "rgba(255, 255, 255, 0.3)",
+            backgroundColor: "rgba(255, 255, 255, 0.05)",
+          }}
+        >
+          {/* Edit Button */}
+          <StyledTouchableOpacity
+            onPress={() => router.push("/(app)/profile/edit")}
+            className="absolute top-3 right-3 z-10 p-2"
+            style={{
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              borderRadius: 8,
+            }}
+          >
+            <Ionicons name="create-outline" size={20} color="white" />
+          </StyledTouchableOpacity>
+
           {/* Profile Header */}
-          <StyledView className="items-center mb-6">
-            <StyledView
-              className="w-24 h-24 rounded-full overflow-hidden mb-4 justify-center items-center"
-              style={{
-                backgroundColor: '#10B981',
-                borderWidth: 3,
-                borderColor: 'rgba(255, 255, 255, 0.2)',
-              }}
-            >
-              <FontAwesome name="user-circle" size={80} color="white" style={{ marginTop: -2 }} />
-            </StyledView>
-            <StyledText
-              className="text-white text-2xl font-bold"
-              style={{
-                fontFamily: fontNames.bold,
-                fontSize: 24,
-                includeFontPadding: false,
-              }}
-            >
-              {profile?.username}
-            </StyledText>
-            <StyledText
-              className="text-gray-400"
-              style={{
-                fontFamily: fontNames.regular,
-                fontSize: 16,
-                includeFontPadding: false,
-              }}
-            >
-              {profile?.email}
-            </StyledText>
-            <StyledText
-              className="text-gray-400"
-              style={{
-                fontFamily: fontNames.light,
-                fontSize: 14,
-                includeFontPadding: false,
-              }}
-            >
-              {t("memberSince")}:{" "}
-              {new Date(profile?.created_at || "").toLocaleDateString()}
-            </StyledText>
-            <StyledText
-              className="text-gray-400"
-              style={{
-                fontFamily: fontNames.light,
-                fontSize: 14,
-                includeFontPadding: false,
-              }}
-            >
-              {t("subscriptionType")}: {profile?.subscription_type}
-            </StyledText>
-          </StyledView>
+          <ProfileHeader
+            userId={profile.id}
+            avatarUrl={profile.avatar_url}
+            username={profile.username}
+            email={profile.email}
+            memberSince={profile.created_at}
+            subscriptionType={profile.subscription_type}
+            fontNames={fontNames}
+          />
 
-          {/* Stats */}
-          <StyledView className="rounded-xl mb-6 overflow-hidden">
-            <StyledBlurView intensity={20} tint="dark" experimentalBlurMethod="dimezisBlurView" className="rounded-xl">
-              <StyledView className="flex-row justify-around p-4">
-                <StyledView className="items-center">
-                  <StyledText
-                    className="text-white text-lg font-bold"
-                    style={{
-                      fontFamily: fontNames.bold,
-                      fontSize: 18,
-                      includeFontPadding: false,
-                    }}
-                  >
-                    {stats?.tricks_created || 0}
-                  </StyledText>
-                  <StyledText
-                    className="text-gray-400"
-                    style={{
-                      fontFamily: fontNames.regular,
-                      fontSize: 12,
-                      includeFontPadding: false,
-                    }}
-                  >
-                    {t("tricksCreated")}
-                  </StyledText>
-                </StyledView>
-                <StyledView className="items-center">
-                  <StyledText
-                    className="text-white text-lg font-bold"
-                    style={{
-                      fontFamily: fontNames.bold,
-                      fontSize: 18,
-                      includeFontPadding: false,
-                    }}
-                  >
-                    {stats?.tricks_viewed || 0}
-                  </StyledText>
-                  <StyledText
-                    className="text-gray-400"
-                    style={{
-                      fontFamily: fontNames.regular,
-                      fontSize: 12,
-                      includeFontPadding: false,
-                    }}
-                  >
-                    {t("tricksViewed")}
-                  </StyledText>
-                </StyledView>
-                <StyledView className="items-center">
-                  <StyledText
-                    className="text-white text-lg font-bold"
-                    style={{
-                      fontFamily: fontNames.bold,
-                      fontSize: 18,
-                      includeFontPadding: false,
-                    }}
-                  >
-                    {stats?.tricks_favorited || 0}
-                  </StyledText>
-                  <StyledText
-                    className="text-gray-400"
-                    style={{
-                      fontFamily: fontNames.regular,
-                      fontSize: 12,
-                      includeFontPadding: false,
-                    }}
-                  >
-                    {t("tricksFavorited")}
-                  </StyledText>
-                </StyledView>
-              </StyledView>
-            </StyledBlurView>
-          </StyledView>
+          {/* Divider */}
+          <StyledView
+            className="mx-6 mb-4"
+            style={{
+              height: 0.5,
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+            }}
+          />
 
-          {/* Actions */}
-          <StyledView className="space-y-4">
-            <StyledTouchableOpacity className="flex-row items-center bg-emerald-700 p-4 rounded-xl">
-              <MaterialIcons name="edit" size={24} color="white" />
-              <StyledText
-                className="text-white ml-4"
-                style={{
-                  fontFamily: fontNames.medium,
-                  fontSize: 16,
-                  includeFontPadding: false,
-                }}
-              >
-                {t("editProfile")}
-              </StyledText>
-            </StyledTouchableOpacity>
-
-            <StyledTouchableOpacity className="flex-row items-center bg-emerald-700 p-4 rounded-xl">
-              <MaterialCommunityIcons
-                name="trophy-award"
-                size={24}
-                color="white"
-              />
-              <StyledText
-                className="text-white ml-4"
-                style={{
-                  fontFamily: fontNames.medium,
-                  fontSize: 16,
-                  includeFontPadding: false,
-                }}
-              >
-                {t("achievements")}
-              </StyledText>
-            </StyledTouchableOpacity>
-
-            <StyledTouchableOpacity className="flex-row items-center bg-emerald-700 p-4 rounded-xl">
-              <Ionicons name="time" size={24} color="white" />
-              <StyledText
-                className="text-white ml-4"
-                style={{
-                  fontFamily: fontNames.medium,
-                  fontSize: 16,
-                  includeFontPadding: false,
-                }}
-              >
-                {t("activityHistory")}
-              </StyledText>
-            </StyledTouchableOpacity>
-
-            <StyledTouchableOpacity
-              onPress={handleLogout}
-              className="flex-row items-center bg-red-700 p-4 rounded-xl"
-            >
-              <MaterialIcons name="logout" size={24} color="white" />
-              <StyledText
-                className="text-white ml-4"
-                style={{
-                  fontFamily: fontNames.medium,
-                  fontSize: 16,
-                  includeFontPadding: false,
-                }}
-              >
-                {t("logout")}
-              </StyledText>
-            </StyledTouchableOpacity>
+          {/* Stats Row */}
+          <StyledView className="flex-row justify-around pb-4">
+            <StatsCard
+              count={stats.tricksCount}
+              label={t("profile.itemsMagicos")}
+              fontNames={fontNames}
+            />
+            <StatsCard
+              count={stats.categoriesCount}
+              label={t("profile.categorias")}
+              fontNames={fontNames}
+            />
+            <StatsCard
+              count={stats.tagsCount}
+              label={t("profile.tags")}
+              fontNames={fontNames}
+            />
           </StyledView>
         </StyledView>
+
+        {/* Achievements Section */}
+        <StyledView className="mb-6">
+          {/* Section Title */}
+          <StyledView className="flex-row items-center mb-4">
+            <Ionicons name="trophy" size={24} color="#5BB9A3" />
+            <StyledText
+              className="text-white text-xl ml-2"
+              style={{ fontFamily: fontNames.bold }}
+            >
+              {t("profile.logros")}
+            </StyledText>
+          </StyledView>
+
+          {/* Achievement Groups */}
+          {achievementCategories.length > 0 ? (
+            achievementCategories.map((category) => (
+              <CollapsibleAchievementGroup
+                key={category.category}
+                category={category}
+                fontNames={fontNames}
+              />
+            ))
+          ) : (
+            <StyledView
+              className="p-6 rounded-2xl items-center"
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.05)",
+                borderWidth: 1,
+                borderColor: "rgba(255, 255, 255, 0.2)",
+              }}
+            >
+              <StyledText
+                className="text-gray-400 text-center"
+                style={{ fontFamily: fontNames.regular }}
+              >
+                {t("profile.noAchievementsYet")}
+                {"\n"}{t("profile.startCreating")}
+              </StyledText>
+            </StyledView>
+          )}
+        </StyledView>
       </StyledScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </StyledView>
   );
 }

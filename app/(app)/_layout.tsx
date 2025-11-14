@@ -48,6 +48,7 @@ export default function AppLayout() {
   const isGimmickViewRoute =
     pathname.includes("/gimmick/") || pathname.includes("/gimmicks/");
   const isProfileOptionsRoute = pathname.includes("/profile-options");
+  const isProfileRoute = pathname === "/profile" || pathname.startsWith("/profile/");
   const isSettingsRoute = pathname.includes("/settings");
   const isRemindersRoute = pathname.includes("/reminders");
   const isTagsRoute = pathname.includes("/tags");
@@ -63,6 +64,7 @@ export default function AppLayout() {
     isGimmickViewRoute ||
     isMMENTOAIroute ||
     isProfileOptionsRoute ||
+    isProfileRoute ||
     isSettingsRoute ||
     isRemindersRoute ||
     isTagsRoute ||

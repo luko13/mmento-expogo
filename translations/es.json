@@ -501,5 +501,21 @@
     "alphabetically": "Alfabéticamente",
     "byUsage": "Por uso",
     "byDate": "Por fecha"
+  },
+  "profile": {
+    "title": "Profile",
+    "editProfile": "Editar Perfil",
+    "underConstruction": "En Construcción",
+    "underConstructionMessage": "La funcionalidad de edición de perfil estará disponible próximamente.\n\nAquí podrás editar tu foto de perfil, nombre de usuario, y otros datos personales.",
+    "memberSince": "Miembro desde",
+    "itemsMagicos": "Items Mágicos",
+    "categorias": "Categorías",
+    "tags": "Tags",
+    "logros": "Logros",
+    "noAchievementsYet": "No hay logros disponibles todavía.",
+    "startCreating": "Empieza creando tu primer item mágico!",
+    "viewAll": "Ver todos",
+    "showLess": "Mostrar menos",
+    "errorLoadingProfile": "Error loading profile"
   }
 }

@@ -499,5 +499,21 @@
     "alphabetically": "Alphabetically",
     "byUsage": "By usage",
     "byDate": "By date"
+  },
+  "profile": {
+    "title": "Profile",
+    "editProfile": "Edit Profile",
+    "underConstruction": "Under Construction",
+    "underConstructionMessage": "Profile editing functionality will be available soon.\n\nHere you'll be able to edit your profile picture, username, and other personal details.",
+    "memberSince": "Member since",
+    "itemsMagicos": "Magic Items",
+    "categorias": "Categories",
+    "tags": "Tags",
+    "logros": "Achievements",
+    "noAchievementsYet": "No achievements available yet.",
+    "startCreating": "Start by creating your first magic item!",
+    "viewAll": "View all",
+    "showLess": "Show less",
+    "errorLoadingProfile": "Error loading profile"
   }
 }
